@@ -1,7 +1,6 @@
 package ing.fuyaoskyrocket.photoinfo.presentation
 
 import android.app.Application
-import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +19,9 @@ import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoInfo
 import ing.fuyaoskyrocket.photoinfo.platform.CardRenderer
 import ing.fuyaoskyrocket.photoinfo.platform.FontRepository
+import ing.fuyaoskyrocket.photoinfo.data.settings.SettingsRepository
+import ing.fuyaoskyrocket.photoinfo.data.location.PhotoGeocoder
+import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,12 +34,17 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private val fonts = FontRepository(application)
     private val renderer = CardRenderer()
     private val exporter = PhotoExporter(application, photos)
-    private val preferences = application.getSharedPreferences("editor", Context.MODE_PRIVATE)
+    private val settingsRepository = SettingsRepository(application)
+    private val geocoder = PhotoGeocoder(application)
+    private var locationJob: Job? = null
+    private var locationRevision = 0L
+    private var resolvedLocation = ""
     private var source: PhotoSource? = null
     private var renderJob: Job? = null
     var state by mutableStateOf(EditorState(
         style = readStyle(), fontName = fonts.displayName, hasCustomFont = fonts.hasCustomFont,
         keepCaptureMetadata = saved["keepMetadata"] ?: true,
+        settings = settingsRepository.read(),
     )); private set
 
     init {
@@ -49,9 +56,11 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                     val bitmap = withContext(Dispatchers.IO) { photos.decode(restored, preview = true) }
                     val values = FieldId.entries.associateWith { saved.get<String>("field.${it.name}") ?: restored.info[it] }
                     source = restored
+                    resolvedLocation = saved["resolvedLocation"] ?: ""
                     state = state.copy(original = bitmap, preview = bitmap, info = PhotoInfo(values),
-                        width = restored.width, height = restored.height, busy = false)
+                        width = restored.width, height = restored.height, busy = false, hasPhotoGps = restored.coordinates != null)
                     renderPreview()
+                    if (state.info[FieldId.LOCATION].isBlank() && saved.get<Boolean>("locationEdited") != true) resolveLocation()
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) {
                     saved.remove<String>("source")
@@ -66,6 +75,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     fun importPhoto(uri: Uri) {
         if (state.busy) return
         renderJob?.cancel()
+        cancelLocation()
         state = state.copy(busy = true, error = null, rendering = false)
         viewModelScope.launch {
             var imported: PhotoSource? = null
@@ -73,14 +83,19 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                 val loaded = withContext(Dispatchers.IO) { photos.import(uri) }.also { imported = it }
                 val bitmap = withContext(Dispatchers.IO) { photos.decode(loaded, preview = true) }
                 var info = loaded.info
-                if (info[FieldId.AUTHOR].isBlank()) info = info.with(FieldId.AUTHOR, preferences.getString("author", "").orEmpty())
+                info = info.with(FieldId.AUTHOR, state.settings.authorFor(info[FieldId.AUTHOR]))
                 source = loaded
+                resolvedLocation = ""
+                saved["resolvedLocation"] = ""
+                saved["locationEdited"] = false
                 state = state.copy(info = info, original = bitmap, preview = bitmap, busy = true,
-                    width = loaded.width, height = loaded.height, previewError = null)
+                    width = loaded.width, height = loaded.height, previewError = null,
+                    hasPhotoGps = loaded.coordinates != null, locationStatus = LocationStatus.IDLE)
                 persist()
                 withContext(Dispatchers.IO) { photos.removeOtherDrafts(loaded.file) }
                 state = state.copy(busy = false)
                 renderPreview()
+                resolveLocation()
             } catch (cancelled: CancellationException) {
                 if (source?.file != imported?.file) imported?.file?.delete()
                 throw cancelled
@@ -98,14 +113,65 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     fun updateField(field: FieldId, value: String) {
         if (state.busy || value.length > 512) return
         state = state.copy(info = state.info.with(field, value))
-        if (field == FieldId.AUTHOR) preferences.edit().putString("author", value).apply()
+        if (field == FieldId.LOCATION) {
+            cancelLocation()
+            saved["locationEdited"] = true
+        }
         persist()
         renderPreview()
     }
 
     fun resetFields() {
         if (state.busy) return
-        source?.let { loaded -> state = state.copy(info = loaded.info); persist(); renderPreview() }
+        cancelLocation()
+        saved["locationEdited"] = false
+        source?.let { loaded ->
+            state = state.copy(info = loaded.info.with(FieldId.AUTHOR, state.settings.authorFor(loaded.info[FieldId.AUTHOR]))
+                .with(FieldId.LOCATION, resolvedLocation))
+            persist(); renderPreview()
+            if (resolvedLocation.isBlank()) resolveLocation()
+        }
+    }
+
+    fun saveSettings(settings: EditorSettings) {
+        if (!settings.validFocal || settings.defaultAuthor.length > 512) return
+        settingsRepository.save(settings)
+        state = state.copy(settings = settingsRepository.read())
+        if (!settings.resolvePhotoLocation) {
+            cancelLocation()
+            state = state.copy(locationStatus = LocationStatus.DISABLED)
+        } else if (state.info[FieldId.LOCATION].isBlank() && saved.get<Boolean>("locationEdited") != true && !state.busy) resolveLocation()
+    }
+
+    fun applyDefaultAuthor() = updateField(FieldId.AUTHOR, state.settings.defaultAuthor)
+
+    private fun cancelLocation() {
+        locationRevision++
+        locationJob?.cancel()
+        state = state.copy(locationStatus = LocationStatus.IDLE)
+    }
+
+    fun resolveLocation() {
+        val photo = source ?: return
+        if (state.busy) return
+        cancelLocation()
+        if (!state.settings.resolvePhotoLocation) { state = state.copy(locationStatus = LocationStatus.DISABLED); return }
+        val point = photo.coordinates ?: run { state = state.copy(locationStatus = LocationStatus.NO_GPS); return }
+        saved["locationEdited"] = false
+        val revision = locationRevision
+        state = state.copy(locationStatus = LocationStatus.RESOLVING)
+        locationJob = viewModelScope.launch {
+            val place = try { geocoder.resolve(point) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { null }
+            // Ignore late provider callbacks after another photo, manual edit, settings change, or export.
+            if (revision != locationRevision || source?.file != photo.file) return@launch
+            if (place == null) { state = state.copy(locationStatus = LocationStatus.UNAVAILABLE); return@launch }
+            resolvedLocation = place
+            saved["resolvedLocation"] = place
+            state = state.copy(info = state.info.with(FieldId.LOCATION, place), locationStatus = LocationStatus.RESOLVED)
+            persist(); renderPreview()
+        }
     }
 
     fun updateStyle(style: CardStyle) {
@@ -146,6 +212,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     fun export(format: ExportFormat, destination: Uri? = null) {
         val photo = source ?: return
         if (!state.canExport) return
+        cancelLocation()
         val snapshot = state
         val typeface = fonts.typeface
         state = state.copy(busy = true, exporting = true, error = null)

@@ -9,7 +9,7 @@
   <string name="close">关闭</string>
   <string name="tab_info">信息</string>
   <string name="tab_style">样式</string>
-  <string name="field_hint">空值自动隐藏；地点和镜头倍率需手动填写。照片无署名时沿用上次填写的署名。</string>
+  <string name="field_hint">空值自动隐藏；自动读取可用的照片 GPS 和已识别镜头信息，所有字段均可修改。默认摄影者可在设置中保存。</string>
   <string name="field_device">设备</string>
   <string name="field_author">摄影者</string>
   <string name="field_location">地点</string>
@@ -50,4 +50,25 @@
   <string name="error_overflow">信息卡高度超过照片，请减小卡片比例或精简文字。未截断任何内容。</string>
   <string name="error_memory">内存不足以处理此照片。请关闭其他应用或选择较小的照片；应用没有自动降低导出分辨率。</string>
   <string name="error_operation">无法完成操作：%1$s</string>
+  <string name="settings">设置</string>
+  <string name="back">返回</string>
+  <string name="default_author">默认摄影者</string>
+  <string name="default_author_hint">照片 EXIF 未记录摄影者时自动填入。单张照片的署名修改不会改变此默认值。</string>
+  <string name="save_apply_author">保存并应用到当前照片</string>
+  <string name="resolve_location">将照片 GPS 解析为地点</string>
+  <string name="resolve_location_hint">将照片坐标交给 Android 系统地名服务，可能需要联网；不读取当前位置、不上传照片。优先请求英文城市与国家名。导出 EXIF 仍不包含 GPS。</string>
+  <string name="lens_settings">镜头识别</string>
+  <string name="lens_settings_hint">已内置 Xiaomi 17 Ultra 和 Xiaomi 14 档案。其他设备优先读取镜头字段中的明确倍率；也可在下面设置 1× 主摄的等效焦距。</string>
+  <string name="main_focal">未识别机型：1× 等效焦距（mm）</string>
+  <string name="main_focal_hint">可选，仅应用于后续导入的未识别机型。留空时，无法确认倍率就只显示焦距。</string>
+  <string name="main_focal_error">请填写 1～200 的数值，或留空。</string>
+  <string name="from_gallery">从相册选择</string>
+  <string name="from_file">从文件导入（原始 EXIF）</string>
+  <string name="location_resolving">正在解析照片地点，可继续编辑。</string>
+  <string name="location_resolved">已根据照片 GPS 解析地名，可手动修改。</string>
+  <string name="location_unavailable">未能获得地名，请检查网络后重试，或手动填写。</string>
+  <string name="location_no_gps">照片中没有可读取的 GPS。可尝试从文件导入原片，或手动填写地点。</string>
+  <string name="location_disabled">设置中已关闭自动地名解析。</string>
+  <string name="location_hint">使用照片 GPS，不使用设备当前位置。</string>
+  <string name="location_retry">重新解析照片 GPS</string>
 </resources>

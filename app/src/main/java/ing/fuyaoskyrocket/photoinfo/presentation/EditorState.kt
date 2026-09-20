@@ -5,6 +5,9 @@ import android.net.Uri
 import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
 import ing.fuyaoskyrocket.photoinfo.domain.model.ExportFormat
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoInfo
+import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
+
+enum class LocationStatus { IDLE, RESOLVING, RESOLVED, UNAVAILABLE, NO_GPS, DISABLED }
 
 data class ExportedPhoto(val uri: Uri, val format: ExportFormat)
 data class EditorState(
@@ -24,6 +27,9 @@ data class EditorState(
     val hasCustomFont: Boolean = false,
     val keepCaptureMetadata: Boolean = true,
     val exported: ExportedPhoto? = null,
+    val settings: EditorSettings = EditorSettings(),
+    val locationStatus: LocationStatus = LocationStatus.IDLE,
+    val hasPhotoGps: Boolean = false,
 ) {
     val canExport get() = original != null && !busy && !rendering && previewError == null
 }

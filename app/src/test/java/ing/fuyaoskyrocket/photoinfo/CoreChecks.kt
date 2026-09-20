@@ -3,6 +3,9 @@ package ing.fuyaoskyrocket.photoinfo
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardLayoutEngine
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardOverflowException
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting as Format
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.AndroidLensMetadata
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.LocationFormatting
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.PhotoCoordinates
 import ing.fuyaoskyrocket.photoinfo.domain.model.*
 import ing.fuyaoskyrocket.photoinfo.domain.render.BoxBlur
 import kotlin.math.abs
@@ -53,6 +56,62 @@ object CoreChecks {
             }
         }
         verify("focal formatting never invents zoom") { check(Format.equivalentFocalLength(24.0) == "24 MM") }
+        verify("Xiaomi 17 Ultra 75mm uses the supplied 3.2x camera convention") {
+            val lens = AndroidLensMetadata.resolve("Xiaomi", "Xiaomi 17 Ultra by Leica", "", 75.0)
+            check(lens.focalLength == "75 MM (3.2X)")
+            check(lens.camera == "LEICA TELEPHOTO")
+        }
+        verify("known main and ultrawide lenses have matching magnifications") {
+            check(AndroidLensMetadata.resolve("Xiaomi", "14", "", 23.0).focalLength == "23 MM (1X)")
+            check(AndroidLensMetadata.resolve("Xiaomi", "14", "", 14.0).focalLength == "14 MM (0.6X)")
+            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "", 100.0).focalLength == "100 MM (4.3X)")
+            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "", 21.0).focalLength == "21 MM")
+            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "Front camera", 23.0).camera == "Front camera")
+            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "Front camera", 23.0, 24.0).focalLength == "23 MM")
+        }
+        verify("unknown devices do not inherit Xiaomi lens mappings") {
+            val lens = AndroidLensMetadata.resolve("Samsung", "UNKNOWN", "", 75.0)
+            check(lens.focalLength == "75 MM" && lens.camera.isEmpty())
+            check(AndroidLensMetadata.resolve("Xiaomi", "UNKNOWN", "", 75.0).focalLength == "75 MM")
+        }
+        verify("unknown device calibration and explicit lens zoom") {
+            check(AndroidLensMetadata.resolve("Brand", "Device", "", 72.0, 24.0).focalLength == "72 MM (3X)")
+            val lens = AndroidLensMetadata.resolve("Brand", "Device", "TELEPHOTO (3.2x)", 75.0)
+            check(lens.focalLength == "75 MM (3.2X)" && lens.camera == "TELEPHOTO (3.2x)")
+            check(AndroidLensMetadata.resolve("Brand", "Device", "", 75.0, Double.NaN).focalLength == "75 MM")
+        }
+        verify("missing equivalent focal length stays empty") {
+            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "Existing lens", 0.0).focalLength.isEmpty())
+            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "Existing lens", 0.0).camera == "Existing lens")
+        }
+        verify("reference place format uses city and English country") {
+            check(LocationFormatting.place("Hangzhou", null, "Zhejiang", "中国", "CN") == "Hangzhou, China")
+            check(LocationFormatting.place("Paris", null, null, "France", "FR") == "Paris, France")
+            check(LocationFormatting.place("Singapore", null, null, "Singapore", "SG") == "Singapore")
+        }
+        verify("place fallback omits empty fields and duplicates") {
+            check(LocationFormatting.place(null, "County", "Region", "Country", null) == "County, Country")
+            check(LocationFormatting.place(null, null, "Region", null, null) == "Region")
+            check(LocationFormatting.place(null, null, null, null, null).isEmpty())
+        }
+        verify("EXIF coordinates are validated without rejecting the equator") {
+            check(PhotoCoordinates.from(0.0, 0.0) != null)
+            check(PhotoCoordinates.from(-45.0, -120.0) != null)
+            check(PhotoCoordinates.from(91.0, 0.0) == null)
+            check(PhotoCoordinates.from(0.0, Double.NaN) == null)
+        }
+        verify("default photographer only fills missing EXIF") {
+            val settings = EditorSettings(defaultAuthor = " Default ")
+            check(settings.authorFor("") == "Default")
+            check(settings.authorFor("Photo author") == "Photo author")
+        }
+        verify("unknown lens calibration accepts only bounded positive values") {
+            check(EditorSettings(fallbackMainFocal = "").validFocal)
+            check(EditorSettings(fallbackMainFocal = "23.4375").mainFocalMm == 23.4375)
+            for (invalid in listOf("0", "201", "NaN", "Infinity", "abc")) {
+                check(!EditorSettings(fallbackMainFocal = invalid).validFocal)
+            }
+        }
         verify("reference geometry exactly matches 1527x859") {
             val x = requireNotNull(layout(1527,859,all))
             near(x.box.width,215f); near(x.box.height,168f); near(x.box.right,1450f); near(x.box.bottom,824f)

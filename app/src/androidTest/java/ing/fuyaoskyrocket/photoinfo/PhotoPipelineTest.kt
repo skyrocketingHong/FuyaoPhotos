@@ -15,6 +15,8 @@ import ing.fuyaoskyrocket.photoinfo.data.photo.PhotoRepository
 import ing.fuyaoskyrocket.photoinfo.domain.model.*
 import ing.fuyaoskyrocket.photoinfo.platform.CardRenderer
 import ing.fuyaoskyrocket.photoinfo.platform.FontRepository
+import ing.fuyaoskyrocket.photoinfo.data.settings.SettingsRepository
+import android.content.Context
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -26,6 +28,40 @@ import kotlin.math.abs
 @RunWith(AndroidJUnit4::class)
 class PhotoPipelineTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    @Test fun exifGpsAndXiaomiLensAreReadTogether() = runBlocking {
+        val original = quadrantPhoto(1)
+        ExifInterface(original).apply {
+            setAttribute(ExifInterface.TAG_MAKE, "Xiaomi")
+            setAttribute(ExifInterface.TAG_MODEL, "Xiaomi 17 Ultra by Leica")
+            setAttribute(ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM, "75")
+            saveAttributes()
+        }
+        try {
+            val source = PhotoRepository(context).import(Uri.fromFile(original))
+            try {
+                assertEquals(30.0, requireNotNull(source.coordinates).latitude, .00001)
+                assertEquals(120.0, requireNotNull(source.coordinates).longitude, .00001)
+                assertEquals("75 MM (3.2X)", source.info[FieldId.FOCAL_LENGTH])
+                assertEquals("LEICA TELEPHOTO", source.info[FieldId.CAMERA])
+                assertTrue(source.info[FieldId.LOCATION].isEmpty()) // No invented place before geocoding.
+            } finally { source.file.delete() }
+        } finally { original.delete() }
+    }
+
+    @Test fun settingsPersistAndMigrateThePreviousPhotographer() {
+        val preferences = context.getSharedPreferences("editor", Context.MODE_PRIVATE)
+        val repository = SettingsRepository(context)
+        val previous = repository.read()
+        try {
+            preferences.edit().remove("defaultAuthor").putString("author", "Legacy author").commit()
+            assertEquals("Legacy author", repository.read().defaultAuthor)
+            val expected = EditorSettings("New author", false, "24")
+            repository.save(expected)
+            assertEquals(expected, SettingsRepository(context).read())
+            assertFalse(preferences.contains("author"))
+        } finally { repository.save(previous) }
+    }
 
     @Test fun bundledFontIsDefaultAndResetRestoresIt() {
         val fonts = FontRepository(context)

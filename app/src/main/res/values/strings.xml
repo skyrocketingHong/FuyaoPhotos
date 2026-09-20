@@ -9,7 +9,7 @@
   <string name="close">Close</string>
   <string name="tab_info">Information</string>
   <string name="tab_style">Style</string>
-  <string name="field_hint">Blank fields are hidden. Location and lens magnification are entered manually. Author is reused for new photos when EXIF has no author.</string>
+  <string name="field_hint">Blank fields are hidden. Photo GPS and known lens metadata are filled automatically when available. All fields remain editable; set the default photographer in Settings.</string>
   <string name="field_device">Device</string>
   <string name="field_author">Shot by</string>
   <string name="field_location">Location</string>
@@ -50,4 +50,25 @@
   <string name="error_overflow">The card is taller than the photo. Reduce card scale or shorten the text. No text has been truncated.</string>
   <string name="error_memory">There is not enough memory for this photo. Close other apps or choose a smaller image. Export resolution has not been reduced.</string>
   <string name="error_operation">Could not complete the operation: %1$s</string>
+  <string name="settings">Settings</string>
+  <string name="back">Back</string>
+  <string name="default_author">Default photographer</string>
+  <string name="default_author_hint">Saved for future imports when EXIF has no photographer. Editing one photo does not change this default.</string>
+  <string name="save_apply_author">Save and apply to current photo</string>
+  <string name="resolve_location">Resolve photo GPS to a place</string>
+  <string name="resolve_location_hint">Sends photo coordinates to the Android system place-name service, which may use the network. It does not read your current location or upload the photo. English city and country names are requested. Exported EXIF still excludes GPS.</string>
+  <string name="lens_settings">Lens recognition</string>
+  <string name="lens_settings_hint">Known profiles include Xiaomi 17 Ultra and Xiaomi 14. For other devices, an explicit zoom in LensModel is preferred; optionally set the equivalent focal length of the 1× main camera below.</string>
+  <string name="main_focal">Unknown device: 1× equivalent focal length (mm)</string>
+  <string name="main_focal_hint">Optional. Applies to future imports from unknown devices. Leave blank to show focal length only when zoom is unknown.</string>
+  <string name="main_focal_error">Enter a number from 1 to 200, or leave blank.</string>
+  <string name="from_gallery">From gallery</string>
+  <string name="from_file">From file (original EXIF)</string>
+  <string name="location_resolving">Resolving photo location… You can keep editing.</string>
+  <string name="location_resolved">Place resolved from photo GPS. You can edit it.</string>
+  <string name="location_unavailable">No place returned. Check the network, retry, or enter it manually.</string>
+  <string name="location_no_gps">No readable GPS in this photo. Try importing the original from Files, or enter a place manually.</string>
+  <string name="location_disabled">Automatic place lookup is off in Settings.</string>
+  <string name="location_hint">Uses the photo GPS, not your current location.</string>
+  <string name="location_retry">Resolve again from photo GPS</string>
 </resources>

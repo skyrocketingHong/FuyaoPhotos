@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
 import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
+import ing.fuyaoskyrocket.photoinfo.presentation.LocationStatus
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
 import kotlin.math.roundToInt
 
@@ -20,7 +21,7 @@ import kotlin.math.roundToInt
 fun EditorControls(
     state: EditorState, onField: (FieldId, String) -> Unit,
     onStyle: (CardStyle) -> Unit, onResetFields: () -> Unit,
-    onImportFont: () -> Unit, onResetFont: () -> Unit, modifier: Modifier = Modifier,
+    onImportFont: () -> Unit, onResetFont: () -> Unit, onResolveLocation: () -> Unit, modifier: Modifier = Modifier,
 ) {
     var selected by rememberSaveable { mutableIntStateOf(0) }
     val enabled = !state.busy
@@ -43,6 +44,21 @@ fun EditorControls(
                         singleLine = field !in setOf(FieldId.AUTHOR, FieldId.LOCATION, FieldId.CAMERA),
                         maxLines = if (field in setOf(FieldId.AUTHOR, FieldId.LOCATION, FieldId.CAMERA)) 3 else 1,
                     )
+                    if (field == FieldId.LOCATION && state.original != null) {
+                        val message = when (state.locationStatus) {
+                            LocationStatus.RESOLVING -> R.string.location_resolving
+                            LocationStatus.RESOLVED -> R.string.location_resolved
+                            LocationStatus.UNAVAILABLE -> R.string.location_unavailable
+                            LocationStatus.NO_GPS -> R.string.location_no_gps
+                            LocationStatus.DISABLED -> R.string.location_disabled
+                            LocationStatus.IDLE -> R.string.location_hint
+                        }
+                        Text(stringResource(message), style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = onResolveLocation,
+                            enabled = enabled && state.hasPhotoGps && state.settings.resolvePhotoLocation && state.locationStatus != LocationStatus.RESOLVING) {
+                            Text(stringResource(R.string.location_retry))
+                        }
+                    }
                 }
                 TextButton(onClick = onResetFields, enabled = enabled && state.original != null) {
                     Text(stringResource(R.string.restore_metadata))

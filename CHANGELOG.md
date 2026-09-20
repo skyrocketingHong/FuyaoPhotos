@@ -2,6 +2,12 @@
 
 ## 1.0.0 — 2026-09-20
 
+### Photo metadata and settings
+
+- Resolve EXIF GPS into city/country using the Android system geocoder, with timeout, retry, cancellation and manual editing. Add photo-metadata permission handling and original-file import.
+- Add a Settings page for a persistent default photographer, optional GPS lookup and unknown-device 1× focal calibration. Single-photo edits no longer modify the global default.
+- Recognize Xiaomi 17 Ultra / Xiaomi 14 lens profiles, including `75 MM (3.2X)`, while preserving explicit lens metadata and avoiding unsupported-device guesses.
+
 ### Added
 
 - Single-photo Android editor with EXIF fields, manual overrides, an inset frosted card, short-edge scaling, wrapping, original comparison, zoom preview and original-resolution JPEG/PNG export.
@@ -18,4 +24,4 @@
 
 ### Validation
 
-58 core checks passed through JUnit. Device tests are authored and compiled but have not run on a connected device. See [build status](docs/BUILD_STATUS.md) for APK, Lint, signing and environment evidence.
+68 core checks passed through JUnit. Device tests are authored and compiled but have not run on a connected device. See [build status](docs/BUILD_STATUS.md) for APK, Lint, signing and environment evidence.

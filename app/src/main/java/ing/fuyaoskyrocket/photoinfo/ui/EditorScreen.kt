@@ -1,5 +1,10 @@
 package ing.fuyaoskyrocket.photoinfo.ui
 
+import android.Manifest
+import android.net.Uri
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.res.painterResource
 import android.content.ClipData
 import android.content.Intent
 import android.os.Build
@@ -35,7 +40,21 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
     var showExport by rememberSaveable { mutableStateOf(false) }
     var fullScreen by rememberSaveable { mutableStateOf(false) }
     var original by rememberSaveable { mutableStateOf(false) }
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { it?.let(vm::importPhoto) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showPhotoMenu by remember { mutableStateOf(false) }
+    var pendingPhoto by rememberSaveable { mutableStateOf<String?>(null) }
+    val photoPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        pendingPhoto?.let { value -> pendingPhoto = null; vm.importPhoto(Uri.parse(value)) }
+    }
+    val importSelectedPhoto: (Uri) -> Unit = { uri ->
+        if (state.settings.resolvePhotoLocation && Build.VERSION.SDK_INT >= 29 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            pendingPhoto = uri.toString()
+            photoPermission.launch(Manifest.permission.ACCESS_MEDIA_LOCATION)
+        } else vm.importPhoto(uri)
+    }
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(importSelectedPhoto) }
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { it?.let(importSelectedPhoto) }
     val fontPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(vm::importFont) }
     val jpegDestination = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/jpeg")) {
         if (it != null) vm.export(ExportFormat.JPEG, it)
@@ -60,13 +79,35 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
             }
         }
     }
+    if (showSettings) {
+        SettingsScreen(state.settings, state.original != null, onBack = { showSettings = false }, onSave = { settings, apply ->
+            vm.saveSettings(settings)
+            if (apply) vm.applyDefaultAuthor()
+            showSettings = false
+        })
+        return
+    }
     Scaffold(
         topBar = {
             TopAppBar(title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium) },
+                navigationIcon = {
+                    IconButton(onClick = { showSettings = true }, enabled = !state.busy) {
+                        Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.settings))
+                    }
+                },
                 actions = {
-                    TextButton(onClick = {
-                        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }, enabled = !state.busy) { Text(stringResource(R.string.select_photo)) }
+                    Box {
+                        TextButton(onClick = { showPhotoMenu = true }, enabled = !state.busy) { Text(stringResource(R.string.select_photo)) }
+                        DropdownMenu(showPhotoMenu, onDismissRequest = { showPhotoMenu = false }) {
+                            DropdownMenuItem(text = { Text(stringResource(R.string.from_gallery)) }, onClick = {
+                                showPhotoMenu = false
+                                photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.from_file)) }, onClick = {
+                                showPhotoMenu = false; filePicker.launch(arrayOf("image/*"))
+                            })
+                        }
+                    }
                     TextButton(onClick = { showExport = true }, enabled = state.canExport) { Text(stringResource(R.string.export)) }
                 })
         }, snackbarHost = { SnackbarHost(snackbar) },
@@ -100,7 +141,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
                 val controls: @Composable (Modifier) -> Unit = { modifier ->
                     EditorControls(state, vm::updateField, vm::updateStyle, vm::resetFields,
                         onImportFont = { fontPicker.launch(arrayOf("*/*")) }, onResetFont = vm::resetFont,
-                        modifier = modifier)
+                        onResolveLocation = vm::resolveLocation, modifier = modifier)
                 }
                 if (wide) Row(Modifier.fillMaxSize()) {
                     preview(Modifier.weight(1f).fillMaxHeight())

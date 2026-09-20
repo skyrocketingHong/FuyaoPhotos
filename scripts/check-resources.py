@@ -15,11 +15,12 @@ for path in (ROOT/'app/src/main/java').rglob('*.kt'):
     missing = set(re.findall(r'R\.string\.(\w+)', path.read_text())) - strings['values']
     assert not missing, f'{path}: missing resources {missing}'
 manifest = ET.parse(ROOT/'app/src/main/AndroidManifest.xml').getroot()
-assert not manifest.findall('uses-permission'), 'Unexpected permission added'
+permissions = {item.attrib['{http://schemas.android.com/apk/res/android}name'] for item in manifest.findall('uses-permission')}
+assert permissions == {'android.permission.ACCESS_MEDIA_LOCATION', 'android.permission.INTERNET'}, 'Unexpected permissions'
 for path in ROOT.rglob('*'):
     if path.is_file() and not any(x in {'.local','build','.gradle','.git'} for x in path.relative_to(ROOT).parts):
         if path.relative_to(ROOT).as_posix() == 'app/src/main/assets/fonts/SF-Mono-Regular.otf':
             assert path.read_bytes()[:4] == b'OTTO', 'Invalid bundled OpenType font'
             continue
         assert path.suffix.lower() not in {'.ttf','.otf','.ttc','.woff','.woff2','.jks','.keystore','.p12'}, f'Unexpected private/binary asset: {path}'
-print(f'PASS: {len(xml_files)} XML files; {len(strings["values"])} matching localized string keys; no declared permissions or unexpected fonts/keys.')
+print(f'PASS: {len(xml_files)} XML files; {len(strings["values"])} matching localized string keys; photo metadata/network permissions only; no unexpected fonts/keys.')

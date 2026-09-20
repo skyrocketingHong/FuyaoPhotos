@@ -7,12 +7,13 @@
   <img src="https://img.shields.io/badge/License-AGPL--3.0--only-blue" alt="AGPL-3.0-only">
 </p>
 
-An on-device, single-photo Android editor. It reads available EXIF metadata and overlays an editable information card without adding a border or changing the photo dimensions. Current build results and device-validation limits are recorded in [BUILD_STATUS.md](docs/BUILD_STATUS.md).
+A single-photo Android editor with local image processing and optional system place-name lookup. It reads available EXIF metadata and overlays an editable information card without adding a border or changing the photo dimensions. Current build results and device-validation limits are recorded in [BUILD_STATUS.md](docs/BUILD_STATUS.md).
 
 ## Features
 
-- Select a photo through the system picker; normalize all eight EXIF orientations, including mirrored images.
-- Edit device, photographer, location, lens, megapixels, equivalent focal length, exposure, aperture and ISO. Missing fields are omitted; location and lens magnification are entered manually.
+- Save a default photographer in Settings; EXIF Artist takes priority, with an explicit action to apply your default to the current photo.
+- Select a photo through the system picker or import an original from Files; normalize all eight EXIF orientations, including mirrored images.
+- Edit device, photographer, location, lens, megapixels, equivalent focal length, exposure, aperture and ISO. Missing fields are omitted. Photo GPS resolves to city/country through the system service; known Xiaomi profiles and optional 1× calibration format lens magnification. All values remain editable.
 - Render device and credits in warm yellow and capture parameters in white. Monospaced text stays opaque over the blurred, translucent neutral-gray background.
 - Scale card geometry with the photo's short edge. Long text wraps along the same left edge; ordinary one-line credit wrapping preserves the reference card size. Longer content expands upward without shrinking or ellipsizing text.
 - Adjust card scale and independent text size (80–180%), opacity, blur, corner radius and right/bottom insets. Default text size remains at the reference 100%; increasing text size preserves card width and expands height only as needed. Compare the original and zoom into a full-screen preview.
@@ -73,13 +74,13 @@ AGP 9.2.1 · Gradle 9.6.1 · Compose compiler 2.4.10 · Compose BOM 2026.06.01 �
 | `scripts`, `.run`, `.github/workflows` | Local checks, builds and CI definition |
 | `references` | Local reference screenshots, excluded from source control |
 
-See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow and restoration boundaries. The legacy `install-workspace.py` helper is for importing an extracted package into another workspace; it is unnecessary when already working in this project.
+See [metadata recognition](docs/METADATA.md) for GPS, default-photographer and lens-profile behavior. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow and restoration boundaries. The legacy `install-workspace.py` helper is for importing an extracted package into another workspace; it is unnecessary when already working in this project.
 
 ## Fonts, privacy and output limits
 
 This local checkout contains SF Mono Regular copied from the macOS Terminal bundle. It is loaded automatically and embedded in APKs built from this checkout. The font binary and reference screenshots are excluded from Git and are not covered by the source license. A source checkout without the font remains buildable with Android monospace. Runtime imports (up to 10 MB) remain in app-private storage.
 
-No Internet, location, camera or broad storage permissions are declared. Optional capture metadata uses an allowlist excluding GPS, serial numbers, MakerNote, XMP and thumbnails. Editing the visible card does not rewrite original capture tags. Visible names and places remain part of exported image pixels.
+The app declares Internet and photo-metadata (`ACCESS_MEDIA_LOCATION`) access, with no current-location, camera or broad storage permission. Place lookup can send photo coordinates to the Android system geocoding provider; the photograph itself stays local. Disable lookup in Settings when not needed. Optional capture metadata uses an allowlist excluding GPS, serial numbers, MakerNote, XMP and thumbnails. Editing the visible card does not rewrite original capture tags. Visible names and places remain part of exported image pixels.
 
 Output is **8-bit sRGB / SDR still imagery**. HDR gain maps, Display P3, high-bit-depth data, Live Photos, RAW processing and animation are not preserved. HEIC decoding depends on the device. JPEG is re-encoded; PNG is lossless only relative to the rendered SDR bitmap. Preview rasterization may differ slightly from full-resolution export.
 
