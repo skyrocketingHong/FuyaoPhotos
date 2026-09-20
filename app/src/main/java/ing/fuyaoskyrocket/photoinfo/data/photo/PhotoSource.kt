@@ -12,4 +12,5 @@ data class PhotoSource(
     val info: PhotoInfo,
     val captureTags: Map<String, String>,
     val coordinates: PhotoCoordinates? = null,
+    val media: ing.fuyaoskyrocket.photoinfo.domain.media.MediaEnvelope = ing.fuyaoskyrocket.photoinfo.domain.media.MediaEnvelope(true),
 )

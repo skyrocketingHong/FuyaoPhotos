@@ -41,8 +41,8 @@
   <string name="original">Original</string>
   <string name="enlarge">Enlarge</string>
   <string name="export_size">Original resolution · %1$d × %2$d</string>
-  <string name="keep_metadata">Keep capture metadata, without GPS</string>
-  <string name="export_boundary">Output: 8-bit sRGB SDR. HDR gain maps, Live Photo video and RAW data are not preserved. A new image is saved; the original is untouched.</string>
+  <string name="keep_metadata">Keep capture metadata, excluding still-image GPS</string>
+  <string name="export_boundary">Supported JPEGs retain Ultra HDR and Motion Photo video. PNG is available only for ordinary still images. Unsupported auxiliary formats stop export. Only the cover changes; untouched video may retain its own metadata.</string>
   <string name="save">Save</string>
   <string name="cancel">Cancel</string>
   <string name="export_success">Photo saved</string>
@@ -63,7 +63,7 @@
   <string name="main_focal_hint">Optional. Applies to future imports from unknown devices. Leave blank to show focal length only when zoom is unknown.</string>
   <string name="main_focal_error">Enter a number from 1 to 200, or leave blank.</string>
   <string name="from_gallery">From gallery</string>
-  <string name="from_file">From file (original EXIF)</string>
+  <string name="from_file">From file (original photo)</string>
   <string name="location_resolving">Resolving photo location… You can keep editing.</string>
   <string name="location_resolved">Place resolved from photo GPS. You can edit it.</string>
   <string name="location_unavailable">No place returned. Check the network, retry, or enter it manually.</string>
@@ -92,4 +92,13 @@
   <string name="zoom_max">Zoom at upper endpoint (×, optional)</string>
   <string name="physical_min">Physical focal min (mm, optional)</string>
   <string name="physical_max">Physical focal max (mm, optional)</string>
+  <string name="media_unsupported">This container cannot yet be exported with all auxiliary data intact. The original stays unchanged; export is blocked instead of flattening it.</string>
+  <string name="hdr_requires_android14">Preserving this Ultra HDR image requires Android 14 or later.</string>
+  <string name="preservation_requires_jpeg">Use JPEG to preserve the HDR gainmap or Motion Photo video. PNG cannot contain these parts.</string>
+  <string name="hdr_not_decoded">The platform could not decode the HDR gainmap. Export stopped to prevent HDR loss.</string>
+  <string name="hdr_not_preserved">The encoded HDR data failed verification. No result was published.</string>
+  <string name="media_validation_failed">The exported media container failed verification. No result was published.</string>
+  <string name="media_hdr">Ultra HDR · gainmap preserved in JPEG; brightness depends on display support.</string>
+  <string name="media_motion">Motion Photo · edit cover only; copy video and audio unchanged.</string>
+  <string name="media_hdr_motion">Ultra HDR Motion Photo · preserve gainmap and original video/audio.</string>
 </resources>

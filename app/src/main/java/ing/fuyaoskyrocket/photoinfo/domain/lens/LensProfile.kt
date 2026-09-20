@@ -17,9 +17,14 @@ data class LensProfile(
     fun valid(): Boolean = id.isNotBlank() && device.isNotBlank() && device.length <= 256 && name.isNotBlank() && name.length <= 256 &&
         range(equivalentMin, equivalentMax, 2000.0) && optionalRange(zoomMin, zoomMax, 200.0) && optionalRange(physicalMin, physicalMax, 1000.0)
     fun acceptsDevice(value: String) = normalize(device) == normalize(value)
-    fun equivalentFor(physical: Double): Double? = physicalMin?.let { low -> physicalMax?.let { high ->
-        if (physical in (low - .02)..(high + .02)) interpolate(physical.coerceIn(low, high), low, high, equivalentMin, equivalentMax) else null
-    } }
+    fun containsPhysical(physical: Double): Boolean = physical.isFinite() && physicalMin != null && physicalMax != null &&
+        physical in (physicalMin - .02)..(physicalMax + .02)
+    fun equivalentFor(physical: Double): Double? {
+        val low=physicalMin ?: return null
+        val high=physicalMax ?: return null
+        if (!containsPhysical(physical) || (low==high && equivalentMin!=equivalentMax)) return null
+        return interpolate(physical.coerceIn(low,high),low,high,equivalentMin,equivalentMax)
+    }
     fun zoomFor(equivalent: Double): Double? = zoomMin?.let { low -> zoomMax?.let { high ->
         interpolate(equivalent.coerceIn(equivalentMin, equivalentMax), equivalentMin, equivalentMax, low, high)
     } }

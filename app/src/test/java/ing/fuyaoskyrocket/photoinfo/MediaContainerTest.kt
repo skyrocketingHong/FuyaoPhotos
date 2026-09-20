@@ -1,0 +1,101 @@
+package ing.fuyaoskyrocket.photoinfo
+
+import ing.fuyaoskyrocket.photoinfo.domain.media.*
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import org.junit.Test
+import org.junit.Assert.*
+
+class MediaContainerTest {
+    private fun file(bytes:ByteArray)=File.createTempFile("media-",".jpg").apply { writeBytes(bytes);deleteOnExit() }
+    private fun segment(marker:Int,data:ByteArray)=byteArrayOf(-1,marker.toByte(),((data.size+2) ushr 8).toByte(),(data.size+2).toByte())+data
+    private fun jpeg(header:ByteArray=byteArrayOf())=byteArrayOf(-1,-40)+header+byteArrayOf(-1,-38,0,2,15,-1,0,23,-1,-48,42,-1,-39)
+    private fun box(type:String,data:ByteArray)=ByteBuffer.allocate(8+data.size).putInt(8+data.size).put(type.toByteArray()).put(data).array()
+    private val video get()=box("ftyp","isom0000".toByteArray())+box("moov",byteArrayOf())+box("mdat",ByteArray(100) { it.toByte() })
+    @Test fun jpegScannerHandlesStuffedBytesAndRestartMarkers() {
+        val source=file(jpeg());assertEquals(source.length(),JpegContainer.inspect(source).primaryEnd)
+        assertFalse(MotionPhoto.inspect(source,"image/jpeg").blocked)
+    }
+    @Test fun motionVideoSurvivesHeaderChangesExactly() {
+        val plain=file(jpeg());val cover=file(byteArrayOf());val v=video
+        JpegContainer.rewrite(plain,cover,emptyList(),MotionPhoto.xmp(JpegContainer.inspect(plain),MotionVideo(0,v.size.toLong(),12345)))
+        cover.appendBytes(v)
+        val original=MotionPhoto.inspect(cover,"image/jpeg");assertFalse(original.blocked)
+        val motion=requireNotNull(original.motion)
+        assertEquals(12345L,motion.timestampUs)
+        assertArrayEquals(MotionPhoto.digest(cover,motion.offset,motion.length),java.security.MessageDigest.getInstance("SHA-256").digest(v))
+        val modified=file(byteArrayOf())
+        JpegContainer.rewrite(plain,modified,listOf("Exif\u0000\u0000NEW METADATA".toByteArray()),MotionPhoto.xmp(JpegContainer.inspect(plain),motion))
+        java.io.FileOutputStream(modified,true).use { JpegContainer.copyRange(cover,motion.offset,motion.length,it) }
+        val final=requireNotNull(MotionPhoto.inspect(modified,"image/jpeg").motion)
+        assertArrayEquals(MotionPhoto.digest(cover,motion.offset,motion.length),MotionPhoto.digest(modified,final.offset,final.length))
+    }
+    @Test fun unknownTailsAndTruncatedVideosAreBlocked() {
+        assertTrue(MotionPhoto.inspect(file(jpeg()+video),"image/jpeg").blocked)
+        assertTrue(MotionPhoto.inspect(file(jpeg()+byteArrayOf(1,2,3)),"image/jpeg").blocked)
+        val plain=file(jpeg());val out=file(byteArrayOf());val v=video
+        JpegContainer.rewrite(plain,out,emptyList(),MotionPhoto.xmp(JpegContainer.inspect(plain),MotionVideo(0,v.size.toLong())))
+        out.appendBytes(v.dropLast(1).toByteArray())
+        assertTrue(MotionPhoto.inspect(out,"image/jpeg").blocked)
+    }
+    @Test fun maliciousXmpCannotResolveExternalEntities() {
+        val xml="<!DOCTYPE x [<!ENTITY leak SYSTEM 'file:///etc/passwd'>]><x>&leak;</x>"
+        assertTrue(MotionPhoto.inspect(file(jpeg(segment(0xe1,JpegContainer.XMP+xml.toByteArray()))),"image/jpeg").blocked)
+    }
+    @Test fun mpfOffsetsRemainValidWithHeaderInsertionAndRemoval() {
+        for(order in listOf(ByteOrder.LITTLE_ENDIAN,ByteOrder.BIG_ENDIAN)) for(xmpBefore in listOf(true,false)) {
+            val map=jpeg()
+            val data=ByteArray(4+8+2+12+4+32)
+            val b=ByteBuffer.wrap(data).order(order)
+            b.put(byteArrayOf(77,80,70,0));b.put(if(order==ByteOrder.LITTLE_ENDIAN)byteArrayOf(73,73) else byteArrayOf(77,77))
+            b.putShort(42);b.putInt(8);b.putShort(1);b.putShort(0xb002.toShort());b.putShort(7);b.putInt(32);b.putInt(26);b.putInt(0)
+            val oldXmp=segment(0xe1,JpegContainer.XMP+"<x/>".toByteArray())
+            val primary=jpeg(if(xmpBefore) oldXmp+segment(0xe2,data) else segment(0xe2,data)+oldXmp)
+            val mpfOffset=2+if(xmpBefore)oldXmp.size else 0
+            b.putInt(30+4,primary.size);b.putInt(30+8,0)
+            b.putInt(46+4,map.size);b.putInt(46+8,primary.size-(mpfOffset+8))
+            val source=file(jpeg(if(xmpBefore) oldXmp+segment(0xe2,data) else segment(0xe2,data)+oldXmp)+map)
+            val result=file(byteArrayOf())
+            JpegContainer.rewrite(source,result,listOf("Exif\u0000\u0000INSERTED METADATA".toByteArray()),null)
+            val layout=JpegContainer.inspect(result);val aux=JpegContainer.auxiliary(layout).single()
+            assertEquals(layout.primaryEnd,aux.offset);assertEquals(map.size.toLong(),aux.length)
+            assertArrayEquals(MotionPhoto.digest(source,source.length()-map.size,map.size.toLong()),MotionPhoto.digest(result,aux.offset,aux.length))
+            val combined=file(byteArrayOf());val v=video
+            JpegContainer.rewrite(result,combined,emptyList(),MotionPhoto.xmp(layout,MotionVideo(0,v.size.toLong(),101)))
+            combined.appendBytes(v)
+            val envelope=MotionPhoto.inspect(combined,"image/jpeg")
+            assertFalse(envelope.blocked);assertTrue(envelope.hdrHint)
+            val videoPart=requireNotNull(envelope.motion)
+            assertEquals(101L,videoPart.timestampUs)
+            assertArrayEquals(java.security.MessageDigest.getInstance("SHA-256").digest(v),MotionPhoto.digest(combined,videoPart.offset,videoPart.length))
+            val gain=JpegContainer.auxiliary(JpegContainer.inspect(combined)).single()
+            assertArrayEquals(MotionPhoto.digest(result,aux.offset,aux.length),MotionPhoto.digest(combined,gain.offset,gain.length))
+        }
+    }
+    @Test fun gainmapNeutralValueUsesMetadataInsteadOfFixedGray() {
+        assertEquals(0.0,GainmapMath.neutral(.5,1.0,4.0,1.0,0.0,0.0),1e-8)
+        assertEquals(.5,GainmapMath.neutral(.5,.5,2.0,1.0,0.0,0.0),1e-8)
+        assertEquals(kotlin.math.sqrt(.5),GainmapMath.neutral(.5,.5,2.0,2.0,0.0,0.0),1e-8)
+    }
+    @Test fun primaryPaddingAndElementFormMetadataAreSupported() {
+        val v=video
+        val xml="""<x xmlns:c="http://ns.google.com/photos/1.0/camera/" xmlns:i="http://ns.google.com/photos/1.0/container/item/">
+            <c:MotionPhoto>1</c:MotionPhoto><item><i:Semantic>Primary</i:Semantic><i:Mime>image/jpeg</i:Mime><i:Padding>4</i:Padding></item>
+            <item><i:Semantic>MotionPhoto</i:Semantic><i:Mime>video/mp4</i:Mime><i:Length>${v.size}</i:Length></item></x>"""
+        val input=file(jpeg(segment(0xe1,JpegContainer.XMP+xml.toByteArray()))+ByteArray(4)+v)
+        assertFalse(MotionPhoto.inspect(input,"image/jpeg").blocked)
+    }
+    @Test fun unsupportedContainersFailClosed() {
+        assertTrue(MotionPhoto.inspect(file(byteArrayOf()),"image/heic").blocked)
+        assertTrue(MotionPhoto.inspect(file(byteArrayOf()),"image/avif").blocked)
+        assertTrue(MotionPhoto.inspect(file(byteArrayOf()),"image/gif").blocked)
+    }
+    @Test fun oldMicrovideoOffsetIsReadWithoutDependingOnPrefix() {
+        val v=video
+        val xml="<x xmlns:c='http://ns.google.com/photos/1.0/camera/' c:MicroVideo='1' c:MicroVideoOffset='${v.size}' c:MicroVideoPresentationTimestampUs='100'/>"
+        val source=file(jpeg(segment(0xe1,JpegContainer.XMP+xml.toByteArray()))+v)
+        val motion=requireNotNull(MotionPhoto.inspect(source,"image/jpeg").motion)
+        assertEquals(v.size.toLong(),motion.length);assertEquals(100L,motion.timestampUs)
+    }
+}

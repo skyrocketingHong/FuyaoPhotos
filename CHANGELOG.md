@@ -2,6 +2,13 @@
 
 ## 1.0.0 — 2026-09-20
 
+### Editable lenses and media preservation
+
+- Replace device-specific hardcoding with saved lens profiles and Camera2 inventory of visible physical/standalone lenses. Match original EXIF device names and user-defined equivalent/physical ranges, with editable zoom endpoints.
+- Retain Ultra HDR JPEG gainmaps and color information on Android 14+, edit gains under the card, and validate encoded output before publishing.
+- Preserve standard JPEG Motion Photo video/audio byte-for-byte, retain timestamps, reconstruct XMP directories and adjust MPF offsets. Stop unsupported or unverifiable exports without publishing a flattened image.
+- Add container, gainmap-math and Android HDR/Motion regression tests. HEIC/AVIF and undocumented vendor formats remain unsupported for preservation export; native device checks are pending.
+
 ### Photo metadata and settings
 
 - Resolve EXIF GPS into city/country using the Android system geocoder, with timeout, retry, cancellation and manual editing. Add photo-metadata permission handling and original-file import.
@@ -24,4 +31,4 @@
 
 ### Validation
 
-68 core checks passed through JUnit. Device tests are authored and compiled but have not run on a connected device. See [build status](docs/BUILD_STATUS.md) for APK, Lint, signing and environment evidence.
+70 core checks and 9 media-container tests passed through JUnit. Device tests are authored and compiled but have not run on a connected device. See [build status](docs/BUILD_STATUS.md) for APK, Lint, signing and environment evidence.

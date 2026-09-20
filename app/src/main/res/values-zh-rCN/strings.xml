@@ -41,8 +41,8 @@
   <string name="original">原图</string>
   <string name="enlarge">放大</string>
   <string name="export_size">原图尺寸 · %1$d × %2$d</string>
-  <string name="keep_metadata">保留拍摄参数，不含 GPS</string>
-  <string name="export_boundary">输出为 8 位 sRGB SDR，不保留 HDR 增益图、实况视频或 RAW 数据。仅生成新图片，不修改原图。</string>
+  <string name="keep_metadata">保留拍摄参数，不含静态图 GPS</string>
+  <string name="export_boundary">支持的 JPEG 会保留 Ultra HDR 和动态视频；PNG 仅用于普通静态图。遇到不支持的附加格式会停止导出。只编辑封面，原样保留的视频可能仍含自身元数据。</string>
   <string name="save">保存</string>
   <string name="cancel">取消</string>
   <string name="export_success">照片已保存</string>
@@ -63,7 +63,7 @@
   <string name="main_focal_hint">可选，仅应用于后续导入的未识别机型。留空时，无法确认倍率就只显示焦距。</string>
   <string name="main_focal_error">请填写 1～200 的数值，或留空。</string>
   <string name="from_gallery">从相册选择</string>
-  <string name="from_file">从文件导入（原始 EXIF）</string>
+  <string name="from_file">从文件导入（原片）</string>
   <string name="location_resolving">正在解析照片地点，可继续编辑。</string>
   <string name="location_resolved">已根据照片 GPS 解析地名，可手动修改。</string>
   <string name="location_unavailable">未能获得地名，请检查网络后重试，或手动填写。</string>
@@ -92,4 +92,13 @@
   <string name="zoom_max">上限倍率（×，可选）</string>
   <string name="physical_min">物理焦距下限（mm，可选）</string>
   <string name="physical_max">物理焦距上限（mm，可选）</string>
+  <string name="media_unsupported">暂不能完整保留此容器的附加数据，已停止导出，原片不变，不会降为普通静态照片。</string>
+  <string name="hdr_requires_android14">保留此 Ultra HDR 图片需要 Android 14 或更高版本。</string>
+  <string name="preservation_requires_jpeg">请使用 JPEG 保留 HDR 增益图或动态照片视频；PNG 无法容纳这些数据。</string>
+  <string name="hdr_not_decoded">系统未能解码 HDR 增益图，已停止导出以避免 HDR 丢失。</string>
+  <string name="hdr_not_preserved">编码后的 HDR 数据未通过校验，未发布导出结果。</string>
+  <string name="media_validation_failed">导出的媒体容器未通过校验，未发布导出结果。</string>
+  <string name="media_hdr">Ultra HDR · JPEG 保留增益图，显示亮度取决于屏幕支持。</string>
+  <string name="media_motion">动态照片 · 仅编辑封面，视频与音频原样复制。</string>
+  <string name="media_hdr_motion">Ultra HDR 动态照片 · 保留增益图及原始视频、音频。</string>
 </resources>

@@ -74,6 +74,15 @@ object CoreChecks {
             val lens=AndroidLensMetadata.resolve("Xiaomi", "Xiaomi 17 Ultra by Leica", "", 75.0, profiles=listOf(tele,tele.copy(id="other")))
             check(lens.camera.isEmpty() && lens.focalLength=="75 MM")
         }
+        verify("physical focal length disambiguates crops and overlapping equivalents") {
+            val cropped=tele.copy(id="main",name="MAIN CROP",equivalentMin=23.0,equivalentMax=100.0,physicalMin=8.0,physicalMax=8.0)
+            val teleResult=AndroidLensMetadata.resolve("Xiaomi","Xiaomi 17 Ultra by Leica","",75.0,profiles=listOf(tele,cropped),physicalMm=17.0)
+            check(teleResult.camera==tele.name)
+            val cropResult=AndroidLensMetadata.resolve("Xiaomi","Xiaomi 17 Ultra by Leica","",75.0,profiles=listOf(tele,cropped),physicalMm=8.0)
+            check(cropResult.camera=="MAIN CROP")
+            check(AndroidLensMetadata.resolve("Xiaomi","Xiaomi 17 Ultra by Leica","",0.0,profiles=listOf(cropped),physicalMm=8.0).focalLength.isEmpty())
+            check(AndroidLensMetadata.resolve("Xiaomi","Xiaomi 17 Ultra by Leica","",75.0,profiles=listOf(tele),physicalMm=8.0).camera.isEmpty())
+        }
         verify("no built-in device mapping remains") {
             check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "", 75.0).focalLength=="75 MM")
             check(AndroidLensMetadata.resolve("Xiaomi", "14", "", 75.0).camera.isEmpty())

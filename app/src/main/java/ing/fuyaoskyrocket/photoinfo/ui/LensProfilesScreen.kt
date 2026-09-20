@@ -25,7 +25,7 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LensProfilesScreen(initial: List<LensProfile>, onBack: () -> Unit, onSave: (List<LensProfile>) -> Unit) {
+fun LensProfilesScreen(initial: List<LensProfile>, deviceHint: String = "", onBack: () -> Unit, onSave: (List<LensProfile>) -> Unit) {
     var profiles by remember { mutableStateOf(initial) }
     var inventory by remember { mutableStateOf<CameraInventory?>(null) }
     var scanning by remember { mutableStateOf(false) }
@@ -39,7 +39,7 @@ fun LensProfilesScreen(initial: List<LensProfile>, onBack: () -> Unit, onSave: (
         failed = inventory == null; scanning = false
     } }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) scan() else failed = true }
-    fun draft(hardware: HardwareLens? = null) = LensProfile(UUID.randomUUID().toString(), "${Build.MANUFACTURER} ${Build.MODEL}", "",
+    fun draft(hardware: HardwareLens? = null) = LensProfile(UUID.randomUUID().toString(), deviceHint.ifBlank { "${Build.MANUFACTURER} ${Build.MODEL}" }, "",
         hardware?.id.orEmpty(), 0.0, 0.0, physicalMin = hardware?.physicalFocals?.minOrNull(), physicalMax = hardware?.physicalFocals?.maxOrNull())
     BackHandler(onBack = onBack)
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.lens_profiles)) },

@@ -10,6 +10,8 @@ object AndroidLensMetadata {
         val device = MetadataFormatting.device(make,model)
         val candidates = profiles.filter { it.valid() && (it.acceptsDevice(device) || it.acceptsDevice(model)) }
         val equivalents = candidates.mapNotNull { p ->
+            // Equivalent focal length alone cannot distinguish optical telephoto from a main-camera crop.
+            if (p.physicalMin != null && physicalMm.isFinite() && physicalMm > 0 && !p.containsPhysical(physicalMm)) return@mapNotNull null
             val mm = equivalentMm.takeIf { it.isFinite() && it > 0 } ?: p.equivalentFor(physicalMm)
             if (mm != null && mm in (p.equivalentMin-.5)..(p.equivalentMax+.5)) p to mm else null
         }

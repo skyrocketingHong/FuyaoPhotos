@@ -56,6 +56,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                     val bitmap = withContext(Dispatchers.IO) { photos.decode(restored, preview = true) }
                     val values = FieldId.entries.associateWith { saved.get<String>("field.${it.name}") ?: restored.info[it] }
                     source = restored
+                    updateMediaState(restored)
                     resolvedLocation = saved["resolvedLocation"] ?: ""
                     state = state.copy(original = bitmap, preview = bitmap, info = PhotoInfo(values),
                         width = restored.width, height = restored.height, busy = false, hasPhotoGps = restored.coordinates != null)
@@ -85,6 +86,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                 var info = loaded.info
                 info = info.with(FieldId.AUTHOR, state.settings.authorFor(info[FieldId.AUTHOR]))
                 source = loaded
+                updateMediaState(loaded)
                 resolvedLocation = ""
                 saved["resolvedLocation"] = ""
                 saved["locationEdited"] = false
@@ -228,6 +230,21 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
             catch (failure: Exception) { state = state.copy(busy = false, exporting = false, error = errorMessage(failure)) }
             catch (failure: OutOfMemoryError) { state = state.copy(busy = false, exporting = false, error = errorMessage(failure)) }
         }
+    }
+
+    private fun updateMediaState(photo: PhotoSource) {
+        val media=photo.media
+        val oldHdr=media.hdrHint && android.os.Build.VERSION.SDK_INT<34
+        state=state.copy(sourceDevice=photo.info[FieldId.DEVICE], preservationBlocked=media.blocked || oldHdr,
+            jpegRequired=media.hdrHint || media.motion!=null, motionPhoto=media.motion!=null,
+            mediaMessage=when {
+                media.blocked -> R.string.media_unsupported
+                oldHdr -> R.string.hdr_requires_android14
+                media.hdrHint && media.motion!=null -> R.string.media_hdr_motion
+                media.hdrHint -> R.string.media_hdr
+                media.motion!=null -> R.string.media_motion
+                else -> null
+            })
     }
 
     fun clearError() { state = state.copy(error = null) }

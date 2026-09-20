@@ -1,5 +1,6 @@
 package ing.fuyaoskyrocket.photoinfo.platform
 
+import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -21,6 +22,7 @@ import kotlin.math.roundToInt
 class CardRenderer {
     fun preview(source: Bitmap, info: PhotoInfo, style: CardStyle, typeface: Typeface): Bitmap {
         val copy = checkNotNull(source.copy(Bitmap.Config.ARGB_8888, true))
+        if (Build.VERSION.SDK_INT >= 34 && source.hasGainmap()) copy.setGainmap(source.gainmap)
         try { drawInPlace(copy, info, style, typeface); return copy }
         catch (failure: Throwable) { copy.recycle(); throw failure }
     }
@@ -34,6 +36,8 @@ class CardRenderer {
         }
         val layout = CardLayoutEngine.layout(target.width, target.height, info, s, textPaint::measureText)
             ?: return
+        val gainmap = if (Build.VERSION.SDK_INT >= 34) target.gainmap else null
+        if (Build.VERSION.SDK_INT >= 34 && gainmap != null) target.setGainmap(null)
         val canvas = Canvas(target)
         val box = layout.box.let { RectF(it.left, it.top, it.right, it.bottom) }
         val path = Path().apply { addRoundRect(box, layout.radius, layout.radius, Path.Direction.CW) }
@@ -51,6 +55,7 @@ class CardRenderer {
             textPaint.color = if (line.accent) Color.rgb(255, 218, 69) else Color.WHITE
             canvas.drawText(line.text, line.x, line.top + baselineOffset, textPaint)
         }
+        if (Build.VERSION.SDK_INT >= 34 && gainmap != null) HdrGainmaps.attachOverlay(target, gainmap, layout, typeface, s.opacity > 0f || s.blur > 0f)
     }
 
     private fun paintBackdrop(source: Bitmap, canvas: Canvas, layout: CardLayout) {

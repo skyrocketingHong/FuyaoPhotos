@@ -18,7 +18,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(settings: EditorSettings, hasPhoto: Boolean, onBack: () -> Unit, onSave: (EditorSettings, Boolean) -> Unit) {
+fun SettingsScreen(settings: EditorSettings, hasPhoto: Boolean, photoDevice: String = "", onBack: () -> Unit, onSave: (EditorSettings, Boolean) -> Unit) {
     var author by rememberSaveable { mutableStateOf(settings.defaultAuthor) }
     var geocode by rememberSaveable { mutableStateOf(settings.resolvePhotoLocation) }
     var mainFocal by rememberSaveable { mutableStateOf(settings.fallbackMainFocal) }
@@ -26,7 +26,7 @@ fun SettingsScreen(settings: EditorSettings, hasPhoto: Boolean, onBack: () -> Un
     var manageLenses by rememberSaveable { mutableStateOf(false) }
     val draft = EditorSettings(author, geocode, mainFocal, lenses)
     if (manageLenses) {
-        LensProfilesScreen(lenses, onBack = { manageLenses = false }, onSave = { onSave(draft.copy(lenses = it), false) })
+        LensProfilesScreen(lenses, deviceHint = photoDevice, onBack = { manageLenses = false }, onSave = { onSave(draft.copy(lenses = it), false) })
         return
     }
     BackHandler(onBack = onBack)

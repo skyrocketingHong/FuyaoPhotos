@@ -30,6 +30,11 @@ data class EditorState(
     val settings: EditorSettings = EditorSettings(),
     val locationStatus: LocationStatus = LocationStatus.IDLE,
     val hasPhotoGps: Boolean = false,
+    val preservationBlocked: Boolean = false,
+    val jpegRequired: Boolean = false,
+    val motionPhoto: Boolean = false,
+    val mediaMessage: Int? = null,
+    val sourceDevice: String = "",
 ) {
-    val canExport get() = original != null && !busy && !rendering && previewError == null
+    val canExport get() = original != null && !busy && !rendering && previewError == null && !preservationBlocked
 }

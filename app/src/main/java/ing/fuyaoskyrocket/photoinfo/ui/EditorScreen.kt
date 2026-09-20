@@ -80,7 +80,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
         }
     }
     if (showSettings) {
-        SettingsScreen(state.settings, state.original != null, onBack = { showSettings = false }, onSave = { settings, apply ->
+        SettingsScreen(state.settings, state.original != null, photoDevice = state.sourceDevice, onBack = { showSettings = false }, onSave = { settings, apply ->
             vm.saveSettings(settings)
             if (apply) vm.applyDefaultAuthor()
             showSettings = false
@@ -113,6 +113,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
         }, snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
+            state.mediaMessage?.let { Text(stringResource(it), Modifier.padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall) }
             if (state.busy || state.rendering) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (state.exporting) Text(stringResource(R.string.exporting),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall)
@@ -157,12 +158,12 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
         FullScreenPreview(bitmap) { fullScreen = false }
     }
     if (showExport) ExportDialog(
-        width = state.width, height = state.height, keepMetadata = state.keepCaptureMetadata,
+        width = state.width, height = state.height, jpegRequired = state.jpegRequired, keepMetadata = state.keepCaptureMetadata,
         onMetadata = vm::setKeepMetadata, onDismiss = { showExport = false }, onExport = { format ->
             showExport = false
             if (Build.VERSION.SDK_INT >= 29) vm.export(format)
-            else if (format == ExportFormat.JPEG) jpegDestination.launch(PhotoExporter.filename(format))
-            else pngDestination.launch(PhotoExporter.filename(format))
+            else if (format == ExportFormat.JPEG) jpegDestination.launch(PhotoExporter.filename(format, state.motionPhoto))
+            else pngDestination.launch(PhotoExporter.filename(format, state.motionPhoto))
         },
     )
     state.error?.let { message ->
@@ -173,7 +174,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
 }
 
 @Composable
-private fun ExportDialog(width: Int, height: Int, keepMetadata: Boolean, onMetadata: (Boolean) -> Unit,
+private fun ExportDialog(width: Int, height: Int, jpegRequired: Boolean, keepMetadata: Boolean, onMetadata: (Boolean) -> Unit,
     onDismiss: () -> Unit, onExport: (ExportFormat) -> Unit) {
     var png by rememberSaveable { mutableStateOf(false) }
     AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.export)) },
@@ -182,7 +183,7 @@ private fun ExportDialog(width: Int, height: Int, keepMetadata: Boolean, onMetad
                 Text(stringResource(R.string.export_size, width, height))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FilterChip(!png, onClick = { png = false }, label = { Text("JPEG · 97%") })
-                    FilterChip(png, onClick = { png = true }, label = { Text("PNG") })
+                    FilterChip(png, onClick = { png = true }, enabled = !jpegRequired, label = { Text("PNG") })
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = keepMetadata, onCheckedChange = onMetadata)
@@ -191,7 +192,7 @@ private fun ExportDialog(width: Int, height: Int, keepMetadata: Boolean, onMetad
                 Text(stringResource(R.string.export_boundary), style = MaterialTheme.typography.bodySmall)
             }
         },
-        confirmButton = { Button(onClick = { onExport(if (png) ExportFormat.PNG else ExportFormat.JPEG) }) { Text(stringResource(R.string.save)) } },
+        confirmButton = { Button(onClick = { onExport(if (png && !jpegRequired) ExportFormat.PNG else ExportFormat.JPEG) }) { Text(stringResource(R.string.save)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }

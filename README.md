@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/License-AGPL--3.0--only-blue" alt="AGPL-3.0-only">
 </p>
 
-A single-photo Android editor with local image processing and optional system place-name lookup. It reads available EXIF metadata and overlays an editable information card without adding a border or changing the photo dimensions. Current build results and device-validation limits are recorded in [BUILD_STATUS.md](docs/BUILD_STATUS.md).
+A single-photo Android editor with local image processing and optional system place-name lookup. It reads available EXIF metadata and overlays an editable information card without adding a border or changing the photo dimensions. Local build evidence is kept in the ignored `docs/` directory; device/runtime limits are summarized below.
 
 ## Features
 
@@ -76,19 +76,34 @@ AGP 9.2.1 · Gradle 9.6.1 · Compose compiler 2.4.10 · Compose BOM 2026.06.01 �
 
 See [metadata recognition](docs/METADATA.md) for GPS, default-photographer and lens-profile behavior. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow and restoration boundaries. The legacy `install-workspace.py` helper is for importing an extracted package into another workspace; it is unnecessary when already working in this project.
 
+## Configuring lenses
+
+In Settings → Lens profiles, scan visible lenses or add a profile manually. Use the device/model text from the photo (prefilled when a photo is open), then enter a name and equivalent focal range. Set equal endpoints for fixed lenses. Optional zoom endpoints are interpolated for variable lenses; optional physical ranges can recover a missing equivalent focal length when the match is unique. Save the profile page to persist the configuration. Camera IDs describe local hardware and are not used as EXIF identifiers.
+
+For the user-supplied Xiaomi 17 Ultra specifications, editable profiles can use 23–23 mm / 1–1× for the main camera and 75–100 mm / 3.2–4.3× for the telephoto. The ultrawide uses 14–14 mm (approximately 0.6× relative to 23 mm). Lens display names are user-defined. No product mapping is hardcoded. Available physical focal metadata further disambiguates equivalent ranges; unresolved overlaps remain unmatched.
+
+## HDR and Motion Photo preservation
+
+- On Android 14+, recognized JPEG Ultra HDR images retain their gainmap and decoded color space. The card region receives corresponding gainmap edits; unrelated gainmap pixels remain unchanged before JPEG encoding. The encoded gainmap parameters and color space are checked before publication.
+- Standard JPEG Motion Photos and compatible legacy Microvideo files retain the complete original MP4/MOV payload, including audio and video metadata, without transcoding. Export verifies the copied payload with SHA-256 and preserves its presentation timestamp.
+- HDR Motion Photos retain the GainMap directory item before the video item. EXIF/XMP insertion updates MPF sizes and offsets. Gallery filenames end in `_MP.jpg`.
+- PNG export is disabled for HDR/Motion inputs. Unknown auxiliary data, malformed containers, unsupported formats or failed verification stop export rather than silently discarding media.
+
+Prefer importing the complete original through Files; HDR/video already stripped by an upstream provider cannot be recovered. The current preservation path supports JPEG-based containers. HEIC/AVIF preservation, separate-file Apple Live Photos, undocumented vendor motion formats, animated images and high-bit-depth PNG are not supported for export. Android encoding/display, vendor camera enumeration and gallery playback still require device testing. JPEG base and gainmap images are re-encoded; this is not a pixel-lossless workflow. Video bytes are preserved exactly. Sharing apps can subsequently change or flatten the file.
+
 ## Fonts, privacy and output limits
 
 This local checkout contains SF Mono Regular copied from the macOS Terminal bundle. It is loaded automatically and embedded in APKs built from this checkout. The font binary and reference screenshots are excluded from Git and are not covered by the source license. A source checkout without the font remains buildable with Android monospace. Runtime imports (up to 10 MB) remain in app-private storage.
 
 The app declares Internet and photo-metadata (`ACCESS_MEDIA_LOCATION`) access, plus optional camera permission for hardware enumeration, with no current-location or broad storage permission. Place lookup can send photo coordinates to the Android system geocoding provider; the photograph itself stays local. Disable lookup in Settings when not needed. Optional capture metadata uses an allowlist excluding GPS, serial numbers, MakerNote, XMP and thumbnails. Editing the visible card does not rewrite original capture tags. Visible names and places remain part of exported image pixels.
 
-Output is **8-bit sRGB / SDR still imagery**. HDR gain maps, Display P3, high-bit-depth data, Live Photos, RAW processing and animation are not preserved. HEIC decoding depends on the device. JPEG is re-encoded; PNG is lossless only relative to the rendered SDR bitmap. Preview rasterization may differ slightly from full-resolution export.
+Ordinary still images can be exported as JPEG or 8-bit PNG. Ultra HDR and Motion Photo exports follow the preservation path above. Source images are never overwritten. Capture-tag retention excludes GPS from the still-image EXIF; an untouched video retains its own metadata, which can include location information.
 
 Insufficient memory produces an error without silently lowering resolution. Input caps of 512 MB / 200 MP do not guarantee that every device can export those sizes. Batch processing, free dragging and background export services are outside this version.
 
 ## Validation
 
-Use `bash scripts/build-macos.sh` for host checks and APKs; use `./gradlew :app:connectedDebugAndroidTest` with an authorized device for orientation, pixel-boundary, export-metadata and font-reset tests. `scripts/test-core.sh` is an optional offline route requiring Kotlin CLI. See [VALIDATION.md](docs/VALIDATION.md) for actual coverage and remaining device checks. The GitHub workflow has not been run remotely.
+Use `bash scripts/build-macos.sh` for host checks and APKs; use `./gradlew :app:connectedDebugAndroidTest` with an authorized device for orientation, pixel-boundary, export-metadata, settings, font-reset and Android 14+ HDR/Motion tests. `scripts/test-core.sh` is an optional offline route requiring Kotlin CLI. See [VALIDATION.md](docs/VALIDATION.md) for actual coverage and remaining device checks. The GitHub workflow has not been run remotely.
 
 ## License
 

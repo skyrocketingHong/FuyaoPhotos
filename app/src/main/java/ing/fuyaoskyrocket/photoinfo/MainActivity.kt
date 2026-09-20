@@ -10,6 +10,7 @@ import ing.fuyaoskyrocket.photoinfo.ui.theme.PhotoInfoTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.colorMode = android.content.pm.ActivityInfo.COLOR_MODE_HDR
         enableEdgeToEdge()
         setContent { PhotoInfoTheme { EditorScreen() } }
     }

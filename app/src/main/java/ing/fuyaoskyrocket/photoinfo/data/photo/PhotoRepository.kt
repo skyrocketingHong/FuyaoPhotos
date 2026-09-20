@@ -104,14 +104,14 @@ class PhotoRepository(private val context: Context) {
                 ?.takeIf { it > 0 }?.toString().orEmpty(),
         ))
         val tags = CAPTURE_TAGS.mapNotNull { tag -> text(tag).takeIf { it.isNotEmpty() }?.let { tag to it } }.toMap()
-        return PhotoSource(file, width, height, orientation, info, tags, coordinates)
+        val media = ing.fuyaoskyrocket.photoinfo.domain.media.MotionPhoto.inspect(file, bounds.outMimeType.orEmpty(), exif?.getAttribute(ExifInterface.TAG_XMP))
+        return PhotoSource(file, width, height, orientation, info, tags, coordinates, media)
     }
 
-    /** Decode an SDR, sRGB bitmap. EXIF orientation, including mirroring, is applied exactly once. */
+    /** Keep the decoded color space and gainmap. EXIF orientation applies to both base and gainmap. */
     fun decode(source: PhotoSource, preview: Boolean): Bitmap {
         val options = BitmapFactory.Options().apply {
             inPreferredConfig = Bitmap.Config.ARGB_8888
-            inPreferredColorSpace = ColorSpace.get(ColorSpace.Named.SRGB)
             inMutable = true
             inSampleSize = 1
             if (preview) {
@@ -120,7 +120,6 @@ class PhotoRepository(private val context: Context) {
         }
         val decoded = BitmapFactory.decodeFile(source.file.absolutePath, options)
             ?: throw IOException("This Android version cannot decode this photo")
-        if (Build.VERSION.SDK_INT >= 34 && decoded.hasGainmap()) decoded.setGainmap(null)
         if (source.orientation !in 2..8) return decoded
         val matrix = Matrix().apply {
             when (source.orientation) {
@@ -139,7 +138,9 @@ class PhotoRepository(private val context: Context) {
         if (oriented !== decoded) decoded.recycle()
         if (oriented.isMutable) return oriented
         return try {
-            oriented.copy(Bitmap.Config.ARGB_8888, true) ?: throw IOException("Cannot allocate photo")
+            val copy = oriented.copy(Bitmap.Config.ARGB_8888, true) ?: throw IOException("Cannot allocate photo")
+            if (Build.VERSION.SDK_INT >= 34 && oriented.hasGainmap()) copy.setGainmap(oriented.gainmap)
+            copy
         } finally { oriented.recycle() }
     }
 
