@@ -21,6 +21,7 @@ data class EditorState(
     val previewError: String? = null,
     val notice: String? = null,
     val fontName: String? = null,
+    val hasCustomFont: Boolean = false,
     val keepCaptureMetadata: Boolean = true,
     val exported: ExportedPhoto? = null,
 ) {

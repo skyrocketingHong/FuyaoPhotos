@@ -22,6 +22,8 @@
   <string name="restore_metadata">Restore photo metadata</string>
   <string name="style_hint">Pixel values refer to an 859 px short edge. Photo orientation and export resolution scale the card consistently.</string>
   <string name="card_scale">Card scale</string>
+  <string name="text_scale">Text size</string>
+  <string name="text_scale_hint">100% matches the reference text. Text always scales with the photo; increasing this setting keeps the card width and adds height only when needed.</string>
   <string name="opacity">Backdrop opacity</string>
   <string name="blur">Backdrop blur</string>
   <string name="right_inset">Right inset</string>
@@ -32,7 +34,7 @@
   <string name="system_mono">System monospace</string>
   <string name="import_font">Import font</string>
   <string name="reset">Reset</string>
-  <string name="font_license">Import only fonts licensed for this use. No Apple fonts are bundled. Font files stay private on this device.</string>
+  <string name="font_license">The default card font is included in this build when available. Imported fonts stay in private app storage; Reset restores the default.</string>
   <string name="share">Share</string>
   <string name="exporting">Rendering the original photo. Keep the app open.</string>
   <string name="local_only">On-device processing</string>

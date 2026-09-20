@@ -1,7 +1,7 @@
-# Gradle Wrapper bootstrap
+# Gradle Wrapper
 
-The source handoff environment had no Gradle and could not resolve external hosts. Consequently no wrapper JAR is fabricated or bundled here.
+This project includes the official Gradle 9.6.1 Wrapper scripts and JAR, generated with the locally installed Gradle 9.6.1 distribution.
 
-On first execution, the root `gradlew` script downloads **Gradle 9.6.1** and its SHA-256 from the official HTTPS endpoint, verifies the archive, and generates the official Wrapper in an isolated temporary project. The generated scripts/JAR replace the bootstrap, and the verified distribution checksum is pinned in `gradle-wrapper.properties`. Commit those generated wrapper files after your first successful local build.
+`gradle-wrapper.properties` pins the official distribution SHA-256. `./gradlew` uses an existing matching distribution cache, or downloads and verifies the distribution on first use. No separate bootstrap is required to open the project in Android Studio.
 
-The checksum is initially fetched from the same official distribution service, not independently attested. Review the official checksum through your trusted release channel before release builds. No dependency versions are dynamically selected.
+`scripts/bootstrap-gradle.sh` is retained only as a recovery helper for missing Wrapper files. The checksum was retrieved from the official Gradle distribution service; it is not an independent supply-chain attestation.

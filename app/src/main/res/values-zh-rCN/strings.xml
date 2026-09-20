@@ -22,6 +22,8 @@
   <string name="restore_metadata">恢复照片原始参数</string>
   <string name="style_hint">px 数值以照片短边 859 px 为基准；横图、竖图和导出原图统一按短边缩放。</string>
   <string name="card_scale">卡片比例</string>
+  <string name="text_scale">字号</string>
+  <string name="text_scale_hint">100% 对应参考字号。文字始终跟随照片缩放；单独增大字号会保持卡片宽度，仅在内容放不下时增加高度。</string>
   <string name="opacity">底色不透明度</string>
   <string name="blur">背景模糊</string>
   <string name="right_inset">右侧边距</string>
@@ -32,7 +34,7 @@
   <string name="system_mono">系统等宽字体</string>
   <string name="import_font">导入字体</string>
   <string name="reset">重置</string>
-  <string name="font_license">仅导入已获得相应用途授权的字体。应用不附带 Apple 字体，导入文件仅存放在本机私有目录。</string>
+  <string name="font_license">信息卡优先使用构建中附带的默认字体。导入字体仅存放在应用私有目录；重置可恢复默认字体。</string>
   <string name="share">分享</string>
   <string name="exporting">正在按原图尺寸渲染，请保持应用在前台。</string>
   <string name="local_only">本机处理</string>

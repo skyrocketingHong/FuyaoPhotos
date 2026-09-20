@@ -14,6 +14,7 @@ import ing.fuyaoskyrocket.photoinfo.data.export.PhotoExporter
 import ing.fuyaoskyrocket.photoinfo.data.photo.PhotoRepository
 import ing.fuyaoskyrocket.photoinfo.domain.model.*
 import ing.fuyaoskyrocket.photoinfo.platform.CardRenderer
+import ing.fuyaoskyrocket.photoinfo.platform.FontRepository
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -21,10 +22,33 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.math.abs
 
-/** Authored device checks. These require an emulator/device and were NOT run in the source handoff. */
+/** These checks require an emulator or device; compilation alone does not verify rendering. */
 @RunWith(AndroidJUnit4::class)
 class PhotoPipelineTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    @Test fun bundledFontIsDefaultAndResetRestoresIt() {
+        val fonts = FontRepository(context)
+        fonts.reset()
+        val bundled = context.assets.list("fonts").orEmpty().contains("SF-Mono-Regular.otf")
+        assertEquals(if (bundled) "SF Mono Regular" else null, fonts.displayName)
+        assertFalse(fonts.hasCustomFont)
+        if (!bundled) return // A public source checkout intentionally has no private font binary.
+        val default = fonts.typeface
+        val imported = File.createTempFile("font-", ".otf", context.cacheDir)
+        try {
+            context.assets.open("fonts/SF-Mono-Regular.otf").use { input ->
+                imported.outputStream().use { input.copyTo(it) }
+            }
+            fonts.import(Uri.fromFile(imported))
+            assertTrue(fonts.hasCustomFont)
+            assertNotNull(FontRepository(context).typeface)
+            fonts.reset()
+            assertEquals("SF Mono Regular", fonts.displayName)
+            assertFalse(fonts.hasCustomFont)
+            assertSame(default, fonts.typeface)
+        } finally { imported.delete(); fonts.reset() }
+    }
 
     @Test fun allEightExifOrientationsDecodeOnce() = runBlocking {
         val repository = PhotoRepository(context)

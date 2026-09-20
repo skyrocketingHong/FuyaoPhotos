@@ -1,5 +1,9 @@
-No font binaries are distributed with this project. The app uses Android's monospace typeface.
-Users may import a properly licensed TTF/OTF/TTC through the in-app font picker; it is stored
-privately on that device, not embedded into this repository or an APK built from this checkout.
-The published Apple San Francisco license is not a general Android embedding license:
-https://developer.apple.com/fonts/
+# Card font
+
+Local builds load `SF-Mono-Regular.otf` first, with Android monospace as a fallback.
+This checkout contains a byte-for-byte copy from the local macOS Terminal bundle:
+`/System/Applications/Utilities/Terminal.app/Contents/Resources/Fonts/SF-Mono-Regular.otf`.
+
+The binary is ignored by Git and is not covered by the source-code license.
+A fresh source checkout without this file remains buildable using Android monospace.
+The app can import TTF/OTF/TTC into private storage; Reset restores the bundled default.

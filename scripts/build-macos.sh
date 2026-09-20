@@ -14,12 +14,12 @@ fi
 if [[ -z "$SDK" ]]; then
     if [[ "$(uname -s)" == Darwin ]]; then SDK="$HOME/Library/Android/sdk"; else SDK="$HOME/Android/Sdk"; fi
 fi
-if [[ ! -f "$SDK/platforms/android-37/android.jar" ]]; then
+if [[ ! -f "$SDK/platforms/android-37/android.jar" && ! -f "$SDK/platforms/android-37.0/android.jar" ]]; then
     printf 'Android SDK Platform 37 was not found at: %s\nInstall it with Android Studio SDK Manager, or set ANDROID_HOME to your existing SDK.\nNo APK was built.\n' "$SDK" >&2
     exit 2
 fi
 export ANDROID_HOME="$SDK"
 cd "$ROOT"
-# Kotlin core tests, Android Lint and a debug APK; release signing is never assumed.
-./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+# Unit tests, Debug/Release Lint and APKs; release signing is never assumed.
+./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease "$@"
 printf '\nDebug APK: %s/app/build/outputs/apk/debug/app-debug.apk\n' "$ROOT"

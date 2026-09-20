@@ -33,6 +33,7 @@ data class CardStyle(
     val rightInset: Float = 77f,
     val bottomInset: Float = 35f,
     val cornerRadius: Float = 20f,
+    val textScale: Float = 1f,
 ) {
     fun sanitized() = copy(
         scale = finite(scale, 1f).coerceIn(.6f, 2f),
@@ -41,6 +42,7 @@ data class CardStyle(
         rightInset = finite(rightInset, 77f).coerceIn(0f, 250f),
         bottomInset = finite(bottomInset, 35f).coerceIn(0f, 250f),
         cornerRadius = finite(cornerRadius, 20f).coerceIn(0f, 40f),
+        textScale = finite(textScale, 1f).coerceIn(.8f, 1.8f),
     )
     private fun finite(value: Float, fallback: Float) = if (value.isFinite()) value else fallback
 }

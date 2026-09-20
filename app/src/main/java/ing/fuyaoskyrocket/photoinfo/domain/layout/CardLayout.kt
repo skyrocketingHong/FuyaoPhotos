@@ -29,6 +29,7 @@ object CardLayoutEngine {
     const val WIDTH = 215f
     const val MIN_HEIGHT = 168f
     const val PADDING = 19f
+    const val MIN_VERTICAL_PADDING = 18f
     const val FONT_SIZE = 10.5f
     const val LINE_HEIGHT = 12.5f
     const val GROUP_GAP = 7f
@@ -46,12 +47,14 @@ object CardLayoutEngine {
         val s = style.sanitized()
         val base = min(width, height) / REFERENCE_SHORT_EDGE
         val unit = base * s.scale
+        val referenceLineHeight = LINE_HEIGHT * s.textScale
         val wrapped = rows.flatMap { row ->
-            wrap(row.text, WIDTH - 2 * PADDING, measureReferenceText).map { it to row.accent }
+            wrap(row.text, WIDTH - 2 * PADDING) { measureReferenceText(it) * s.textScale }
+                .map { it to row.accent }
         }
         val hasBoth = wrapped.any { it.second } && wrapped.any { !it.second }
-        val contentHeight = wrapped.size * LINE_HEIGHT + if (hasBoth) GROUP_GAP else 0f
-        val cardHeight = max(MIN_HEIGHT, contentHeight + 2 * PADDING) * unit
+        val contentHeight = wrapped.size * referenceLineHeight + if (hasBoth) GROUP_GAP else 0f
+        val cardHeight = max(MIN_HEIGHT, contentHeight + 2 * MIN_VERTICAL_PADDING) * unit
         val cardWidth = WIDTH * unit
         if (cardHeight > height || cardWidth > width) throw CardOverflowException()
         // Insets are independent from the card scale and clamped to keep all pixels inside the photo.
@@ -64,11 +67,11 @@ object CardLayoutEngine {
         val lines = wrapped.map { (text, accent) ->
             if (previousAccent && !accent) y += GROUP_GAP * unit
             val line = CardLine(text, accent, box.left + PADDING * unit, y)
-            y += LINE_HEIGHT * unit
+            y += referenceLineHeight * unit
             previousAccent = accent
             line
         }
-        return CardLayout(box, lines, FONT_SIZE * unit, LINE_HEIGHT * unit,
+        return CardLayout(box, lines, FONT_SIZE * unit * s.textScale, referenceLineHeight * unit,
             min(s.cornerRadius * unit, min(cardWidth, cardHeight) / 2), s.blur * unit)
     }
 

@@ -70,12 +70,49 @@ object CoreChecks {
             val x=requireNotNull(layout(1080,1920,all));near(x.box.width,215f*1080/859)
             check(x.box.width/1080>.24f)
         }
+        verify("4080x3072 text scales with photo resolution") {
+            val x = requireNotNull(layout(4080, 3072, all))
+            near(x.fontSize, 10.5f * 3072 / 859)
+            val preview = requireNotNull(layout(2040, 1536, all))
+            near(x.fontSize, preview.fontSize * 2)
+        }
+        verify("independent text size preserves card width and margins") {
+            val info = PhotoInfo(mapOf(FieldId.DEVICE to "CAMERA", FieldId.ISO to "80"))
+            val original = requireNotNull(layout(4080, 3072, info))
+            val large = requireNotNull(layout(4080, 3072, info, CardStyle(textScale = 1.2f)))
+            near(large.fontSize, original.fontSize * 1.2f)
+            near(large.lineHeight, original.lineHeight * 1.2f)
+            near(large.box.width, original.box.width)
+            near(large.box.height, original.box.height)
+            near(large.box.right, original.box.right)
+            near(large.box.bottom, original.box.bottom)
+        }
+        verify("large text rewraps without clipping or shrinking") {
+            val x = requireNotNull(layout(1527, 859, all, CardStyle(textScale = 1.5f)))
+            near(x.fontSize, 15.75f)
+            check(x.box.height > 168f)
+            check(x.lines.all { it.text.codePointCount(0, it.text.length) * 6.3f * 1.5f <= 177f })
+            check(x.lines.last().top + x.lineHeight <= x.box.bottom - 18f + .02f)
+        }
+        verify("invalid independent text size is bounded") {
+            near(CardStyle(textScale = Float.NaN).sanitized().textScale, 1f)
+            near(CardStyle(textScale = -1f).sanitized().textScale, .8f)
+            near(CardStyle(textScale = 10f).sanitized().textScale, 1.8f)
+        }
         verify("two wrapped rows retain font size and expand height only if needed") {
             val info=all.with(FieldId.AUTHOR,"PHOTOGRAPHER WITH A REALLY LONG NAME")
                 .with(FieldId.LOCATION,"HANGZHOU CITY ZHEJIANG PROVINCE CHINA")
             val x=requireNotNull(layout(1527,859,info));near(x.fontSize,10.5f);check(x.box.height>168)
             x.lines.forEach { near(it.x,x.box.left+19f) }
             check(x.lines.none { it.text.contains('…') });check(x.lines.size>9)
+        }
+        verify("one wrapped credit keeps the reference card height") {
+            val info = all.with(FieldId.AUTHOR, "LUIS ALBERTO RODRIGUEZ")
+            val x = requireNotNull(layout(1527, 859, info))
+            check(x.lines.size == 10)
+            near(x.box.height, 168f)
+            near(x.fontSize, 10.5f)
+            near(x.lines.first().top - x.box.top, 18f)
         }
         verify("whitespace word wrapping preserves content") {
             val text="A VERY LONG PHOTOGRAPHER NAME WITH MANY WORDS"

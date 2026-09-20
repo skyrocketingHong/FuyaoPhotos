@@ -36,7 +36,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private var source: PhotoSource? = null
     private var renderJob: Job? = null
     var state by mutableStateOf(EditorState(
-        style = readStyle(), fontName = fonts.displayName,
+        style = readStyle(), fontName = fonts.displayName, hasCustomFont = fonts.hasCustomFont,
         keepCaptureMetadata = saved["keepMetadata"] ?: true,
     )); private set
 
@@ -128,7 +128,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { fonts.import(uri) }
-                state = state.copy(busy = false, fontName = fonts.displayName)
+                state = state.copy(busy = false, fontName = fonts.displayName, hasCustomFont = fonts.hasCustomFont)
                 renderPreview()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) { state = state.copy(busy = false, error = errorMessage(failure)); renderPreview() }
@@ -139,7 +139,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     fun resetFont() {
         if (state.busy) return
         fonts.reset()
-        state = state.copy(fontName = null)
+        state = state.copy(fontName = fonts.displayName, hasCustomFont = false)
         renderPreview()
     }
 
@@ -191,6 +191,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         scale = saved["style.scale"] ?: 1f, opacity = saved["style.opacity"] ?: .6f,
         blur = saved["style.blur"] ?: 25f, rightInset = saved["style.right"] ?: 77f,
         bottomInset = saved["style.bottom"] ?: 35f, cornerRadius = saved["style.radius"] ?: 20f,
+        textScale = saved["style.textScale"] ?: CardStyle().textScale,
     ).sanitized()
 
     private fun persist() {
@@ -200,6 +201,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         saved["style.scale"] = s.scale; saved["style.opacity"] = s.opacity
         saved["style.blur"] = s.blur; saved["style.right"] = s.rightInset
         saved["style.bottom"] = s.bottomInset; saved["style.radius"] = s.cornerRadius
+        saved["style.textScale"] = s.textScale
     }
 
     private fun errorMessage(failure: Throwable): String {

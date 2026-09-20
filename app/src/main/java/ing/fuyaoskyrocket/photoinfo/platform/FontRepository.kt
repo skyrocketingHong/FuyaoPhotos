@@ -11,18 +11,25 @@ import java.util.UUID
 class FontRepository(private val context: Context) {
     private val preferences = context.getSharedPreferences("font", Context.MODE_PRIVATE)
     private val directory = File(context.filesDir, "fonts").apply { mkdirs() }
+    private val bundledTypeface = runCatching {
+        Typeface.createFromAsset(context.assets, "fonts/SF-Mono-Regular.otf")
+    }.getOrNull()
+    private val defaultTypeface get() = bundledTypeface ?: Typeface.MONOSPACE
     var typeface: Typeface = load(); private set
     val displayName: String? get() = preferences.getString("name", null)
+        ?: if (bundledTypeface != null) "SF Mono Regular" else null
+    val hasCustomFont: Boolean get() = preferences.contains("file")
 
     private fun load(): Typeface {
         val file = preferences.getString("file", null)?.let { File(directory, it) }
         return if (file?.isFile == true) runCatching { requireNotNull(Typeface.Builder(file).build()) }
-            .getOrDefault(Typeface.MONOSPACE) else Typeface.MONOSPACE
+            .getOrDefault(defaultTypeface) else defaultTypeface
     }
 
     fun import(uri: Uri) {
         val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
             ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null } ?: "Custom font"
+        // ASVS 5.3.2: the display name never becomes a filesystem path.
         val temporary = File(directory, "${UUID.randomUUID()}.font")
         try {
             context.contentResolver.openInputStream(uri)?.use { input ->
@@ -33,6 +40,7 @@ class FontRepository(private val context: Context) {
                         val count = input.read(buffer)
                         if (count < 0) break
                         size += count
+                        // ASVS 5.2.1: bound input before handing it to the native font parser.
                         if (size > 10 * 1024 * 1024) throw IOException("Font exceeds 10 MB")
                         output.write(buffer, 0, count)
                     }
@@ -53,7 +61,7 @@ class FontRepository(private val context: Context) {
 
     fun reset() {
         preferences.edit().clear().apply()
-        typeface = Typeface.MONOSPACE
+        typeface = defaultTypeface
         directory.listFiles()?.forEach { it.delete() }
     }
 }

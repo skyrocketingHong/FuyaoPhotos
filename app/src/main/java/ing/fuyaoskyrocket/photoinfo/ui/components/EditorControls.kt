@@ -25,7 +25,7 @@ fun EditorControls(
     var selected by rememberSaveable { mutableIntStateOf(0) }
     val enabled = !state.busy
     Column(modifier) {
-        TabRow(selectedTabIndex = selected) {
+        PrimaryTabRow(selectedTabIndex = selected) {
             listOf(R.string.tab_info, R.string.tab_style).forEachIndexed { index, title ->
                 Tab(selected = selected == index, onClick = { selected = index }, text = { Text(stringResource(title)) })
             }
@@ -51,18 +51,21 @@ fun EditorControls(
                 val s = state.style
                 Text(stringResource(R.string.style_hint), style = MaterialTheme.typography.bodySmall)
                 StyleSlider(stringResource(R.string.card_scale), "${(s.scale * 100).roundToInt()}%", s.scale, .6f..2f, enabled) { onStyle(s.copy(scale = it)) }
+                StyleSlider(stringResource(R.string.text_scale), "${(s.textScale * 100).roundToInt()}%", s.textScale, .8f..1.8f, enabled) { onStyle(s.copy(textScale = it)) }
+                Text(stringResource(R.string.text_scale_hint), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 StyleSlider(stringResource(R.string.opacity), "${(s.opacity * 100).roundToInt()}%", s.opacity, 0f..1f, enabled) { onStyle(s.copy(opacity = it)) }
                 StyleSlider(stringResource(R.string.blur), "${s.blur.roundToInt()} px", s.blur, 0f..50f, enabled) { onStyle(s.copy(blur = it)) }
                 StyleSlider(stringResource(R.string.right_inset), "${s.rightInset.roundToInt()} px", s.rightInset, 0f..250f, enabled) { onStyle(s.copy(rightInset = it)) }
                 StyleSlider(stringResource(R.string.bottom_inset), "${s.bottomInset.roundToInt()} px", s.bottomInset, 0f..250f, enabled) { onStyle(s.copy(bottomInset = it)) }
                 StyleSlider(stringResource(R.string.radius), "${s.cornerRadius.roundToInt()} px", s.cornerRadius, 0f..40f, enabled) { onStyle(s.copy(cornerRadius = it)) }
-                TextButton(onClick = { onStyle(CardStyle()) }, enabled = enabled) { Text(stringResource(R.string.reset_style)) }
+                TextButton(onClick = { onStyle(CardStyle(textScale = 1f)) }, enabled = enabled) { Text(stringResource(R.string.reset_style)) }
                 HorizontalDivider()
                 Text(stringResource(R.string.font), style = MaterialTheme.typography.titleSmall)
                 Text(state.fontName ?: stringResource(R.string.system_mono), style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onImportFont, enabled = enabled) { Text(stringResource(R.string.import_font)) }
-                    TextButton(onClick = onResetFont, enabled = enabled && state.fontName != null) { Text(stringResource(R.string.reset)) }
+                    TextButton(onClick = onResetFont, enabled = enabled && state.hasCustomFont) { Text(stringResource(R.string.reset)) }
                 }
                 Text(stringResource(R.string.font_license), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
