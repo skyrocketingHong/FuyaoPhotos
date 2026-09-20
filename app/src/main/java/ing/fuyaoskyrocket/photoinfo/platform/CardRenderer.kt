@@ -38,8 +38,9 @@ class CardRenderer {
         val layout = CardLayoutEngine.layout(target.width, target.height, info, s, textPaint::measureText)
         if (layout == null && !opaqueBackground) return
         val gainmap = if (Build.VERSION.SDK_INT >= 34) target.gainmap else null
-        // Canvas(Bitmap) clears the bitmap's gainmap. Do every base-image draw
-        // with this canvas, then attach the final gainmap only after drawing ends.
+        // Android 15+ Canvas(Bitmap) clears the gainmap; detach explicitly on 14
+        // as well. Finish every base-image draw before attaching the final map.
+        if (Build.VERSION.SDK_INT >= 34 && gainmap != null) target.setGainmap(null)
         val canvas = Canvas(target)
         if (opaqueBackground) canvas.drawColor(Color.WHITE, PorterDuff.Mode.DST_OVER)
         if (layout == null) {

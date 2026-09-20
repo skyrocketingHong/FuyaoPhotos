@@ -19,7 +19,9 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 @SdkSuppress(minSdkVersion=34)
 class HdrMotionExportTest {
-    @Test fun jpegPreparationAttachesGainmapAfterAllCanvasDrawing() {
+    @Test
+    @SdkSuppress(minSdkVersion = 35)
+    fun jpegPreparationAttachesGainmapAfterAllCanvasDrawing() {
         val bitmap = Bitmap.createBitmap(800, 600, Bitmap.Config.ARGB_8888)
         val contents = Bitmap.createBitmap(200, 150, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
         val gainmap = Gainmap(contents).apply { setRatioMax(4f, 4f, 4f); displayRatioForFullHdr = 4f }
