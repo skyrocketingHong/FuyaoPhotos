@@ -2,7 +2,9 @@ Fuyao Photo Info — original Android implementation, 2026.
 
 Project conventions and documentation structure were inspected in the local
 FuyaoColorPicker and FuyaoLocale projects owned by skyrocketingHong.
-Their application code, historic color tables and image assets were not copied.
+Build-number allocation, APK naming, system-bar handling and UI token patterns are adapted
+from FuyaoLocale and FuyaoColorPicker (AGPL-3.0-only). Historic color tables and
+image assets were not copied.
 
 The style follows user-provided measurements and five local reference screenshots.
 Apple and iPhone are marks of their respective owner; this is not an Apple app.

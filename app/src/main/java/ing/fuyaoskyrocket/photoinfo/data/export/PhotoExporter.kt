@@ -113,7 +113,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             setAttribute(ExifInterface.TAG_ORIENTATION,"1")
             setAttribute(ExifInterface.TAG_IMAGE_WIDTH,source.width.toString());setAttribute(ExifInterface.TAG_IMAGE_LENGTH,source.height.toString())
             setAttribute(ExifInterface.TAG_PIXEL_X_DIMENSION,source.width.toString());setAttribute(ExifInterface.TAG_PIXEL_Y_DIMENSION,source.height.toString())
-            setAttribute(ExifInterface.TAG_SOFTWARE,"Fuyao Photo Info 1.0.0")
+            setAttribute(ExifInterface.TAG_SOFTWARE,"Fuyao Photo Info ${ing.fuyaoskyrocket.photoinfo.BuildConfig.MARKETING_VERSION} (${ing.fuyaoskyrocket.photoinfo.BuildConfig.BUILD_NUMBER})")
             saveAttributes()
         }
     }

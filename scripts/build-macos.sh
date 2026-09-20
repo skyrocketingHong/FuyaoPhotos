@@ -22,4 +22,13 @@ export ANDROID_HOME="$SDK"
 cd "$ROOT"
 # Unit tests, Debug/Release Lint and APKs; release signing is never assumed.
 ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease "$@"
-printf '\nDebug APK: %s/app/build/outputs/apk/debug/app-debug.apk\n' "$ROOT"
+python3 - "$ROOT" <<'PYMETA'
+from pathlib import Path
+import json, sys
+root = Path(sys.argv[1])
+for variant in ('debug', 'release'):
+    metadata = root / f'app/build/outputs/apk/{variant}/output-metadata.json'
+    result = json.loads(metadata.read_text())
+    for artifact in result['elements']:
+        print(metadata.parent / artifact['outputFile'])
+PYMETA
