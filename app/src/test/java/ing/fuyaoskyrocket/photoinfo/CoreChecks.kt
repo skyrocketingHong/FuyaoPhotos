@@ -1,5 +1,6 @@
 package ing.fuyaoskyrocket.photoinfo
 
+import ing.fuyaoskyrocket.photoinfo.domain.layout.PreviewViewport
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardLayoutEngine
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardOverflowException
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting as Format
@@ -224,6 +225,20 @@ object CoreChecks {
         verify("extreme scale and margins keep card inside image") {
             val x=requireNotNull(layout(400,400,all,CardStyle(scale=2f,rightInset=250f,bottomInset=250f)))
             check(x.box.left>=0&&x.box.top>=0&&x.box.right<=400.01&&x.box.bottom<=400.01)
+        }
+        verify("zoom reset clamps pan as a letterboxed axis reaches fit") {
+            val landscape=PreviewViewport.clamp(2000,1000,1000,1000,2f,0f,214f)
+            near(landscape.y,0f)
+            val portrait=PreviewViewport.clamp(1000,2000,1000,1000,2f,214f,0f)
+            near(portrait.x,0f)
+            val magnified=PreviewViewport.clamp(2000,1000,1000,1000,8f,0f,1500f)
+            near(magnified.y,1500f)
+        }
+        verify("preview fit and unmeasured viewport always center the image") {
+            val fitted=PreviewViewport.clamp(2000,1000,1000,1000,1f,2000f,-2000f)
+            near(fitted.x,0f);near(fitted.y,0f)
+            val empty=PreviewViewport.clamp(2000,1000,0,0,8f,10f,20f)
+            near(empty.x,0f);near(empty.y,0f)
         }
         verify("zero blur returns a copy") {
             val input=intArrayOf(0xff11aa33.toInt(),0xff006600.toInt())

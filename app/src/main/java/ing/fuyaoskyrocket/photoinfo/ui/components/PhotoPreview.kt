@@ -1,6 +1,10 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
+import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
+import android.os.Build
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -17,54 +21,88 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import ing.fuyaoskyrocket.photoinfo.R
+import ing.fuyaoskyrocket.photoinfo.domain.layout.PreviewViewport
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
-fun PhotoPreview(bitmap: Bitmap?, modifier: Modifier = Modifier) {
-    Box(modifier.background(Color(0xFF111315)), contentAlignment = Alignment.Center) {
-        if (bitmap == null) {
-            Text(stringResource(R.string.empty_hint), modifier = Modifier.padding(28.dp), color = Color(0xFFC7C9CD))
-        } else Image(
-            bitmap = bitmap.asImageBitmap(), contentDescription = stringResource(R.string.preview_content),
-            modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
-        )
+fun PhotoPreview(bitmap:Bitmap?,modifier:Modifier=Modifier) {
+    Box(modifier.background(Color(0xFF111315)),contentAlignment=Alignment.Center) {
+        bitmap?.let { Image(it.asImageBitmap(),stringResource(R.string.preview_content),Modifier.fillMaxSize(),contentScale=ContentScale.Fit) }
     }
 }
 
 @Composable
-fun FullScreenPreview(bitmap: Bitmap, onDismiss: () -> Unit) {
+fun FullScreenPreview(bitmap:Bitmap,onDismiss:()->Unit) {
     var scale by remember(bitmap) { mutableFloatStateOf(1f) }
     var offset by remember(bitmap) { mutableStateOf(Offset.Zero) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(
-        usePlatformDefaultWidth = false, decorFitsSystemWindows = false,
-    )) {
-        Box(Modifier.fillMaxSize().background(Color.Black).onSizeChanged { viewport = it }
+    val scope=rememberCoroutineScope()
+    var resetJob by remember { mutableStateOf<Job?>(null) }
+    DisposableEffect(bitmap) { onDispose { resetJob?.cancel() } }
+    fun bounded(value:Offset,zoom:Float):Offset {
+        val pan=PreviewViewport.clamp(bitmap.width,bitmap.height,viewport.width,viewport.height,zoom,value.x,value.y)
+        return Offset(pan.x,pan.y)
+    }
+    fun moveTo(target:Float) {
+        resetJob?.cancel()
+        val startScale=scale;val startOffset=offset
+        val next=target.coerceIn(1f,8f)
+        resetJob=scope.launch {
+            // Compose's animation context honors the system animator-duration scale.
+            animate(0f,1f,animationSpec=tween(FuyaoMotion.resetMillis,easing=FuyaoMotion.standard)) { fraction,_ ->
+                scale=startScale+(next-startScale)*fraction
+                offset=bounded(startOffset*(1-fraction),scale)
+            }
+        }
+    }
+    Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=false)) {
+        val view=LocalView.current
+        DisposableEffect(view) {
+            (view.parent as? DialogWindowProvider)?.window?.let { window ->
+                WindowCompat.setDecorFitsSystemWindows(window,false)
+                window.colorMode=ActivityInfo.COLOR_MODE_HDR
+                WindowCompat.getInsetsController(window,view).apply { isAppearanceLightStatusBars=false;isAppearanceLightNavigationBars=false }
+                if(Build.VERSION.SDK_INT>=29)window.isNavigationBarContrastEnforced=false
+            }
+            onDispose { /* The dialog owns this window; closing it releases the configuration. */ }
+        }
+        Box(Modifier.fillMaxSize().background(Color.Black).onSizeChanged { viewport=it }
             .pointerInput(bitmap) {
-                detectTransformGestures { centroid, pan, zoom, _ ->
-                    val oldScale = scale
-                    val nextScale = (oldScale * zoom).coerceIn(1f, 8f)
-                    val center = Offset(viewport.width / 2f, viewport.height / 2f)
-                    val anchored = (offset - (centroid - center)) * (nextScale / oldScale) + (centroid - center) + pan
-                    val fit = minOf(viewport.width.toFloat() / bitmap.width, viewport.height.toFloat() / bitmap.height)
-                    val limitX = maxOf(0f, (bitmap.width * fit * nextScale - viewport.width) / 2f)
-                    val limitY = maxOf(0f, (bitmap.height * fit * nextScale - viewport.height) / 2f)
-                    scale = nextScale
-                    offset = Offset(anchored.x.coerceIn(-limitX, limitX), anchored.y.coerceIn(-limitY, limitY))
+                detectTransformGestures { centroid,pan,zoom,_ ->
+                    resetJob?.cancel()
+                    val old=scale;val next=(old*zoom).coerceIn(1f,8f)
+                    val center=Offset(viewport.width/2f,viewport.height/2f)
+                    val anchored=(offset-(centroid-center))*(next/old)+(centroid-center)+pan
+                    scale=next;offset=bounded(anchored,next)
                 }
-            }.pointerInput(bitmap) { detectTapGestures(onDoubleTap = { scale = 1f; offset = Offset.Zero }) }) {
-            Image(bitmap.asImageBitmap(), stringResource(R.string.preview_content),
-                Modifier.fillMaxSize().graphicsLayer {
-                    scaleX = scale; scaleY = scale; translationX = offset.x; translationY = offset.y
-                }, contentScale = ContentScale.Fit)
-            Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = { scale = 1f; offset = Offset.Zero }) { Text(stringResource(R.string.reset_zoom)) }
-                FilledTonalButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+            }.pointerInput(bitmap) { detectTapGestures(onDoubleTap={ moveTo(1f) }) }) {
+            val zoomDescription=stringResource(R.string.zoom_value,(scale*100).roundToInt())
+            Image(bitmap.asImageBitmap(),stringResource(R.string.preview_content),Modifier.fillMaxSize()
+                .semantics { stateDescription=zoomDescription }
+                .graphicsLayer { scaleX=scale;scaleY=scale;translationX=offset.x;translationY=offset.y },contentScale=ContentScale.Fit)
+            Surface(Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)),
+                color=Color.Black.copy(alpha=.72f),contentColor=Color.White) {
+                Row(Modifier.fillMaxWidth().heightIn(min=48.dp).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically) {
+                    FuyaoIconButton(R.drawable.ic_close,stringResource(R.string.close),onDismiss)
+                    Text(zoomDescription,Modifier.weight(1f),style=MaterialTheme.typography.labelLarge)
+                    FuyaoIconButton(R.drawable.ic_minus,stringResource(R.string.zoom_out),{ moveTo(scale/1.5f) },enabled=scale>1f)
+                    FuyaoIconButton(R.drawable.ic_fit,stringResource(R.string.reset_zoom),{ moveTo(1f) })
+                    FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.zoom_in),{ moveTo(scale*1.5f) },enabled=scale<8f)
+                }
             }
         }
     }

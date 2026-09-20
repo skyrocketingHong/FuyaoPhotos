@@ -40,13 +40,20 @@ bash scripts/build-macos.sh
 
 The build script recognizes SDK directories named `android-37` or `android-37.0`. Set `JAVA_HOME` and `ANDROID_HOME` when needed. It does not install SDK packages or accept licenses. A failed task exits nonzero; inspect its first error. Extra Gradle arguments can be passed to the script.
 
-The installable Debug artifact is `app/build/outputs/apk/debug/app-debug.apk`:
+Normal Release and Debug builds are installable. Filenames include the version and ABI; use each directory’s `output-metadata.json` as the source of truth. Install the latest universal Release with:
 
 ```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+python3 - <<'PYAPK'
+from pathlib import Path
+import json, subprocess
+metadata = Path('app/build/outputs/apk/release/output-metadata.json')
+artifacts = json.loads(metadata.read_text())['elements']
+apk = metadata.parent / next(item['outputFile'] for item in artifacts if not item['filters'])
+subprocess.run(['adb', 'install', '-r', str(apk)], check=True)
+PYAPK
 ```
 
-A successful installation prints `Success`; `adb devices` must list an authorized device. To remove this Debug app and its private drafts/settings, use `adb uninstall ing.fuyaoskyrocket.photoinfo.debug`. Exported gallery photos remain. Generated build outputs can be removed with `./gradlew clean`.
+An authorized device is required; successful installation prints `Success`. For a signature mismatch, rebuild with the original signing key instead of uninstalling and losing private drafts/settings. To intentionally remove Release, use `adb uninstall ing.fuyaoskyrocket.photoinfo`; exported gallery images remain. `./gradlew clean` removes build outputs without resetting the build counter.
 
 ## Variants and signing
 
@@ -54,10 +61,26 @@ A successful installation prints `Success`; `adb devices` must list an authorize
 | --- | --- | --- |
 | Debug | `.debug` | Local debug key; installable |
 | Debug Unsigned | `.debug.unsigned` | None |
-| Release | None | Private key when configured; otherwise unsigned |
+| Release | None | Private key when configured; otherwise local debug key |
 | Release Unsigned | `.unsigned` | None |
 
-Tasks are `assembleDebug`, `assembleDebugUnsigned`, `assembleRelease` and `assembleReleaseUnsigned`. Release uses R8 and resource shrinking. Configure a private key through the ignored `signing.properties`, using `signing.properties.example`. Release does not silently fall back to a debug key; unsigned APKs cannot be installed. No private signing key is included.
+Tasks are `assembleDebug`, `assembleDebugUnsigned`, `assembleRelease` and `assembleReleaseUnsigned`. Release uses R8 and resource shrinking. Configure a private key through the ignored `signing.properties`, using `signing.properties.example`. Without private signing properties, Release explicitly uses the local debug key to remain installable, matching the other Fuyao apps. Normal signed builds enable APK v1 and v2. This fallback is a local build, not a production-key release. Unsigned variants cannot be installed. No private signing key is included.
+
+## Versions and APK names
+
+The marketing version is **27.0**, with build train **1A**. Real builds atomically increment the workspace-local `.build-counter`; all variants and ABIs in one invocation share a sequence. Failed builds consume their number. Help, IDE sync and dry-run do not. A fresh workspace starts at sequence 1.
+
+`versionName` is `1Asequence` with non-Release variant suffixes. `versionCode` concatenates marketing base `270` and a sequence padded to at least three digits: `1A4` becomes `270004`. Outputs cover arm64-v8a, armeabi-v7a, x86, x86_64 and universal:
+
+```text
+FuyaoPhotoInfo-applicationId-27.0(1Asequence)-ABI-variant.apk
+```
+
+## Interface and edge-to-edge
+
+The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: compact 48dp app bars that accommodate larger text, dynamic color, semibold headings and consistent groups. Photo content stays primary, with stacked or side-by-side inspector layouts. Lens profiles use a dedicated editor with numeric keyboards, inline validation and deletion undo.
+
+System bars are transparent and insets are consumed once. Backgrounds reach the window edge while final list items and bottom actions remain reachable. Full-screen photos use a separate dark system-bar setup and HDR window, zoom buttons and interruptible reset. Rendering progress overlays the photo without changing its bounds; field edits and original comparison stay immediate. Exported card styling remains independent from the UI theme.
 
 ## Technology and project structure
 

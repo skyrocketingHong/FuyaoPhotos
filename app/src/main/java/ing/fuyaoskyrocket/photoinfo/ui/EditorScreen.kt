@@ -17,6 +17,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.text.style.TextOverflow
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
+import ing.fuyaoskyrocket.photoinfo.ui.components.EditorPreviewPane
+import ing.fuyaoskyrocket.photoinfo.ui.components.AboutDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -42,6 +47,9 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
     var original by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var showPhotoMenu by remember { mutableStateOf(false) }
+    var showMore by remember { mutableStateOf(false) }
+    var showAbout by rememberSaveable { mutableStateOf(false) }
+    val pageState=rememberSaveableStateHolder()
     var pendingPhoto by rememberSaveable { mutableStateOf<String?>(null) }
     val photoPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         pendingPhoto?.let { value -> pendingPhoto = null; vm.importPhoto(Uri.parse(value)) }
@@ -80,80 +88,77 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
         }
     }
     if (showSettings) {
-        SettingsScreen(state.settings, state.original != null, photoDevice = state.sourceDevice, onBack = { showSettings = false }, onSave = { settings, apply ->
-            vm.saveSettings(settings)
-            if (apply) vm.applyDefaultAuthor()
-            showSettings = false
-        })
+        pageState.SaveableStateProvider("settings") {
+            SettingsScreen(state.settings, state.original != null, photoDevice = state.sourceDevice, onBack = { pageState.removeState("settings"); showSettings = false }, onSave = { settings, apply ->
+                vm.saveSettings(settings)
+                if (apply) vm.applyDefaultAuthor()
+                pageState.removeState("settings")
+                showSettings = false
+            })
+        }
         return
     }
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = { showSettings = true }, enabled = !state.busy) {
-                        Icon(painterResource(R.drawable.ic_settings), stringResource(R.string.settings))
-                    }
-                },
-                actions = {
-                    Box {
-                        TextButton(onClick = { showPhotoMenu = true }, enabled = !state.busy) { Text(stringResource(R.string.select_photo)) }
-                        DropdownMenu(showPhotoMenu, onDismissRequest = { showPhotoMenu = false }) {
-                            DropdownMenuItem(text = { Text(stringResource(R.string.from_gallery)) }, onClick = {
-                                showPhotoMenu = false
-                                photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                            })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.from_file)) }, onClick = {
-                                showPhotoMenu = false; filePicker.launch(arrayOf("image/*"))
-                            })
+    pageState.SaveableStateProvider("editor") {
+        FuyaoScaffold(title=stringResource(R.string.app_name),brand=true,actions={
+            Box {
+                FuyaoIconButton(R.drawable.ic_photo_add,stringResource(R.string.select_photo),{ showPhotoMenu=true },enabled=!state.busy)
+                DropdownMenu(showPhotoMenu,onDismissRequest={ showPhotoMenu=false }) {
+                    DropdownMenuItem(text={ Text(stringResource(R.string.from_gallery)) },onClick={
+                        showPhotoMenu=false;photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    })
+                    DropdownMenuItem(text={ Text(stringResource(R.string.from_file)) },onClick={ showPhotoMenu=false;filePicker.launch(arrayOf("image/*")) })
+                }
+            }
+            FuyaoIconButton(R.drawable.ic_export,stringResource(R.string.export),{ showExport=true },enabled=state.canExport,prominent=true)
+            Box {
+                FuyaoIconButton(R.drawable.ic_more,stringResource(R.string.more),{ showMore=true })
+                DropdownMenu(showMore,onDismissRequest={ showMore=false }) {
+                    DropdownMenuItem(text={ Text(stringResource(R.string.settings)) },enabled=!state.busy,onClick={ showMore=false;showSettings=true })
+                    DropdownMenuItem(text={ Text(stringResource(R.string.about)) },onClick={ showMore=false;showAbout=true })
+                }
+            }
+        },snackbarHost={ SnackbarHost(snackbar) }) { padding ->
+            Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+                if(state.original==null) {
+                    Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
+                        Column(Modifier.widthIn(max=420.dp).verticalScroll(rememberScrollState()).padding(32.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                            Icon(painterResource(R.drawable.ic_photo_info),null,Modifier.size(56.dp),MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.empty_title),style=MaterialTheme.typography.headlineSmall)
+                            Text(stringResource(R.string.empty_hint),style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            Button(onClick={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },enabled=!state.busy) { Text(stringResource(R.string.from_gallery)) }
+                            TextButton(onClick={ filePicker.launch(arrayOf("image/*")) },enabled=!state.busy) { Text(stringResource(R.string.from_file)) }
+                            if(state.busy)CircularProgressIndicator(Modifier.size(24.dp),strokeWidth=2.dp)
                         }
                     }
-                    TextButton(onClick = { showExport = true }, enabled = state.canExport) { Text(stringResource(R.string.export)) }
-                })
-        }, snackbarHost = { SnackbarHost(snackbar) },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).imePadding()) {
-            state.mediaMessage?.let { Text(stringResource(it), Modifier.padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall) }
-            if (state.busy || state.rendering) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (state.exporting) Text(stringResource(R.string.exporting),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall)
-            state.previewError?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
-            }
-            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                val wide = maxWidth >= 840.dp || (maxWidth >= 600.dp && maxWidth > maxHeight)
-                val preview: @Composable (Modifier) -> Unit = { modifier ->
-                    Column(modifier) {
-                        PhotoPreview(if (original) state.original else state.preview, Modifier.weight(1f).fillMaxWidth())
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(if (state.width > 0) "${state.width} × ${state.height}" else stringResource(R.string.local_only),
-                                style = MaterialTheme.typography.labelSmall)
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                FilterChip(selected = original, onClick = { original = !original },
-                                    enabled = state.original != null, label = { Text(stringResource(R.string.original)) })
-                                TextButton(onClick = { fullScreen = true }, enabled = state.preview != null) {
-                                    Text(stringResource(R.string.enlarge))
-                                }
+                } else {
+                    state.mediaMessage?.let {
+                        Text(stringResource(it),Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp),style=MaterialTheme.typography.bodySmall,
+                            color=if(state.preservationBlocked)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    state.previewError?.let { Text(it,Modifier.padding(16.dp),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error) }
+                    Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.TopCenter) {
+                        BoxWithConstraints(Modifier.widthIn(max=FuyaoLayout.editor).fillMaxSize()) {
+                            val wide=maxWidth>=600.dp
+                            val inspectorWidth=if(maxWidth<840.dp)320.dp else FuyaoLayout.inspector
+                            val previewHeight=if(maxHeight>=maxWidth+240.dp)maxWidth else maxHeight*.45f
+                            val preview:@Composable (Modifier)->Unit={ m -> EditorPreviewPane(state,original,{ original=!original },{ fullScreen=true },m,bottomSafe=wide) }
+                            val controls:@Composable (Modifier)->Unit={ m -> EditorControls(state,vm::updateField,vm::updateStyle,vm::resetFields,
+                                { fontPicker.launch(arrayOf("*/*")) },vm::resetFont,vm::resolveLocation,m) }
+                            if(wide)Row(Modifier.fillMaxSize()) {
+                                preview(Modifier.weight(1f).fillMaxHeight())
+                                VerticalDivider()
+                                controls(Modifier.width(inspectorWidth).fillMaxHeight())
+                            } else Column(Modifier.fillMaxSize()) {
+                                preview(Modifier.fillMaxWidth().height(previewHeight))
+                                controls(Modifier.fillMaxWidth().weight(1f))
                             }
                         }
                     }
                 }
-                val controls: @Composable (Modifier) -> Unit = { modifier ->
-                    EditorControls(state, vm::updateField, vm::updateStyle, vm::resetFields,
-                        onImportFont = { fontPicker.launch(arrayOf("*/*")) }, onResetFont = vm::resetFont,
-                        onResolveLocation = vm::resolveLocation, modifier = modifier)
-                }
-                if (wide) Row(Modifier.fillMaxSize()) {
-                    preview(Modifier.weight(1f).fillMaxHeight())
-                    controls(Modifier.width(360.dp).fillMaxHeight())
-                } else Column(Modifier.fillMaxSize()) {
-                    preview(Modifier.weight(1f).fillMaxWidth())
-                    controls(Modifier.weight(1.1f).fillMaxWidth())
-                }
             }
         }
     }
+    if(showAbout)AboutDialog { showAbout=false }
     if (fullScreen) (if (original) state.original else state.preview)?.let { bitmap ->
         FullScreenPreview(bitmap) { fullScreen = false }
     }

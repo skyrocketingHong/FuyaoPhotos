@@ -40,13 +40,20 @@ bash scripts/build-macos.sh
 
 构建脚本兼容 `android-37` 和 `android-37.0` SDK 目录。必要时设置 `JAVA_HOME` 和 `ANDROID_HOME`；脚本不会安装 SDK 或接受许可证。构建失败时返回非零状态，应查看首个具体错误。脚本允许追加 Gradle 参数。
 
-可安装的 Debug 包位于 `app/build/outputs/apk/debug/app-debug.apk`：
+普通 Release 与 Debug 均提供可安装包。文件名包含版本和 ABI，以各目录的 `output-metadata.json` 为准。以下命令安装最新的通用 Release：
 
 ```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+python3 - <<'PYAPK'
+from pathlib import Path
+import json, subprocess
+metadata = Path('app/build/outputs/apk/release/output-metadata.json')
+artifacts = json.loads(metadata.read_text())['elements']
+apk = metadata.parent / next(item['outputFile'] for item in artifacts if not item['filters'])
+subprocess.run(['adb', 'install', '-r', str(apk)], check=True)
+PYAPK
 ```
 
-安装成功输出 `Success`，前提是 `adb devices` 中已有授权设备。卸载 Debug 应用及其私有草稿、设置可执行 `adb uninstall ing.fuyaoskyrocket.photoinfo.debug`，已导出至相册的照片保留。清理生成的构建产物可执行 `./gradlew clean`。
+安装成功输出 `Success`，需要已有授权设备。若提示签名不匹配，应使用原签名重新构建，不要直接卸载以免丢失私有草稿和设置。确需移除 Release 时使用 `adb uninstall ing.fuyaoskyrocket.photoinfo`；已导出相册照片保留。`./gradlew clean` 只清理构建产物，不重置构建序号。
 
 ## 构建变体与签名
 
@@ -54,10 +61,26 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | --- | --- | --- |
 | Debug | `.debug` | 本机调试密钥，可安装 |
 | Debug Unsigned | `.debug.unsigned` | 无 |
-| Release | 无 | 配置私钥时签名，否则未签名 |
+| Release | 无 | 优先私钥，否则使用本机调试签名 |
 | Release Unsigned | `.unsigned` | 无 |
 
-任务分别为 `assembleDebug`、`assembleDebugUnsigned`、`assembleRelease`、`assembleReleaseUnsigned`。Release 启用 R8 与资源压缩。参照 `signing.properties.example`，在被忽略的 `signing.properties` 中配置私钥。Release 不会静默回退为调试签名，未签名 APK 不能直接安装；工程不附带私有签名密钥。
+任务分别为 `assembleDebug`、`assembleDebugUnsigned`、`assembleRelease`、`assembleReleaseUnsigned`。Release 启用 R8 与资源压缩。参照 `signing.properties.example`，在被忽略的 `signing.properties` 中配置私钥。没有私钥配置时，Release 明确使用本机调试签名，保持与其他 Fuyao 应用一致的可安装行为。普通签名包启用 APK v1/v2；该回退属于本地构建，不是正式私钥签名。Unsigned 变体不能直接安装；工程不附带私有签名密钥。
+
+## 版本与安装包命名
+
+营销版本为 **27.0**，构建序列为 **1A**。每次真实构建原子递增工作区内的 `.build-counter`；同次调用的所有变体、ABI 共用序号，失败不退号，help、IDE 同步和 dry-run 不计数。新工作区从序号 1 开始。
+
+`versionName` 为 `1A序号`（非 Release 保留变体后缀）；`versionCode` 为营销基数 `270` 拼接至少三位序号，如 `1A4` 对应 `270004`。生成 arm64-v8a、armeabi-v7a、x86、x86_64 与 universal 五类 APK：
+
+```text
+FuyaoPhotoInfo-包名-27.0(1A序号)-ABI-变体.apk
+```
+
+## 界面与边到边
+
+采用 FuyaoLocale / FuyaoColorPicker 的 Material 3 基线：48dp 紧凑顶栏、大字号自适应、动态色、半粗标题和统一分组。照片为主、参数为辅助面板；窄屏上下排列，中宽窗口采用两栏。镜头配置为独立编辑页，支持数字键盘、就地验证和删除撤销。
+
+状态栏、导航栏透明，安全区只消费一次；背景延伸至窗口底部，末行及贴底操作局部避让。全屏照片使用独立深色窗口栏和 HDR 模式，提供缩放按钮与可打断的回位。渲染反馈为覆盖层，不挤动照片；参数输入和原图对照即时响应。导出照片的信息卡版式不受界面主题影响。
 
 ## 技术栈与项目结构
 
