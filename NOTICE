@@ -1,0 +1,19 @@
+Fuyao Photo Info — original Android implementation, 2026.
+
+Repository conventions were inspected in:
+https://github.com/skyrocketingHong/FuyaoColorPicker
+Inspected areas: bilingual README, package/layer structure, Gradle variants and
+signing properties. Color sampling code, legacy color tables, images and fonts
+were not copied. This project does not inherit claims about that app's tested
+behavior or previous releases.
+
+Styling measurements were supplied by the user. The reference screenshots in
+the user's Mac directory were not available to this execution environment.
+Apple and iPhone are marks of their respective owner; this is not an Apple app.
+No Apple font files are embedded, copied or provided in this source handoff.
+
+Dependencies retain their own licenses. AndroidX, Kotlin and Gradle use their
+respective upstream notices; review the resolved dependency set before release.
+The Gradle bootstrap generates the upstream Wrapper with its upstream notices.
+The source notice is AGPL-3.0-only; no separate rights to user-imported assets are
+provided. Obtain the complete official AGPL text before release redistribution.

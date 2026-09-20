@@ -1,0 +1,23 @@
+.gradle/
+.gradle-bootstrap/
+**/build/
+.idea/
+*.iml
+local.properties
+signing.properties
+*.jks
+*.keystore
+.DS_Store
+.local/
+# Personal source photographs and font binaries are never committed.
+references/*
+!references/README.md
+app/src/main/assets/fonts/*
+!app/src/main/assets/fonts/README.md
+*.ttf
+*.otf
+*.ttc
+*.woff
+*.woff2
+*.p12
+__pycache__/
