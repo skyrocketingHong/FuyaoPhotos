@@ -98,9 +98,9 @@
   <string name="hdr_not_decoded">The platform could not decode the HDR gainmap. Export stopped to prevent HDR loss.</string>
   <string name="hdr_not_preserved">The encoded HDR data failed verification. No result was published.</string>
   <string name="media_validation_failed">The exported media container failed verification. No result was published.</string>
-  <string name="media_hdr">Ultra HDR · gainmap preserved in JPEG; brightness depends on display support.</string>
-  <string name="media_motion">Motion Photo · edit cover only; copy video and audio unchanged.</string>
-  <string name="media_hdr_motion">Ultra HDR Motion Photo · preserve gainmap and original video/audio.</string>
+  <string name="media_hdr">Ultra HDR</string>
+  <string name="media_motion">Motion Photo</string>
+  <string name="media_hdr_motion">Ultra HDR · Motion Photo</string>
   <string name="more">More actions</string>
   <string name="about">About</string>
   <string name="empty_title">Add a photo</string>
@@ -132,4 +132,5 @@
   <string name="lens_validation_hint">Device, lens name and a valid equivalent range are required. Optional ranges need both endpoints.</string>
   <string name="range_order_error">The upper value must not be smaller than the lower value.</string>
   <string name="range_number_error">Enter a positive number no greater than %1$d.</string>
+  <string name="editor_title">Photo Info</string>
 </resources>

@@ -2,6 +2,10 @@
 
 ## 27.0 — 2026-09-20
 
+### Fixed
+
+- Prevent the final JPEG background draw from clearing the HDR gainmap and causing a null-pointer export failure. Add native regression coverage for JPEG preparation and HDR still export.
+
 ### Photo editing
 
 - Add an inset frosted information card with EXIF fields, editable credits, short-edge scaling, text wrapping and independent 80%–180% text sizing.
@@ -15,7 +19,8 @@
 
 ### Interface
 
-- Align compact app bars, semantic colors, typography, controls and spacing with the other Fuyao Android apps.
+- Use standard Material 3 app bars, typography and input shapes while retaining Fuyao dynamic color and grouping.
+- Add Navigation Compose predictive back for settings, lens pages and full-screen preview; use a Material 3 export bottom sheet with segmented format selection.
 - Improve edge-to-edge, keyboard handling, adaptive inspector layouts and large-text behavior.
 - Add a dedicated lens editor, inline validation, deletion undo and saved editing state.
 - Stabilize render feedback and add interruptible, bounded preview reset and accessible zoom controls.

@@ -98,9 +98,9 @@
   <string name="hdr_not_decoded">系统未能解码 HDR 增益图，已停止导出以避免 HDR 丢失。</string>
   <string name="hdr_not_preserved">编码后的 HDR 数据未通过校验，未发布导出结果。</string>
   <string name="media_validation_failed">导出的媒体容器未通过校验，未发布导出结果。</string>
-  <string name="media_hdr">Ultra HDR · JPEG 保留增益图，显示亮度取决于屏幕支持。</string>
-  <string name="media_motion">动态照片 · 仅编辑封面，视频与音频原样复制。</string>
-  <string name="media_hdr_motion">Ultra HDR 动态照片 · 保留增益图及原始视频、音频。</string>
+  <string name="media_hdr">Ultra HDR</string>
+  <string name="media_motion">动态照片</string>
+  <string name="media_hdr_motion">Ultra HDR · 动态照片</string>
   <string name="more">更多操作</string>
   <string name="about">关于</string>
   <string name="empty_title">添加照片</string>
@@ -132,4 +132,5 @@
   <string name="lens_validation_hint">请填写机型、镜头名称及有效等效焦段；可选范围须两端同时填写。</string>
   <string name="range_order_error">上限不能小于下限。</string>
   <string name="range_number_error">请输入大于 0 且不超过 %1$d 的数值。</string>
+  <string name="editor_title">照片信息</string>
 </resources>

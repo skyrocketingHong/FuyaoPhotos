@@ -2,7 +2,6 @@ package ing.fuyaoskyrocket.photoinfo.ui
 
 import android.Manifest
 import android.os.Build
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -28,15 +27,15 @@ import kotlinx.coroutines.withContext
 
 internal fun LensProfile.fields()=arrayListOf(id,device,name,cameraId,equivalentMin.toString(),equivalentMax.toString(),zoomMin?.toString().orEmpty(),zoomMax?.toString().orEmpty(),physicalMin?.toString().orEmpty(),physicalMax?.toString().orEmpty())
 internal fun lensFromFields(p:List<String>)=LensProfile(p[0],p[1],p[2],p[3],p[4].toDouble(),p[5].toDouble(),p[6].toDoubleOrNull(),p[7].toDoubleOrNull(),p[8].toDoubleOrNull(),p[9].toDoubleOrNull())
-private val ProfilesSaver=Saver<List<LensProfile>,ArrayList<String>>(save={ ArrayList(it.flatMap { lens->lens.fields() }) },restore={ it.chunked(10).map(::lensFromFields) })
+internal val ProfilesSaver=Saver<List<LensProfile>,ArrayList<String>>(save={ ArrayList(it.flatMap { lens->lens.fields() }) },restore={ it.chunked(10).map(::lensFromFields) })
 
 @Composable
-fun LensProfilesScreen(initial:List<LensProfile>,deviceHint:String="",onBack:()->Unit,onSave:(List<LensProfile>)->Unit) {
+fun LensProfilesScreen(initial:List<LensProfile>,deviceHint:String="",editedFields:List<String>?,onEditConsumed:()->Unit,
+    onEdit:(LensProfile)->Unit,onBack:()->Unit,onSave:(List<LensProfile>)->Unit) {
     var profiles by rememberSaveable(stateSaver=ProfilesSaver) { mutableStateOf(initial) }
     var inventory by remember { mutableStateOf<CameraInventory?>(null) }
     var scanning by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
-    var editorSeed by rememberSaveable { mutableStateOf<ArrayList<String>?>(null) }
     val context=LocalContext.current;val scope=rememberCoroutineScope();val snackbar=remember { SnackbarHostState() }
     val removedText=stringResource(R.string.lens_removed);val undoText=stringResource(R.string.undo)
     fun scan() { scope.launch {
@@ -47,16 +46,15 @@ fun LensProfilesScreen(initial:List<LensProfile>,deviceHint:String="",onBack:()-
     val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted->if(granted)scan() else failed=true }
     fun draft(hardware:HardwareLens?=null)=LensProfile(UUID.randomUUID().toString(),deviceHint.ifBlank { "${Build.MANUFACTURER} ${Build.MODEL}" },"",
         hardware?.id.orEmpty(),0.0,0.0,physicalMin=hardware?.physicalFocals?.minOrNull(),physicalMax=hardware?.physicalFocals?.maxOrNull())
-    editorSeed?.let { seed ->
-        LensEditScreen(lensFromFields(seed),onBack={ editorSeed=null },onSave={ changed ->
+    LaunchedEffect(editedFields) {
+        editedFields?.let { seed ->
+            val changed=lensFromFields(seed)
             profiles=if(profiles.any { it.id==changed.id })profiles.map { if(it.id==changed.id)changed else it } else profiles+changed
-            editorSeed=null
-        })
-        return
+            onEditConsumed()
+        }
     }
-    BackHandler(onBack=onBack)
     FuyaoScaffold(stringResource(R.string.lens_profiles),onBack=onBack,snackbarHost={ SnackbarHost(snackbar) },actions={
-        FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.add_lens),{ editorSeed=draft().fields() },enabled=profiles.size<64)
+        FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.add_lens),{ onEdit(draft()) },enabled=profiles.size<64)
         TextButton(onClick={ onSave(profiles) }) { Text(stringResource(R.string.save)) }
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),contentAlignment=Alignment.TopCenter) {
@@ -78,14 +76,14 @@ fun LensProfilesScreen(initial:List<LensProfile>,deviceHint:String="",onBack:()-
                                 Text("${stringResource(when(hardware.facing) { "FRONT"->R.string.lens_front;"BACK"->R.string.lens_back;else->R.string.lens_external })} · ID ${hardware.id}",style=MaterialTheme.typography.titleSmall)
                                 Text(stringResource(R.string.hardware_values,hardware.physicalFocals.joinToString(),hardware.apertures.joinToString()),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.configure_lens),{ editorSeed=draft(hardware).fields() },enabled=profiles.size<64)
+                            FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.configure_lens),{ onEdit(draft(hardware)) },enabled=profiles.size<64)
                         }
                     }
                 }
                 item { HorizontalDivider();Spacer(Modifier.height(12.dp));SectionHeading(stringResource(R.string.saved_profiles)) }
                 if(profiles.isEmpty())item {
                     Text(stringResource(R.string.no_lens_profiles),style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick={ editorSeed=draft().fields() }) { Text(stringResource(R.string.add_lens)) }
+                    TextButton(onClick={ onEdit(draft()) }) { Text(stringResource(R.string.add_lens)) }
                 }
                 items(profiles,key={ it.id }) { profile ->
                     Row(Modifier.fillMaxWidth().animateItem().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -93,7 +91,7 @@ fun LensProfilesScreen(initial:List<LensProfile>,deviceHint:String="",onBack:()-
                             Text(profile.name,style=MaterialTheme.typography.titleMedium)
                             Text("${profile.device}\n${profile.equivalentMin}–${profile.equivalentMax} MM",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        FuyaoIconButton(R.drawable.ic_edit,"${stringResource(R.string.edit_lens)} ${profile.name}",{ editorSeed=profile.fields() })
+                        FuyaoIconButton(R.drawable.ic_edit,"${stringResource(R.string.edit_lens)} ${profile.name}",{ onEdit(profile) })
                         FuyaoIconButton(R.drawable.ic_delete,"${stringResource(R.string.delete_lens)} ${profile.name}",{
                             val index=profiles.indexOfFirst { it.id==profile.id }
                             profiles=profiles.filterNot { it.id==profile.id }

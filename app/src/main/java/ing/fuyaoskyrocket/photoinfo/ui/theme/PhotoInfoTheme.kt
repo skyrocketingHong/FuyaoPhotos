@@ -7,7 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 private val LightColors=lightColorScheme(
@@ -16,10 +15,7 @@ private val LightColors=lightColorScheme(
 private val DarkColors=darkColorScheme(
     primary=Color(0xFFD0BCFF),onPrimary=Color(0xFF381E72),secondary=Color(0xFFCCC2DC),tertiary=Color(0xFFEFB8C8),
     surface=Color(0xFF141218),onSurface=Color(0xFFE6E0E9),onSurfaceVariant=Color(0xFFCAC4D0),surfaceContainerLow=Color(0xFF1D1B20))
-private val Base=Typography()
-private val FuyaoTypography=Typography(
-    titleLarge=Base.titleLarge.copy(fontWeight=FontWeight.SemiBold),titleMedium=Base.titleMedium.copy(fontWeight=FontWeight.SemiBold),
-    titleSmall=Base.titleSmall.copy(fontWeight=FontWeight.SemiBold),labelLarge=Base.labelLarge.copy(fontWeight=FontWeight.SemiBold))
+private val FuyaoTypography = Typography()
 private val FuyaoShapes=Shapes(RoundedCornerShape(4.dp),RoundedCornerShape(8.dp),RoundedCornerShape(12.dp),RoundedCornerShape(16.dp),RoundedCornerShape(28.dp))
 
 @Composable

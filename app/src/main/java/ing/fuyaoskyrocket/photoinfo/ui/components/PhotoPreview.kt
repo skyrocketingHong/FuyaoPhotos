@@ -1,8 +1,6 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
-import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
-import android.os.Build
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -27,9 +25,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
+import androidx.activity.compose.LocalActivity
 import androidx.core.view.WindowCompat
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.layout.PreviewViewport
@@ -69,17 +65,20 @@ fun FullScreenPreview(bitmap:Bitmap,onDismiss:()->Unit) {
             }
         }
     }
-    Dialog(onDismissRequest=onDismiss,properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=false)) {
-        val view=LocalView.current
-        DisposableEffect(view) {
-            (view.parent as? DialogWindowProvider)?.window?.let { window ->
-                WindowCompat.setDecorFitsSystemWindows(window,false)
-                window.colorMode=ActivityInfo.COLOR_MODE_HDR
-                WindowCompat.getInsetsController(window,view).apply { isAppearanceLightStatusBars=false;isAppearanceLightNavigationBars=false }
-                if(Build.VERSION.SDK_INT>=29)window.isNavigationBarContrastEnforced=false
-            }
-            onDispose { /* The dialog owns this window; closing it releases the configuration. */ }
+    val window = LocalActivity.current?.window
+    val view = LocalView.current
+    DisposableEffect(window, view) {
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+        val lightStatus = controller?.isAppearanceLightStatusBars ?: false
+        val lightNavigation = controller?.isAppearanceLightNavigationBars ?: false
+        controller?.isAppearanceLightStatusBars = false
+        controller?.isAppearanceLightNavigationBars = false
+        onDispose {
+            controller?.isAppearanceLightStatusBars = lightStatus
+            controller?.isAppearanceLightNavigationBars = lightNavigation
         }
+    }
+    Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().background(Color.Black).onSizeChanged { viewport=it }
             .pointerInput(bitmap) {
                 detectTransformGestures { centroid,pan,zoom,_ ->

@@ -83,8 +83,7 @@ private fun InfoField(field:FieldId,state:EditorState,onField:(FieldId,String)->
     val multiline=field in setOf(FieldId.DEVICE,FieldId.AUTHOR,FieldId.LOCATION,FieldId.CAMERA)
     OutlinedTextField(state.info[field],{ onField(field,it) },modifier.fillMaxWidth(),enabled=!state.busy,
         label={ Text(stringResource(fieldLabel(field))) },singleLine=!multiline,maxLines=if(multiline)3 else 1,
-        keyboardOptions=KeyboardOptions(keyboardType=when(field) { FieldId.ISO->KeyboardType.Number;FieldId.APERTURE->KeyboardType.Decimal;else->KeyboardType.Text }),
-        shape=MaterialTheme.shapes.medium)
+        keyboardOptions=KeyboardOptions(keyboardType=when(field) { FieldId.ISO->KeyboardType.Number;FieldId.APERTURE->KeyboardType.Decimal;else->KeyboardType.Text }))
 }
 
 @Composable

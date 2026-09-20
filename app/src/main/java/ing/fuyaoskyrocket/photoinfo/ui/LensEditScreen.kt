@@ -1,6 +1,5 @@
 package ing.fuyaoskyrocket.photoinfo.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,14 +34,13 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit) 
         zoomMin=zoomMin.toDoubleOrNull(),zoomMax=zoomMax.toDoubleOrNull(),physicalMin=physicalMin.toDoubleOrNull(),physicalMax=physicalMax.toDoubleOrNull())
     val numeric=listOf(zoomMin,zoomMax,physicalMin,physicalMax).all { it.isBlank() || it.toDoubleOrNull()?.isFinite()==true }
     val valid=draft.valid()&&numeric
-    BackHandler(onBack=onBack)
     FuyaoScaffold(stringResource(R.string.configure_lens),onBack=onBack,actions={
         TextButton(onClick={ onSave(draft) },enabled=valid) { Text(stringResource(R.string.save)) }
     }) { padding ->
         FuyaoFormPage(padding) {
             SectionHeading(stringResource(R.string.lens_identity),stringResource(R.string.profile_match_hint))
-            OutlinedTextField(device,{ if(it.length<=256)device=it },Modifier.fillMaxWidth(),label={ Text(stringResource(R.string.profile_device)) },singleLine=true,shape=MaterialTheme.shapes.medium)
-            OutlinedTextField(name,{ if(it.length<=256)name=it },Modifier.fillMaxWidth(),label={ Text(stringResource(R.string.profile_name)) },maxLines=3,shape=MaterialTheme.shapes.medium)
+            OutlinedTextField(device,{ if(it.length<=256)device=it },Modifier.fillMaxWidth(),label={ Text(stringResource(R.string.profile_device)) },singleLine=true)
+            OutlinedTextField(name,{ if(it.length<=256)name=it },Modifier.fillMaxWidth(),label={ Text(stringResource(R.string.profile_name)) },maxLines=3)
             HorizontalDivider()
             SectionHeading(stringResource(R.string.equivalent_range),stringResource(R.string.fixed_range_hint))
             RangeFields(min,max,R.string.equivalent_min,R.string.equivalent_max,{ min=it },{ max=it },2000.0)
@@ -63,7 +61,7 @@ private fun RangeFields(min:String,max:String,minLabel:Int,maxLabel:Int,onMin:(S
     @Composable fun field(value:String,label:Int,onChange:(String)->Unit,modifier:Modifier,done:Boolean=false) {
         val parsed=value.toDoubleOrNull()
         val invalid=value.isNotBlank()&&(parsed==null||!parsed.isFinite()||parsed<=0||parsed>limit)||inverted
-        OutlinedTextField(value,{ if(it.length<=32)onChange(it) },modifier,label={ Text(stringResource(label)) },singleLine=true,shape=MaterialTheme.shapes.medium,
+        OutlinedTextField(value,{ if(it.length<=32)onChange(it) },modifier,label={ Text(stringResource(label)) },singleLine=true,
             keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal,imeAction=if(done)ImeAction.Done else ImeAction.Next),
             keyboardActions=KeyboardActions(onNext={ focus.moveFocus(FocusDirection.Next) },onDone={ focus.clearFocus();keyboard?.hide() }),
             isError=invalid,supportingText=if(invalid) { { Text(stringResource(if(inverted)R.string.range_order_error else R.string.range_number_error,limit.toInt())) } } else null)

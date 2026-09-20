@@ -7,7 +7,7 @@
   <uses-feature android:name="android.hardware.camera.any" android:required="false" />
   <application android:allowBackup="false" android:label="${appLabel}"
     android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"
-    android:supportsRtl="true" android:theme="@style/Theme.FuyaoPhotoInfo">
+    android:supportsRtl="true" android:enableOnBackInvokedCallback="true" android:theme="@style/Theme.FuyaoPhotoInfo">
     <activity android:name=".MainActivity" android:exported="true" android:resizeableActivity="true"
       android:windowSoftInputMode="adjustResize">
       <intent-filter>

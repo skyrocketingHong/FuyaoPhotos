@@ -78,9 +78,11 @@ FuyaoPhotoInfo-applicationId-27.0(1Asequence)-ABI-variant.apk
 
 ## Interface and edge-to-edge
 
-The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: compact 48dp app bars that accommodate larger text, dynamic color, semibold headings and consistent groups. Photo content stays primary, with stacked or side-by-side inspector layouts. Lens profiles use a dedicated editor with numeric keyboards, inline validation and deletion undo.
+The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: standard 64dp app bars that accommodate larger text, dynamic color, the default Material type scale and consistent groups. Photo content stays primary, with stacked or side-by-side inspector layouts. Lens profiles use a dedicated editor with numeric keyboards, inline validation and deletion undo.
 
-System bars are transparent and insets are consumed once. Backgrounds reach the window edge while final list items and bottom actions remain reachable. Full-screen photos use a separate dark system-bar setup and HDR window, zoom buttons and interruptible reset. Rendering progress overlays the photo without changing its bounds; field edits and original comparison stay immediate. Exported card styling remains independent from the UI theme.
+System bars are transparent and insets are consumed once. Backgrounds reach the window edge while final list items and bottom actions remain reachable. Full-screen photos stay in the HDR activity with dark system-bar styling, zoom buttons and interruptible reset. Rendering progress overlays the photo without changing its bounds; field edits and original comparison stay immediate. Exported card styling remains independent from the UI theme.
+
+A single Navigation Compose back stack handles Settings, lens profiles, lens editing and full-screen preview, including predictive back progress and cancellation. The root editor leaves back-to-home to Android. Export options use a Material 3 modal bottom sheet with segmented format selection and a fully clickable metadata row. Actual gesture behavior still requires device validation.
 
 ## Technology and project structure
 
@@ -107,7 +109,7 @@ For the user-supplied Xiaomi 17 Ultra specifications, editable profiles can use 
 
 ## HDR and Motion Photo preservation
 
-- On Android 14+, recognized JPEG Ultra HDR images retain their gainmap and decoded color space. The card region receives corresponding gainmap edits; unrelated gainmap pixels remain unchanged before JPEG encoding. The encoded gainmap parameters and color space are checked before publication.
+- On Android 14+, recognized JPEG Ultra HDR images retain their gainmap and decoded color space. The card region receives corresponding gainmap edits; unrelated gainmap pixels remain unchanged before JPEG encoding. All base-image drawing, including JPEG background flattening, finishes before the final gainmap is attached: constructing another Canvas would clear it. The encoded gainmap parameters and color space are checked before publication.
 - Standard JPEG Motion Photos and compatible legacy Microvideo files retain the complete original MP4/MOV payload, including audio and video metadata, without transcoding. Export verifies the copied payload with SHA-256 and preserves its presentation timestamp.
 - HDR Motion Photos retain the GainMap directory item before the video item. EXIF/XMP insertion updates MPF sizes and offsets. Gallery filenames end in `_MP.jpg`.
 - PNG export is disabled for HDR/Motion inputs. Unknown auxiliary data, malformed containers, unsupported formats or failed verification stop export rather than silently discarding media.

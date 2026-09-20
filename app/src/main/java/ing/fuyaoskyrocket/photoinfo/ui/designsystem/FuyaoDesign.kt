@@ -13,7 +13,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
@@ -22,7 +21,7 @@ object FuyaoSpacing {
     val xs=4.dp;val small=8.dp;val compact=12.dp;val content=16.dp;val large=24.dp;val extraLarge=32.dp
 }
 object FuyaoLayout {
-    val appBar=48.dp;val readable=840.dp;val editor=1040.dp;val inspector=360.dp
+    val appBar=64.dp;val readable=840.dp;val editor=1040.dp;val inspector=360.dp
 }
 object FuyaoMotion {
     const val resetMillis=200
@@ -31,16 +30,13 @@ object FuyaoMotion {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FuyaoScaffold(title:String,modifier:Modifier=Modifier,onBack:(()->Unit)?=null,brand:Boolean=false,
+fun FuyaoScaffold(title:String,modifier:Modifier=Modifier,onBack:(()->Unit)?=null,
     actions:@Composable RowScope.()->Unit={},snackbarHost:@Composable ()->Unit={},content:@Composable (PaddingValues)->Unit) {
     val titleHeight=with(LocalDensity.current) { MaterialTheme.typography.titleLarge.lineHeight.toDp() }+16.dp
     Scaffold(modifier=modifier.fillMaxSize(),containerColor=MaterialTheme.colorScheme.surface,
         contentWindowInsets=WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar={ TopAppBar(
-            title={ Row(verticalAlignment=Alignment.CenterVertically) {
-                if(brand) { Icon(painterResource(R.drawable.ic_photo_info),null,Modifier.size(28.dp),MaterialTheme.colorScheme.primary);Spacer(Modifier.width(8.dp)) }
-                Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleLarge)
-            } },
+            title={ Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleLarge) },
             navigationIcon={ if(onBack!=null)FuyaoIconButton(R.drawable.ic_back,stringResource(R.string.back),onBack) },
             actions=actions,expandedHeight=maxOf(FuyaoLayout.appBar,titleHeight),
             windowInsets=WindowInsets.statusBars.only(WindowInsetsSides.Top).union(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
@@ -49,10 +45,8 @@ fun FuyaoScaffold(title:String,modifier:Modifier=Modifier,onBack:(()->Unit)?=nul
 }
 
 @Composable
-fun FuyaoIconButton(icon:Int,label:String,onClick:()->Unit,enabled:Boolean=true,prominent:Boolean=false) {
-    if(prominent) FilledTonalIconButton(onClick=onClick,enabled=enabled,modifier=Modifier.size(48.dp)) {
-        Icon(painterResource(icon),label,Modifier.size(24.dp))
-    } else IconButton(onClick=onClick,enabled=enabled,modifier=Modifier.size(48.dp)) {
+fun FuyaoIconButton(icon:Int,label:String,onClick:()->Unit,enabled:Boolean=true) {
+    IconButton(onClick=onClick,enabled=enabled,modifier=Modifier.size(48.dp)) {
         Icon(painterResource(icon),label,Modifier.size(24.dp))
     }
 }
@@ -72,7 +66,7 @@ fun FuyaoFormPage(padding:PaddingValues,content:@Composable ColumnScope.()->Unit
 fun SectionHeading(text:String,description:String?=null) {
     Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
         Text(text,Modifier.semantics { heading() },color=MaterialTheme.colorScheme.onSurfaceVariant,
-            style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold)
+            style=MaterialTheme.typography.titleSmall)
         if(description!=null)Text(description,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
