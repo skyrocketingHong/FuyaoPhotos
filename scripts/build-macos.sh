@@ -21,7 +21,7 @@ fi
 export ANDROID_HOME="$SDK"
 cd "$ROOT"
 # Unit tests, Debug/Release Lint and APKs; release signing is never assumed.
-./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease "$@"
+./gradlew --no-daemon :app:testDebugUnitTest :app:testAndroidDom :app:lintDebug :app:lintRelease :app:assembleDebug :app:assembleRelease "$@"
 python3 - "$ROOT" <<'PYMETA'
 from pathlib import Path
 import json, sys

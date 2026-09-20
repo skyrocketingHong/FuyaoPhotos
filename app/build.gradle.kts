@@ -199,7 +199,14 @@ androidComponents.onVariants { variant ->
     })
 }
 
+val androidDomRuntime = configurations.create("androidDomRuntime") {
+    isCanBeConsumed = false
+}
+
 dependencies {
+    // Android's snapshot DOM on the host, using a JDK 17-compatible runtime.
+    // This isolated test configuration is never packaged in the application.
+    add(androidDomRuntime.name, "org.robolectric:android-all:14-robolectric-10818077") { isTransitive = false }
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.navigation:navigation-compose:2.9.8")
@@ -214,4 +221,16 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
+}
+
+tasks.register<Test>("testAndroidDom") {
+    group = "verification"
+    description = "Runs media-container checks with Android's Harmony DOM on the host JVM."
+    val hostTests = tasks.named<Test>("testDebugUnitTest").get()
+    dependsOn(hostTests)
+    testClassesDirs = hostTests.testClassesDirs
+    classpath = files(androidDomRuntime, hostTests.classpath)
+    systemProperty("javax.xml.parsers.DocumentBuilderFactory", "org.apache.harmony.xml.parsers.DocumentBuilderFactoryImpl")
+    filter { includeTestsMatching("ing.fuyaoskyrocket.photoinfo.MediaContainerTest") }
+    maxHeapSize = "768m"
 }

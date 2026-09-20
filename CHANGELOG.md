@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Replace existing Motion Photo XMP directories safely with both Android snapshot node lists and desktop live node lists; add Android DOM regression checks to local and CI builds.
 - Prevent the final JPEG background draw from clearing the HDR gainmap and causing a null-pointer export failure. Add native regression coverage for JPEG preparation and HDR still export.
 
 ### Photo editing

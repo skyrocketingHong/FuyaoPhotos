@@ -136,7 +136,9 @@ Manifest 声明联网及照片元数据（`ACCESS_MEDIA_LOCATION`）权限，镜
 
 ## 验证
 
-`bash scripts/build-macos.sh` 执行主机检查与 APK 构建；连接授权设备后，`./gradlew :app:connectedDebugAndroidTest` 可运行方向、卡片边界、导出元数据、设置、字体重置及 Android 14+ HDR/动态封装测试。`scripts/test-core.sh` 是需要 Kotlin CLI 的可选离线测试入口。实际覆盖与剩余设备检查见 [VALIDATION.md](docs/VALIDATION.md)。GitHub 工作流尚未在远端运行。
+`bash scripts/build-macos.sh` 执行主机检查与 APK 构建，其中 `:app:testAndroidDom` 使用 Android Harmony DOM 重跑媒体容器测试，覆盖与桌面 Java 的实现差异。该 Android 运行库仅用于主机测试，不打入 APK；此检查不执行原生 HDR 编解码，也不能替代真机验收。
+
+连接授权设备后，`./gradlew :app:connectedDebugAndroidTest` 可运行方向、卡片边界、导出元数据、设置、字体重置及 Android 14+ HDR/动态封装测试。`scripts/test-core.sh` 是需要 Kotlin CLI 的可选离线测试入口。实际覆盖与剩余设备检查见 [VALIDATION.md](docs/VALIDATION.md)。GitHub 工作流尚未在远端运行。
 
 ## 许可证
 

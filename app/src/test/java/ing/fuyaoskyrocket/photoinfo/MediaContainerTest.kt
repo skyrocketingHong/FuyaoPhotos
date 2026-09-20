@@ -4,6 +4,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.media.*
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Test
 import org.junit.Assert.*
 
@@ -43,6 +44,35 @@ class MediaContainerTest {
         val xml="<!DOCTYPE x [<!ENTITY leak SYSTEM 'file:///etc/passwd'>]><x>&leak;</x>"
         assertTrue(MotionPhoto.inspect(file(jpeg(segment(0xe1,JpegContainer.XMP+xml.toByteArray()))),"image/jpeg").blocked)
     }
+    @Test fun existingXmpDirectoriesAreReplacedOnceWithoutLosingHdrMetadata() {
+        val container = "http://ns.google.com/photos/1.0/container/"
+        val rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+        val hdr = "http://ns.adobe.com/hdr-gain-map/1.0/"
+        for (count in listOf(0, 1, 3)) {
+            val old = (0 until count).joinToString("") {
+                "<c:Directory><rdf:Seq><rdf:li>obsolete-$it</rdf:li></rdf:Seq></c:Directory>"
+            }
+            val xml = """<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="$rdf" xmlns:c="$container"
+                xmlns:h="$hdr" xmlns:other="urn:unrelated"><rdf:RDF>
+                <rdf:Description h:Version="1.0" h:GainMapMax="2.0">$old<other:Directory>keep</other:Directory></rdf:Description>
+                </rdf:RDF></x:xmpmeta>"""
+            val source = file(jpeg(segment(0xe1, JpegContainer.XMP + xml.toByteArray())))
+            val rebuilt = requireNotNull(MotionPhoto.xmp(JpegContainer.inspect(source), MotionVideo(0, video.size.toLong(), 1234)))
+            val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+            val doc = factory.newDocumentBuilder().parse(rebuilt.byteInputStream())
+            assertEquals(1, doc.getElementsByTagNameNS(container, "Directory").length)
+            assertEquals(1, doc.getElementsByTagNameNS("urn:unrelated", "Directory").length)
+            val description = doc.getElementsByTagNameNS(rdf, "Description").item(0) as org.w3c.dom.Element
+            assertEquals("2.0", description.getAttributeNS(hdr, "GainMapMax"))
+            assertFalse(rebuilt.contains("obsolete-"))
+            val result = file(byteArrayOf())
+            JpegContainer.rewrite(source, result, emptyList(), rebuilt)
+            result.appendBytes(video)
+            val envelope = MotionPhoto.inspect(result, "image/jpeg")
+            assertFalse(envelope.blocked)
+            assertEquals(1234L, requireNotNull(envelope.motion).timestampUs)
+        }
+    }
     @Test fun mpfOffsetsRemainValidWithHeaderInsertionAndRemoval() {
         for(order in listOf(ByteOrder.LITTLE_ENDIAN,ByteOrder.BIG_ENDIAN)) for(xmpBefore in listOf(true,false)) {
             val map=jpeg()
@@ -71,6 +101,17 @@ class MediaContainerTest {
             assertArrayEquals(java.security.MessageDigest.getInstance("SHA-256").digest(v),MotionPhoto.digest(combined,videoPart.offset,videoPart.length))
             val gain=JpegContainer.auxiliary(JpegContainer.inspect(combined)).single()
             assertArrayEquals(MotionPhoto.digest(result,aux.offset,aux.length),MotionPhoto.digest(combined,gain.offset,gain.length))
+            // A decoded/re-encoded HDR cover already contains a Container:Directory.
+            // Rebuild that directory again and verify both MPF and the appended video.
+            val rewritten=file(byteArrayOf())
+            JpegContainer.rewrite(combined,rewritten,emptyList(),MotionPhoto.xmp(JpegContainer.inspect(combined),videoPart))
+            val repeated=MotionPhoto.inspect(rewritten,"image/jpeg")
+            assertFalse(repeated.blocked)
+            val repeatedVideo=requireNotNull(repeated.motion)
+            assertEquals(videoPart.timestampUs,repeatedVideo.timestampUs)
+            assertArrayEquals(MotionPhoto.digest(combined,videoPart.offset,videoPart.length),MotionPhoto.digest(rewritten,repeatedVideo.offset,repeatedVideo.length))
+            val repeatedGain=JpegContainer.auxiliary(JpegContainer.inspect(rewritten)).single()
+            assertArrayEquals(MotionPhoto.digest(combined,gain.offset,gain.length),MotionPhoto.digest(rewritten,repeatedGain.offset,repeatedGain.length))
         }
     }
     @Test fun gainmapNeutralValueUsesMetadataInsteadOfFixedGray() {

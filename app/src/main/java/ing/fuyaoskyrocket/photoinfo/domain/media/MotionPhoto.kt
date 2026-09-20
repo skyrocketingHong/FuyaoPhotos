@@ -135,7 +135,12 @@ object MotionPhoto {
         val description=descriptions.item(0) as Element
         for((key,v) in listOf("MotionPhoto" to "1","MotionPhotoVersion" to "1","MotionPhotoPresentationTimestampUs" to video.timestampUs.toString())) description.setAttributeNS(CAMERA,"Camera:$key",v)
         val old=doc.getElementsByTagNameNS(CONTAINER,"Directory")
-        while(old.length>0)old.item(0).parentNode.removeChild(old.item(0))
+        // Android's Harmony DOM returns a snapshot here, whereas desktop DOMs
+        // can return a live list. Capture nodes before mutation and remove each once.
+        val oldDirectories=List(old.length) { old.item(it) }
+        oldDirectories.forEach { node ->
+            requireNotNull(node.parentNode) { "XMP directory has no parent" }.removeChild(node)
+        }
         val directory=doc.createElementNS(CONTAINER,"Container:Directory");val seq=doc.createElementNS(RDF,"rdf:Seq");directory.appendChild(seq);description.appendChild(directory)
         val gainmap=JpegContainer.auxiliary(encoded).singleOrNull()
         fun item(mime:String,semantic:String,length:Long,padding:Long=0) {

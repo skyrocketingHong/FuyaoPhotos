@@ -128,7 +128,9 @@ Insufficient memory produces an error without silently lowering resolution. Inpu
 
 ## Validation
 
-Use `bash scripts/build-macos.sh` for host checks and APKs; use `./gradlew :app:connectedDebugAndroidTest` with an authorized device for orientation, pixel-boundary, export-metadata, settings, font-reset and Android 14+ HDR/Motion tests. `scripts/test-core.sh` is an optional offline route requiring Kotlin CLI. See [VALIDATION.md](docs/VALIDATION.md) for actual coverage and remaining device checks. The GitHub workflow has not been run remotely.
+Use `bash scripts/build-macos.sh` for host checks and APKs. It includes `:app:testAndroidDom`, which repeats media-container tests with Android's Harmony DOM implementation to catch differences from desktop Java. Its Android runtime dependency is test-only and is not packaged in APKs; this check does not execute native HDR codecs or replace device testing.
+
+Use `./gradlew :app:connectedDebugAndroidTest` with an authorized device for orientation, pixel-boundary, export-metadata, settings, font-reset and Android 14+ HDR/Motion tests. `scripts/test-core.sh` is an optional offline route requiring Kotlin CLI. See [VALIDATION.md](docs/VALIDATION.md) for actual coverage and remaining device checks. The GitHub workflow has not been run remotely.
 
 ## License
 
