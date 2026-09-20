@@ -4,9 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.PorterDuff
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -54,10 +51,9 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 require(!media.hdrHint || hdr) { context.getString(R.string.hdr_not_decoded) }
                 require(!hdr || format==ExportFormat.JPEG) { context.getString(R.string.preservation_requires_jpeg) }
                 require(bitmap.colorSpace?.name?.let { !it.contains("HLG",true) && !it.contains("PQ",true) } != false) { context.getString(R.string.media_unsupported) }
-                if(Build.VERSION.SDK_INT>=36 && hdr)require(bitmap.gainmap!!.gainmapDirection==android.graphics.Gainmap.GAINMAP_DIRECTION_SDR_TO_HDR) { context.getString(R.string.media_unsupported) }
-                renderer.drawInPlace(bitmap,info,style,typeface)
-                if(format==ExportFormat.JPEG)Canvas(bitmap).drawColor(Color.WHITE,PorterDuff.Mode.DST_OVER)
-                if(Build.VERSION.SDK_INT>=34 && hdr)expectedGain=HdrGainmaps.metadata(bitmap.gainmap!!)
+                if(Build.VERSION.SDK_INT>=36 && hdr)require(requireNotNull(bitmap.gainmap) { context.getString(R.string.hdr_not_decoded) }.gainmapDirection==android.graphics.Gainmap.GAINMAP_DIRECTION_SDR_TO_HDR) { context.getString(R.string.media_unsupported) }
+                renderer.drawInPlace(bitmap,info,style,typeface,opaqueBackground=format==ExportFormat.JPEG)
+                if(Build.VERSION.SDK_INT>=34 && hdr)expectedGain=HdrGainmaps.metadata(requireNotNull(bitmap.gainmap) { context.getString(R.string.hdr_not_preserved) })
                 expectedColor=bitmap.colorSpace?.name
                 encoded.outputStream().use { output ->
                     val codec=if(format==ExportFormat.JPEG)Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG

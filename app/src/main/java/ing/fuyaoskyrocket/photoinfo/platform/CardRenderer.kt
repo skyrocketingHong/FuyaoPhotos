@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
@@ -27,7 +28,7 @@ class CardRenderer {
         catch (failure: Throwable) { copy.recycle(); throw failure }
     }
 
-    fun drawInPlace(target: Bitmap, info: PhotoInfo, style: CardStyle, typeface: Typeface) {
+    fun drawInPlace(target: Bitmap, info: PhotoInfo, style: CardStyle, typeface: Typeface, opaqueBackground: Boolean = false) {
         require(target.isMutable) { "Renderer requires a mutable bitmap" }
         val s = style.sanitized()
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
@@ -35,10 +36,16 @@ class CardRenderer {
             textSize = CardLayoutEngine.FONT_SIZE
         }
         val layout = CardLayoutEngine.layout(target.width, target.height, info, s, textPaint::measureText)
-            ?: return
+        if (layout == null && !opaqueBackground) return
         val gainmap = if (Build.VERSION.SDK_INT >= 34) target.gainmap else null
-        if (Build.VERSION.SDK_INT >= 34 && gainmap != null) target.setGainmap(null)
+        // Canvas(Bitmap) clears the bitmap's gainmap. Do every base-image draw
+        // with this canvas, then attach the final gainmap only after drawing ends.
         val canvas = Canvas(target)
+        if (opaqueBackground) canvas.drawColor(Color.WHITE, PorterDuff.Mode.DST_OVER)
+        if (layout == null) {
+            if (Build.VERSION.SDK_INT >= 34 && gainmap != null) target.setGainmap(gainmap)
+            return
+        }
         val box = layout.box.let { RectF(it.left, it.top, it.right, it.bottom) }
         val path = Path().apply { addRoundRect(box, layout.radius, layout.radius, Path.Direction.CW) }
         val save = canvas.save()

@@ -19,6 +19,55 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 @SdkSuppress(minSdkVersion=34)
 class HdrMotionExportTest {
+    @Test fun jpegPreparationAttachesGainmapAfterAllCanvasDrawing() {
+        val bitmap = Bitmap.createBitmap(800, 600, Bitmap.Config.ARGB_8888)
+        val contents = Bitmap.createBitmap(200, 150, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
+        val gainmap = Gainmap(contents).apply { setRatioMax(4f, 4f, 4f); displayRatioForFullHdr = 4f }
+        try {
+            // Regression trigger: even constructing a Canvas clears an attached gainmap.
+            bitmap.setGainmap(gainmap)
+            Canvas(bitmap)
+            assertFalse(bitmap.hasGainmap())
+            bitmap.setGainmap(gainmap)
+            ing.fuyaoskyrocket.photoinfo.platform.CardRenderer().drawInPlace(bitmap,
+                PhotoInfo(mapOf(FieldId.ISO to "100")), CardStyle(), Typeface.MONOSPACE, opaqueBackground = true)
+            assertNotNull(bitmap.gainmap)
+            assertEquals(4f, bitmap.gainmap!!.ratioMax[0], .001f)
+            assertEquals(Color.WHITE, bitmap.getPixel(0, 0))
+            val output = java.io.ByteArrayOutputStream()
+            assertTrue(bitmap.compress(Bitmap.CompressFormat.JPEG, 97, output))
+            val encoded = output.toByteArray()
+            val decoded = requireNotNull(BitmapFactory.decodeByteArray(encoded, 0, encoded.size))
+            try { assertTrue(decoded.hasGainmap()) } finally { decoded.recycle() }
+        } finally { bitmap.recycle(); contents.recycle() }
+    }
+
+    @Test fun hdrStillSurvivesExportWithAndWithoutCaptureMetadata() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val input = File.createTempFile("hdr-still-", ".jpg", context.cacheDir)
+        val output = File.createTempFile("hdr-result-", ".jpg", context.cacheDir)
+        val bitmap = Bitmap.createBitmap(800, 600, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GRAY) }
+        val contents = Bitmap.createBitmap(200, 150, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
+        bitmap.setGainmap(Gainmap(contents).apply { setRatioMax(4f, 4f, 4f); displayRatioForFullHdr = 4f })
+        try {
+            input.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.JPEG, 97, it)) }
+            val photos = PhotoRepository(context)
+            val source = photos.import(Uri.fromFile(input))
+            try {
+                for (keepMetadata in listOf(false, true)) {
+                    PhotoExporter(context, photos).export(source, PhotoInfo(mapOf(FieldId.ISO to "100")),
+                        CardStyle(), Typeface.MONOSPACE, ExportFormat.JPEG, keepMetadata, Uri.fromFile(output))
+                    val decoded = requireNotNull(BitmapFactory.decodeFile(output.absolutePath))
+                    try {
+                        assertTrue(decoded.hasGainmap())
+                        assertEquals(4f, decoded.gainmap!!.ratioMax[0], .001f)
+                        assertNull(MotionPhoto.inspect(output, "image/jpeg").motion)
+                    } finally { decoded.recycle() }
+                }
+            } finally { source.file.delete() }
+        } finally { bitmap.recycle(); contents.recycle(); input.delete(); output.delete() }
+    }
+
     @Test fun transparentTextOnlyCardKeepsUntouchedGainmapPixels() {
         val source=Bitmap.createBitmap(800,600,Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GRAY) }
         val map=Bitmap.createBitmap(200,150,Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
