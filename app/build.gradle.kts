@@ -109,7 +109,14 @@ android {
             storePassword = signing.getProperty("storePassword")
             keyAlias = signing.getProperty("keyAlias")
             keyPassword = signing.getProperty("keyPassword")
+            enableV1Signing = true
+            enableV2Signing = true
         }
+    }
+    // Local release builds match the other Fuyao apps; never label this fallback as a private release signature.
+    signingConfigs.getByName("debug") {
+        enableV1Signing = true
+        enableV2Signing = true
     }
     splits {
         abi {
@@ -134,8 +141,8 @@ android {
             matchingFallbacks += "debug"
         }
         release {
-            // Never silently sign a production artifact with a debug key.
-            signingConfig = if (privateSigning) signingConfigs.getByName("privateRelease") else null
+            // Prefer the private key; otherwise provide an explicitly documented, locally signed Release.
+            signingConfig = if (privateSigning) signingConfigs.getByName("privateRelease") else signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
