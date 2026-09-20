@@ -133,4 +133,5 @@
   <string name="range_order_error">The upper value must not be smaller than the lower value.</string>
   <string name="range_number_error">Enter a positive number no greater than %1$d.</string>
   <string name="editor_title">Photo Info</string>
+  <string name="jpeg_quality_hint">JPEG quality: %1$d/100. Original pixel dimensions are preserved.</string>
 </resources>

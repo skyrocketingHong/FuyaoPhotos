@@ -85,7 +85,8 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
     LaunchedEffect(state.notice) {
         state.notice?.let { notice ->
             val exported = state.exported
-            val result = snackbar.showSnackbar(notice, actionLabel = if (exported != null) shareLabel else null)
+            val result = snackbar.showSnackbar(notice, actionLabel = if (exported != null) shareLabel else null,
+                duration = SnackbarDuration.Short, withDismissAction = true)
             vm.clearNotice()
             if (result == SnackbarResult.ActionPerformed && exported != null) {
                 val intent = Intent(Intent.ACTION_SEND).apply {
@@ -133,22 +134,17 @@ fun EditorScreen(vm: EditorViewModel = viewModel()) {
                                 Icon(painterResource(R.drawable.ic_photo_info),null,Modifier.size(56.dp),MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(stringResource(R.string.empty_title),style=MaterialTheme.typography.headlineSmall)
                                 Text(stringResource(R.string.empty_hint),style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                                Button(onClick={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },enabled=!state.busy) { Text(stringResource(R.string.from_gallery)) }
-                                TextButton(onClick={ filePicker.launch(arrayOf("image/*")) },enabled=!state.busy) { Text(stringResource(R.string.from_file)) }
+                                FilledTonalButton(onClick={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_gallery)) }
+                                FilledTonalButton(onClick={ filePicker.launch(arrayOf("image/*")) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_file)) }
                                 if(state.busy)CircularProgressIndicator(Modifier.size(24.dp),strokeWidth=2.dp)
                             }
                         }
                     } else {
-                        state.mediaMessage?.let {
-                            Text(stringResource(it),Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp),style=MaterialTheme.typography.bodySmall,
-                                color=if(state.preservationBlocked)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        state.previewError?.let { Text(it,Modifier.padding(16.dp),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error) }
                         Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.TopCenter) {
                             BoxWithConstraints(Modifier.widthIn(max=FuyaoLayout.editor).fillMaxSize()) {
                                 val wide=maxWidth>=600.dp
                                 val inspectorWidth=if(maxWidth<840.dp)320.dp else FuyaoLayout.inspector
-                                val previewHeight=if(maxHeight>=maxWidth+240.dp)maxWidth else maxHeight*.45f
+                                val previewHeight=minOf(maxWidth*3f/4f+48.dp,maxHeight*.55f)
                                 val preview:@Composable (Modifier)->Unit={ m -> EditorPreviewPane(state,original,{ original=!original },{ navigation.navigate(PhotoPage.PREVIEW.name) },m,bottomSafe=wide) }
                                 val controls:@Composable (Modifier)->Unit={ m -> EditorControls(state,vm::updateField,vm::updateStyle,vm::resetFields,
                                     { fontPicker.launch(arrayOf("*/*")) },vm::resetFont,vm::resolveLocation,m) }
@@ -233,13 +229,15 @@ private fun ExportDialog(width: Int, height: Int, jpegRequired: Boolean, keepMet
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 SegmentedButton(selected = !png, onClick = { png = false },
                     shape = SegmentedButtonDefaults.itemShape(0, 2), modifier = Modifier.weight(1f)) {
-                    Text("JPEG · 97%")
+                    Text("JPEG")
                 }
                 SegmentedButton(selected = png, onClick = { png = true }, enabled = !jpegRequired,
                     shape = SegmentedButtonDefaults.itemShape(1, 2), modifier = Modifier.weight(1f)) {
                     Text("PNG")
                 }
             }
+            if (!png) Text(stringResource(R.string.jpeg_quality_hint, PhotoExporter.JPEG_QUALITY),
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
                 .toggleable(value = keepMetadata, role = Role.Checkbox, onValueChange = onMetadata),
                 verticalAlignment = Alignment.CenterVertically) {

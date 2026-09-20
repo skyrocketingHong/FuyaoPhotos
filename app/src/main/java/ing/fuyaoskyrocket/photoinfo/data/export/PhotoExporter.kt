@@ -57,7 +57,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 expectedColor=bitmap.colorSpace?.name
                 encoded.outputStream().use { output ->
                     val codec=if(format==ExportFormat.JPEG)Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG
-                    if(!bitmap.compress(codec,97,output))throw IOException("Image encoding failed")
+                    if(!bitmap.compress(codec,JPEG_QUALITY,output))throw IOException("Image encoding failed")
                 }
             } finally { bitmap.recycle() }
             if(format==ExportFormat.JPEG) {
@@ -131,6 +131,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         }
     }
     companion object {
+        const val JPEG_QUALITY = 97
         fun filename(format:ExportFormat,motion:Boolean=false)="Fuyao_${SimpleDateFormat("yyyyMMdd_HHmmss_SSS",Locale.ROOT).format(Date())}${if(motion) "_MP" else ""}.${format.extension}"
     }
 }

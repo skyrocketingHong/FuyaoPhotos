@@ -133,4 +133,5 @@
   <string name="range_order_error">上限不能小于下限。</string>
   <string name="range_number_error">请输入大于 0 且不超过 %1$d 的数值。</string>
   <string name="editor_title">照片信息</string>
+  <string name="jpeg_quality_hint">JPEG 编码质量：%1$d/100，保留原始像素尺寸。</string>
 </resources>
