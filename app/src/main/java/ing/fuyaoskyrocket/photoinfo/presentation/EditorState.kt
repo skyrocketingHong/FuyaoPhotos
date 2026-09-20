@@ -10,6 +10,8 @@ import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
 enum class LocationStatus { IDLE, RESOLVING, RESOLVED, UNAVAILABLE, NO_GPS, DISABLED }
 
 data class ExportedPhoto(val uri: Uri, val format: ExportFormat)
+data class EditorNotice(val id: Long, val text: String, val photos: List<ExportedPhoto> = emptyList())
+data class PhotoPageItem(val id: String, val width: Int, val height: Int)
 data class EditorState(
     val info: PhotoInfo = PhotoInfo(),
     val style: CardStyle = CardStyle(),
@@ -22,7 +24,7 @@ data class EditorState(
     val rendering: Boolean = false,
     val error: String? = null,
     val previewError: String? = null,
-    val notice: String? = null,
+    val notice: EditorNotice? = null,
     val fontName: String? = null,
     val hasCustomFont: Boolean = false,
     val keepCaptureMetadata: Boolean = true,
@@ -35,6 +37,17 @@ data class EditorState(
     val motionPhoto: Boolean = false,
     val mediaMessage: Int? = null,
     val sourceDevice: String = "",
+    val photos: List<PhotoPageItem> = emptyList(),
+    val photoIndex: Int = 0,
+    val sessionId: Int = 0,
+    val importing: Boolean = false,
+    val loadingPhoto: Boolean = false,
+    val closing: Boolean = false,
+    val exportCompleted: Int = 0,
+    val exportTotal: Int = 0,
+    val exportRequiresJpeg: Boolean = false,
+    val jpegQuality: Int = ing.fuyaoskyrocket.photoinfo.data.export.PhotoExporter.DEFAULT_JPEG_QUALITY,
 ) {
-    val canExport get() = original != null && !busy && !rendering && previewError == null && !preservationBlocked
+    val canExport get() = photos.isNotEmpty() && !busy && !rendering &&
+        (photos.size > 1 || (original != null && previewError == null && !preservationBlocked))
 }

@@ -3,7 +3,7 @@
   <string name="app_name">Fuyao Photo Info</string>
   <string name="select_photo">选照片</string>
   <string name="export">导出</string>
-  <string name="empty_hint">选择照片，添加内嵌信息卡。\n原照片不会被修改。</string>
+  <string name="empty_hint">选择一张或多张照片（最多 %1$d 张），左右滑动分别编辑，保存时处理全部照片。</string>
   <string name="preview_content">照片与信息卡预览</string>
   <string name="reset_zoom">适应屏幕</string>
   <string name="close">关闭</string>
@@ -128,10 +128,27 @@
   <string name="zoom_range">倍率范围</string>
   <string name="optional_range_hint">可选，两端都填写或都留空。</string>
   <string name="physical_range">物理焦段</string>
-  <string name="physical_range_hint">可选，参照硬件或镜头参数填写，用于区分等效焦段重叠的镜头。</string>
+  <string name="physical_range_hint">可选，填写 Camera2 或 EXIF 读到的实际焦距，不是 35mm 等效焦距；不确定时留空。</string>
   <string name="lens_validation_hint">请填写机型、镜头名称及有效等效焦段；可选范围须两端同时填写。</string>
   <string name="range_order_error">上限不能小于下限。</string>
   <string name="range_number_error">请输入大于 0 且不超过 %1$d 的数值。</string>
   <string name="editor_title">照片信息</string>
   <string name="jpeg_quality_hint">JPEG 编码质量：%1$d/100，保留原始像素尺寸。</string>
+  <string name="discard_title">放弃未保存的修改？</string>
+  <string name="discard_message">返回后将丢弃本页尚未保存的修改。</string>
+  <string name="discard_return">放弃并返回</string>
+  <string name="continue_editing">继续编辑</string>
+  <string name="exit_title">结束本次编辑并退出？</string>
+  <string name="exit_message">将关闭当前打开的照片并清除未保存的草稿。正在进行的保存会停止，已保存到相册的照片会保留。</string>
+  <string name="exit_confirm">清除草稿并退出</string>
+  <string name="closing_session">正在关闭照片…</string>
+  <string name="batch_limit">一次最多选择 %1$d 张照片。</string>
+  <string name="batch_export">保存全部 %1$d 张</string>
+  <string name="batch_export_size">%1$d 张照片分别保留各自的原始像素尺寸。</string>
+  <string name="batch_saved">已保存 %1$d 张 · 失败 %2$d 张</string>
+  <string name="batch_progress">已处理 %1$d / %2$d</string>
+  <string name="importing_photos">正在导入照片…</string>
+  <string name="loading_photo">正在读取照片…</string>
+  <string name="swipe_photos">左右滑动切换照片</string>
+  <string name="jpeg_quality">JPEG 编码质量</string>
 </resources>

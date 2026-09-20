@@ -3,7 +3,7 @@
   <string name="app_name">Fuyao Photo Info</string>
   <string name="select_photo">Photo</string>
   <string name="export">Export</string>
-  <string name="empty_hint">Choose a photo to add an inset information card. Your original stays unchanged.</string>
+  <string name="empty_hint">Select one or more photos (up to %1$d). Swipe to edit each photo, then save them all.</string>
   <string name="preview_content">Photo and information card preview</string>
   <string name="reset_zoom">Fit</string>
   <string name="close">Close</string>
@@ -128,10 +128,27 @@
   <string name="zoom_range">Zoom range</string>
   <string name="optional_range_hint">Optional. Fill both endpoints or leave both blank.</string>
   <string name="physical_range">Physical focal range</string>
-  <string name="physical_range_hint">Optional. Use hardware or lens specifications to distinguish lenses with overlapping equivalent ranges.</string>
+  <string name="physical_range_hint">Optional actual focal lengths from Camera2 or EXIF, not 35mm-equivalent values. Leave blank if unknown.</string>
   <string name="lens_validation_hint">Device, lens name and a valid equivalent range are required. Optional ranges need both endpoints.</string>
   <string name="range_order_error">The upper value must not be smaller than the lower value.</string>
   <string name="range_number_error">Enter a positive number no greater than %1$d.</string>
   <string name="editor_title">Photo Info</string>
   <string name="jpeg_quality_hint">JPEG quality: %1$d/100. Original pixel dimensions are preserved.</string>
+  <string name="discard_title">Discard unsaved changes?</string>
+  <string name="discard_message">Returning will discard changes that you have not saved.</string>
+  <string name="discard_return">Discard and return</string>
+  <string name="continue_editing">Keep editing</string>
+  <string name="exit_title">Exit this editing session?</string>
+  <string name="exit_message">Open photos and unsaved edits will be cleared. Any ongoing save will stop; photos already saved remain in your gallery.</string>
+  <string name="exit_confirm">Clear drafts and exit</string>
+  <string name="closing_session">Closing photos…</string>
+  <string name="batch_limit">Select up to %1$d photos at a time.</string>
+  <string name="batch_export">Save all %1$d photos</string>
+  <string name="batch_export_size">Each of the %1$d photos keeps its original pixel dimensions.</string>
+  <string name="batch_saved">Saved: %1$d · Failed: %2$d</string>
+  <string name="batch_progress">Saved %1$d / %2$d</string>
+  <string name="importing_photos">Importing photos…</string>
+  <string name="loading_photo">Loading photo…</string>
+  <string name="swipe_photos">Swipe to switch photos</string>
+  <string name="jpeg_quality">JPEG quality</string>
 </resources>

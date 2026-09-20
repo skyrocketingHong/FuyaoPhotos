@@ -1,5 +1,6 @@
 package ing.fuyaoskyrocket.photoinfo.ui
 
+import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,7 +35,8 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit) 
         zoomMin=zoomMin.toDoubleOrNull(),zoomMax=zoomMax.toDoubleOrNull(),physicalMin=physicalMin.toDoubleOrNull(),physicalMax=physicalMax.toDoubleOrNull())
     val numeric=listOf(zoomMin,zoomMax,physicalMin,physicalMax).all { it.isBlank() || it.toDoubleOrNull()?.isFinite()==true }
     val valid=draft.valid()&&numeric
-    FuyaoScaffold(stringResource(R.string.configure_lens),onBack=onBack,actions={
+    val requestBack = rememberConfirmedBack(onBack)
+    FuyaoScaffold(stringResource(R.string.configure_lens),onBack=requestBack,actions={
         TextButton(onClick={ onSave(draft) },enabled=valid) { Text(stringResource(R.string.save)) }
     }) { padding ->
         FuyaoFormPage(padding) {

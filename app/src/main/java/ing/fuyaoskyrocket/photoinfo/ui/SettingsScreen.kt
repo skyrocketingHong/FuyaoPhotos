@@ -2,6 +2,7 @@ package ing.fuyaoskyrocket.photoinfo.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
+import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -24,7 +25,8 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
     var geocode by rememberSaveable { mutableStateOf(settings.resolvePhotoLocation) }
     var mainFocal by rememberSaveable { mutableStateOf(settings.fallbackMainFocal) }
     val draft=EditorSettings(author,geocode,mainFocal,settings.lenses)
-    FuyaoScaffold(stringResource(R.string.settings),onBack=onBack,actions={
+    val requestBack = rememberConfirmedBack(onBack)
+    FuyaoScaffold(stringResource(R.string.settings),onBack=requestBack,actions={
         TextButton(onClick={ onSave(draft,false) },enabled=draft.validFocal) { Text(stringResource(R.string.save)) }
     }) { padding ->
         FuyaoFormPage(padding) {

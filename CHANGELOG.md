@@ -9,6 +9,9 @@
 
 ### Photo editing
 
+- Add up to 50-photo sessions with horizontal paging, independent edits, sequential save-all, progress and partial-failure reporting.
+- Add discard confirmation to editor exit and save pages; clear private drafts on confirmed exit.
+- Use matching import buttons, a 4:3 preview with compact status, auto-dismiss save notices and a JPEG quality slider defaulting to 100.
 - Add an inset frosted information card with EXIF fields, editable credits, short-edge scaling, text wrapping and independent 80%–180% text sizing.
 - Add original comparison, full-screen zoom, SF Mono loading and custom font import.
 - Preserve supported JPEG Ultra HDR gainmaps and Motion Photo video/audio while editing the cover; prevent silent flattening of unsupported containers.

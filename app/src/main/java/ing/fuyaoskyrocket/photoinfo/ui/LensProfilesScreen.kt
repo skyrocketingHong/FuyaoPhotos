@@ -4,6 +4,7 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -53,7 +54,8 @@ fun LensProfilesScreen(initial:List<LensProfile>,deviceHint:String="",editedFiel
             onEditConsumed()
         }
     }
-    FuyaoScaffold(stringResource(R.string.lens_profiles),onBack=onBack,snackbarHost={ SnackbarHost(snackbar) },actions={
+    val requestBack = rememberConfirmedBack(onBack)
+    FuyaoScaffold(stringResource(R.string.lens_profiles),onBack=requestBack,snackbarHost={ SnackbarHost(snackbar, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) },actions={
         FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.add_lens),{ onEdit(draft()) },enabled=profiles.size<64)
         TextButton(onClick={ onSave(profiles) }) { Text(stringResource(R.string.save)) }
     }) { padding ->

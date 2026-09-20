@@ -70,7 +70,12 @@ class PhotoRepository(private val context: Context) {
     }
 
     fun removeOtherDrafts(keep: File) {
-        directory.listFiles()?.filter { it != keep }?.forEach { it.delete() }
+        removeOtherDrafts(listOf(keep))
+    }
+
+    fun removeOtherDrafts(keep: Collection<File>) {
+        val retained = keep.toSet()
+        directory.listFiles()?.filter { it.isFile && it.extension == "photo" && it !in retained }?.forEach { it.delete() }
     }
 
     private fun inspect(file: File): PhotoSource {

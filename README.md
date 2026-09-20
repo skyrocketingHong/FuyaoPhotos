@@ -7,18 +7,19 @@
   <img src="https://img.shields.io/badge/License-AGPL--3.0--only-blue" alt="AGPL-3.0-only">
 </p>
 
-A single-photo Android editor with local image processing and optional system place-name lookup. It reads available EXIF metadata and overlays an editable information card without adding a border or changing the photo dimensions. Local build evidence is kept in the ignored `docs/` directory; device/runtime limits are summarized below.
+An Android editor for single photos and batches, with local image processing and optional system place-name lookup. It reads available EXIF metadata and overlays an editable information card without adding a border or changing the photo dimensions. Local build evidence is kept in the ignored `docs/` directory; device/runtime limits are summarized below.
 
 ## Features
 
 - Save a default photographer in Settings; EXIF Artist takes priority, with an explicit action to apply your default to the current photo.
-- Select a photo through the system picker or import an original from Files; normalize all eight EXIF orientations, including mirrored images.
+- Select one or up to 50 photos through the system picker or Files; swipe horizontally to edit each photo independently, then save the whole selection. The app decodes the current preview and exports full-resolution photos sequentially to bound memory use. It normalizes all eight EXIF orientations, including mirrored images.
 - Edit device, photographer, location, lens, megapixels, equivalent focal length, exposure, aperture and ISO. Missing fields are omitted. Photo GPS resolves to city/country through the system service; saved user lens profiles and optional 1× calibration format lens magnification. Camera2 inventories visible hardware without capturing; editable profiles store device names, physical/equivalent ranges and zoom endpoints. All values remain editable.
 - Render device and credits in warm yellow and capture parameters in white. Monospaced text stays opaque over the blurred, translucent neutral-gray background.
 - Scale card geometry with the photo's short edge. Long text wraps along the same left edge; ordinary one-line credit wrapping preserves the reference card size. Longer content expands upward without shrinking or ellipsizing text.
 - Adjust card scale and independent text size (80–180%), opacity, blur, corner radius and right/bottom insets. Default text size remains at the reference 100%; increasing text size preserves card width and expands height only as needed. Compare the original and zoom into a full-screen preview.
+- Confirm before leaving the editor or a page with Save. Exiting the app clears the open session and its private drafts; published photos remain. Cancelled back gestures and cancelled confirmations preserve edits. Save notifications disappear automatically and can also be dismissed.
 - Use locally bundled SF Mono Regular when present, or Android monospace otherwise. Import a custom TTF/OTF/TTC and reset to the default font.
-- Export a new original-resolution JPEG (quality parameter 97) or PNG through the same renderer as the preview. Android 10+ saves to `Pictures/FuyaoPhotoInfo`; Android 8/9 uses the system Save As dialog. Share completed exports through the system share sheet.
+- Export a new original-resolution JPEG (quality slider 0–100, default 100) or PNG through the same renderer as the preview. Android 10+ saves to `Pictures/FuyaoPhotoInfo`; Android 8/9 uses Save As for one photo or a folder picker for a batch. Share completed exports through the system share sheet.
 
 The 1527 × 859 reference uses a 215 × 168 card, 77 px right / 35 px bottom inset, 20 px corners, 19 px horizontal padding, 10.5 px text, 12.5 px leading and a 7 px group gap. The backdrop starts at `#5A5A5A` / 60% opacity with 25 px approximate blur. These are reproduction settings from the supplied screenshots, not an Apple specification. See [STYLE_SPEC.md](docs/STYLE_SPEC.md).
 
@@ -78,11 +79,11 @@ FuyaoPhotoInfo-applicationId-27.0(1Asequence)-ABI-variant.apk
 
 ## Interface and edge-to-edge
 
-The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: standard 64dp app bars that accommodate larger text, dynamic color, the default Material type scale and consistent groups. Photo content stays primary, with stacked or side-by-side inspector layouts. Lens profiles use a dedicated editor with numeric keyboards, inline validation and deletion undo.
+The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: standard 64dp app bars that accommodate larger text, dynamic color, the default Material type scale and consistent groups. Photo content uses a 4:3 viewport with Fit scaling and a combined size/media/progress row, with stacked or side-by-side inspector layouts. Lens profiles use a dedicated editor with numeric keyboards, inline validation and deletion undo.
 
 System bars are transparent and insets are consumed once. Backgrounds reach the window edge while final list items and bottom actions remain reachable. Full-screen photos stay in the HDR activity with dark system-bar styling, zoom buttons and interruptible reset. Rendering progress overlays the photo without changing its bounds; field edits and original comparison stay immediate. Exported card styling remains independent from the UI theme.
 
-A single Navigation Compose back stack handles Settings, lens profiles, lens editing and full-screen preview, including predictive back progress and cancellation. The root editor leaves back-to-home to Android. Export options use a Material 3 modal bottom sheet with segmented format selection and a fully clickable metadata row. Actual gesture behavior still requires device validation.
+A single Navigation Compose back stack handles Settings, lens profiles, lens editing and full-screen preview, including predictive back progress and cancellation. With an open session, completing Back first asks to discard and exit; an empty editor leaves back-to-home to Android. Settings and lens pages also confirm before discarding. Saving explicitly returns without a second discard prompt. Export options use a Material 3 modal bottom sheet with segmented format selection and a fully clickable metadata row. Actual gesture behavior still requires device validation.
 
 ## Technology and project structure
 
@@ -104,6 +105,8 @@ See [metadata recognition](docs/METADATA.md) for GPS, default-photographer and l
 ## Configuring lenses
 
 In Settings → Lens profiles, scan visible lenses or add a profile manually. Use the device/model text from the photo (prefilled when a photo is open), then enter a name and equivalent focal range. Set equal endpoints for fixed lenses. Optional zoom endpoints are interpolated for variable lenses; optional physical ranges can recover a missing equivalent focal length when the match is unique. Save the profile page to persist the configuration. Camera IDs describe local hardware and are not used as EXIF identifiers.
+
+Use the exact original EXIF model shown by the app (for example, `Xiaomi 17 Ultra by Leica`) for all three profiles. Physical focal ranges are actual Camera2/EXIF millimetres, not 35mm-equivalent values; leave them blank when unknown. Aperture and output megapixels come from each photo.
 
 For the user-supplied Xiaomi 17 Ultra specifications, editable profiles can use 23–23 mm / 1–1× for the main camera and 75–100 mm / 3.2–4.3× for the telephoto. The ultrawide uses 14–14 mm (approximately 0.6× relative to 23 mm). Lens display names are user-defined. No product mapping is hardcoded. Available physical focal metadata further disambiguates equivalent ranges; unresolved overlaps remain unmatched.
 

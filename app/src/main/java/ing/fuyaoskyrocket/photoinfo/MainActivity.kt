@@ -12,6 +12,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.colorMode = android.content.pm.ActivityInfo.COLOR_MODE_HDR
         enableFuyaoEdgeToEdge()
-        setContent { PhotoInfoTheme { EditorScreen() } }
+        setContent { PhotoInfoTheme { EditorScreen(onExit = ::finishAndRemoveTask) } }
     }
 }
