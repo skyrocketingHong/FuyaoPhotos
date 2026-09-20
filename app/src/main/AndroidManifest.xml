@@ -3,6 +3,8 @@
   <!-- Photo metadata access only; never request the device's current location. -->
   <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
   <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-feature android:name="android.hardware.camera.any" android:required="false" />
   <application android:allowBackup="false" android:label="${appLabel}"
     android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"
     android:supportsRtl="true" android:theme="@style/Theme.FuyaoPhotoInfo">

@@ -3,6 +3,7 @@ package ing.fuyaoskyrocket.photoinfo
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardLayoutEngine
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardOverflowException
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting as Format
+import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfile
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.AndroidLensMetadata
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.LocationFormatting
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.PhotoCoordinates
@@ -56,33 +57,38 @@ object CoreChecks {
             }
         }
         verify("focal formatting never invents zoom") { check(Format.equivalentFocalLength(24.0) == "24 MM") }
-        verify("Xiaomi 17 Ultra 75mm uses the supplied 3.2x camera convention") {
-            val lens = AndroidLensMetadata.resolve("Xiaomi", "Xiaomi 17 Ultra by Leica", "", 75.0)
+        val tele = LensProfile("tele", "Xiaomi 17 Ultra by Leica", "LEICA 200MP TELEPHOTO", "2", 75.0, 100.0, 3.2, 4.3, 17.0, 22.7)
+        verify("configured variable lens matches both endpoints") {
+            for ((mm, zoom) in listOf(75.0 to "3.2", 100.0 to "4.3")) {
+                val lens = AndroidLensMetadata.resolve("Xiaomi", "Xiaomi 17 Ultra by Leica", "", mm, profiles=listOf(tele))
+                check(lens.focalLength == "${Format.number(mm)} MM (${zoom}X)")
+                check(lens.camera == tele.name)
+            }
+        }
+        verify("missing metadata uses a unique configured physical range") {
+            val lens=AndroidLensMetadata.resolve("Xiaomi", "Xiaomi 17 Ultra by Leica", "", 0.0, profiles=listOf(tele),physicalMm=17.0)
             check(lens.focalLength == "75 MM (3.2X)")
-            check(lens.camera == "LEICA TELEPHOTO")
         }
-        verify("known main and ultrawide lenses have matching magnifications") {
-            check(AndroidLensMetadata.resolve("Xiaomi", "14", "", 23.0).focalLength == "23 MM (1X)")
-            check(AndroidLensMetadata.resolve("Xiaomi", "14", "", 14.0).focalLength == "14 MM (0.6X)")
-            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "", 100.0).focalLength == "100 MM (4.3X)")
-            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "", 21.0).focalLength == "21 MM")
-            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "Front camera", 23.0).camera == "Front camera")
-            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "Front camera", 23.0, 24.0).focalLength == "23 MM")
+        verify("profiles do not leak across devices or ambiguous ranges") {
+            check(AndroidLensMetadata.resolve("Other", "Device", "", 75.0, profiles=listOf(tele)).focalLength=="75 MM")
+            val lens=AndroidLensMetadata.resolve("Xiaomi", "Xiaomi 17 Ultra by Leica", "", 75.0, profiles=listOf(tele,tele.copy(id="other")))
+            check(lens.camera.isEmpty() && lens.focalLength=="75 MM")
         }
-        verify("unknown devices do not inherit Xiaomi lens mappings") {
-            val lens = AndroidLensMetadata.resolve("Samsung", "UNKNOWN", "", 75.0)
-            check(lens.focalLength == "75 MM" && lens.camera.isEmpty())
-            check(AndroidLensMetadata.resolve("Xiaomi", "UNKNOWN", "", 75.0).focalLength == "75 MM")
+        verify("no built-in device mapping remains") {
+            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "", 75.0).focalLength=="75 MM")
+            check(AndroidLensMetadata.resolve("Xiaomi", "14", "", 75.0).camera.isEmpty())
         }
-        verify("unknown device calibration and explicit lens zoom") {
-            check(AndroidLensMetadata.resolve("Brand", "Device", "", 72.0, 24.0).focalLength == "72 MM (3X)")
-            val lens = AndroidLensMetadata.resolve("Brand", "Device", "TELEPHOTO (3.2x)", 75.0)
-            check(lens.focalLength == "75 MM (3.2X)" && lens.camera == "TELEPHOTO (3.2x)")
-            check(AndroidLensMetadata.resolve("Brand", "Device", "", 75.0, Double.NaN).focalLength == "75 MM")
+        verify("profile ranges and optional endpoints are validated") {
+            check(tele.valid())
+            check(!tele.copy(equivalentMax=14.0).valid())
+            check(!tele.copy(zoomMax=null).valid())
+            check(!tele.copy(physicalMin=Double.NaN).valid())
         }
-        verify("missing equivalent focal length stays empty") {
-            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "Existing lens", 0.0).focalLength.isEmpty())
-            check(AndroidLensMetadata.resolve("Xiaomi", "17 Ultra", "Existing lens", 0.0).camera == "Existing lens")
+        verify("explicit EXIF and user main-camera calibration remain supported") {
+            check(AndroidLensMetadata.resolve("Brand", "Device", "TELEPHOTO (3.2x)",75.0).focalLength=="75 MM (3.2X)")
+            check(AndroidLensMetadata.resolve("Brand", "Device", "",72.0,24.0).focalLength=="72 MM (3X)")
+            check(AndroidLensMetadata.resolve("Brand", "Device", "Front camera",23.0,24.0).focalLength=="23 MM")
+            check(AndroidLensMetadata.resolve("Brand", "Device", "Existing lens",0.0).camera=="Existing lens")
         }
         verify("reference place format uses city and English country") {
             check(LocationFormatting.place("Hangzhou", null, "Zhejiang", "中国", "CN") == "Hangzhou, China")

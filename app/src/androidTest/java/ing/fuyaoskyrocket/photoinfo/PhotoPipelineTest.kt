@@ -17,6 +17,7 @@ import ing.fuyaoskyrocket.photoinfo.platform.CardRenderer
 import ing.fuyaoskyrocket.photoinfo.platform.FontRepository
 import ing.fuyaoskyrocket.photoinfo.data.settings.SettingsRepository
 import android.content.Context
+import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfile
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
@@ -29,7 +30,10 @@ import kotlin.math.abs
 class PhotoPipelineTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
-    @Test fun exifGpsAndXiaomiLensAreReadTogether() = runBlocking {
+    @Test fun exifGpsAndConfiguredLensAreReadTogether() = runBlocking {
+        val settingsRepository=SettingsRepository(context)
+        val previous=settingsRepository.read()
+        settingsRepository.save(previous.copy(lenses=listOf(LensProfile("test","Xiaomi 17 Ultra by Leica","LEICA TELEPHOTO",equivalentMin=75.0,equivalentMax=100.0,zoomMin=3.2,zoomMax=4.3))))
         val original = quadrantPhoto(1)
         ExifInterface(original).apply {
             setAttribute(ExifInterface.TAG_MAKE, "Xiaomi")
@@ -46,7 +50,7 @@ class PhotoPipelineTest {
                 assertEquals("LEICA TELEPHOTO", source.info[FieldId.CAMERA])
                 assertTrue(source.info[FieldId.LOCATION].isEmpty()) // No invented place before geocoding.
             } finally { source.file.delete() }
-        } finally { original.delete() }
+        } finally { original.delete(); settingsRepository.save(previous) }
     }
 
     @Test fun settingsPersistAndMigrateThePreviousPhotographer() {

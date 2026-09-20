@@ -58,7 +58,7 @@
   <string name="resolve_location">Resolve photo GPS to a place</string>
   <string name="resolve_location_hint">Sends photo coordinates to the Android system place-name service, which may use the network. It does not read your current location or upload the photo. English city and country names are requested. Exported EXIF still excludes GPS.</string>
   <string name="lens_settings">Lens recognition</string>
-  <string name="lens_settings_hint">Known profiles include Xiaomi 17 Ultra and Xiaomi 14. For other devices, an explicit zoom in LensModel is preferred; optionally set the equivalent focal length of the 1× main camera below.</string>
+  <string name="lens_settings_hint">Configure device-specific lens names, focal ranges and zoom endpoints. No device names or focal mappings are hardcoded.</string>
   <string name="main_focal">Unknown device: 1× equivalent focal length (mm)</string>
   <string name="main_focal_hint">Optional. Applies to future imports from unknown devices. Leave blank to show focal length only when zoom is unknown.</string>
   <string name="main_focal_error">Enter a number from 1 to 200, or leave blank.</string>
@@ -71,4 +71,25 @@
   <string name="location_disabled">Automatic place lookup is off in Settings.</string>
   <string name="location_hint">Uses the photo GPS, not your current location.</string>
   <string name="location_retry">Resolve again from photo GPS</string>
+  <string name="manage_lenses">Lens profiles (%1$d)</string>
+  <string name="lens_profiles">Lens profiles</string>
+  <string name="inventory_hint">Camera2 lists the lenses exposed by this device; some vendors hide sensors. Scanning reads camera characteristics without opening or capturing. You can also configure lenses manually.</string>
+  <string name="scan_lenses">Scan visible lenses</string>
+  <string name="inventory_failed">Scan unavailable. You can still add profiles manually.</string>
+  <string name="inventory_count">%1$d visible physical/standalone lenses · %2$d logical cameras</string>
+  <string name="inventory_incomplete">Some characteristics could not be read. This is not a complete hardware inventory.</string>
+  <string name="hardware_values">Physical focal lengths: %1$s mm · Apertures: %2$s</string>
+  <string name="configure_lens">Configure lens</string>
+  <string name="add_lens">Add lens manually</string>
+  <string name="edit_lens">Edit</string>
+  <string name="delete_lens">Delete</string>
+  <string name="profile_match_hint">Use the device/model text from the photo. Set identical range endpoints for a fixed lens. Zoom and physical ranges are optional; fill both endpoints or leave both blank. Overlapping matches are not guessed. Save this page after editing.</string>
+  <string name="profile_device">Device / EXIF model</string>
+  <string name="profile_name">Displayed lens name</string>
+  <string name="equivalent_min">Equivalent focal min (mm)</string>
+  <string name="equivalent_max">Equivalent focal max (mm)</string>
+  <string name="zoom_min">Zoom at lower endpoint (×, optional)</string>
+  <string name="zoom_max">Zoom at upper endpoint (×, optional)</string>
+  <string name="physical_min">Physical focal min (mm, optional)</string>
+  <string name="physical_max">Physical focal max (mm, optional)</string>
 </resources>

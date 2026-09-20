@@ -85,9 +85,10 @@ class PhotoRepository(private val context: Context) {
         val height = if (swapped) bounds.outWidth else bounds.outHeight
         fun text(tag: String) = exif?.getAttribute(tag).orEmpty().trim()
         fun number(tag: String) = exif?.getAttributeDouble(tag, 0.0) ?: 0.0
+        val settings = SettingsRepository(context).read()
         val lens = AndroidLensMetadata.resolve(text(ExifInterface.TAG_MAKE), text(ExifInterface.TAG_MODEL),
             text(ExifInterface.TAG_LENS_MODEL), number(ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM),
-            SettingsRepository(context).read().mainFocalMm)
+            settings.mainFocalMm, settings.lenses, number(ExifInterface.TAG_FOCAL_LENGTH))
         val coordinates = runCatching { exif?.latLong }.getOrNull()?.let { PhotoCoordinates.from(it[0], it[1]) }
         val info = PhotoInfo(mapOf(
             FieldId.DEVICE to Format.device(text(ExifInterface.TAG_MAKE), text(ExifInterface.TAG_MODEL)),

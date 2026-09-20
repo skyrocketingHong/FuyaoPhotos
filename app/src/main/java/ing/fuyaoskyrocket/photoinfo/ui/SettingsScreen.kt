@@ -22,7 +22,13 @@ fun SettingsScreen(settings: EditorSettings, hasPhoto: Boolean, onBack: () -> Un
     var author by rememberSaveable { mutableStateOf(settings.defaultAuthor) }
     var geocode by rememberSaveable { mutableStateOf(settings.resolvePhotoLocation) }
     var mainFocal by rememberSaveable { mutableStateOf(settings.fallbackMainFocal) }
-    val draft = EditorSettings(author, geocode, mainFocal)
+    var lenses by remember { mutableStateOf(settings.lenses) }
+    var manageLenses by rememberSaveable { mutableStateOf(false) }
+    val draft = EditorSettings(author, geocode, mainFocal, lenses)
+    if (manageLenses) {
+        LensProfilesScreen(lenses, onBack = { manageLenses = false }, onSave = { onSave(draft.copy(lenses = it), false) })
+        return
+    }
     BackHandler(onBack = onBack)
     Scaffold(topBar = {
         TopAppBar(title = { Text(stringResource(R.string.settings)) },
@@ -47,6 +53,7 @@ fun SettingsScreen(settings: EditorSettings, hasPhoto: Boolean, onBack: () -> Un
             HorizontalDivider()
             Text(stringResource(R.string.lens_settings), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.lens_settings_hint), style = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = { manageLenses = true }, enabled = draft.validFocal) { Text(stringResource(R.string.manage_lenses, lenses.size)) }
             OutlinedTextField(mainFocal, onValueChange = { if (it.length <= 12) mainFocal = it },
                 label = { Text(stringResource(R.string.main_focal)) }, placeholder = { Text("24") },
                 singleLine = true, modifier = Modifier.fillMaxWidth(),

@@ -58,7 +58,7 @@
   <string name="resolve_location">将照片 GPS 解析为地点</string>
   <string name="resolve_location_hint">将照片坐标交给 Android 系统地名服务，可能需要联网；不读取当前位置、不上传照片。优先请求英文城市与国家名。导出 EXIF 仍不包含 GPS。</string>
   <string name="lens_settings">镜头识别</string>
-  <string name="lens_settings_hint">已内置 Xiaomi 17 Ultra 和 Xiaomi 14 档案。其他设备优先读取镜头字段中的明确倍率；也可在下面设置 1× 主摄的等效焦距。</string>
+  <string name="lens_settings_hint">按机型保存镜头名称、焦段范围与倍率端点；不再硬编码机型或焦段映射。</string>
   <string name="main_focal">未识别机型：1× 等效焦距（mm）</string>
   <string name="main_focal_hint">可选，仅应用于后续导入的未识别机型。留空时，无法确认倍率就只显示焦距。</string>
   <string name="main_focal_error">请填写 1～200 的数值，或留空。</string>
@@ -71,4 +71,25 @@
   <string name="location_disabled">设置中已关闭自动地名解析。</string>
   <string name="location_hint">使用照片 GPS，不使用设备当前位置。</string>
   <string name="location_retry">重新解析照片 GPS</string>
+  <string name="manage_lenses">镜头配置（%1$d）</string>
+  <string name="lens_profiles">镜头配置</string>
+  <string name="inventory_hint">Camera2 仅列出系统开放的镜头，厂商可能隐藏部分硬件。扫描只查询参数，不打开相机或拍摄；也可手动添加。</string>
+  <string name="scan_lenses">扫描可见镜头</string>
+  <string name="inventory_failed">无法扫描，仍可手动添加配置。</string>
+  <string name="inventory_count">可见物理／独立镜头 %1$d 个 · 逻辑相机 %2$d 个</string>
+  <string name="inventory_incomplete">部分参数无法读取，此结果不代表设备全部硬件。</string>
+  <string name="hardware_values">物理焦距：%1$s mm · 光圈：%2$s</string>
+  <string name="configure_lens">配置镜头</string>
+  <string name="add_lens">手动添加镜头</string>
+  <string name="edit_lens">编辑</string>
+  <string name="delete_lens">删除</string>
+  <string name="profile_match_hint">机型请填写照片中的设备／型号文字。定焦镜头两端填写同值；倍率、物理焦距可选，须两端都填或都留空。重叠匹配不会硬猜。编辑后保存配置页面。</string>
+  <string name="profile_device">匹配设备／EXIF 型号</string>
+  <string name="profile_name">显示镜头名称</string>
+  <string name="equivalent_min">等效焦距下限（mm）</string>
+  <string name="equivalent_max">等效焦距上限（mm）</string>
+  <string name="zoom_min">下限倍率（×，可选）</string>
+  <string name="zoom_max">上限倍率（×，可选）</string>
+  <string name="physical_min">物理焦距下限（mm，可选）</string>
+  <string name="physical_max">物理焦距上限（mm，可选）</string>
 </resources>
