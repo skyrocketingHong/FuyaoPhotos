@@ -21,3 +21,8 @@ app/src/main/assets/fonts/*
 *.woff2
 *.p12
 __pycache__/
+
+# Local documentation and agent instructions are not versioned.
+/docs/
+AGENTS.md
+agents.md
