@@ -7,11 +7,28 @@ from FuyaoLocale and FuyaoColorPicker (AGPL-3.0-only). Historic color tables and
 image assets were not copied.
 
 The style follows user-provided measurements and five local reference screenshots.
-Apple and iPhone are marks of their respective owner; this is not an Apple app.
+These measurements are independent estimates, not official Apple specifications.
+
+Apple-related notice
+--------------------
+Fuyao Photo Info is an independent third-party project, not developed, sponsored
+or endorsed by, or affiliated with, Apple Inc. Apple, iPhone and macOS are
+trademarks of Apple Inc. References to Apple products, fonts or visual styles do
+not imply affiliation, certification or permission to use Apple materials.
+
 This local checkout uses SF Mono Regular copied from the macOS Terminal bundle.
 The font binary and reference photographs are Git-ignored local assets and are
 not covered by this project's AGPL-3.0-only source license. APKs built while the
 font is present include it; builds without it use Android monospace.
+Apple fonts remain subject to their applicable licenses. Neither the project
+license, the copying script nor this notice grants embedding or redistribution
+rights. Distribute an APK containing an Apple font only with a license covering
+that use; otherwise use Android monospace or another appropriately licensed font.
+
+Apple trademark guidelines:
+https://www.apple.com/legal/intellectual-property/guidelinesfor3rdparties.html
+Apple font information and license terms:
+https://developer.apple.com/fonts/
 
 Dependencies retain their upstream licenses and notices. The generated Gradle
 Wrapper retains its upstream notices. Imported fonts and photographs retain

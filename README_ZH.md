@@ -155,6 +155,16 @@ Manifest 声明联网及照片元数据（`ACCESS_MEDIA_LOCATION`）权限，镜
 
 原创源码采用 `AGPL-3.0-only`，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。字体、截图及照片保留各自权利；本项目不是 Apple 产品。
 
+## Apple 相关声明
+
+Fuyao Photo Info 是独立的第三方项目，与 Apple Inc. 无隶属或合作关系，非由 Apple 开发、赞助或认可。Apple、iPhone、macOS 等商标归 Apple Inc. 所有；其他名称及素材的权利归各自权利人所有。
+
+项目对 Apple 产品、字体及视觉样式的提及仅用于说明参考来源与实现。信息卡的尺寸和排版参数依据参考图片估算，不属于 Apple 官方设计规范、设计资源，也不表示获得 Apple 认证。
+
+SF Mono 等 Apple 字体仍受其适用许可约束，不属于本项目 `AGPL-3.0-only` 的授权范围。macOS 自带字体、本地复制脚本或 Git 忽略规则均不构成字体嵌入或再分发授权。分发包含 Apple 字体的 Android APK 前，应取得覆盖该用途的许可，或改用 Android 系统等宽字体及其他许可允许的字体。本声明本身不授予使用 Apple 素材的权利。
+
+相关依据见 Apple 的[商标使用指南](https://www.apple.com/legal/intellectual-property/guidelinesfor3rdparties.html)、[商标列表](https://www.apple.com/legal/intellectual-property/trademark/appletmlist.html)和[字体信息及许可条款](https://developer.apple.com/fonts/)。具体字体或素材随附的许可仍然适用。
+
 ## AI 辅助开发
 
 本项目在开发过程中使用生成式 AI 协助编码。

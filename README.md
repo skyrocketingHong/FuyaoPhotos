@@ -153,6 +153,16 @@ Use `./gradlew :app:connectedDebugAndroidTest` with an authorized device for ori
 
 Original source is `AGPL-3.0-only`; see [LICENSE](LICENSE) and [NOTICE](NOTICE). Fonts, screenshots and photographs retain their own rights. This is not an Apple product.
 
+## Apple-related notice
+
+Fuyao Photo Info is an independent third-party project. It is not developed, sponsored or endorsed by, or affiliated with, Apple Inc. Apple, iPhone and macOS are trademarks of Apple Inc.; other names and materials remain the property of their respective owners.
+
+References to Apple products, fonts and visual styles describe the project’s references and implementation only. The information-card measurements are estimates from reference images, not official Apple specifications, design resources or a claim of certification.
+
+Apple fonts, including SF Mono, remain subject to their applicable licenses and are not licensed under this project’s AGPL-3.0-only terms. Their availability on macOS, the local copying script and Git exclusion do not grant permission to embed or redistribute them. Before distributing an Android APK containing an Apple font, obtain a license covering that use or build with Android monospace or another appropriately licensed font. This notice itself grants no rights to Apple materials.
+
+See Apple’s [trademark guidelines](https://www.apple.com/legal/intellectual-property/guidelinesfor3rdparties.html), [trademark list](https://www.apple.com/legal/intellectual-property/trademark/appletmlist.html) and [font information and license terms](https://developer.apple.com/fonts/). The license supplied with the particular font or material remains applicable.
+
 ## AI-Assisted Development
 
 Generative AI was used to assist with coding during the development of this project.
