@@ -291,6 +291,12 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         fonts.reset(); state = state.copy(fontName = fonts.displayName, hasCustomFont = fonts.hasCustomFont); refreshChanges(); renderPreview()
     }
 
+    fun motionClip(photoId: String?): ing.fuyaoskyrocket.photoinfo.platform.MotionClipSource? {
+        val photo=source?.takeIf { it.file.name==photoId && !state.busy } ?: return null
+        val motion=photo.media.motion ?: return null
+        return ing.fuyaoskyrocket.photoinfo.platform.MotionClipSource(photo.file,motion.offset,motion.length)
+    }
+
     /** Full-screen inspection uses original pixels; the editor keeps its inexpensive thumbnail. */
     suspend fun fullResolutionPreview(photoId: String, original: Boolean): Bitmap {
         val photo=source?.takeIf { it.file.name==photoId } ?: throw CancellationException("Photo changed")
@@ -396,7 +402,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         val media = photo.media
         val oldHdr = media.hdrHint && android.os.Build.VERSION.SDK_INT < 34
         state = state.copy(sourceDevice = photo.info[FieldId.DEVICE], sourceModel = photo.captureTags[androidx.exifinterface.media.ExifInterface.TAG_MODEL].orEmpty(), preservationBlocked = media.blocked || oldHdr,
-            jpegRequired = media.hdrHint || media.motion != null, motionPhoto = media.motion != null,
+            jpegRequired = media.hdrHint || media.motion != null, motionPhoto = media.motion != null, hdrPhoto = media.hdrHint,
             mediaMessage = when {
                 media.blocked -> R.string.media_unsupported
                 oldHdr -> R.string.hdr_requires_android14

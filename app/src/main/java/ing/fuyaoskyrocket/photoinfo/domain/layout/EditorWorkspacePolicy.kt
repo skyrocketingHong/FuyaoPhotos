@@ -9,8 +9,8 @@ object EditorWorkspacePolicy {
         val sideBySide = width >= inspector + 320f && (width >= 840f || height < 480f)
         val preview = when {
             imeVisible && height < 280f -> 0f
-            imeVisible -> minOf(width * .75f + 48f, height * .28f)
-            else -> minOf(width * .75f + 48f, height * .55f, (height - 180f).coerceAtLeast(0f))
+            imeVisible -> minOf(width * .75f, height * .28f)
+            else -> minOf(width * .75f, height * .55f, (height - 180f).coerceAtLeast(0f))
         }
         return Layout(sideBySide, inspector, preview)
     }

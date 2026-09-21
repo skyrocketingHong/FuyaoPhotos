@@ -228,4 +228,11 @@
   <string name="open_photo_failed">没有可打开这张照片的应用，或读取权限已失效。请从相册打开。</string>
   <string name="share_failed">无法打开系统分享菜单，请从相册分享已保存的照片。</string>
   <string name="shared_photo_invalid">无法读取分享内容。请从相册分享 1～50 张图片，或在应用中选择原片。</string>
+  <string name="play_motion">播放动态照片</string>
+  <string name="stop_motion">停止动态照片</string>
+  <string name="enable_hdr">开启 HDR 预览</string>
+  <string name="disable_hdr">关闭 HDR 预览</string>
+  <string name="hdr_unavailable">当前设备无法显示 HDR</string>
+  <string name="motion_playback_title">动态照片播放</string>
+  <string name="motion_playback_error">无法播放这张照片的视频。请确认原片完整且系统支持该视频编码。照片仍可继续编辑。</string>
 </resources>

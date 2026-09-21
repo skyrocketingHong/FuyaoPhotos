@@ -15,7 +15,6 @@ class MainActivity : ComponentActivity() {
     private val editor: EditorViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.colorMode = android.content.pm.ActivityInfo.COLOR_MODE_HDR
         enableFuyaoEdgeToEdge()
         if (savedInstanceState == null) receivePhotos(intent)
         setContent { PhotoInfoTheme { EditorScreen(vm = editor, onExit = ::finishAndRemoveTask) } }

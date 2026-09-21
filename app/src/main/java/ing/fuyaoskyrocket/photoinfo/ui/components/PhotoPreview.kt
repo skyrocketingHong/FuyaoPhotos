@@ -31,6 +31,7 @@ import androidx.core.view.WindowCompat
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.layout.PreviewViewport
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
+import ing.fuyaoskyrocket.photoinfo.platform.MotionClipSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -48,7 +49,10 @@ fun PhotoPreview(bitmap:Bitmap?,modifier:Modifier=Modifier) {
 }
 
 @Composable
-fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()->Bitmap,onDismiss:()->Unit) {
+fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()->Bitmap,motion:MotionClipSource?,
+    showHdr:Boolean,hdrEnabled:Boolean,hdrAvailable:Boolean,onHdr:()->Unit,onDismiss:()->Unit) {
+    var playing by remember(photoId) { mutableStateOf(false) }
+    var playbackError by remember(photoId) { mutableStateOf(false) }
     val context=LocalContext.current
     val currentLoader by rememberUpdatedState(loadFullResolution)
     var detail by remember(photoId,bitmap) { mutableStateOf<Bitmap?>(null) }
@@ -67,6 +71,9 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
         catch(error:OutOfMemoryError) { failure=PhotoFailureMessages.describe(context,error,PhotoOperation.PREVIEW) }
         finally { pending?.recycle();loading=false }
     }
+    if(playbackError)AlertDialog(onDismissRequest={ playbackError=false },
+        title={ Text(stringResource(R.string.motion_playback_title)) },text={ Text(stringResource(R.string.motion_playback_error)) },
+        confirmButton={ TextButton(onClick={ playbackError=false }) { Text(stringResource(R.string.close)) } })
     // The published bitmap stays alive while Compose draws it; only unpublished results are recycled.
     val displayed=detail ?: bitmap
     val currentBitmap by rememberUpdatedState(displayed)
@@ -115,17 +122,20 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
         Box(Modifier.fillMaxSize().background(Color.Black).onSizeChanged { viewport=it }
             .pointerInput(photoId) {
                 detectTransformGestures { centroid,pan,zoom,_ ->
+                    if(playing)return@detectTransformGestures
                     resetJob?.cancel()
                     val old=scale;val next=(old*zoom).coerceIn(1f,8f)
                     val center=Offset(viewport.width/2f,viewport.height/2f)
                     val anchored=(offset-(centroid-center))*(next/old)+(centroid-center)+pan
                     scale=next;offset=bounded(anchored,next)
                 }
-            }.pointerInput(photoId) { detectTapGestures(onDoubleTap={ moveTo(1f) }) }) {
+            }.pointerInput(photoId) { detectTapGestures(onDoubleTap={ if(!playing)moveTo(1f) }) }) {
             val zoomDescription=stringResource(R.string.zoom_value,(scale*100).roundToInt())
             Image(displayed.asImageBitmap(),stringResource(R.string.preview_content),Modifier.fillMaxSize()
                 .semantics { stateDescription=zoomDescription }
                 .graphicsLayer { scaleX=scale;scaleY=scale;translationX=offset.x;translationY=offset.y },contentScale=ContentScale.Fit)
+            if(playing && motion!=null)MotionPhotoPreview(motion,Modifier.fillMaxSize(),
+                onFinished={ playing=false },onError={ playing=false;playbackError=true })
             Surface(Modifier.align(Alignment.TopCenter),
                 color=Color.Black.copy(alpha=.72f),contentColor=Color.White) {
                 Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)).heightIn(min=48.dp).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically) {
@@ -133,9 +143,21 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
                     Text(if(loading)stringResource(R.string.full_preview_loading) else stringResource(R.string.preview_quality,
                         zoomDescription,stringResource(if(detail!=null)R.string.original_size_preview else R.string.thumbnail_preview)),
                         Modifier.weight(1f),style=MaterialTheme.typography.labelLarge,maxLines=2)
-                    FuyaoIconButton(R.drawable.ic_minus,stringResource(R.string.zoom_out),{ moveTo(scale/1.5f) },enabled=scale>1f)
-                    FuyaoIconButton(R.drawable.ic_fit,stringResource(R.string.reset_zoom),{ moveTo(1f) })
-                    FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.zoom_in),{ moveTo(scale*1.5f) },enabled=scale<8f)
+                    if(motion!=null)PreviewMediaButton(if(playing)R.drawable.ic_stop else R.drawable.ic_motion,
+                        stringResource(if(playing)R.string.stop_motion else R.string.play_motion),playing,{ playing=!playing },enabled=!loading)
+                    if(showHdr)PreviewMediaButton(R.drawable.ic_hdr,
+                        stringResource(if(!hdrAvailable)R.string.hdr_unavailable else if(hdrEnabled)R.string.disable_hdr else R.string.enable_hdr),
+                        hdrEnabled && hdrAvailable,{ playing=false;onHdr() },enabled=hdrAvailable)
+
+                }
+            }
+            Surface(Modifier.align(Alignment.BottomStart)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal)).padding(8.dp),
+                color=Color.Black.copy(alpha=.72f),contentColor=Color.White,shape=MaterialTheme.shapes.large) {
+                Row(verticalAlignment=Alignment.CenterVertically) {
+                    FuyaoIconButton(R.drawable.ic_minus,stringResource(R.string.zoom_out),{ moveTo(scale/1.5f) },enabled=!playing && scale>1f)
+                    FuyaoIconButton(R.drawable.ic_fit,stringResource(R.string.reset_zoom),{ moveTo(1f) },enabled=!playing)
+                    FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.zoom_in),{ moveTo(scale*1.5f) },enabled=!playing && scale<8f)
                 }
             }
         }

@@ -23,10 +23,16 @@ import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoIconButton
 import kotlinx.coroutines.delay
+import ing.fuyaoskyrocket.photoinfo.platform.MotionClipSource
 
 @Composable
 fun EditorPreviewPane(state: EditorState, onSelectPhoto: (Int) -> Unit, original: Boolean, onOriginal: () -> Unit,
-    onEnlarge: () -> Unit, modifier: Modifier = Modifier, bottomSafe: Boolean = false) {
+    onEnlarge: () -> Unit, motion: MotionClipSource?, showHdr: Boolean, hdrEnabled: Boolean, hdrAvailable: Boolean, onHdr: () -> Unit,
+    modifier: Modifier = Modifier, bottomSafe: Boolean = false) {
+    val photoId=state.photos.getOrNull(state.photoIndex)?.id
+    var playing by remember(photoId) { mutableStateOf(false) }
+    var playbackError by remember(photoId) { mutableStateOf(false) }
+    LaunchedEffect(state.busy,state.rendering,motion) { if(state.busy || state.rendering || motion==null)playing=false }
     val scope=rememberCoroutineScope()
     val previousLabel=stringResource(R.string.previous_photo)
     val nextLabel=stringResource(R.string.next_photo)
@@ -42,15 +48,15 @@ fun EditorPreviewPane(state: EditorState, onSelectPhoto: (Int) -> Unit, original
     val media = state.mediaMessage?.let { stringResource(it) }
     val details = state.previewError ?: media?.takeIf { state.preservationBlocked }
     var showDetails by remember(details) { mutableStateOf(false) }
-    val footerHeight = maxOf(48.dp, with(LocalDensity.current) { MaterialTheme.typography.labelSmall.lineHeight.toDp() * 2 } + 8.dp)
     val bottom = if (bottomSafe) WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() else 0.dp
     BoxWithConstraints(modifier) {
         // Fit the whole 4:3 viewport when the keyboard or landscape window limits height.
-        val frameWidth = minOf(maxWidth, (maxHeight - footerHeight - bottom).coerceAtLeast(0.dp) * 4f / 3f)
+        val frameWidth = minOf(maxWidth, (maxHeight - bottom).coerceAtLeast(0.dp) * 4f / 3f)
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.width(frameWidth).aspectRatio(4f / 3f)) {
+            Box(Modifier.fillMaxWidth().height(frameWidth * 3f / 4f)) {
                 key(state.sessionId) {
                     val pager = rememberPagerState(initialPage = state.photoIndex) { state.photos.size }
+                    LaunchedEffect(pager.isScrollInProgress) { if(pager.isScrollInProgress)playing=false }
                     LaunchedEffect(pager) {
                         snapshotFlow { pager.settledPage }.collect { page ->
                             if (page != selectedIndex) {
@@ -73,40 +79,52 @@ fun EditorPreviewPane(state: EditorState, onSelectPhoto: (Int) -> Unit, original
                     }, key = { state.photos[it].id },
                         userScrollEnabled = (!state.busy || state.loadingPhoto) && !state.closing) { page ->
                         if (page == state.photoIndex) {
-                            PhotoPreview(if (original) state.original else state.preview, Modifier.fillMaxSize())
+                            Box(Modifier.fillMaxSize()) {
+                                PhotoPreview(if (original) state.original else state.preview, Modifier.fillMaxSize())
+                                if(playing && motion!=null)MotionPhotoPreview(motion,Modifier.fillMaxSize(),
+                                    onFinished={ playing=false },onError={ playing=false;playbackError=true })
+                            }
                         } else Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(Modifier.size(24.dp))
                         }
                     }
                 }
+                Surface(Modifier.align(Alignment.TopCenter),color=Color.Black.copy(alpha=.68f),contentColor=Color.White) {
+                    Row(Modifier.fillMaxWidth().heightIn(min=48.dp).padding(start=12.dp,end=0.dp),verticalAlignment=Alignment.CenterVertically) {
+                        val dimensions=stringResource(R.string.photo_dimensions,state.width,state.height)
+                        val position=if(state.photos.size>1)stringResource(R.string.status_separator,
+                            stringResource(R.string.photo_progress,state.photoIndex+1,state.photos.size),dimensions) else dimensions
+                        val status=when {
+                            state.exporting -> stringResource(R.string.batch_progress,state.exportCompleted,state.exportTotal)
+                            state.importing -> stringResource(R.string.importing_photos)
+                            state.loadingPhoto -> stringResource(R.string.loading_photo)
+                            else -> details ?: position
+                        }
+                        Text(status,Modifier.weight(1f).semantics { liveRegion=LiveRegionMode.Polite }
+                            .then(if(details==null)Modifier else Modifier.clickable { showDetails=true }),
+                            style=MaterialTheme.typography.labelSmall,maxLines=2,overflow=TextOverflow.Ellipsis,
+                            color=if(details==null)Color.White else MaterialTheme.colorScheme.error)
+                        if(state.motionPhoto)PreviewMediaButton(if(playing)R.drawable.ic_stop else R.drawable.ic_motion,
+                            stringResource(if(playing)R.string.stop_motion else R.string.play_motion),playing,{ playing=!playing },
+                            enabled=motion!=null && !state.busy && !state.rendering)
+                        if(showHdr)PreviewMediaButton(R.drawable.ic_hdr,
+                            stringResource(if(!hdrAvailable)R.string.hdr_unavailable else if(hdrEnabled)R.string.disable_hdr else R.string.enable_hdr),
+                            hdrEnabled && hdrAvailable,{ playing=false;onHdr() },enabled=hdrAvailable)
+                        PreviewMediaButton(R.drawable.ic_compare,stringResource(R.string.original),original,
+                            { playing=false;onOriginal() },enabled=state.original!=null)
+                        FuyaoIconButton(R.drawable.ic_expand,stringResource(R.string.enlarge),{ playing=false;onEnlarge() },enabled=state.preview!=null)
+                    }
+                }
                 if (state.exporting && state.exportTotal > 0) LinearProgressIndicator(
                     progress={ state.exportCompleted.toFloat()/state.exportTotal },
-                    modifier=Modifier.fillMaxWidth().align(Alignment.TopCenter))
-                else if (state.busy || delayedRendering) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
-            }
-            Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                Row(Modifier.fillMaxWidth().windowInsetsPadding(if (bottomSafe) WindowInsets.navigationBars.only(WindowInsetsSides.Bottom) else WindowInsets(0, 0, 0, 0))
-                    .heightIn(min = footerHeight).padding(start = 16.dp, end = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val status = when {
-                        state.exporting -> stringResource(R.string.batch_progress, state.exportCompleted, state.exportTotal)
-                        state.importing -> stringResource(R.string.importing_photos)
-                        state.loadingPhoto -> stringResource(R.string.loading_photo)
-                        else -> details ?: media ?: if(state.photos.size > 1) stringResource(R.string.swipe_photos) else null
-                    }
-                    val dimensions=stringResource(R.string.photo_dimensions,state.width,state.height)
-                    val position=if(state.photos.size>1)stringResource(R.string.status_separator,
-                        stringResource(R.string.photo_progress,state.photoIndex+1,state.photos.size),dimensions) else dimensions
-                    Text(if(status==null)position else stringResource(R.string.status_separator,position,status),
-                        Modifier.weight(1f).semantics { liveRegion=LiveRegionMode.Polite }.heightIn(min = footerHeight).wrapContentHeight().then(if (details == null) Modifier else Modifier.clickable { showDetails = true }),
-                        style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                        color = if (details == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
-                    FilterChip(original, onClick = onOriginal, enabled = state.original != null, label = { Text(stringResource(R.string.original)) })
-                    FuyaoIconButton(R.drawable.ic_expand, stringResource(R.string.enlarge), onEnlarge, enabled = state.preview != null)
-                }
+                    modifier=Modifier.fillMaxWidth().align(Alignment.BottomCenter))
+                else if (state.busy || delayedRendering) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.BottomCenter))
             }
         }
     }
+    if(playbackError)AlertDialog(onDismissRequest={ playbackError=false },
+        title={ Text(stringResource(R.string.motion_playback_title)) },text={ Text(stringResource(R.string.motion_playback_error)) },
+        confirmButton={ TextButton(onClick={ playbackError=false }) { Text(stringResource(R.string.close)) } })
     if (showDetails && details != null) AlertDialog(onDismissRequest = { showDetails = false },
         title = { Text(stringResource(R.string.error_preview_title)) }, text = { Text(details) },
         confirmButton = { TextButton(onClick = { showDetails = false }) { Text(stringResource(R.string.close)) } })

@@ -11,6 +11,11 @@ class EditorWorkspacePolicyTest {
         assertTrue(760f - portrait.previewHeight >= 180f)
         assertTrue(EditorWorkspacePolicy.calculate(760f, 340f, 1f, false).sideBySide)
     }
+    @Test fun portraitDoesNotReserveASeparateMediaStatusFooter() {
+        val layout=EditorWorkspacePolicy.calculate(400f,900f,1f,false)
+        assertEquals(300f,layout.previewHeight,0f)
+        assertEquals(600f,900f-layout.previewHeight,0f)
+    }
     @Test fun keyboardPrioritizesFocusedFieldsInShortWindows() {
         val compact = EditorWorkspacePolicy.calculate(393f, 220f, 1f, true)
         assertEquals(0f, compact.previewHeight, 0f)

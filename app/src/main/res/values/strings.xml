@@ -228,4 +228,11 @@
   <string name="open_photo_failed">No app could open this photo, or read access expired. Open it from your gallery.</string>
   <string name="share_failed">Could not open the share menu. Share the saved photo from your gallery.</string>
   <string name="shared_photo_invalid">Cannot read shared content. Share 1–50 images from your gallery, or select the originals in the app.</string>
+  <string name="play_motion">Play Motion Photo</string>
+  <string name="stop_motion">Stop Motion Photo</string>
+  <string name="enable_hdr">Enable HDR preview</string>
+  <string name="disable_hdr">Disable HDR preview</string>
+  <string name="hdr_unavailable">HDR display is unavailable</string>
+  <string name="motion_playback_title">Motion Photo playback</string>
+  <string name="motion_playback_error">This video could not be played. Check that the original is complete and its codec is supported. You can continue editing the photo.</string>
 </resources>

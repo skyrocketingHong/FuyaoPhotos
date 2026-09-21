@@ -40,6 +40,8 @@ import ing.fuyaoskyrocket.photoinfo.ui.components.EditorPreviewPane
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import ing.fuyaoskyrocket.photoinfo.platform.PreviewDynamicRange
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -63,6 +65,10 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     val snackbar = remember { SnackbarHostState() }
     var showExport by rememberSaveable { mutableStateOf(false) }
     var original by rememberSaveable { mutableStateOf(false) }
+    var hdrEnabled by rememberSaveable { mutableStateOf(true) }
+    val hasGainmap=Build.VERSION.SDK_INT>=34 && state.original?.hasGainmap()==true
+    val hdrAvailable=hasGainmap && LocalView.current.display?.hdrCapabilities?.supportedHdrTypes?.isNotEmpty()==true
+    PreviewDynamicRange(hasGainmap,hdrEnabled && hdrAvailable)
     var showPhotoMenu by remember { mutableStateOf(false) }
     val navigation = rememberNavController()
     val currentEntry by navigation.currentBackStackEntryAsState()
@@ -187,7 +193,8 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                         EditorWorkspace(
                             preview = { modifier, bottomSafe ->
                                 EditorPreviewPane(state, vm::selectPhoto, original, { original = !original },
-                                    { openPage(PhotoPage.EDITOR, PhotoPage.PREVIEW) }, modifier, bottomSafe)
+                                    { openPage(PhotoPage.EDITOR, PhotoPage.PREVIEW) }, vm.motionClip(photoId),state.hdrPhoto || hasGainmap,
+                                    hdrEnabled,hdrAvailable,{ hdrEnabled=!hdrEnabled },modifier,bottomSafe)
                             },
                             controls = { modifier ->
                                 key(photoId) {
@@ -236,7 +243,8 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             val bitmap = if (original) state.original else state.preview
             val photoId=state.photos.getOrNull(state.photoIndex)?.id
             if (bitmap != null && photoId != null) FullScreenPreview(bitmap,photoId,
-                loadFullResolution={ vm.fullResolutionPreview(photoId,original) }) { returnFrom(PhotoPage.PREVIEW) }
+                loadFullResolution={ vm.fullResolutionPreview(photoId,original) },motion=vm.motionClip(photoId),
+                showHdr=state.hdrPhoto || hasGainmap,hdrEnabled=hdrEnabled,hdrAvailable=hdrAvailable,onHdr={ hdrEnabled=!hdrEnabled }) { returnFrom(PhotoPage.PREVIEW) }
             else LaunchedEffect(state.busy) { if (!state.busy) returnFrom(PhotoPage.PREVIEW) }
         }
     }

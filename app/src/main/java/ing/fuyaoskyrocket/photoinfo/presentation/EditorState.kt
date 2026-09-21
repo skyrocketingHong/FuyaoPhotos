@@ -38,6 +38,7 @@ data class EditorState(
     val preservationBlocked: Boolean = false,
     val jpegRequired: Boolean = false,
     val motionPhoto: Boolean = false,
+    val hdrPhoto: Boolean = false,
     val mediaMessage: Int? = null,
     val sourceDevice: String = "",
     val sourceModel: String = "",
