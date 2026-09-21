@@ -16,7 +16,6 @@ import ing.fuyaoskyrocket.photoinfo.data.location.PhotoGeocoder
 import ing.fuyaoskyrocket.photoinfo.data.photo.PhotoRepository
 import ing.fuyaoskyrocket.photoinfo.data.photo.PhotoSource
 import ing.fuyaoskyrocket.photoinfo.data.settings.SettingsRepository
-import ing.fuyaoskyrocket.photoinfo.domain.layout.CardOverflowException
 import ing.fuyaoskyrocket.photoinfo.domain.model.*
 import ing.fuyaoskyrocket.photoinfo.domain.session.PhotoEditSnapshot
 import ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges
@@ -102,12 +101,12 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         if (state.busy || uris.isEmpty()) return
         val selected = uris.distinct()
         if (selected.size > PhotoEditSnapshot.MAX_PHOTOS) {
-            state = state.copy(error = app.getString(R.string.batch_limit, PhotoEditSnapshot.MAX_PHOTOS)); return
+            state = state.copy(errorTitle = R.string.error_import_title, error = app.getString(R.string.batch_limit, PhotoEditSnapshot.MAX_PHOTOS)); return
         }
         renderJob?.cancel(); cancelLocation()
         val style = state.style
         val settings = state.settings
-        state = state.copy(busy = true, importing = true, error = null, rendering = false, notice = null, exported = null)
+        state = state.copy(busy = true, importing = true, error = null, errorTitle = R.string.error_import_title, rendering = false, notice = null, exported = null)
         workJob = viewModelScope.launch {
             val imported = mutableListOf<SessionPhoto>()
             val failures = mutableListOf<String>()
@@ -120,7 +119,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                         imported += SessionPhoto(photo, photo.info.with(FieldId.AUTHOR, settings.authorFor(photo.info[FieldId.AUTHOR])), style)
                         pending = null
                     } catch (cancelled: CancellationException) { throw cancelled }
-                    catch (failure: Exception) { failures += "${index + 1}: ${errorMessage(failure)}" }
+                    catch (failure: Exception) { failures += app.getString(R.string.photo_failure,index+1,errorMessage(failure,PhotoOperation.OPEN)) }
                     finally { pending?.file?.delete() }
                 }
                 if (imported.isEmpty()) {
@@ -176,8 +175,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
             if (!locationEdited && draft.info[FieldId.LOCATION].isBlank()) resolveLocation()
             else if (resolvedLocation.isNotBlank()) state = state.copy(locationStatus = LocationStatus.RESOLVED)
         } catch (cancelled: CancellationException) { throw cancelled }
-        catch (failure: Exception) { state = state.copy(busy = false, loadingPhoto = false, previewError = errorMessage(failure)) }
-        catch (failure: OutOfMemoryError) { state = state.copy(busy = false, loadingPhoto = false, previewError = errorMessage(failure)) }
+        catch (failure: Exception) { state = state.copy(busy = false, loadingPhoto = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW)) }
+        catch (failure: OutOfMemoryError) { state = state.copy(busy = false, loadingPhoto = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW)) }
         finally { decoded?.recycle() }
     }
 
@@ -251,15 +250,15 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     fun importFont(uri: Uri) {
         if (state.busy) return
         renderJob?.cancel()
-        state = state.copy(busy = true, rendering = false)
+        state = state.copy(busy = true, rendering = false, errorTitle = R.string.error_font_title)
         workJob = viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { fonts.import(uri) }
                 state = state.copy(busy = false, fontName = fonts.displayName, hasCustomFont = fonts.hasCustomFont)
                 refreshChanges(); renderPreview()
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: Exception) { state = state.copy(busy = false, error = errorMessage(failure)); renderPreview() }
-            catch (failure: OutOfMemoryError) { state = state.copy(busy = false, error = errorMessage(failure)); renderPreview() }
+            catch (failure: Exception) { state = state.copy(busy = false, error = errorMessage(failure, PhotoOperation.FONT)); renderPreview() }
+            catch (failure: OutOfMemoryError) { state = state.copy(busy = false, error = errorMessage(failure, PhotoOperation.FONT)); renderPreview() }
         }
     }
     fun resetFont() {
@@ -276,11 +275,11 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         val keepMetadata = state.keepCaptureMetadata
         val jpegQuality = state.jpegQuality
         val fontKey = fonts.selectionKey
-        state = state.copy(busy = true, exporting = true, rendering = false, error = null, notice = null, exportCompleted = 0, exportTotal = snapshot.size)
+        state = state.copy(busy = true, exporting = true, rendering = false, error = null, errorTitle = R.string.error_export_title, notice = null, exportCompleted = 0, exportTotal = snapshot.size)
         workJob = viewModelScope.launch {
             try {
                 renderJob?.join()
-                val result = runBatch(snapshot, ::errorMessage, { progress -> state = state.copy(exportCompleted = progress.completed) }) { index, draft ->
+                val result = runBatch(snapshot, { errorMessage(it, PhotoOperation.SAVE) }, { progress -> state = state.copy(exportCompleted = progress.completed) }) { index, draft ->
                     var info = draft.info
                     if (settings.resolvePhotoLocation && !draft.locationEdited && info[FieldId.LOCATION].isBlank() && draft.source.coordinates != null) {
                         val place = try { geocoder.resolve(draft.source.coordinates) }
@@ -310,20 +309,20 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                 val active = drafts[state.photoIndex]
                 resolvedLocation = active.resolvedLocation
                 state = state.copy(busy = false, exporting = false, info = active.info, exported = result.saved.lastOrNull(),
-                    error = result.failures.takeIf { it.isNotEmpty() }?.joinToString("\n") { "${it.index + 1}: ${it.message}" },
+                    error = result.failures.takeIf { it.isNotEmpty() }?.joinToString("\n") { app.getString(R.string.photo_failure,it.index+1,it.message) },
                     notice = if (result.saved.isEmpty()) null else EditorNotice(++noticeId,
                         if (snapshot.size == 1) app.getString(R.string.export_success)
                         else app.getString(R.string.batch_saved, result.saved.size, result.failures.size), result.saved))
                 persist(); renderPreview()
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: Exception) { state = state.copy(busy = false, exporting = false, error = errorMessage(failure)) }
+            catch (failure: Exception) { state = state.copy(busy = false, exporting = false, error = errorMessage(failure, PhotoOperation.SAVE)) }
         }
     }
 
     /** Explicit exit ends this session; previously published gallery images are untouched. */
-    fun closeSession(onClosed: () -> Unit) {
+    fun closeSession(showProgress: Boolean = true, onClosed: () -> Unit) {
         if (state.closing) return
-        state = state.copy(closing = true, busy = true, notice = null)
+        state = state.copy(closing = true, busy = true, closingInBackground = !showProgress, notice = null)
         cancelLocation()
         // Do not resurrect discarded photos if the process dies while a native operation finishes.
         forgetSession()
@@ -331,9 +330,9 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
             workJob?.cancelAndJoin(); renderJob?.cancelAndJoin(); locationJob?.cancelAndJoin()
             drafts = emptyList(); source = null; resolvedLocation = ""; locationEdited = false
             state = EditorState(style = state.style, settings = state.settings, fontName = fonts.displayName,
-                hasCustomFont = fonts.hasCustomFont, keepCaptureMetadata = state.keepCaptureMetadata, closing = true, busy = true)
+                hasCustomFont = fonts.hasCustomFont, keepCaptureMetadata = state.keepCaptureMetadata, closing = true, busy = true, closingInBackground = !showProgress)
             withContext(Dispatchers.IO) { photos.removeOtherDrafts(emptyList()) }
-            state = state.copy(closing = false, busy = false)
+            state = state.copy(closing = false, busy = false, closingInBackground = false)
             onClosed()
         }
     }
@@ -368,8 +367,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                 state = state.copy(preview = rendered, rendering = false)
                 pending = null
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: Exception) { state = state.copy(preview = bitmap, rendering = false, previewError = errorMessage(failure)) }
-            catch (failure: OutOfMemoryError) { state = state.copy(preview = bitmap, rendering = false, previewError = errorMessage(failure)) }
+            catch (failure: Exception) { state = state.copy(preview = bitmap, rendering = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW)) }
+            catch (failure: OutOfMemoryError) { state = state.copy(preview = bitmap, rendering = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW)) }
             finally { pending?.recycle() }
         }
     }
@@ -408,9 +407,6 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         blur = saved["style.blur"] ?: 25f, rightInset = saved["style.right"] ?: 77f, bottomInset = saved["style.bottom"] ?: 35f,
         cornerRadius = saved["style.radius"] ?: 20f, textScale = saved["style.textScale"] ?: 1f).sanitized()
     private val app get() = getApplication<Application>()
-    private fun errorMessage(failure: Throwable): String = when (failure) {
-        is CardOverflowException -> app.getString(R.string.error_overflow)
-        is OutOfMemoryError -> app.getString(R.string.error_memory)
-        else -> app.getString(R.string.error_operation, failure.localizedMessage ?: failure.javaClass.simpleName)
-    }
+    private fun errorMessage(failure: Throwable, operation: PhotoOperation = PhotoOperation.OPEN): String =
+        PhotoFailureMessages.describe(app, failure, operation)
 }

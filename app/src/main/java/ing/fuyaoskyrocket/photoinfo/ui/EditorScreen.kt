@@ -11,11 +11,8 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.core.tween
+import androidx.lifecycle.Lifecycle
+import ing.fuyaoskyrocket.photoinfo.ui.components.SystemBackObserver
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -37,7 +34,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorWorkspace
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorPreviewPane
-import ing.fuyaoskyrocket.photoinfo.ui.components.AboutDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -62,9 +58,14 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     var showExport by rememberSaveable { mutableStateOf(false) }
     var original by rememberSaveable { mutableStateOf(false) }
     var showPhotoMenu by remember { mutableStateOf(false) }
-    var showMore by remember { mutableStateOf(false) }
-    var showAbout by rememberSaveable { mutableStateOf(false) }
     val navigation = rememberNavController()
+    fun atPage(page: PhotoPage) = navigation.currentBackStackEntry?.let {
+        it.destination.route == page.name && it.lifecycle.currentState == Lifecycle.State.RESUMED
+    } == true
+    fun openPage(from: PhotoPage, to: PhotoPage) {
+        if (atPage(from)) navigation.navigate(to.name) { launchSingleTop = true }
+    }
+    fun returnFrom(page: PhotoPage) { if (atPage(page)) navigation.popBackStack() }
     var settingsLenses by rememberSaveable(stateSaver = ProfilesSaver) { mutableStateOf(state.settings.lenses) }
     var editingLens by rememberSaveable { mutableStateOf<List<String>?>(null) }
     var editedLens by rememberSaveable { mutableStateOf<List<String>?>(null) }
@@ -72,13 +73,20 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     val photoPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         pendingPhotos?.let { values -> pendingPhotos = null; vm.importPhotos(values.map(Uri::parse)) }
     }
-    val importSelectedPhotos: (List<Uri>) -> Unit = { uris ->
+    val importConfirmedPhotos: (List<Uri>) -> Unit = { uris ->
         if (uris.isNotEmpty()) {
             if (state.settings.resolvePhotoLocation && Build.VERSION.SDK_INT >= 29 &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 pendingPhotos = ArrayList(uris.map(Uri::toString))
                 photoPermission.launch(Manifest.permission.ACCESS_MEDIA_LOCATION)
             } else vm.importPhotos(uris)
+        }
+    }
+    var replacementPhotos by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    val importSelectedPhotos: (List<Uri>) -> Unit = { uris ->
+        if (uris.isNotEmpty() && !vm.state.busy) {
+            if (vm.state.hasChanges) replacementPhotos = uris.map(Uri::toString)
+            else importConfirmedPhotos(uris)
         }
     }
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments(), importSelectedPhotos)
@@ -94,9 +102,10 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     val pngDestination = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/png")) {
         if (it != null) vm.export(ExportFormat.PNG, it)
     }
+    val appName = stringResource(R.string.app_name)
     val shareLabel = stringResource(R.string.share)
-    LaunchedEffect(state.notice?.id) {
-        state.notice?.let { notice ->
+    LaunchedEffect(state.notice?.id, state.error) {
+        state.notice?.takeIf { state.error == null }?.let { notice ->
             val result = snackbar.showSnackbar(notice.text, actionLabel = if (notice.photos.isNotEmpty()) shareLabel else null,
                 duration = SnackbarDuration.Short, withDismissAction = true)
             vm.clearNotice(notice.id)
@@ -106,7 +115,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                     type = notice.photos.first().format.mime
                     if (uris.size == 1) putExtra(Intent.EXTRA_STREAM, uris.first())
                     else putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
-                    clipData = ClipData.newUri(context.contentResolver, "Fuyao Photo Info", uris.first()).also { clip ->
+                    clipData = ClipData.newUri(context.contentResolver, appName, uris.first()).also { clip ->
                         uris.drop(1).forEach { clip.addItem(ClipData.Item(it)) }
                     }
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -118,16 +127,16 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     NavHost(
         navController = navigation,
         startDestination = PhotoPage.EDITOR.name,
-        enterTransition = { fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 1.04f) },
-        exitTransition = { fadeOut(tween(180)) },
-        popEnterTransition = { fadeIn(tween(220)) },
-        popExitTransition = { fadeOut(tween(220)) + scaleOut(tween(220), targetScale = .92f) },
     ) {
         composable(PhotoPage.EDITOR.name) {
-            rememberConfirmedBack(onConfirmed = { vm.closeSession(onExit) },
-                hasChanges = state.hasChanges || state.importing || state.exporting, handleCleanBack = true,
-                enabled = (state.photos.isNotEmpty() || state.importing) && !state.closing &&
-                    !showExport && !showAbout && !showMore && !showPhotoMenu && state.error == null,
+            val rootBackEnabled = (state.photos.isNotEmpty() || state.importing) && !state.closing &&
+                !showExport && !showPhotoMenu && replacementPhotos == null && state.error == null
+            SystemBackObserver(enabled = rootBackEnabled && !state.hasChanges && !state.busy) {
+                vm.closeSession(showProgress = false) { }
+            }
+            rememberConfirmedBack(onConfirmed = { vm.closeSession(onClosed = onExit) },
+                hasChanges = state.hasChanges || state.busy, handleCleanBack = Build.VERSION.SDK_INT < 36,
+                enabled = rootBackEnabled,
                 title = R.string.exit_title, message = R.string.exit_message, confirmLabel = R.string.exit_confirm)
             FuyaoScaffold(title=stringResource(R.string.editor_title),actions={
                 Box {
@@ -140,13 +149,12 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                     }
                 }
                 FuyaoAppBarAction(R.drawable.ic_export,if(state.photos.size>1) stringResource(R.string.batch_export,state.photos.size) else stringResource(R.string.export),{ showExport=true },enabled=state.canExport)
-                Box {
-                    FuyaoAppBarAction(R.drawable.ic_more,stringResource(R.string.more),{ showMore=true })
-                    DropdownMenu(showMore,onDismissRequest={ showMore=false }) {
-                        DropdownMenuItem(text={ Text(stringResource(R.string.settings)) },enabled=!state.busy,onClick={ showMore=false;settingsLenses=state.settings.lenses;navigation.navigate(PhotoPage.SETTINGS.name) })
-                        DropdownMenuItem(text={ Text(stringResource(R.string.about)) },onClick={ showMore=false;showAbout=true })
+                FuyaoAppBarAction(R.drawable.ic_settings,stringResource(R.string.settings),{
+                    if(atPage(PhotoPage.EDITOR)) {
+                        settingsLenses=state.settings.lenses
+                        openPage(PhotoPage.EDITOR,PhotoPage.SETTINGS)
                     }
-                }
+                },enabled=!state.busy)
             },snackbarHost={ SnackbarHost(snackbar, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) }) { padding ->
                 Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
                     if(state.photos.isEmpty()) {
@@ -157,7 +165,11 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                                 Text(stringResource(R.string.empty_hint,PhotoEditSnapshot.MAX_PHOTOS),style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                                 FilledTonalButton(onClick={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_gallery)) }
                                 FilledTonalButton(onClick={ filePicker.launch(arrayOf("image/*")) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_file)) }
-                                if(state.busy)CircularProgressIndicator(Modifier.size(24.dp),strokeWidth=2.dp)
+                                if(state.busy) {
+                                    CircularProgressIndicator(Modifier.size(24.dp),strokeWidth=2.dp)
+                                    Text(stringResource(R.string.importing_photos), style=MaterialTheme.typography.bodyMedium)
+                                }
+                                Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)))
                             }
                         }
                     } else {
@@ -165,7 +177,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                         EditorWorkspace(
                             preview = { modifier, bottomSafe ->
                                 EditorPreviewPane(state, vm::selectPhoto, original, { original = !original },
-                                    { navigation.navigate(PhotoPage.PREVIEW.name) }, modifier, bottomSafe)
+                                    { openPage(PhotoPage.EDITOR, PhotoPage.PREVIEW) }, modifier, bottomSafe)
                             },
                             controls = { modifier ->
                                 key(photoId) {
@@ -181,10 +193,10 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         }
         composable(PhotoPage.SETTINGS.name) {
             SettingsScreen(state.settings.copy(lenses = settingsLenses), state.photos.isNotEmpty(),
-                onManageLenses = { editedLens = null; navigation.navigate(PhotoPage.LENSES.name) },
-                onBack = { navigation.popBackStack() },
+                onManageLenses = { editedLens = null; openPage(PhotoPage.SETTINGS, PhotoPage.LENSES) },
+                onBack = { returnFrom(PhotoPage.SETTINGS) },
                 onSave = { settings, apply ->
-                    if (!vm.state.busy) {
+                    if (!vm.state.busy && atPage(PhotoPage.SETTINGS)) {
                         vm.saveSettings(settings)
                         if (apply) vm.applyDefaultAuthor()
                         navigation.popBackStack(PhotoPage.EDITOR.name, false)
@@ -194,10 +206,10 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         composable(PhotoPage.LENSES.name) {
             LensProfilesScreen(settingsLenses, state.sourceModel, editedLens,
                 onEditConsumed = { editedLens = null },
-                onEdit = { editingLens = it.fields(); navigation.navigate(PhotoPage.LENS_EDIT.name) },
-                onBack = { navigation.popBackStack() },
+                onEdit = { if(atPage(PhotoPage.LENSES)) { editingLens = it.fields(); openPage(PhotoPage.LENSES, PhotoPage.LENS_EDIT) } },
+                onBack = { returnFrom(PhotoPage.LENSES) },
                 onSave = { profiles ->
-                    if (!vm.state.busy) {
+                    if (!vm.state.busy && atPage(PhotoPage.LENSES)) {
                         vm.saveSettings(state.settings.copy(lenses = profiles))
                         settingsLenses = profiles
                         navigation.popBackStack()
@@ -206,17 +218,26 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         }
         composable(PhotoPage.LENS_EDIT.name) {
             editingLens?.let { fields ->
-                LensEditScreen(lensFromFields(fields), currentExifModel = state.sourceModel, onBack = { navigation.popBackStack() },
-                    onSave = { editedLens = it.fields(); navigation.popBackStack() })
+                LensEditScreen(lensFromFields(fields), currentExifModel = state.sourceModel, onBack = { returnFrom(PhotoPage.LENS_EDIT) },
+                    onSave = { if (atPage(PhotoPage.LENS_EDIT)) { editedLens = it.fields(); navigation.popBackStack() } })
             }
         }
         composable(PhotoPage.PREVIEW.name) {
             val bitmap = if (original) state.original else state.preview
-            if (bitmap != null) FullScreenPreview(bitmap) { navigation.popBackStack() }
-            else LaunchedEffect(state.busy) { if (!state.busy) navigation.popBackStack() }
+            if (bitmap != null) FullScreenPreview(bitmap) { returnFrom(PhotoPage.PREVIEW) }
+            else LaunchedEffect(state.busy) { if (!state.busy) returnFrom(PhotoPage.PREVIEW) }
         }
     }
-    if(showAbout)AboutDialog { showAbout=false }
+    replacementPhotos?.let { selected ->
+        AlertDialog(onDismissRequest = { replacementPhotos = null },
+            title = { Text(stringResource(R.string.replace_photos_title)) },
+            text = { Text(stringResource(R.string.replace_photos_message)) },
+            confirmButton = { TextButton(onClick = {
+                replacementPhotos = null
+                importConfirmedPhotos(selected.map(Uri::parse))
+            }) { Text(stringResource(R.string.replace_photos_confirm)) } },
+            dismissButton = { TextButton(onClick = { replacementPhotos = null }) { Text(stringResource(R.string.continue_editing)) } })
+    }
     if (showExport) ExportDialog(
         width = state.width, height = state.height, count = state.photos.size, jpegRequired = state.exportRequiresJpeg, keepMetadata = state.keepCaptureMetadata,
         quality = state.jpegQuality, onQuality = vm::setJpegQuality, onMetadata = vm::setKeepMetadata, onDismiss = { showExport = false }, onExport = { format ->
@@ -227,13 +248,13 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             else pngDestination.launch(PhotoExporter.filename(format, state.motionPhoto))
         },
     )
-    if (state.closing) AlertDialog(onDismissRequest = {}, confirmButton = {},
+    if (state.closing && !state.closingInBackground) AlertDialog(onDismissRequest = {}, confirmButton = {},
         properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
         text = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             CircularProgressIndicator(Modifier.size(24.dp)); Text(stringResource(R.string.closing_session))
         } })
     state.error?.let { message ->
-        AlertDialog(onDismissRequest = vm::clearError, title = { Text(stringResource(R.string.error_title)) },
+        AlertDialog(onDismissRequest = vm::clearError, title = { Text(stringResource(state.errorTitle)) },
             text = { Text(message, Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) },
             confirmButton = { TextButton(onClick = vm::clearError) { Text(stringResource(R.string.close)) } })
     }
@@ -256,22 +277,22 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 SegmentedButton(selected = !png, onClick = { png = false },
                     shape = SegmentedButtonDefaults.itemShape(0, 2), modifier = Modifier.weight(1f)) {
-                    Text("JPEG")
+                    Text(stringResource(R.string.format_jpeg))
                 }
                 SegmentedButton(selected = png, onClick = { png = true }, enabled = !jpegRequired,
                     shape = SegmentedButtonDefaults.itemShape(1, 2), modifier = Modifier.weight(1f)) {
-                    Text("PNG")
+                    Text(stringResource(R.string.format_png))
                 }
             }
             if (!png) {
                 val qualityLabel = stringResource(R.string.jpeg_quality)
                 Row(Modifier.fillMaxWidth()) {
                     Text(qualityLabel, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                    Text("$quality%", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.value_percent,quality), style = MaterialTheme.typography.labelLarge)
                 }
                 Slider(value = quality.toFloat(), onValueChange = { onQuality(it.roundToInt()) }, valueRange = 0f..100f, steps = 99,
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = qualityLabel })
-                Text(stringResource(R.string.jpeg_quality_hint, quality),
+                Text(stringResource(R.string.jpeg_quality_hint),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
@@ -281,6 +302,8 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
                 Spacer(Modifier.width(16.dp))
                 Text(stringResource(R.string.keep_metadata), style = MaterialTheme.typography.bodyLarge)
             }
+            Text(stringResource(R.string.keep_metadata_hint), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(stringResource(R.string.export_boundary), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(enabled = !submitting, onClick = {
@@ -291,7 +314,7 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
                         onExport(if (png && !jpegRequired) ExportFormat.PNG else ExportFormat.JPEG)
                     } finally { submitting = false }
                 }
-            }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.save)) }
+            }, modifier = Modifier.fillMaxWidth()) { Text(if(count>1)stringResource(R.string.batch_export,count) else stringResource(R.string.export)) }
             TextButton(enabled = !submitting, onClick = {
                 scope.launch { sheetState.hide(); onDismiss() }
             }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.cancel)) }

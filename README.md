@@ -79,7 +79,11 @@ FuyaoPhotoInfo-applicationId-27.0(1Asequence)-ABI-variant.apk
 
 ## Interface and edge-to-edge
 
-The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: ColorPicker-style 48dp compact app bars with semibold titles, 28dp action icons and 48dp touch targets, dynamic color and consistent groups. App bars retain status-bar and horizontal cutout insets without extra vertical padding. Photo content uses a 4:3 viewport with Fit scaling and a combined size/media/progress row, with stacked or side-by-side inspector layouts. Lens profiles use a dedicated editor with numeric keyboards, inline validation and deletion undo.
+The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: ColorPicker-style 48dp compact app bars with semibold titles, 28dp action icons and 48dp touch targets, dynamic color and consistent groups. App bars retain status-bar and horizontal cutout insets without extra vertical padding at normal font sizes; larger text can increase the bar height. Photo content uses a 4:3 viewport with Fit scaling and a combined size/media/progress row, with stacked or side-by-side inspector layouts. Lens profiles use a dedicated editor with numeric keyboards, inline validation and deletion undo. Apply edits to the profile draft, then save profiles explicitly.
+
+The editor is the only top-level destination. Its app bar provides Open photos, Save and Settings; About lives in Settings. Existing Navigation Compose handles page and predictive-back transitions. On Android 16+, a non-consuming system-back observer clears unchanged photo sessions while the system handles back-to-home. Unsaved work requires confirmation, including replacing an open photo session.
+
+The workspace adapts to content width, height, font scale and the keyboard. WindowManager separates preview and controls around separating fold hinges; narrow windows keep a stacked layout. Form contents scroll with their insets, and full-screen preview surfaces extend behind system bars. Import, save, preview and font errors provide recovery steps; TalkBack can switch between photos through named actions.
 
 System bars are transparent and insets are consumed once. Backgrounds reach the window edge while final list items and bottom actions remain reachable. Full-screen photos stay in the HDR activity with dark system-bar styling, zoom buttons and interruptible reset. Rendering progress overlays the photo without changing its bounds; field edits and original comparison stay immediate. Exported card styling remains independent from the UI theme.
 

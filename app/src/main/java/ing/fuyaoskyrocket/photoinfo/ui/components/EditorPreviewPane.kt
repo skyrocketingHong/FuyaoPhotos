@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.launch
+import androidx.compose.ui.semantics.*
 import kotlinx.coroutines.flow.collect
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,6 +27,10 @@ import kotlinx.coroutines.delay
 @Composable
 fun EditorPreviewPane(state: EditorState, onSelectPhoto: (Int) -> Unit, original: Boolean, onOriginal: () -> Unit,
     onEnlarge: () -> Unit, modifier: Modifier = Modifier, bottomSafe: Boolean = false) {
+    val scope=rememberCoroutineScope()
+    val previousLabel=stringResource(R.string.previous_photo)
+    val nextLabel=stringResource(R.string.next_photo)
+    val positionLabel=stringResource(R.string.photo_position,state.photoIndex+1,state.photos.size)
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val selectedIndex by rememberUpdatedState(state.photoIndex)
@@ -54,7 +60,17 @@ fun EditorPreviewPane(state: EditorState, onSelectPhoto: (Int) -> Unit, original
                             }
                         }
                     }
-                    HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), key = { state.photos[it].id },
+                    HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().semantics {
+                        stateDescription=positionLabel
+                        customActions=buildList {
+                            if(!state.busy && state.photoIndex>0)add(CustomAccessibilityAction(previousLabel) {
+                                scope.launch { pager.scrollToPage(state.photoIndex-1) };true
+                            })
+                            if(!state.busy && state.photoIndex<state.photos.lastIndex)add(CustomAccessibilityAction(nextLabel) {
+                                scope.launch { pager.scrollToPage(state.photoIndex+1) };true
+                            })
+                        }
+                    }, key = { state.photos[it].id },
                         userScrollEnabled = (!state.busy || state.loadingPhoto) && !state.closing) { page ->
                         if (page == state.photoIndex) {
                             PhotoPreview(if (original) state.original else state.preview, Modifier.fillMaxSize())
@@ -63,7 +79,10 @@ fun EditorPreviewPane(state: EditorState, onSelectPhoto: (Int) -> Unit, original
                         }
                     }
                 }
-                if (state.busy || delayedRendering) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
+                if (state.exporting && state.exportTotal > 0) LinearProgressIndicator(
+                    progress={ state.exportCompleted.toFloat()/state.exportTotal },
+                    modifier=Modifier.fillMaxWidth().align(Alignment.TopCenter))
+                else if (state.busy || delayedRendering) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
             }
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
                 Row(Modifier.fillMaxWidth().windowInsetsPadding(if (bottomSafe) WindowInsets.navigationBars.only(WindowInsetsSides.Bottom) else WindowInsets(0, 0, 0, 0))
@@ -75,9 +94,11 @@ fun EditorPreviewPane(state: EditorState, onSelectPhoto: (Int) -> Unit, original
                         state.loadingPhoto -> stringResource(R.string.loading_photo)
                         else -> details ?: media ?: if(state.photos.size > 1) stringResource(R.string.swipe_photos) else null
                     }
-                    val position = if (state.photos.size > 1) "${state.photoIndex + 1}/${state.photos.size} · " else ""
-                    Text(listOfNotNull("$position${state.width} × ${state.height}", status).joinToString(" · "),
-                        Modifier.weight(1f).heightIn(min = footerHeight).wrapContentHeight().then(if (details == null) Modifier else Modifier.clickable { showDetails = true }),
+                    val dimensions=stringResource(R.string.photo_dimensions,state.width,state.height)
+                    val position=if(state.photos.size>1)stringResource(R.string.status_separator,
+                        stringResource(R.string.photo_progress,state.photoIndex+1,state.photos.size),dimensions) else dimensions
+                    Text(if(status==null)position else stringResource(R.string.status_separator,position,status),
+                        Modifier.weight(1f).semantics { liveRegion=LiveRegionMode.Polite }.heightIn(min = footerHeight).wrapContentHeight().then(if (details == null) Modifier else Modifier.clickable { showDetails = true }),
                         style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis,
                         color = if (details == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
                     FilterChip(original, onClick = onOriginal, enabled = state.original != null, label = { Text(stringResource(R.string.original)) })
@@ -87,6 +108,6 @@ fun EditorPreviewPane(state: EditorState, onSelectPhoto: (Int) -> Unit, original
         }
     }
     if (showDetails && details != null) AlertDialog(onDismissRequest = { showDetails = false },
-        title = { Text(stringResource(R.string.error_title)) }, text = { Text(details) },
+        title = { Text(stringResource(R.string.error_preview_title)) }, text = { Text(details) },
         confirmButton = { TextButton(onClick = { showDetails = false }) { Text(stringResource(R.string.close)) } })
 }

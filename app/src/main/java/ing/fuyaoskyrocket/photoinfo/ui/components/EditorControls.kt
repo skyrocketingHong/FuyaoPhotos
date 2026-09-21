@@ -10,6 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
@@ -23,6 +24,18 @@ import kotlin.math.roundToInt
 @Composable
 fun EditorControls(state:EditorState,onField:(FieldId,String)->Unit,onStyle:(CardStyle)->Unit,onResetFields:()->Unit,
     onImportFont:()->Unit,onResetFont:()->Unit,onResolveLocation:()->Unit,modifier:Modifier=Modifier) {
+    var resetTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    if (resetTarget != null) {
+        val fields = resetTarget == "fields"
+        AlertDialog(onDismissRequest={ resetTarget=null },
+            title={ Text(stringResource(if(fields)R.string.restore_info_title else R.string.restore_style_title)) },
+            text={ Text(stringResource(if(fields)R.string.restore_info_message else R.string.restore_style_message)) },
+            confirmButton={ TextButton(onClick={
+                resetTarget=null
+                if(fields)onResetFields() else onStyle(CardStyle())
+            },enabled=!state.busy) { Text(stringResource(if(fields)R.string.restore_metadata else R.string.reset_style)) } },
+            dismissButton={ TextButton(onClick={ resetTarget=null }) { Text(stringResource(R.string.cancel)) } })
+    }
     var selected by rememberSaveable { mutableIntStateOf(0) }
     val infoScroll=rememberScrollState();val styleScroll=rememberScrollState()
     val enabled=!state.busy
@@ -50,21 +63,21 @@ fun EditorControls(state:EditorState,onField:(FieldId,String)->Unit,onStyle:(Car
                             fields.forEach { InfoField(it,state,onField,Modifier.weight(1f)) }
                         } else fields.forEach { InfoField(it,state,onField) }
                     }
-                    TextButton(onClick=onResetFields,enabled=enabled) { Text(stringResource(R.string.restore_metadata)) }
+                    TextButton(onClick={ resetTarget="fields" },enabled=enabled) { Text(stringResource(R.string.restore_metadata)) }
                 } else {
                     val s=state.style
                     SectionHeading(stringResource(R.string.section_layout))
-                    StyleSlider(stringResource(R.string.card_scale),"${(s.scale*100).roundToInt()}%",s.scale,.6f..2f,enabled) { onStyle(s.copy(scale=it)) }
-                    StyleSlider(stringResource(R.string.text_scale),"${(s.textScale*100).roundToInt()}%",s.textScale,.8f..1.8f,enabled) { onStyle(s.copy(textScale=it)) }
+                    StyleSlider(stringResource(R.string.card_scale),stringResource(R.string.value_percent,(s.scale*100).roundToInt()),s.scale,.6f..2f,enabled) { onStyle(s.copy(scale=it)) }
+                    StyleSlider(stringResource(R.string.text_scale),stringResource(R.string.value_percent,(s.textScale*100).roundToInt()),s.textScale,.8f..1.8f,enabled) { onStyle(s.copy(textScale=it)) }
                     Text(stringResource(R.string.text_scale_hint),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     SectionHeading(stringResource(R.string.section_backdrop))
-                    StyleSlider(stringResource(R.string.opacity),"${(s.opacity*100).roundToInt()}%",s.opacity,0f..1f,enabled) { onStyle(s.copy(opacity=it)) }
-                    StyleSlider(stringResource(R.string.blur),"${s.blur.roundToInt()} px",s.blur,0f..50f,enabled) { onStyle(s.copy(blur=it)) }
-                    StyleSlider(stringResource(R.string.radius),"${s.cornerRadius.roundToInt()} px",s.cornerRadius,0f..40f,enabled) { onStyle(s.copy(cornerRadius=it)) }
+                    StyleSlider(stringResource(R.string.opacity),stringResource(R.string.value_percent,(s.opacity*100).roundToInt()),s.opacity,0f..1f,enabled) { onStyle(s.copy(opacity=it)) }
+                    StyleSlider(stringResource(R.string.blur),stringResource(R.string.value_pixels,s.blur.roundToInt()),s.blur,0f..50f,enabled) { onStyle(s.copy(blur=it)) }
+                    StyleSlider(stringResource(R.string.radius),stringResource(R.string.value_pixels,s.cornerRadius.roundToInt()),s.cornerRadius,0f..40f,enabled) { onStyle(s.copy(cornerRadius=it)) }
                     SectionHeading(stringResource(R.string.section_position),stringResource(R.string.style_hint))
-                    StyleSlider(stringResource(R.string.right_inset),"${s.rightInset.roundToInt()} px",s.rightInset,0f..250f,enabled) { onStyle(s.copy(rightInset=it)) }
-                    StyleSlider(stringResource(R.string.bottom_inset),"${s.bottomInset.roundToInt()} px",s.bottomInset,0f..250f,enabled) { onStyle(s.copy(bottomInset=it)) }
-                    TextButton(onClick={ onStyle(CardStyle()) },enabled=enabled) { Text(stringResource(R.string.reset_style)) }
+                    StyleSlider(stringResource(R.string.right_inset),stringResource(R.string.value_pixels,s.rightInset.roundToInt()),s.rightInset,0f..250f,enabled) { onStyle(s.copy(rightInset=it)) }
+                    StyleSlider(stringResource(R.string.bottom_inset),stringResource(R.string.value_pixels,s.bottomInset.roundToInt()),s.bottomInset,0f..250f,enabled) { onStyle(s.copy(bottomInset=it)) }
+                    TextButton(onClick={ resetTarget="style" },enabled=enabled&&state.style!=CardStyle()) { Text(stringResource(R.string.reset_style)) }
                     HorizontalDivider()
                     SectionHeading(stringResource(R.string.font),state.fontName ?: stringResource(R.string.system_mono))
                     FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -106,7 +119,7 @@ private fun StyleSlider(label:String,display:String,value:Float,range:ClosedFloa
             Text(label,Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium)
             Text(display,style=MaterialTheme.typography.labelLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Slider(value,onChange,Modifier.semantics { contentDescription=label },enabled=enabled,valueRange=range)
+        Slider(value,onChange,Modifier.semantics { contentDescription=label;stateDescription=display },enabled=enabled,valueRange=range)
     }
 }
 private fun fieldLabel(field:FieldId)=when(field) {

@@ -22,11 +22,12 @@ fun rememberConfirmedBack(onConfirmed: () -> Unit, enabled: Boolean = true, hasC
     confirmLabel: Int = R.string.discard_return): () -> Unit {
     var show by rememberSaveable { mutableStateOf(false) }
     val currentConfirm by rememberUpdatedState(onConfirmed)
+    val currentEnabled by rememberUpdatedState(enabled)
     val currentChanges by rememberUpdatedState(hasChanges)
     LaunchedEffect(hasChanges) { if (!hasChanges) show = false }
     val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
     PredictiveBackHandler(enabled = enabled && (hasChanges || handleCleanBack) && !show && !WindowInsets.isImeVisible && lifecycle == Lifecycle.State.RESUMED) { events ->
-        try { events.collect { }; if (currentChanges) show = true else currentConfirm() }
+        try { events.collect { }; if (currentEnabled) { if (currentChanges) show = true else currentConfirm() } }
         catch (_: CancellationException) { /* Stay on the same destination and retain all edits. */ }
     }
     if (show) AlertDialog(onDismissRequest = { show = false },

@@ -26,6 +26,10 @@
 
 ### Interface
 
+- Keep one editing destination with direct Open, Save and Settings actions; move About into Settings and distinguish applying lens drafts from saving profiles.
+- Preserve Android 16 system back-to-home with a non-consuming observer; guard repeated navigation, photo replacement and destructive resets.
+- Adapt preview and controls to keyboard, font size and separating hinges using stable WindowManager; correct scrolling and full-screen system-bar insets.
+- Add actionable error messages, deferred save notices after error dialogs, localized value formats and accessible photo-switching actions.
 - Match FuyaoColorPicker’s 48dp compact app bars, semibold titles and 28dp action icons, preserving 48dp touch targets and system-bar insets. Retain Material 3 input shapes, Fuyao dynamic color and grouping.
 - Add Navigation Compose predictive back for settings, lens pages and full-screen preview; use a Material 3 export bottom sheet with segmented format selection.
 - Improve edge-to-edge, keyboard handling, adaptive inspector layouts and large-text behavior.

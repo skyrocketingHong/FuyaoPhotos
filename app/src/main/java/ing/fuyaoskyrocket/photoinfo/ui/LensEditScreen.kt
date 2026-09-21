@@ -46,9 +46,10 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
         listOf(device, name, min, max, zoomMin, zoomMax, physicalMin, physicalMax, exifModel, digitalMax), (2..7).toSet() + 9)
     val requestBack = rememberConfirmedBack(onBack, hasChanges = changed)
     FuyaoScaffold(stringResource(R.string.configure_lens),onBack=requestBack,actions={
-        TextButton(onClick={ onSave(draft) },enabled=valid&&!readingProduct) { Text(stringResource(R.string.save)) }
+        TextButton(onClick={ onSave(draft) },enabled=valid&&!readingProduct) { Text(stringResource(R.string.apply_lens)) }
     }) { padding ->
         FuyaoFormPage(padding) {
+            Text(stringResource(R.string.apply_lens_hint), style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
             SectionHeading(stringResource(R.string.lens_identity),stringResource(R.string.profile_match_hint))
             OutlinedTextField(device,{ if(it.length<=256)device=it },Modifier.fillMaxWidth(),enabled=!readingProduct,label={ Text(stringResource(R.string.profile_device)) },singleLine=true)
             TextButton(enabled=!readingProduct,onClick={ scope.launch {

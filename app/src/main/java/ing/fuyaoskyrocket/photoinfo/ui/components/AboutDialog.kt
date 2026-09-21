@@ -15,9 +15,9 @@ import ing.fuyaoskyrocket.photoinfo.R
 fun AboutDialog(onDismiss:()->Unit) {
     AlertDialog(onDismissRequest=onDismiss,title={ Text(stringResource(R.string.app_name)) },text={
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            Text("${BuildConfig.MARKETING_VERSION} (${BuildConfig.BUILD_NUMBER}) · ${BuildConfig.BUILD_TYPE}",style=MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.about_version,BuildConfig.MARKETING_VERSION,BuildConfig.BUILD_NUMBER,BuildConfig.BUILD_TYPE),style=MaterialTheme.typography.titleSmall)
             Text(stringResource(R.string.about_summary),style=MaterialTheme.typography.bodyMedium)
-            Text("AGPL-3.0-only · 扶摇skyrocketing",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.about_credit),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
         }
     },confirmButton={ TextButton(onClick=onDismiss) { Text(stringResource(R.string.close)) } })
 }

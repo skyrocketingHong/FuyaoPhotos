@@ -1,6 +1,9 @@
 package ing.fuyaoskyrocket.photoinfo.ui
 
 import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
@@ -15,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.data.camera.*
@@ -46,15 +50,16 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
     var profiles by rememberSaveable(stateSaver=ProfilesSaver) { mutableStateOf(initial) }
     var inventory by remember { mutableStateOf<CameraInventory?>(null) }
     var scanning by remember { mutableStateOf(false) }
+    var denied by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     val context=LocalContext.current;val scope=rememberCoroutineScope();val snackbar=remember { SnackbarHostState() }
     val removedText=stringResource(R.string.lens_removed);val undoText=stringResource(R.string.undo)
     fun scan() { scope.launch {
-        scanning=true;failed=false
+        scanning=true;failed=false;denied=false
         inventory=withContext(Dispatchers.IO) { runCatching { CameraInventoryReader(context).scan() }.getOrNull() }
         failed=inventory==null;scanning=false
     } }
-    val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted->if(granted)scan() else failed=true }
+    val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted->if(granted)scan() else denied=true }
     val hardwareDevice = LocalCameraDevice.hardwareKey
     var productName by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { productName = LocalCameraDevice.productName() }
@@ -72,14 +77,23 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
     val requestBack = rememberConfirmedBack(onBack, hasChanges = profiles != initial)
     FuyaoScaffold(stringResource(R.string.lens_profiles),onBack=requestBack,snackbarHost={ SnackbarHost(snackbar, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) },actions={
         FuyaoAppBarAction(R.drawable.ic_plus,stringResource(R.string.add_lens),{ onEdit(draft()) },enabled=profiles.size<64&&productName!=null)
-        TextButton(onClick={ onSave(profiles) },enabled=!duplicateBindings) { Text(stringResource(R.string.save)) }
+        TextButton(onClick={ onSave(profiles) },enabled=!duplicateBindings) { Text(stringResource(R.string.save_profiles)) }
     }) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),contentAlignment=Alignment.TopCenter) {
-            LazyColumn(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.fillMaxSize().consumeWindowInsets(padding),contentAlignment=Alignment.TopCenter) {
+            LazyColumn(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxSize(),contentPadding=PaddingValues(
+                start=padding.calculateStartPadding(LocalLayoutDirection.current)+16.dp,
+                end=padding.calculateEndPadding(LocalLayoutDirection.current)+16.dp,
+                top=padding.calculateTopPadding()+16.dp,bottom=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                 item {
                     SectionHeading(stringResource(R.string.scan_lenses),stringResource(R.string.inventory_hint))
                     OutlinedButton(onClick={ permission.launch(Manifest.permission.CAMERA) },enabled=!scanning) { Text(stringResource(R.string.scan_lenses)) }
                     if(scanning)LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if(denied) {
+                        Text(stringResource(R.string.camera_permission_denied),style=MaterialTheme.typography.bodySmall)
+                        TextButton(onClick={ context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:${context.packageName}"))) }) {
+                            Text(stringResource(R.string.open_app_settings))
+                        }
+                    }
                     if(failed)Text(stringResource(R.string.inventory_failed),color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
                 }
                 inventory?.let { result ->
@@ -94,7 +108,7 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                         var menu by remember(hardware.id) { mutableStateOf(false) }
                         Row(Modifier.fillMaxWidth().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
                             Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                                Text("${stringResource(when(hardware.facing) { "FRONT"->R.string.lens_front;"BACK"->R.string.lens_back;else->R.string.lens_external })} · ID ${hardware.id}",style=MaterialTheme.typography.titleSmall)
+                                Text(stringResource(R.string.hardware_identity,stringResource(when(hardware.facing) { "FRONT"->R.string.lens_front;"BACK"->R.string.lens_back;else->R.string.lens_external }),hardware.id),style=MaterialTheme.typography.titleSmall)
                                 Text(stringResource(R.string.hardware_values,hardware.physicalFocals.joinToString(),hardware.apertures.joinToString()),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Box {
@@ -106,7 +120,6 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                                         DropdownMenuItem(text={ Text(stringResource(R.string.link_existing_lens,profile.name)) },onClick={
                                             menu=false
                                             val linked=profile.copy(cameraId=hardware.id,hardwareDevice=hardwareDevice,facing=hardware.facing)
-                                            profiles=profiles.map { if(it.id==linked.id)linked else it }
                                             onEdit(linked)
                                         })
                                     }
@@ -125,13 +138,13 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                     Row(Modifier.fillMaxWidth().animateItem().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
                         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
                             Text(profile.name,style=MaterialTheme.typography.titleMedium)
-                            Text("${profile.device} · ${profile.exifModel}\n${profile.equivalentMin}–${profile.equivalentMax} MM",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.profile_summary,profile.device,profile.exifModel,profile.equivalentMin.toString(),profile.equivalentMax.toString()),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                             if(profile.cameraId.isNotBlank()) Text(stringResource(R.string.bound_camera_id,profile.cameraId),style=MaterialTheme.typography.bodySmall)
                             if(inventory!=null && profile.hardwareDevice==hardwareDevice && inventory?.lenses?.any { it.id==profile.cameraId }==true)
                                 Text(stringResource(R.string.hardware_linked),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary)
                         }
-                        FuyaoIconButton(R.drawable.ic_edit,"${stringResource(R.string.edit_lens)} ${profile.name}",{ onEdit(profile) })
-                        FuyaoIconButton(R.drawable.ic_delete,"${stringResource(R.string.delete_lens)} ${profile.name}",{
+                        FuyaoIconButton(R.drawable.ic_edit,stringResource(R.string.lens_action,stringResource(R.string.edit_lens),profile.name),{ onEdit(profile) })
+                        FuyaoIconButton(R.drawable.ic_delete,stringResource(R.string.lens_action,stringResource(R.string.delete_lens),profile.name),{
                             val index=profiles.indexOfFirst { it.id==profile.id }
                             profiles=profiles.filterNot { it.id==profile.id }
                             scope.launch {
@@ -142,7 +155,7 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                         })
                     }
                 }
-                item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars)) }
+                item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))) }
             }
         }
     }
