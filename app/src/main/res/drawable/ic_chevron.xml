@@ -1,3 +1,6 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24" android:autoMirrored="true">
-    <path android:fillColor="@android:color/transparent" android:strokeColor="#FF000000" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M9,5 L16,12 L9,19"/>
+<!-- Google Material Symbols Outlined; Apache-2.0. Source: assets/icons/material/chevron_right.svg -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="960" android:viewportHeight="960" android:autoMirrored="true">
+    <group android:translateX="-0" android:translateY="960">
+        <path android:fillColor="#FF000000" android:pathData="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z" />
+    </group>
 </vector>

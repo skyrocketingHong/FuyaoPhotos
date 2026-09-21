@@ -40,3 +40,13 @@ https://developer.apple.com/fonts/
 Dependencies retain their upstream licenses and notices. The generated Gradle
 Wrapper retains its upstream notices. Imported fonts and photographs retain
 their own rights; the source-code license grants no additional rights to them.
+
+Icon assets
+-----------
+The SVG exports under assets/icons/sf-symbols and their Android vector derivatives
+are SF Symbols assets, subject to their separate Apple terms. This project's
+source license does not grant rights to embed or redistribute those assets.
+The livephoto symbol carries Apple Live Photos-specific usage restrictions.
+
+Standard action icons are Google Material Symbols Outlined, distributed under
+Apache-2.0. Their pinned sources and license are in assets/icons/material/.
