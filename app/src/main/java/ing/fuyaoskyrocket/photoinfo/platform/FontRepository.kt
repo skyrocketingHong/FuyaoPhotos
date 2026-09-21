@@ -32,7 +32,7 @@ class FontRepository(private val context: Context) {
     val displayName: String get() = preferences.getString("name", null)
         ?: context.getString(if (roundedTypeface != null && monoTypeface != null) R.string.reference_fonts else R.string.system_mixed_fonts)
     val selectionKey: String get() = preferences.getString("file", null)
-        ?: "reference-v4-matched-cap-heights:${roundedTypeface != null}:${monoTypeface != null}"
+        ?: "reference-v5-optical-one:${roundedTypeface != null}:${monoTypeface != null}"
     val hasCustomFont: Boolean get() = preferences.contains("file")
 
     private fun load(): CardTypography {

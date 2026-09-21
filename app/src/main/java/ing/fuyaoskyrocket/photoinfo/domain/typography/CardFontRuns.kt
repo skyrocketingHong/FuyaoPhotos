@@ -1,11 +1,11 @@
 package ing.fuyaoskyrocket.photoinfo.domain.typography
 
-/** UTF-16 ranges for the reference monospace digits (0, 2–9); 1 stays proportional. */
+/** Separate standalone digit runs without splitting combining marks or keycap emoji. */
 object CardFontRuns {
     data class Range(val start: Int, val end: Int)
 
-    private fun isStandaloneMonoDigit(text: String, index: Int): Boolean {
-        if (index >= text.length || text[index] !in '0'..'9' || text[index] == '1') return false
+    private fun isStandaloneDigit(text: String, index: Int): Boolean {
+        if (index >= text.length || text[index] !in '0'..'9') return false
         if (index > 0 && text[index - 1] == '\u200D') return false
         if (index + 1 == text.length) return true
         val next = text.codePointAt(index + 1)
@@ -18,11 +18,14 @@ object CardFontRuns {
         }
     }
 
-    fun monospacedDigits(text: String): List<Range> {
+    fun monospacedDigits(text: String): List<Range> = ranges(text) { it != '1' }
+    fun proportionalOnes(text: String): List<Range> = ranges(text) { it == '1' }
+
+    private inline fun ranges(text: String, selected: (Char) -> Boolean): List<Range> {
         val ranges = mutableListOf<Range>()
         var start = -1
         for (index in 0..text.length) {
-            val digit = isStandaloneMonoDigit(text, index)
+            val digit = isStandaloneDigit(text, index) && selected(text[index])
             if (digit && start < 0) start = index
             if (!digit && start >= 0) {
                 ranges += Range(start, index)

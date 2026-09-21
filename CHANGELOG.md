@@ -12,6 +12,7 @@
 
 ### Photo editing
 
+- Apply a 3% optical size correction to the narrow proportional digit 1 across all card fields, using the same measurement and rendering path.
 - Match visible capital heights across mixed font faces; load original-resolution full-screen previews with cancellation, memory guards and retained zoom.
 - Refine reference typography with SF Compact Rounded Medium, a proportional digit 1, centered colons and a legible capital I; use SF Mono Medium for 0 and 2–9. Share shaping between layout, output and HDR coverage; imported fonts remain uniform.
 - Add up to 50-photo sessions with horizontal paging, independent edits, sequential save-all, progress and partial-failure reporting.

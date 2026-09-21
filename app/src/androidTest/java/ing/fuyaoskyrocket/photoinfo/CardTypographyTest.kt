@@ -9,6 +9,7 @@ import android.text.TextPaint
 import android.text.style.MetricAffectingSpan
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import ing.fuyaoskyrocket.photoinfo.domain.typography.CardFontSizing
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardBox
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardLayout
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardLine
@@ -39,15 +40,17 @@ class CardTypographyTest {
         val text="24 MM (1X)"
         val styled=renderer.styledText(text) as Spanned
         val spans=styled.getSpans(0,text.length,MetricAffectingSpan::class.java)
-        assertEquals(listOf("24"),spans.map { text.substring(styled.getSpanStart(it),styled.getSpanEnd(it)) })
+        assertEquals(listOf("24","1"),spans.map { text.substring(styled.getSpanStart(it),styled.getSpanEnd(it)) })
         spans.forEach { span ->
             val measurement=TextPaint().apply { fontFeatureSettings="'cv05' 1" }
             val drawing=TextPaint(measurement)
             span.updateMeasureState(measurement);span.updateDrawState(drawing)
-            assertSame(typography.numbers,measurement.typeface)
+            val one=text.substring(styled.getSpanStart(span),styled.getSpanEnd(span))=="1"
+            assertSame(if(one)typography.letters else typography.numbers,measurement.typeface)
             assertSame(measurement.typeface,drawing.typeface)
-            assertNull(drawing.fontFeatureSettings)
-            assertEquals(40f,measurement.textSize,0f)
+            assertEquals(if(one)typography.letterFeatures else null,drawing.fontFeatureSettings)
+            val size=if(one)40f*typography.letterSizeScale*CardFontSizing.PROPORTIONAL_ONE_OPTICAL_SCALE else 40f
+            assertEquals(size,measurement.textSize,0f)
             assertEquals(measurement.textSize,drawing.textSize,0f)
         }
     }
@@ -57,7 +60,10 @@ class CardTypographyTest {
         if (!context.assets.list("fonts").orEmpty().contains("SF-Compact-Rounded.ttf")) return
         assertEquals("'cv04' 1, 'cv05' 1, 'pnum' 1",typography.letterFeatures)
         val styled=CardTextRenderer(typography,60f).styledText(":1") as Spanned
-        assertTrue(styled.getSpans(0,styled.length,MetricAffectingSpan::class.java).isEmpty())
+        val spans=styled.getSpans(0,styled.length,MetricAffectingSpan::class.java)
+        assertEquals(1,spans.size)
+        assertEquals(1,styled.getSpanStart(spans.single())) // Colon stays at the base size.
+        assertEquals(2,styled.getSpanEnd(spans.single()))
         fun center(text:String):Float {
             val bitmap=Bitmap.createBitmap(120,100,Bitmap.Config.ARGB_8888)
             try {
@@ -71,7 +77,7 @@ class CardTypographyTest {
         assertEquals(center("H"),center(":"),2f)
     }
 
-    @Test fun capitalsAndProportionalOneHaveTheSameVisibleHeightAsMonoDigits() {
+    @Test fun capitalsStayNormalizedWhileOneReceivesOnlyTheSmallOpticalBoost() {
         val typography=reference()
         fun inkHeight(text:String,fonts:CardTypography=typography):Int {
             val bitmap=Bitmap.createBitmap(700,180,Bitmap.Config.ARGB_8888)
@@ -85,8 +91,12 @@ class CardTypographyTest {
         }
         val mono=CardTypography.uniform(typography.numbers)
         val referenceCap=inkHeight("H",mono)
-        for (text in listOf("H","1","111")) {
+        for (text in listOf("H")) {
             assertTrue("$text does not match reference capitals",kotlin.math.abs(inkHeight(text)-referenceCap)<=2)
+        }
+        val opticalCap=referenceCap*CardFontSizing.PROPORTIONAL_ONE_OPTICAL_SCALE
+        for (text in listOf("1","111")) {
+            assertTrue("$text exceeds its optical correction",kotlin.math.abs(inkHeight(text)-opticalCap)<=2f)
         }
         // Rounded C/8 naturally overshoot flat capitals; compare equivalent outlines.
         assertTrue(kotlin.math.abs(inkHeight("LEICA")-inkHeight("LEICA",mono))<=2)

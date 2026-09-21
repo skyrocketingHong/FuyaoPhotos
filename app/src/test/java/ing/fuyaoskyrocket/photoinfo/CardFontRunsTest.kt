@@ -22,6 +22,15 @@ class CardFontRunsTest {
         }
         assertTrue(CardFontRuns.monospacedDigits("111").isEmpty())
     }
+    @Test fun opticalOnesAreSelectedAcrossFieldsWithoutSplittingGraphemes() {
+        val text="📷 17 1/121 (1X) 111 1️⃣ 1\u0301 A\u200D1"
+        val selected=CardFontRuns.proportionalOnes(text)
+        assertEquals(listOf("1","1","1","1","1","111"),selected.map { text.substring(it.start,it.end) })
+        assertEquals(3,selected.first().start) // Emoji occupies two UTF-16 units.
+        assertTrue(CardFontRuns.proportionalOnes("").isEmpty())
+        val mono=CardFontRuns.monospacedDigits(text).flatMap { it.start until it.end }.toSet()
+        assertTrue(selected.none { range -> (range.start until range.end).any { it in mono } })
+    }
     @Test fun utf16RangesDoNotSplitEmojiOrChangeLettersWithCombiningMarks() {
         val text="📷 CAFE\u0301 東京 27 ULTRA"
         val range=CardFontRuns.monospacedDigits(text).single()

@@ -9,7 +9,9 @@ Spaces, punctuation, parentheses and decimal separators use the proportional
 base face. Android measurement, wrapping, color rendering and HDR text coverage
 share the same styled text. The 10.5 px reference uses the monospace face as its visual-size anchor. The
 proportional face is calibrated against actual H outlines at a large probe size,
-then scaled as a whole to match capital height; digits keep the reference em size.
+then scaled as a whole to match capital height; monospace digits keep the reference em size.
+Standalone proportional `1` receives a further 3% optical size correction at the
+same baseline in every field. Combining-mark and keycap sequences stay intact.
 The shared baseline and 12.5 px line-height reference scale with the photo short
 edge and text-size control. Imported uniform fonts do not receive this calibration.
 

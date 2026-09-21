@@ -68,7 +68,12 @@ class CardTextRenderer(private val typography: CardTypography, private val fontS
         if (!typography.mixedDigits) return text
         return SpannableString(text).apply {
             CardFontRuns.monospacedDigits(text).forEach { range ->
-                setSpan(DigitTypefaceSpan(typography.numbers,fontSize), range.start, range.end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                setSpan(FontRunSpan(typography.numbers,fontSize,null), range.start, range.end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            CardFontRuns.proportionalOnes(text).forEach { range ->
+                setSpan(FontRunSpan(typography.letters,
+                    fontSize * typography.letterSizeScale * CardFontSizing.PROPORTIONAL_ONE_OPTICAL_SCALE,
+                    typography.letterFeatures),range.start,range.end,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         }
     }
@@ -104,13 +109,13 @@ class CardTextRenderer(private val typography: CardTypography, private val fontS
         }
     }
 
-    private class DigitTypefaceSpan(private val font: Typeface,private val size: Float) : MetricAffectingSpan() {
+    private class FontRunSpan(private val font: Typeface,private val size: Float,private val features: String?) : MetricAffectingSpan() {
         override fun updateMeasureState(textPaint: TextPaint) = apply(textPaint)
         override fun updateDrawState(textPaint: TextPaint) = apply(textPaint)
         private fun apply(paint: TextPaint) {
             paint.typeface = font
             paint.textSize = size
-            paint.fontFeatureSettings = null
+            paint.fontFeatureSettings = features
         }
     }
 }
