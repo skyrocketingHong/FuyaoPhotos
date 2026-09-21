@@ -168,6 +168,46 @@ class PhotoPipelineTest {
         } finally { original.delete();source.file.delete() }
     }
 
+    @Test fun metadataSwitchesApplyIndependentlyToJpegAndPng() = runBlocking {
+        val repository=PhotoRepository(context)
+        val original=quadrantPhoto(1)
+        ExifInterface(original).apply {
+            setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL,"2024:01:02 12:00:00")
+            setAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL,"+08:00")
+            setAttribute(ExifInterface.TAG_GPS_DATESTAMP,"2024:01:02")
+            setAttribute(ExifInterface.TAG_GPS_TIMESTAMP,"04:00:00")
+            saveAttributes()
+        }
+        val source=repository.import(Uri.fromFile(original))
+        try {
+            for(format in ExportFormat.entries)for(exif in listOf(false,true))for(gps in listOf(false,true))for(time in listOf(false,true)) {
+                val target=File.createTempFile("metadata-options-",".${format.extension}",context.cacheDir)
+                try {
+                    val options=ExportOptions(format,100,exif,gps,time)
+                    PhotoExporter(context,repository).export(source,source.info,CardStyle(),CardTypography.uniform(Typeface.MONOSPACE),
+                        format,exif,Uri.fromFile(target),100,options)
+                    val exported=ExifInterface(target)
+                    assertEquals(exif,exported.getAttribute(ExifInterface.TAG_MODEL)!=null)
+                    assertEquals(gps,exported.latLong!=null)
+                    assertEquals(time,exported.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)!=null)
+                    assertEquals(gps&&time,exported.getAttribute(ExifInterface.TAG_GPS_DATESTAMP)!=null)
+                    assertNull(exported.getAttribute(ExifInterface.TAG_MAKER_NOTE))
+                } finally { target.delete() }
+            }
+        } finally { original.delete();source.file.delete() }
+    }
+
+    @Test fun saveDefaultsSurviveRepositoryRecreationAndTemporaryChoicesStayLocal() {
+        val repository=SettingsRepository(context);val previous=repository.read()
+        try {
+            val defaults=ExportOptions(ExportFormat.PNG,86,false,true,false)
+            repository.save(previous.copy(exportDefaults=defaults))
+            val temporary=defaults.copy(format=ExportFormat.JPEG,keepLocation=false)
+            assertNotEquals(defaults,temporary)
+            assertEquals(defaults,SettingsRepository(context).read().exportDefaults)
+        } finally { repository.save(previous) }
+    }
+
     private fun quadrantPhoto(orientation: Int): File {
         val file=File.createTempFile("source-", ".jpg", context.cacheDir)
         val bitmap=Bitmap.createBitmap(96,64,Bitmap.Config.ARGB_8888)

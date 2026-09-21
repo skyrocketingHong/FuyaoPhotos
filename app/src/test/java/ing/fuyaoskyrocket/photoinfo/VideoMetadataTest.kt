@@ -47,6 +47,8 @@ class VideoMetadataTest {
         try {
             source.writeBytes(fixture(handler="meta"))
             assertThrows(IllegalArgumentException::class.java) { VideoMetadata.copy(source,0,source.length(),output,ExportOptions()) }
+            source.writeBytes(fixture()+box("uuid",ByteArray(32)))
+            assertThrows(IllegalStateException::class.java) { VideoMetadata.copy(source,0,source.length(),output,ExportOptions()) }
             source.writeBytes(fixture()+int(100)+text("junk"))
             assertThrows(IllegalArgumentException::class.java) { VideoMetadata.copy(source,0,source.length(),output,ExportOptions()) }
         } finally { source.delete();output.delete() }

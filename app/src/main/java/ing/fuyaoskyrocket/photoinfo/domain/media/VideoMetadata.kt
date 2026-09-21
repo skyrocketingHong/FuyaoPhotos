@@ -124,7 +124,8 @@ object VideoMetadata {
                     box.type == "udta" -> boxes(box.payload, box.end).forEach { child ->
                         if (child.type == "meta") cleanMeta(child) else if (!keepKey(child.type)) remove(child)
                     }
-                    box.type in setOf("uuid", "XMP_", "xml ") -> remove(box)
+                    box.type == "uuid" -> error("Unknown video UUID metadata")
+                    box.type in setOf("XMP_", "xml ") -> remove(box)
                     box.type == "free" || box.type == "skip" -> zero(box.payload, box.size - box.header)
                     box.type in containers -> walk(box.payload, box.end, depth + 1, box.type)
                     box.type in setOf("mvhd", "tkhd", "mdhd") -> {
