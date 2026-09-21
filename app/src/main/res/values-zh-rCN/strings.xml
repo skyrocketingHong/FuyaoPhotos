@@ -183,7 +183,7 @@
   <string name="save_profiles">保存配置</string>
   <string name="save_settings">保存设置</string>
   <string name="replace_photos_title">替换当前照片？</string>
-  <string name="replace_photos_message">将丢弃当前未保存的编辑。原片和已保存的照片不会改动。</string>
+  <string name="replace_photos_message">打开新照片会放弃当前尚未保存的照片或设置修改。已导出的照片不受影响。</string>
   <string name="replace_photos_confirm">放弃并打开照片</string>
   <string name="restore_info_title">恢复照片原始参数？</string>
   <string name="restore_info_message">将替换当前修改过的文字，包括摄影者和地点。卡片样式保持不变。</string>
@@ -224,4 +224,8 @@
   <string name="export_defaults_hint">长期生效，每次保存均可临时调整。</string>
   <string name="export_temporary_hint">本次选择仅用于此次保存，不修改全局默认。</string>
   <string name="video_metadata_unsupported">无法安全移除此视频封装的元数据。请调整保存选项，或换用受支持的动态照片原片。</string>
+  <string name="open_photo">打开</string>
+  <string name="open_photo_failed">没有可打开这张照片的应用，或读取权限已失效。请从相册打开。</string>
+  <string name="share_failed">无法打开系统分享菜单，请从相册分享已保存的照片。</string>
+  <string name="shared_photo_invalid">无法读取分享内容。请从相册分享 1～50 张图片，或在应用中选择原片。</string>
 </resources>

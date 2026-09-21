@@ -183,7 +183,7 @@
   <string name="save_profiles">Save profiles</string>
   <string name="save_settings">Save settings</string>
   <string name="replace_photos_title">Replace the open photos?</string>
-  <string name="replace_photos_message">Unsaved edits will be discarded. Original photos and saved copies will stay unchanged.</string>
+  <string name="replace_photos_message">Opening new photos discards unsaved photo or settings edits. Exported photos are unaffected.</string>
   <string name="replace_photos_confirm">Discard and open photos</string>
   <string name="restore_info_title">Restore capture details?</string>
   <string name="restore_info_message">This replaces the fields you edited, including the photographer and location. Card style stays unchanged.</string>
@@ -224,4 +224,8 @@
   <string name="export_defaults_hint">Used for each save. Temporary changes apply only to that save.</string>
   <string name="export_temporary_hint">These choices apply to this save only, without changing defaults.</string>
   <string name="video_metadata_unsupported">This video container cannot be safely cleaned. Adjust save options or use a supported original Motion Photo.</string>
+  <string name="open_photo">Open</string>
+  <string name="open_photo_failed">No app could open this photo, or read access expired. Open it from your gallery.</string>
+  <string name="share_failed">Could not open the share menu. Share the saved photo from your gallery.</string>
+  <string name="shared_photo_invalid">Cannot read shared content. Share 1–50 images from your gallery, or select the originals in the app.</string>
 </resources>

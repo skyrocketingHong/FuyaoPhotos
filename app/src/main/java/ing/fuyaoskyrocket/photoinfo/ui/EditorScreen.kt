@@ -5,7 +5,6 @@ import android.net.Uri
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.painterResource
-import android.content.ClipData
 import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -16,6 +15,10 @@ import ing.fuyaoskyrocket.photoinfo.ui.components.SystemBackObserver
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import ing.fuyaoskyrocket.photoinfo.platform.PhotoIntents
+import ing.fuyaoskyrocket.photoinfo.ui.components.ExportNotice
+import ing.fuyaoskyrocket.photoinfo.ui.components.ExportNoticeVisuals
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.window.DialogProperties
@@ -62,6 +65,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     var original by rememberSaveable { mutableStateOf(false) }
     var showPhotoMenu by remember { mutableStateOf(false) }
     val navigation = rememberNavController()
+    val currentEntry by navigation.currentBackStackEntryAsState()
     fun atPage(page: PhotoPage) = navigation.currentBackStackEntry?.let {
         it.destination.route == page.name && it.lifecycle.currentState == Lifecycle.State.RESUMED
     } == true
@@ -78,6 +82,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     }
     val importConfirmedPhotos: (List<Uri>) -> Unit = { uris ->
         if (uris.isNotEmpty()) {
+            navigation.popBackStack(PhotoPage.EDITOR.name, false)
             if ((state.settings.resolvePhotoLocation || state.settings.exportDefaults.keepLocation) && Build.VERSION.SDK_INT >= 29 &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 pendingPhotos = ArrayList(uris.map(Uri::toString))
@@ -105,26 +110,20 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     val pngDestination = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("image/png")) {
         if (it != null) vm.export(ExportFormat.PNG, it)
     }
-    val appName = stringResource(R.string.app_name)
     val shareLabel = stringResource(R.string.share)
+    LaunchedEffect(vm.sharedPhotos, state.busy, state.error, currentEntry, replacementPhotos, pendingPhotos) {
+        val incoming=vm.sharedPhotos
+        if(incoming!=null && !state.busy && state.error==null && currentEntry!=null && replacementPhotos==null && pendingPhotos==null) {
+            showExport=false;showPhotoMenu=false
+            if(state.hasChanges || currentEntry?.destination?.route!=PhotoPage.EDITOR.name) replacementPhotos=incoming.map(Uri::toString)
+            else importConfirmedPhotos(incoming)
+            vm.consumeSharedPhotos()
+        }
+    }
     LaunchedEffect(state.notice?.id, state.error) {
-        state.notice?.takeIf { state.error == null }?.let { notice ->
-            val result = snackbar.showSnackbar(notice.text, actionLabel = if (notice.photos.isNotEmpty()) shareLabel else null,
-                duration = SnackbarDuration.Short, withDismissAction = true)
+        state.notice?.takeIf { state.error==null }?.let { notice ->
+            snackbar.showSnackbar(ExportNoticeVisuals(notice,if(notice.photos.isNotEmpty())shareLabel else null))
             vm.clearNotice(notice.id)
-            if (result == SnackbarResult.ActionPerformed && notice.photos.isNotEmpty()) {
-                val uris = ArrayList(notice.photos.map { it.uri })
-                val intent = Intent(if (uris.size == 1) Intent.ACTION_SEND else Intent.ACTION_SEND_MULTIPLE).apply {
-                    type = notice.photos.first().format.mime
-                    if (uris.size == 1) putExtra(Intent.EXTRA_STREAM, uris.first())
-                    else putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
-                    clipData = ClipData.newUri(context.contentResolver, appName, uris.first()).also { clip ->
-                        uris.drop(1).forEach { clip.addItem(ClipData.Item(it)) }
-                    }
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                context.startActivity(Intent.createChooser(intent, shareLabel))
-            }
         }
     }
     NavHost(
@@ -158,7 +157,15 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                         openPage(PhotoPage.EDITOR,PhotoPage.SETTINGS)
                     }
                 },enabled=!state.busy)
-            },snackbarHost={ SnackbarHost(snackbar, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) }) { padding ->
+            },snackbarHost={ SnackbarHost(snackbar, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) { data ->
+                ExportNotice(data,onOpen={ notice ->
+                    vm.clearNotice(notice.id)
+                    if(!PhotoIntents.launch(context,PhotoIntents.open(notice.photos.last()))) vm.reportExternalError(R.string.open_photo_failed,R.string.error_export_title)
+                },onShare={ notice ->
+                    vm.clearNotice(notice.id)
+                    if(!PhotoIntents.launch(context,Intent.createChooser(PhotoIntents.share(notice.photos),shareLabel))) vm.reportExternalError(R.string.share_failed,R.string.error_export_title)
+                })
+            } }) { padding ->
                 Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
                     if(state.photos.isEmpty()) {
                         Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {

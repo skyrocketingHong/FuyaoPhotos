@@ -56,6 +56,15 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         keepLocation = saved["keepLocation"] ?: initialSettings.exportDefaults.keepLocation,
         keepCaptureTime = saved["keepCaptureTime"] ?: initialSettings.exportDefaults.keepCaptureTime)); private set
 
+    var sharedPhotos by mutableStateOf(saved.get<ArrayList<String>>("sharedPhotos")?.map(Uri::parse)); private set
+    fun receiveSharedPhotos(uris: List<Uri>) {
+        require(uris.size in 1..PhotoEditSnapshot.MAX_PHOTOS)
+        require(uris.all { it.scheme=="content" && !it.authority.isNullOrBlank() })
+        saved["sharedPhotos"]=ArrayList(uris.map(Uri::toString))
+        sharedPhotos=uris
+    }
+    fun consumeSharedPhotos() { saved.remove<ArrayList<String>>("sharedPhotos");sharedPhotos=null }
+
     init {
         val session = saved.get<ArrayList<String>>("session")
         val legacy = saved.get<String>("source")
@@ -262,7 +271,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
             keepLocation=value.keepLocation,keepCaptureTime=value.keepCaptureTime)
         refreshChanges()
     }
-    fun reportExternalError(message: Int) { state=state.copy(errorTitle=R.string.error_import_title,error=app.getString(message)) }
+    fun reportExternalError(message: Int, title: Int = R.string.error_import_title) { state=state.copy(errorTitle=title,error=app.getString(message)) }
     fun importFont(uri: Uri) {
         if (state.busy) return
         renderJob?.cancel()
@@ -444,6 +453,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         saved.remove<String>("resolvedLocation"); saved.remove<Boolean>("locationEdited")
     }
     private fun forgetSession() {
+        saved.remove<Int>("jpegQuality"); saved.remove<Boolean>("keepMetadata")
+        saved.remove<Boolean>("keepLocation"); saved.remove<Boolean>("keepCaptureTime")
         baselines = emptyMap(); saved.remove<ArrayList<String>>("editBaselines")
         saved.remove<ArrayList<String>>("session"); saved.remove<Int>("photoIndex"); saved.remove<String>("source")
         FieldId.entries.forEach { saved.remove<String>("field.${it.name}") }
