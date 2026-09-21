@@ -8,6 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -32,13 +34,14 @@ object FuyaoMotion {
 @Composable
 fun FuyaoScaffold(title:String,modifier:Modifier=Modifier,onBack:(()->Unit)?=null,
     actions:@Composable RowScope.()->Unit={},snackbarHost:@Composable ()->Unit={},content:@Composable (PaddingValues)->Unit) {
+    val titleHeight=with(LocalDensity.current) { MaterialTheme.typography.titleLarge.lineHeight.toDp() }+8.dp
     Scaffold(modifier=modifier.fillMaxSize(),containerColor=MaterialTheme.colorScheme.surface,
         contentWindowInsets=WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar={ TopAppBar(
             title={ Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold) },
             navigationIcon={ if(onBack!=null)FuyaoAppBarAction(R.drawable.ic_back,stringResource(R.string.back),onBack) },
-            actions=actions,expandedHeight=FuyaoLayout.appBar,
-            windowInsets=WindowInsets.statusBars.only(WindowInsetsSides.Top).union(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
+            actions=actions,expandedHeight=maxOf(FuyaoLayout.appBar,titleHeight),
+            windowInsets=WindowInsets.statusBars.union(WindowInsets.captionBar).only(WindowInsetsSides.Top).union(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
             colors=TopAppBarDefaults.topAppBarColors(containerColor=MaterialTheme.colorScheme.surface,actionIconContentColor=MaterialTheme.colorScheme.onSurfaceVariant)) },
         snackbarHost=snackbarHost,content=content)
 }
@@ -67,11 +70,15 @@ fun FuyaoIconButton(icon:Int,label:String,onClick:()->Unit,enabled:Boolean=true)
 
 @Composable
 fun FuyaoFormPage(padding:PaddingValues,content:@Composable ColumnScope.()->Unit) {
-    Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(),contentAlignment=Alignment.TopCenter) {
-        Column(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxWidth().verticalScroll(rememberScrollState()).padding(FuyaoSpacing.content),
+    val direction=LocalLayoutDirection.current
+    Box(Modifier.fillMaxSize().consumeWindowInsets(padding).imePadding(),contentAlignment=Alignment.TopCenter) {
+        Column(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxWidth().verticalScroll(rememberScrollState())
+            .padding(start=padding.calculateStartPadding(direction)+FuyaoSpacing.content,
+                end=padding.calculateEndPadding(direction)+FuyaoSpacing.content,
+                top=padding.calculateTopPadding()+FuyaoSpacing.content,bottom=FuyaoSpacing.content),
             verticalArrangement=Arrangement.spacedBy(FuyaoSpacing.content)) {
             content()
-            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)))
         }
     }
 }

@@ -35,6 +35,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
+import ing.fuyaoskyrocket.photoinfo.ui.components.EditorWorkspace
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorPreviewPane
 import ing.fuyaoskyrocket.photoinfo.ui.components.AboutDialog
 import androidx.compose.ui.Alignment
@@ -160,30 +161,20 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                             }
                         }
                     } else {
-                        Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.TopCenter) {
-                            BoxWithConstraints(Modifier.widthIn(max=FuyaoLayout.editor).fillMaxSize()) {
-                                val wide=maxWidth>=600.dp
-                                val inspectorWidth=if(maxWidth<840.dp)320.dp else FuyaoLayout.inspector
-                                val previewHeight=minOf(maxWidth*3f/4f+48.dp,maxHeight*.55f)
-                                val preview:@Composable (Modifier)->Unit={ m -> EditorPreviewPane(state,vm::selectPhoto,original,{ original=!original },{ navigation.navigate(PhotoPage.PREVIEW.name) },m,bottomSafe=wide) }
-                                val photoId = state.photos.getOrNull(state.photoIndex)?.id
-                                val controls: @Composable (Modifier) -> Unit = { m ->
-                                    key(photoId) {
-                                        EditorControls(state, { field, value -> vm.updateField(field, value, photoId) },
-                                            { vm.updateStyle(it, photoId) }, vm::resetFields,
-                                            { fontPicker.launch(arrayOf("*/*")) }, vm::resetFont, vm::resolveLocation, m)
-                                    }
+                        val photoId = state.photos.getOrNull(state.photoIndex)?.id
+                        EditorWorkspace(
+                            preview = { modifier, bottomSafe ->
+                                EditorPreviewPane(state, vm::selectPhoto, original, { original = !original },
+                                    { navigation.navigate(PhotoPage.PREVIEW.name) }, modifier, bottomSafe)
+                            },
+                            controls = { modifier ->
+                                key(photoId) {
+                                    EditorControls(state, { field, value -> vm.updateField(field, value, photoId) },
+                                        { vm.updateStyle(it, photoId) }, vm::resetFields,
+                                        { fontPicker.launch(arrayOf("*/*")) }, vm::resetFont, vm::resolveLocation, modifier)
                                 }
-                                if(wide)Row(Modifier.fillMaxSize()) {
-                                    preview(Modifier.weight(1f).fillMaxHeight())
-                                    VerticalDivider()
-                                    controls(Modifier.width(inspectorWidth).fillMaxHeight())
-                                } else Column(Modifier.fillMaxSize()) {
-                                    preview(Modifier.fillMaxWidth().height(previewHeight))
-                                    controls(Modifier.fillMaxWidth().weight(1f))
-                                }
-                            }
-                        }
+                            },
+                        )
                     }
                 }
             }

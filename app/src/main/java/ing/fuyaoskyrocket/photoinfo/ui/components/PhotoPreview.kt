@@ -93,9 +93,9 @@ fun FullScreenPreview(bitmap:Bitmap,onDismiss:()->Unit) {
             Image(bitmap.asImageBitmap(),stringResource(R.string.preview_content),Modifier.fillMaxSize()
                 .semantics { stateDescription=zoomDescription }
                 .graphicsLayer { scaleX=scale;scaleY=scale;translationX=offset.x;translationY=offset.y },contentScale=ContentScale.Fit)
-            Surface(Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)),
+            Surface(Modifier.align(Alignment.TopCenter),
                 color=Color.Black.copy(alpha=.72f),contentColor=Color.White) {
-                Row(Modifier.fillMaxWidth().heightIn(min=48.dp).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)).heightIn(min=48.dp).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically) {
                     FuyaoIconButton(R.drawable.ic_close,stringResource(R.string.close),onDismiss)
                     Text(zoomDescription,Modifier.weight(1f),style=MaterialTheme.typography.labelLarge)
                     FuyaoIconButton(R.drawable.ic_minus,stringResource(R.string.zoom_out),{ moveTo(scale/1.5f) },enabled=scale>1f)
