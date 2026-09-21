@@ -17,7 +17,7 @@ An Android editor for single photos and batches, with local image processing and
 - Render device and credits in warm yellow and capture parameters in white. Monospaced text stays opaque over the blurred, translucent neutral-gray background.
 - Scale card geometry with the photo's short edge. Long text wraps along the same left edge; ordinary one-line credit wrapping preserves the reference card size. Longer content expands upward without shrinking or ellipsizing text.
 - Adjust card scale and independent text size (80–180%), opacity, blur, corner radius and right/bottom insets. Default text size remains at the reference 100%; increasing text size preserves card width and expands height only as needed. Compare the original and zoom into a full-screen preview.
-- Confirm before leaving the editor or a page with Save. Exiting the app clears the open session and its private drafts; published photos remain. Cancelled back gestures and cancelled confirmations preserve edits. Save notifications disappear automatically and can also be dismissed.
+- Confirm only when leaving with unsaved changes or interrupting ongoing processing; unchanged forms return directly. Reverting edits clears the warning, and successful photo exports update their saved baseline. Exiting the app clears the open session and its private drafts; published photos remain. Cancelled back gestures and cancelled confirmations preserve edits. Save notifications disappear automatically and can also be dismissed.
 - Use locally bundled SF Mono Regular when present, or Android monospace otherwise. Import a custom TTF/OTF/TTC and reset to the default font.
 - Export a new original-resolution JPEG (quality slider 0–100, default 100) or PNG through the same renderer as the preview. Android 10+ saves to `Pictures/FuyaoPhotoInfo`; Android 8/9 uses Save As for one photo or a folder picker for a batch. Share completed exports through the system share sheet.
 
@@ -83,7 +83,7 @@ The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: st
 
 System bars are transparent and insets are consumed once. Backgrounds reach the window edge while final list items and bottom actions remain reachable. Full-screen photos stay in the HDR activity with dark system-bar styling, zoom buttons and interruptible reset. Rendering progress overlays the photo without changing its bounds; field edits and original comparison stay immediate. Exported card styling remains independent from the UI theme.
 
-A single Navigation Compose back stack handles Settings, lens profiles, lens editing and full-screen preview, including predictive back progress and cancellation. With an open session, completing Back first asks to discard and exit; an empty editor leaves back-to-home to Android. Settings and lens pages also confirm before discarding. Saving explicitly returns without a second discard prompt. Export options use a Material 3 modal bottom sheet with segmented format selection and a fully clickable metadata row. Actual gesture behavior still requires device validation.
+A single Navigation Compose back stack handles Settings, lens profiles, lens editing and full-screen preview, including predictive back progress and cancellation. With an open session, Back asks to discard only when edits are unsaved or processing is active; a clean session closes directly, and an empty editor leaves back-to-home to Android. Settings and lens pages compare their current values with their initial values before asking. Saving explicitly returns without a second discard prompt. Export options use a Material 3 modal bottom sheet with segmented format selection and a fully clickable metadata row. Actual gesture behavior still requires device validation.
 
 ## Technology and project structure
 
@@ -104,11 +104,21 @@ See [metadata recognition](docs/METADATA.md) for GPS, default-photographer and l
 
 ## Configuring lenses
 
-In Settings → Lens profiles, scan visible lenses or add a profile manually. Use the device/model text from the photo (prefilled when a photo is open), then enter a name and equivalent focal range. Set equal endpoints for fixed lenses. Optional zoom endpoints are interpolated for variable lenses; optional physical ranges can recover a missing equivalent focal length when the match is unique. Save the profile page to persist the configuration. Camera IDs describe local hardware and are not used as EXIF identifiers.
+In Settings → Lens profiles, product name and original EXIF model are separate fields. Product name is read from available vendor marketing-name properties, with the public manufacturer/model as a fallback, and remains editable. The EXIF model comes from the current original photo and is the matching identifier; renaming the product does not change that identifier. Android IDs and serial numbers are not read.
 
-Use the exact original EXIF model shown by the app (for example, `Xiaomi 17 Ultra by Leica`) for all three profiles. Physical focal ranges are actual Camera2/EXIF millimetres, not 35mm-equivalent values; leave them blank when unknown. Aperture and output megapixels come from each photo.
+Configure native equivalent focal and zoom endpoints separately from the optional maximum digital zoom. For a fixed main lens, native 23–23 mm / 1–1× can cover 2× and 3.1× crops. Physical focal metadata takes priority for lens identity. Without that evidence, explicit digital limits define coverage; otherwise, coverage extends toward the next native lens of the same direction. A last lens has no assumed unlimited digital range. Native-range interpolation and digital scaling retain the actual zoom instead of clamping it to the optical endpoint. Ambiguous overlaps remain unmatched.
 
-For the user-supplied Xiaomi 17 Ultra specifications, editable profiles can use 23–23 mm / 1–1× for the main camera and 75–100 mm / 3.2–4.3× for the telephoto. The ultrawide uses 14–14 mm (approximately 0.6× relative to 23 mm). Lens display names are user-defined. No product mapping is hardcoded. Available physical focal metadata further disambiguates equivalent ranges; unresolved overlaps remain unmatched.
+For the supplied Xiaomi 17 Ultra ranges:
+
+| Lens | Native equivalent range | Native zoom | Optional digital maximum |
+| --- | --- | --- | --- |
+| Main | 23–23 mm | 1–1× | 3.1× |
+| Ultra-wide | 14–14 mm | 0.6–0.6× | 0.9× |
+| Telephoto | 75–100 mm | 3.2–4.3× | Set the confirmed total maximum if needed |
+
+Physical focal values must be actual Camera2/EXIF millimetres, not the equivalent values above. If missing, leave them blank. Saved legacy profiles retain their IDs and EXIF identity; fixed-focal profiles that used the old upper zoom as a digital limit are migrated to separate native and digital values.
+
+Scanning lists unconfigured hardware only. Configured Camera2 IDs appear with their saved profiles, and a manually created profile can be linked to a scanned lens. Bindings are scoped to the local device model so another device's ID `0` does not hide this device's ID `0`. A Camera2 ID is not treated as an EXIF lens ID. Save the lens editor, then the profile list, and re-import existing photos to apply changed matching rules.
 
 ## HDR and Motion Photo preservation
 

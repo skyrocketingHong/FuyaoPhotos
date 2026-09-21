@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- Match fixed-lens digital crops separately from native optical calibration, with physical lens metadata taking priority.
+- Separate product display names from EXIF model identifiers, migrate existing profiles and link camera scans to configured hardware IDs.
+- Ask before returning only when edits remain unsaved; reverting fields or successfully saving clears the warning.
 - Replace existing Motion Photo XMP directories safely with both Android snapshot node lists and desktop live node lists; add Android DOM regression checks to local and CI builds.
 - Prevent the final JPEG background draw from clearing the HDR gainmap and causing a null-pointer export failure. Add native regression coverage for JPEG preparation and HDR still export.
 

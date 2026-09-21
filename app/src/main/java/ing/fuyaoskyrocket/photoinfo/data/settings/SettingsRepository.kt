@@ -4,6 +4,7 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfile
+import ing.fuyaoskyrocket.photoinfo.data.camera.LocalCameraDevice
 import androidx.core.content.edit
 import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
 
@@ -22,8 +23,11 @@ class SettingsRepository(context: Context) {
         (0 until array.length()).map { index ->
             val j = array.getJSONObject(index)
             fun optional(key: String) = if (j.isNull(key)) null else j.getDouble(key)
-            LensProfile(j.getString("id"), j.getString("device"), j.getString("name"), j.optString("cameraId"),
+            val lens = LensProfile(j.getString("id"), j.getString("device"), j.getString("name"), j.optString("cameraId"),
                 j.getDouble("equivalentMin"), j.getDouble("equivalentMax"), optional("zoomMin"), optional("zoomMax"), optional("physicalMin"), optional("physicalMax"))
+            if (!j.has("exifModel")) lens.upgradeLegacy(LocalCameraDevice.hardwareKey)
+            else lens.copy(exifModel=j.getString("exifModel"), hardwareDevice=j.optString("hardwareDevice"),
+                digitalZoomMax=optional("digitalZoomMax"), facing=j.optString("facing"))
         }.filter { it.valid() }
     }.getOrDefault(emptyList())
 
@@ -33,6 +37,8 @@ class SettingsRepository(context: Context) {
             put("equivalentMin",lens.equivalentMin); put("equivalentMax",lens.equivalentMax)
             put("zoomMin",lens.zoomMin ?: JSONObject.NULL); put("zoomMax",lens.zoomMax ?: JSONObject.NULL)
             put("physicalMin",lens.physicalMin ?: JSONObject.NULL); put("physicalMax",lens.physicalMax ?: JSONObject.NULL)
+            put("exifModel",lens.exifModel); put("hardwareDevice",lens.hardwareDevice)
+            put("digitalZoomMax",lens.digitalZoomMax ?: JSONObject.NULL); put("facing",lens.facing)
         }) }
     }.toString()
 

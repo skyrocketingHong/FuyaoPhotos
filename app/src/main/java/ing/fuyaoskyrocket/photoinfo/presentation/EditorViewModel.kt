@@ -74,6 +74,14 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                                 saved["resolvedLocation"] ?: "", saved["locationEdited"] ?: false))
                         }
                     }
+                    // Older sessions had no baseline. Preserve real overrides while allowing an
+                    // unchanged default photo to return without a spurious confirmation.
+                    baselines = drafts.associate { draft ->
+                        val initial = draft.copy(info=draft.source.info.with(FieldId.AUTHOR, state.settings.authorFor(draft.source.info[FieldId.AUTHOR])),
+                            style=CardStyle(), resolvedLocation="", locationEdited=false)
+                        draft.source.file.name to (baselines[draft.source.file.name]
+                            ?: EditChanges.fingerprint(initial.snapshot(), PhotoExporter.DEFAULT_JPEG_QUALITY, true, fonts.selectionKey))
+                    }
                     publishCollection()
                     loadSelected((saved.get<Int>("photoIndex") ?: 0).coerceIn(0, drafts.lastIndex))
                 } catch (cancelled: CancellationException) { throw cancelled }
@@ -333,7 +341,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private fun updateMediaState(photo: PhotoSource) {
         val media = photo.media
         val oldHdr = media.hdrHint && android.os.Build.VERSION.SDK_INT < 34
-        state = state.copy(sourceDevice = photo.info[FieldId.DEVICE], preservationBlocked = media.blocked || oldHdr,
+        state = state.copy(sourceDevice = photo.info[FieldId.DEVICE], sourceModel = photo.captureTags[androidx.exifinterface.media.ExifInterface.TAG_MODEL].orEmpty(), preservationBlocked = media.blocked || oldHdr,
             jpegRequired = media.hdrHint || media.motion != null, motionPhoto = media.motion != null,
             mediaMessage = when {
                 media.blocked -> R.string.media_unsupported

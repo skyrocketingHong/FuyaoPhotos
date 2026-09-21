@@ -60,6 +60,11 @@ class EditorSessionTest {
                 vm.importPhotos(originals.map(Uri::fromFile))
             }
             awaitReady(vm)
+            onMain {
+                state.remove<ArrayList<String>>("editBaselines") // Upgrade from an older session.
+                store.clear(); vm = EditorViewModel(app, state); store.put("legacy-restored", vm)
+            }
+            awaitReady(vm)
             onMain { assertFalse(vm.state.hasChanges); vm.updateField(FieldId.AUTHOR, "Temporary"); assertTrue(vm.state.hasChanges); vm.updateField(FieldId.AUTHOR, "Default"); assertFalse(vm.state.hasChanges); assertEquals(2, vm.state.photos.size); firstId = vm.state.photos.first().id; vm.updateField(FieldId.AUTHOR, "First"); vm.updateStyle(CardStyle(textScale=1.5f)); vm.selectPhoto(1) }
             awaitReady(vm)
             onMain { vm.updateField(FieldId.AUTHOR, "Late callback", firstId); vm.updateStyle(CardStyle(textScale=1.8f), firstId); assertEquals("Default", vm.state.info[FieldId.AUTHOR]); assertEquals(1f, vm.state.style.textScale, .001f); vm.updateField(FieldId.AUTHOR, "Second"); vm.setJpegQuality(82); vm.selectPhoto(0) }

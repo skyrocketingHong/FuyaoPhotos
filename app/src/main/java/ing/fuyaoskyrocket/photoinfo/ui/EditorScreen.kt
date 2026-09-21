@@ -201,7 +201,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 })
         }
         composable(PhotoPage.LENSES.name) {
-            LensProfilesScreen(settingsLenses, state.sourceDevice, editedLens,
+            LensProfilesScreen(settingsLenses, state.sourceModel, editedLens,
                 onEditConsumed = { editedLens = null },
                 onEdit = { editingLens = it.fields(); navigation.navigate(PhotoPage.LENS_EDIT.name) },
                 onBack = { navigation.popBackStack() },
@@ -215,7 +215,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         }
         composable(PhotoPage.LENS_EDIT.name) {
             editingLens?.let { fields ->
-                LensEditScreen(lensFromFields(fields), onBack = { navigation.popBackStack() },
+                LensEditScreen(lensFromFields(fields), currentExifModel = state.sourceModel, onBack = { navigation.popBackStack() },
                     onSave = { editedLens = it.fields(); navigation.popBackStack() })
             }
         }

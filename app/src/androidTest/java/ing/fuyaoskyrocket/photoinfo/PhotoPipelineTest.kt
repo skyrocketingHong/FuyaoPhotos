@@ -30,6 +30,25 @@ import kotlin.math.abs
 class PhotoPipelineTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
+    @Test fun legacyLensSettingsMigrateWithoutDroppingIdsOrDigitalCoverage() {
+        val preferences=context.getSharedPreferences("editor",Context.MODE_PRIVATE)
+        val original=preferences.getString("lenses",null)
+        try {
+            preferences.edit().putString("lenses", """[{"id":"legacy","device":"raw-model","name":"MAIN","cameraId":"1","equivalentMin":23,"equivalentMax":23,"zoomMin":1,"zoomMax":3.1}]""").commit()
+            val repository=SettingsRepository(context)
+            val migrated=repository.read().lenses.single()
+            assertEquals("legacy",migrated.id)
+            assertEquals("raw-model",migrated.exifModel)
+            assertEquals(1.0,migrated.zoomMax!!,.001)
+            assertEquals(3.1,migrated.digitalZoomMax!!,.001)
+            assertTrue(migrated.boundTo(ing.fuyaoskyrocket.photoinfo.data.camera.LocalCameraDevice.hardwareKey,"1"))
+            repository.save(repository.read())
+            assertEquals(migrated,repository.read().lenses.single())
+        } finally {
+            preferences.edit().apply { if(original==null)remove("lenses") else putString("lenses",original) }.commit()
+        }
+    }
+
     @Test fun exifGpsAndConfiguredLensAreReadTogether() = runBlocking {
         val settingsRepository=SettingsRepository(context)
         val previous=settingsRepository.read()

@@ -37,6 +37,7 @@ data class EditorState(
     val motionPhoto: Boolean = false,
     val mediaMessage: Int? = null,
     val sourceDevice: String = "",
+    val sourceModel: String = "",
     val photos: List<PhotoPageItem> = emptyList(),
     val photoIndex: Int = 0,
     val sessionId: Int = 0,

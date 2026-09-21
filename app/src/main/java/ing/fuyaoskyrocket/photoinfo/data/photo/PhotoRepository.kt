@@ -96,7 +96,7 @@ class PhotoRepository(private val context: Context) {
             settings.mainFocalMm, settings.lenses, number(ExifInterface.TAG_FOCAL_LENGTH))
         val coordinates = runCatching { exif?.latLong }.getOrNull()?.let { PhotoCoordinates.from(it[0], it[1]) }
         val info = PhotoInfo(mapOf(
-            FieldId.DEVICE to Format.device(text(ExifInterface.TAG_MAKE), text(ExifInterface.TAG_MODEL)),
+            FieldId.DEVICE to lens.deviceName.ifBlank { Format.device(text(ExifInterface.TAG_MAKE), text(ExifInterface.TAG_MODEL)) },
             FieldId.AUTHOR to text(ExifInterface.TAG_ARTIST),
             // Place names are resolved asynchronously so a slow geocoder never blocks importing.
             FieldId.LOCATION to "",
