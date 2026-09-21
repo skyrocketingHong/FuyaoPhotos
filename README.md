@@ -152,3 +152,9 @@ Use `./gradlew :app:connectedDebugAndroidTest` with an authorized device for ori
 ## License
 
 Original source is `AGPL-3.0-only`; see [LICENSE](LICENSE) and [NOTICE](NOTICE). Fonts, screenshots and photographs retain their own rights. This is not an Apple product.
+
+## AI-Assisted Development
+
+Generative AI was used to assist with coding during the development of this project.
+
+[![Vibe PR](https://raw.githubusercontent.com/fenxer/llm-things/main/stickers/vibe-pr.svg)](https://github.com/fenxer/llm-things/blob/main/stickers/vibe-pr.svg)

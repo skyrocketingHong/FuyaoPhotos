@@ -154,3 +154,9 @@ Manifest 声明联网及照片元数据（`ACCESS_MEDIA_LOCATION`）权限，镜
 ## 许可证
 
 原创源码采用 `AGPL-3.0-only`，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。字体、截图及照片保留各自权利；本项目不是 Apple 产品。
+
+## AI 辅助开发
+
+本项目在开发过程中使用生成式 AI 协助编码。
+
+[![Vibe PR](https://raw.githubusercontent.com/fenxer/llm-things/main/stickers/vibe-pr.svg)](https://github.com/fenxer/llm-things/blob/main/stickers/vibe-pr.svg)
