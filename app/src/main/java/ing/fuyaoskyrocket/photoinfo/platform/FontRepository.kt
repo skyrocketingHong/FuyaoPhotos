@@ -3,6 +3,8 @@ package ing.fuyaoskyrocket.photoinfo.platform
 import android.content.Context
 import android.graphics.Typeface
 import android.net.Uri
+import android.os.Build
+import ing.fuyaoskyrocket.photoinfo.R
 import android.provider.OpenableColumns
 import java.io.File
 import java.io.IOException
@@ -11,20 +13,31 @@ import java.util.UUID
 class FontRepository(private val context: Context) {
     private val preferences = context.getSharedPreferences("font", Context.MODE_PRIVATE)
     private val directory = File(context.filesDir, "fonts").apply { mkdirs() }
-    private val bundledTypeface = runCatching {
-        Typeface.createFromAsset(context.assets, "fonts/SF-Mono-Regular.otf")
+    private val roundedTypeface = runCatching {
+        Typeface.Builder(context.assets, "fonts/SF-Pro-Rounded.ttf")
+            .setFontVariationSettings("'wght' 500").setWeight(500).build()
     }.getOrNull()
-    private val defaultTypeface get() = bundledTypeface ?: Typeface.MONOSPACE
-    var typeface: Typeface = load(); private set
-    val displayName: String? get() = preferences.getString("name", null)
-        ?: if (bundledTypeface != null) "SF Mono Regular" else null
-    val selectionKey: String get() = preferences.getString("file", null) ?: "bundled-default"
+    private val monoTypeface = runCatching {
+        Typeface.createFromAsset(context.assets, "fonts/SF-Mono-Medium.otf")
+    }.getOrNull()
+    internal val defaultTypography = CardTypography(
+        letters = roundedTypeface ?: Typeface.create("sans-serif-medium", Typeface.NORMAL),
+        numbers = monoTypeface ?: if (Build.VERSION.SDK_INT >= 28) Typeface.create(Typeface.MONOSPACE, 500, false) else Typeface.MONOSPACE,
+        // cv05 keeps the legible, seriffed capital I within the rounded family.
+        letterFeatures = if (roundedTypeface != null) "'cv05' 1" else null,
+        mixedDigits = true,
+    )
+    var typography: CardTypography = load(); private set
+    val displayName: String get() = preferences.getString("name", null)
+        ?: context.getString(if (roundedTypeface != null && monoTypeface != null) R.string.reference_fonts else R.string.system_mixed_fonts)
+    val selectionKey: String get() = preferences.getString("file", null)
+        ?: "reference-v2:${roundedTypeface != null}:${monoTypeface != null}"
     val hasCustomFont: Boolean get() = preferences.contains("file")
 
-    private fun load(): Typeface {
+    private fun load(): CardTypography {
         val file = preferences.getString("file", null)?.let { File(directory, it) }
-        return if (file?.isFile == true) runCatching { requireNotNull(Typeface.Builder(file).build()) }
-            .getOrDefault(defaultTypeface) else defaultTypeface
+        return if (file?.isFile == true) runCatching { CardTypography.uniform(requireNotNull(Typeface.Builder(file).build())) }
+            .getOrDefault(defaultTypography) else defaultTypography
     }
 
     fun import(uri: Uri) {
@@ -55,14 +68,14 @@ class FontRepository(private val context: Context) {
             require(sfnt) { "Select a valid TTF, OTF or TTC font" }
             val loaded = requireNotNull(Typeface.Builder(temporary).build()) { "Invalid font" }
             preferences.edit().putString("file", temporary.name).putString("name", name).apply()
-            typeface = loaded
+            typography = CardTypography.uniform(loaded)
             directory.listFiles()?.filter { it != temporary }?.forEach { it.delete() }
         } catch (failure: Throwable) { temporary.delete(); throw failure }
     }
 
     fun reset() {
         preferences.edit().clear().apply()
-        typeface = defaultTypeface
+        typography = defaultTypography
         directory.listFiles()?.forEach { it.delete() }
     }
 }

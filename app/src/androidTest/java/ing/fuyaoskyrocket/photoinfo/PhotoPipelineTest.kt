@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
+import ing.fuyaoskyrocket.photoinfo.platform.CardTypography
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -89,23 +90,25 @@ class PhotoPipelineTest {
     @Test fun bundledFontIsDefaultAndResetRestoresIt() {
         val fonts = FontRepository(context)
         fonts.reset()
-        val bundled = context.assets.list("fonts").orEmpty().contains("SF-Mono-Regular.otf")
-        assertEquals(if (bundled) "SF Mono Regular" else null, fonts.displayName)
+        val bundled = context.assets.list("fonts").orEmpty().asList().containsAll(listOf("SF-Pro-Rounded.ttf", "SF-Mono-Medium.otf"))
+        assertEquals(context.getString(if(bundled)R.string.reference_fonts else R.string.system_mixed_fonts), fonts.displayName)
+        assertTrue(fonts.typography.mixedDigits)
         assertFalse(fonts.hasCustomFont)
         if (!bundled) return // A public source checkout intentionally has no private font binary.
-        val default = fonts.typeface
+        val default = fonts.typography
         val imported = File.createTempFile("font-", ".otf", context.cacheDir)
         try {
-            context.assets.open("fonts/SF-Mono-Regular.otf").use { input ->
+            context.assets.open("fonts/SF-Mono-Medium.otf").use { input ->
                 imported.outputStream().use { input.copyTo(it) }
             }
             fonts.import(Uri.fromFile(imported))
             assertTrue(fonts.hasCustomFont)
-            assertNotNull(FontRepository(context).typeface)
+            assertFalse(fonts.typography.mixedDigits)
+            assertNotNull(FontRepository(context).typography)
             fonts.reset()
-            assertEquals("SF Mono Regular", fonts.displayName)
+            assertEquals(context.getString(R.string.reference_fonts), fonts.displayName)
             assertFalse(fonts.hasCustomFont)
-            assertSame(default, fonts.typeface)
+            assertSame(default, fonts.typography)
         } finally { imported.delete(); fonts.reset() }
     }
 
@@ -132,7 +135,7 @@ class PhotoPipelineTest {
 
     @Test fun renderingDoesNotAlterPixelsOutsideCardOrSource() {
         val source = Bitmap.createBitmap(1527,859,Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLACK) }
-        val result = CardRenderer().preview(source, PhotoInfo(mapOf(FieldId.ISO to "100")), CardStyle(), Typeface.MONOSPACE)
+        val result = CardRenderer().preview(source, PhotoInfo(mapOf(FieldId.ISO to "100")), CardStyle(), CardTypography.uniform(Typeface.MONOSPACE))
         try {
             assertEquals(1527,result.width);assertEquals(859,result.height)
             assertEquals(Color.BLACK,result.getPixel(1200,700))
@@ -152,7 +155,7 @@ class PhotoPipelineTest {
             for(format in ExportFormat.entries) {
                 val destination=File.createTempFile("result-", ".${format.extension}", context.cacheDir)
                 try {
-                    PhotoExporter(context,repository).export(source, source.info, CardStyle(), Typeface.MONOSPACE,
+                    PhotoExporter(context,repository).export(source, source.info, CardStyle(), CardTypography.uniform(Typeface.MONOSPACE),
                         format, true, Uri.fromFile(destination))
                     val bitmap=requireNotNull(BitmapFactory.decodeFile(destination.absolutePath))
                     try { assertEquals(64,bitmap.width);assertEquals(96,bitmap.height) } finally { bitmap.recycle() }

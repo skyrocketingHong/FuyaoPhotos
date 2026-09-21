@@ -33,7 +33,7 @@ object HdrGainmaps {
             minDisplayRatioForHdrTransition=source.minDisplayRatioForHdrTransition
         }
     }
-    fun attachOverlay(target:Bitmap,source:Gainmap,layout:CardLayout,typeface:Typeface,backgroundChanged:Boolean) {
+    fun attachOverlay(target:Bitmap,source:Gainmap,layout:CardLayout,typography:CardTypography,backgroundChanged:Boolean) {
         val old=source.gainmapContents
         val runtime=Runtime.getRuntime()
         val available=runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory())
@@ -53,10 +53,7 @@ object HdrGainmaps {
                 if(backgroundChanged) {
                     drawRoundRect(RectF(layout.box.left,layout.box.top,layout.box.right,layout.box.bottom),layout.radius,layout.radius,paint)
                 } else {
-                    paint.typeface=typeface;paint.textSize=layout.fontSize
-                    val metrics=paint.fontMetrics
-                    val baseline=(layout.lineHeight-(metrics.descent-metrics.ascent))/2f-metrics.ascent
-                    layout.lines.forEach { drawText(it.text,it.x,it.top+baseline,paint) }
+                    CardTextRenderer(typography,layout.fontSize).drawLines(this,layout,mask=true)
                 }
             }
             val coverage=IntArray(pixels.size);mask.getPixels(coverage,0,old.width,0,0,old.width,old.height)

@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE="/System/Applications/Utilities/Terminal.app/Contents/Resources/Fonts/SF-Mono-Regular.otf"
-TARGET="$ROOT/app/src/main/assets/fonts/SF-Mono-Regular.otf"
-[[ -f "$SOURCE" ]] || { echo 'SF Mono Regular was not found in the macOS Terminal bundle.' >&2; exit 1; }
-mkdir -p "$(dirname "$TARGET")"
-if [[ -e "$TARGET" ]]; then
-    cmp -s "$SOURCE" "$TARGET" || { echo 'An existing, different font was preserved. Move it before copying.' >&2; exit 1; }
-else
-    # Copy bytes only; macOS system-file flags must not be propagated to the workspace.
-    cat "$SOURCE" > "$TARGET"
-    chmod 644 "$TARGET"
-fi
-cmp "$SOURCE" "$TARGET"
-printf 'Local card font: %s\n' "$TARGET"
+FONT_DEST="$ROOT/app/src/main/assets/fonts"
+mkdir -p "$FONT_DEST"
+copy_font() {
+    local source="$1" target="$FONT_DEST/$2"
+    [[ -f "$source" ]] || { printf 'Font not found: %s\n' "$source" >&2; exit 1; }
+    if [[ -e "$target" ]]; then
+        cmp -s "$source" "$target" || { printf 'A different existing font was preserved: %s\n' "$target" >&2; exit 1; }
+    else
+        # Copy bytes only; never propagate macOS system-file flags.
+        cat "$source" > "$target"
+        chmod 644 "$target"
+    fi
+    cmp "$source" "$target"
+    printf 'Local card font: %s\n' "$target"
+}
+copy_font '/System/Library/Fonts/SFNSRounded.ttf' 'SF-Pro-Rounded.ttf'
+copy_font '/System/Applications/Utilities/Terminal.app/Contents/Resources/Fonts/SF-Mono-Medium.otf' 'SF-Mono-Medium.otf'

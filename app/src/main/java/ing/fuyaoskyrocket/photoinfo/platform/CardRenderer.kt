@@ -9,7 +9,6 @@ import android.graphics.Path
 import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.RectF
-import android.graphics.Typeface
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardLayout
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardLayoutEngine
 import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
@@ -21,21 +20,18 @@ import kotlin.math.roundToInt
 
 /** The preview and full-resolution exporter share this exact renderer. No screen capture is exported. */
 class CardRenderer {
-    fun preview(source: Bitmap, info: PhotoInfo, style: CardStyle, typeface: Typeface): Bitmap {
+    fun preview(source: Bitmap, info: PhotoInfo, style: CardStyle, typography: CardTypography): Bitmap {
         val copy = checkNotNull(source.copy(Bitmap.Config.ARGB_8888, true))
         if (Build.VERSION.SDK_INT >= 34 && source.hasGainmap()) copy.setGainmap(source.gainmap)
-        try { drawInPlace(copy, info, style, typeface); return copy }
+        try { drawInPlace(copy, info, style, typography); return copy }
         catch (failure: Throwable) { copy.recycle(); throw failure }
     }
 
-    fun drawInPlace(target: Bitmap, info: PhotoInfo, style: CardStyle, typeface: Typeface, opaqueBackground: Boolean = false) {
+    fun drawInPlace(target: Bitmap, info: PhotoInfo, style: CardStyle, typography: CardTypography, opaqueBackground: Boolean = false) {
         require(target.isMutable) { "Renderer requires a mutable bitmap" }
         val s = style.sanitized()
-        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
-            this.typeface = typeface
-            textSize = CardLayoutEngine.FONT_SIZE
-        }
-        val layout = CardLayoutEngine.layout(target.width, target.height, info, s, textPaint::measureText)
+        val referenceText = CardTextRenderer(typography, CardLayoutEngine.FONT_SIZE)
+        val layout = CardLayoutEngine.layout(target.width, target.height, info, s, referenceText::measure)
         if (layout == null && !opaqueBackground) return
         val gainmap = if (Build.VERSION.SDK_INT >= 34) target.gainmap else null
         // Android 15+ Canvas(Bitmap) clears the gainmap; detach explicitly on 14
@@ -55,15 +51,9 @@ class CardRenderer {
             if (layout.blurRadius > 0f) paintBackdrop(target, canvas, layout)
             canvas.drawColor(Color.argb((s.opacity * 255).roundToInt(), 90, 90, 90))
         } finally { canvas.restoreToCount(save) }
-        // Never apply the backdrop opacity to text.
-        textPaint.textSize = layout.fontSize
-        val metrics = textPaint.fontMetrics
-        val baselineOffset = (layout.lineHeight - (metrics.descent - metrics.ascent)) / 2f - metrics.ascent
-        layout.lines.forEach { line ->
-            textPaint.color = if (line.accent) Color.rgb(255, 218, 69) else Color.WHITE
-            canvas.drawText(line.text, line.x, line.top + baselineOffset, textPaint)
-        }
-        if (Build.VERSION.SDK_INT >= 34 && gainmap != null) HdrGainmaps.attachOverlay(target, gainmap, layout, typeface, s.opacity > 0f || s.blur > 0f)
+        // Text color remains opaque; the same runs also draw the HDR mask.
+        CardTextRenderer(typography, layout.fontSize).drawLines(canvas, layout)
+        if (Build.VERSION.SDK_INT >= 34 && gainmap != null) HdrGainmaps.attachOverlay(target, gainmap, layout, typography, s.opacity > 0f || s.blur > 0f)
     }
 
     private fun paintBackdrop(source: Bitmap, canvas: Canvas, layout: CardLayout) {

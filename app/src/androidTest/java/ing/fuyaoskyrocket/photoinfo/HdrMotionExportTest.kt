@@ -1,6 +1,8 @@
 package ing.fuyaoskyrocket.photoinfo
 
 import android.graphics.*
+import ing.fuyaoskyrocket.photoinfo.platform.CardTypography
+import ing.fuyaoskyrocket.photoinfo.platform.FontRepository
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
@@ -32,7 +34,7 @@ class HdrMotionExportTest {
             assertFalse(bitmap.hasGainmap())
             bitmap.setGainmap(gainmap)
             ing.fuyaoskyrocket.photoinfo.platform.CardRenderer().drawInPlace(bitmap,
-                PhotoInfo(mapOf(FieldId.ISO to "100")), CardStyle(), Typeface.MONOSPACE, opaqueBackground = true)
+                PhotoInfo(mapOf(FieldId.ISO to "100")), CardStyle(), CardTypography.uniform(Typeface.MONOSPACE), opaqueBackground = true)
             assertNotNull(bitmap.gainmap)
             assertEquals(4f, bitmap.gainmap!!.ratioMax[0], .001f)
             assertEquals(Color.WHITE, bitmap.getPixel(0, 0))
@@ -58,7 +60,7 @@ class HdrMotionExportTest {
             try {
                 for (keepMetadata in listOf(false, true)) {
                     PhotoExporter(context, photos).export(source, PhotoInfo(mapOf(FieldId.ISO to "100")),
-                        CardStyle(), Typeface.MONOSPACE, ExportFormat.JPEG, keepMetadata, Uri.fromFile(output))
+                        CardStyle(), CardTypography.uniform(Typeface.MONOSPACE), ExportFormat.JPEG, keepMetadata, Uri.fromFile(output))
                     val decoded = requireNotNull(BitmapFactory.decodeFile(output.absolutePath))
                     try {
                         assertTrue(decoded.hasGainmap())
@@ -75,7 +77,7 @@ class HdrMotionExportTest {
         val map=Bitmap.createBitmap(200,150,Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
         source.setGainmap(Gainmap(map).apply { setRatioMax(4f,4f,4f);displayRatioForFullHdr=4f })
         val result=ing.fuyaoskyrocket.photoinfo.platform.CardRenderer().preview(source,
-            PhotoInfo(mapOf(FieldId.ISO to "100")),CardStyle(opacity=0f,blur=0f),Typeface.MONOSPACE)
+            PhotoInfo(mapOf(FieldId.ISO to "100")),CardStyle(opacity=0f,blur=0f),FontRepository(InstrumentationRegistry.getInstrumentation().targetContext).defaultTypography)
         try {
             val output=requireNotNull(result.gainmap).gainmapContents
             assertEquals(Color.WHITE,output.getPixel(160,120))
@@ -104,7 +106,7 @@ class HdrMotionExportTest {
             val photos=PhotoRepository(context);val source=photos.import(Uri.fromFile(sourceFile))
             try {
                 assertFalse(source.media.blocked);assertNotNull(source.media.motion)
-                PhotoExporter(context,photos).export(source,PhotoInfo(mapOf(FieldId.ISO to "100")),CardStyle(),Typeface.MONOSPACE,ExportFormat.JPEG,true,Uri.fromFile(output))
+                PhotoExporter(context,photos).export(source,PhotoInfo(mapOf(FieldId.ISO to "100")),CardStyle(),CardTypography.uniform(Typeface.MONOSPACE),ExportFormat.JPEG,true,Uri.fromFile(output))
                 val decoded=requireNotNull(BitmapFactory.decodeFile(output.absolutePath))
                 try {
                     assertTrue(decoded.hasGainmap());assertEquals(4f,decoded.gainmap!!.ratioMax[0],.001f)

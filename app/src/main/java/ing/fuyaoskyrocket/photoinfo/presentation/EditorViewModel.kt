@@ -271,7 +271,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         renderJob?.cancel(); cancelLocation(); persist()
         val snapshot = drafts.toList()
         val settings = state.settings
-        val typeface = fonts.typeface
+        val typography = fonts.typography
         val keepMetadata = state.keepCaptureMetadata
         val jpegQuality = state.jpegQuality
         val fontKey = fonts.selectionKey
@@ -296,7 +296,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                             DocumentsContract.createDocument(app.contentResolver, parent, format.mime, PhotoExporter.filename(format, draft.source.media.motion != null))
                                 ?: throw java.io.IOException("Cannot create exported photo")
                         }
-                        try { ExportedPhoto(exporter.export(draft.source, info, draft.style, typeface, format, keepMetadata, target, jpegQuality), format) }
+                        try { ExportedPhoto(exporter.export(draft.source, info, draft.style, typography, format, keepMetadata, target, jpegQuality), format) }
                         catch (failure: Throwable) {
                             if (directory != null && target != null) runCatching { DocumentsContract.deleteDocument(app.contentResolver, target) }
                             throw failure
@@ -357,13 +357,13 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private fun renderPreview() {
         renderJob?.cancel()
         val bitmap = state.original ?: return
-        val info = state.info; val style = state.style; val typeface = fonts.typeface
+        val info = state.info; val style = state.style; val typography = fonts.typography
         state = state.copy(rendering = true, previewError = null)
         renderJob = viewModelScope.launch {
             var pending: Bitmap? = null
             try {
                 delay(90)
-                val rendered = withContext(Dispatchers.Default) { renderer.preview(bitmap, info, style, typeface).also { pending = it } }
+                val rendered = withContext(Dispatchers.Default) { renderer.preview(bitmap, info, style, typography).also { pending = it } }
                 state = state.copy(preview = rendered, rendering = false)
                 pending = null
             } catch (cancelled: CancellationException) { throw cancelled }

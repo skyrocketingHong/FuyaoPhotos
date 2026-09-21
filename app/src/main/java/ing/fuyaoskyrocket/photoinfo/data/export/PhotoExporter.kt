@@ -4,7 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Typeface
+import ing.fuyaoskyrocket.photoinfo.platform.CardTypography
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -28,7 +28,7 @@ import kotlinx.coroutines.ensureActive
 
 class PhotoExporter(private val context: Context, private val photos: PhotoRepository) {
     private val renderer=CardRenderer()
-    suspend fun export(source:PhotoSource,info:PhotoInfo,style:CardStyle,typeface:Typeface,
+    suspend fun export(source:PhotoSource,info:PhotoInfo,style:CardStyle,typography:CardTypography,
         format:ExportFormat,keepCaptureMetadata:Boolean,destination:Uri?=null,jpegQuality:Int=DEFAULT_JPEG_QUALITY):Uri {
         val media=source.media
         require(!media.blocked) { context.getString(R.string.media_unsupported) }
@@ -52,7 +52,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 require(!hdr || format==ExportFormat.JPEG) { context.getString(R.string.preservation_requires_jpeg) }
                 require(bitmap.colorSpace?.name?.let { !it.contains("HLG",true) && !it.contains("PQ",true) } != false) { context.getString(R.string.media_unsupported) }
                 if(Build.VERSION.SDK_INT>=36 && hdr)require(requireNotNull(bitmap.gainmap) { context.getString(R.string.hdr_not_decoded) }.gainmapDirection==android.graphics.Gainmap.GAINMAP_DIRECTION_SDR_TO_HDR) { context.getString(R.string.media_unsupported) }
-                renderer.drawInPlace(bitmap,info,style,typeface,opaqueBackground=format==ExportFormat.JPEG)
+                renderer.drawInPlace(bitmap,info,style,typography,opaqueBackground=format==ExportFormat.JPEG)
                 if(Build.VERSION.SDK_INT>=34 && hdr)expectedGain=HdrGainmaps.metadata(requireNotNull(bitmap.gainmap) { context.getString(R.string.hdr_not_preserved) })
                 expectedColor=bitmap.colorSpace?.name
                 encoded.outputStream().use { output ->
