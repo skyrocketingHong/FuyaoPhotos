@@ -41,6 +41,7 @@ Apple and the credited photographers retain their respective image rights. See [
 - **Save preferences** — Set default format, JPEG quality, EXIF details, location and capture-time retention. Override them for one save without changing defaults.
 - **Gallery integration** — Share one or multiple photos into the editor; open or share completed exports.
 - **Photographer and lens profiles** — Save a default credit and configure lens names, focal ranges and zoom values.
+- **Media preview** — Play embedded Motion Photo video and switch HDR display from compact icon controls.
 - **Preview and export** — Compare with the original, inspect at full resolution and export JPEG/PNG at the original dimensions. JPEG quality defaults to 100 and is adjustable from 0 to 100.
 - **HDR and Motion Photos** — Preserve supported JPEG Ultra HDR gainmaps and Motion Photo video/audio when editing the cover.
 
@@ -86,6 +87,8 @@ JPEG images and gainmaps are re-encoded; video/audio are not transcoded. Locatio
 HEIC/AVIF preservation, separate-file Apple Live Photos, undocumented vendor motion formats, animated images and high-bit-depth PNG export are not supported. Unrecognized or damaged media stops export. HDR display and motion playback depend on the device and gallery app; compatibility is not verified across all devices.
 
 Input limits are 512 MB / 200 MP per photo. Available device memory may impose a lower limit. Export does not automatically reduce resolution to fit memory. Background export and free card dragging are not supported.
+
+Motion playback uses the original video. The HDR preview switch does not remove the gainmap or change export settings. Both features depend on device codec/display support.
 
 ## Fonts
 
