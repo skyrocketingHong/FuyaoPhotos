@@ -12,7 +12,7 @@ binaries remain excluded from Git.
 | `apple-keynote-portrait.png` | Apple keynote reference screenshot, 2560 × 1440, 16:17. / Apple 发布会参考截图，2560 × 1440，16:17。 | Apple and the credited photographer retain their respective rights. / Apple 与画面署名摄影者保留各自权利。 |
 | `apple-keynote-night-sky.png` | Apple keynote reference screenshot, 2560 × 1440, 16:22. / Apple 发布会参考截图，2560 × 1440，16:22。 | Same as above. / 同上。 |
 | `apple-keynote-stairs.png` | Apple keynote reference screenshot, 2560 × 1440, 16:37. / Apple 发布会参考截图，2560 × 1440，16:37。 | Same as above. / 同上。 |
-| `sample-hong-kong.jpg` | Application export sample, `Fuyao_20260921_104753_468_MP.jpg`, 4080 × 3072. / 应用导出样例，4080 × 3072。 | The photographer retains the image rights. / 摄影者保留照片权利。 |
+| `sample-hong-kong.jpg` | Application export sample, `Fuyao_20260921_135040_191_MP.jpg`, 4080 × 3072. / 应用导出样例，4080 × 3072。 | The photographer retains the image rights. / 摄影者保留照片权利。 |
 
 The PNG screenshots and JPEG sample are byte-for-byte copies of the source
 files. They have not been resized, recolored or regenerated. README width

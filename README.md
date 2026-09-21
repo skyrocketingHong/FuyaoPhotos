@@ -8,13 +8,11 @@
   <img src="https://img.shields.io/badge/License-AGPL--3.0--only-blue" alt="AGPL-3.0-only">
 </p>
 
-An Android editor for single photos and batches, with local image processing and optional system place-name lookup. It reads available EXIF metadata and overlays an editable information card without adding a border or changing the photo dimensions. Local build evidence is kept in the ignored `docs/` directory; device/runtime limits are summarized below.
-
 ## Showcase
 
 ### Exported sample
 
-An exported Hong Kong photo with the app’s inset information card, at **4080 × 3072**. This example uses uniform monospace text; the current default mixes rounded letters with monospace digits. Click the image to open the full-size file.
+Hong Kong waterfront · Xiaomi 17 Ultra · Leica 75–100mm telephoto. Click to view the **4080 × 3072** original-size export.
 
 <p align="center">
   <a href="assets/readme/sample-hong-kong.jpg"><img src="assets/readme/sample-hong-kong.jpg" width="960" alt="Hong Kong waterfront photo with a rounded information card in the lower-right corner, showing Xiaomi 17 Ultra, Leica 75–100mm telephoto and capture details"></a>
@@ -36,37 +34,82 @@ Apple and the credited photographers retain their respective image rights. See [
 
 ## Features
 
-- Save a default photographer in Settings; EXIF Artist takes priority, with an explicit action to apply your default to the current photo.
-- Select one or up to 50 photos through the system picker or Files; swipe horizontally to edit each photo independently, then save the whole selection. The app decodes the current preview and exports full-resolution photos sequentially to bound memory use. It normalizes all eight EXIF orientations, including mirrored images.
-- Edit device, photographer, location, lens, megapixels, equivalent focal length, exposure, aperture and ISO. Missing fields are omitted. Photo GPS resolves to city/country through the system service; saved user lens profiles and optional 1× calibration format lens magnification. Camera2 inventories visible hardware without capturing; editable profiles store device names, physical/equivalent ranges and zoom endpoints. All values remain editable.
-- Render device and credits in warm yellow and capture parameters in white. Monospaced text stays opaque over the blurred, translucent neutral-gray background.
-- Scale card geometry with the photo's short edge. Long text wraps along the same left edge; ordinary one-line credit wrapping preserves the reference card size. Longer content expands upward without shrinking or ellipsizing text.
-- Adjust card scale and independent text size (80–180%), opacity, blur, corner radius and right/bottom insets. Default text size remains at the reference 100%; increasing text size preserves card width and expands height only as needed. Compare the original and zoom into a full-screen preview.
-- Confirm only when leaving with unsaved changes or interrupting ongoing processing; unchanged forms return directly. Reverting edits clears the warning, and successful photo exports update their saved baseline. Exiting the app clears the open session and its private drafts; published photos remain. Cancelled back gestures and cancelled confirmations preserve edits. Save notifications disappear automatically and can also be dismissed.
-- Use a mixed reference style: SF Compact Rounded Medium letters, punctuation and a proportional digit `1`, with centered colons and a seriffed capital I; SF Mono Medium supplies `0` and `2`–`9` when the local fonts are available. System sans-serif and monospace faces provide the fallback. An imported TTF/OTF/TTC applies uniformly to all characters; reset restores the mixed default.
-- Export a new original-resolution JPEG (quality slider 0–100, default 100) or PNG through the same renderer as the preview. Android 10+ saves to `Pictures/FuyaoPhotoInfo`; Android 8/9 uses Save As for one photo or a folder picker for a batch. Share completed exports through the system share sheet.
+- **Photo information cards** — Display device, photographer, location, lens and capture parameters in a rounded, frosted card.
+- **EXIF metadata** — Read available photo metadata, resolve locations from photo GPS and edit every displayed field.
+- **Batch editing** — Select up to 50 photos, swipe between them and save the full selection. Each photo keeps its own information and style.
+- **Style controls** — Adjust card size, text size, opacity, blur, corners and margins; import TTF/OTF/TTC fonts.
+- **Photographer and lens profiles** — Save a default credit and configure lens names, focal ranges and zoom values.
+- **Preview and export** — Compare with the original, inspect at full resolution and export JPEG/PNG at the original dimensions. JPEG quality defaults to 100 and is adjustable from 0 to 100.
+- **HDR and Motion Photos** — Preserve supported JPEG Ultra HDR gainmaps and Motion Photo video/audio when editing the cover.
 
-The 1527 × 859 reference uses a 215 × 168 card, 77 px right / 35 px bottom inset, 20 px corners, 19 px horizontal padding, 10.5 px text, 12.5 px leading and a 7 px group gap. The backdrop starts at `#5A5A5A` / 60% opacity with 25 px approximate blur. These are reproduction settings from the reference screenshots, not an Apple specification. See [STYLE_SPEC.md](docs/STYLE_SPEC.md).
+## Usage
 
-## Requirements and quick start
+1. Open one photo or select multiple photos. Use **Import from Files (original)** for HDR/Motion Photos.
+2. Edit the information and card style. Swipe horizontally to switch photos in a batch.
+3. Choose **Save**, select the format and JPEG quality, then save the full selection.
 
-- Android 8.0 / API 26 or later.
-- JDK 17 or a compatible newer JDK, Android SDK Platform 37, and network access for uncached dependencies.
-- Gradle 9.6.1 is provided through the official Wrapper with a pinned distribution checksum.
+On Android 10+, exports are saved to `Pictures/FuyaoPhotoInfo`. Android 8/9 uses a file picker for one photo or a folder picker for a batch. Original files remain unchanged; completed exports can be shared from the app.
 
-From the project root:
+Set a default photographer in **Settings**. The photo's EXIF Artist takes priority; the saved default can also be applied to the current photo.
+
+### Lens profiles
+
+Open **Settings → Lens profiles**. Enter a product name for display and the original EXIF model for matching. Configure native equivalent focal lengths, native zoom and the optional maximum digital zoom separately.
+
+Example for Xiaomi 17 Ultra:
+
+| Lens | Native equivalent range | Native zoom | Optional digital maximum |
+| --- | --- | --- | --- |
+| Main | 23–23 mm | 1–1× | 3.1× |
+| Ultra-wide | 14–14 mm | 0.6–0.6× | 0.9× |
+| Telephoto | 75–100 mm | 3.2–4.3× | Set the confirmed total maximum if needed |
+
+Physical focal lengths must use actual Camera2/EXIF values, not the equivalent values in this table. Leave unknown values blank. Lens matching prioritizes physical focal metadata, then the configured equivalent/digital ranges; ambiguous matches remain unset.
+
+Camera scanning lists unconfigured hardware for linking to profiles. Apply each lens edit, save the profile list, then re-import photos to use the updated configuration.
+
+## Supported exports
+
+| Input | Output | Preservation |
+| --- | --- | --- |
+| Ordinary still image | JPEG / 8-bit PNG | Original dimensions; optional capture metadata |
+| JPEG Ultra HDR (Android 14+) | JPEG | Gainmap and decoded color space |
+| Supported JPEG Motion Photo / Microvideo | JPEG | Original video, audio and video metadata |
+| Supported JPEG Ultra HDR Motion Photo (Android 14+) | JPEG | Both HDR and motion data |
+
+JPEG images and gainmaps are re-encoded; video is copied without transcoding. HDR/Motion Photos cannot be exported as PNG. Import the complete original file: media removed by a messaging app or provider cannot be recovered.
+
+HEIC/AVIF preservation, separate-file Apple Live Photos, undocumented vendor motion formats, animated images and high-bit-depth PNG export are not supported. Unrecognized or damaged media stops export. HDR display and motion playback depend on the device and gallery app; compatibility is not verified across all devices.
+
+Input limits are 512 MB / 200 MP per photo. Available device memory may impose a lower limit. Export does not automatically reduce resolution to fit memory. Background export and free card dragging are not supported.
+
+## Fonts
+
+The reference style combines SF Compact Rounded Medium with selected SF Mono Medium digits when those fonts are available. This is an approximation of the screenshots, not a confirmed identification of Apple's original fonts. Builds without the local font files use Android system fonts. Imported TTF/OTF/TTC fonts apply to the entire card and can be up to 10 MB.
+
+Font binaries are excluded from the repository. See [font setup and licensing](app/src/main/assets/fonts/README.md) before building with Apple fonts.
+
+## Privacy
+
+- Photos are processed on the device. Optional place lookup sends photo coordinates to the Android system geocoding provider; it can be disabled in Settings.
+- Camera permission is optional and used to scan lens information. The app does not request the device's current location or broad storage access.
+- Optional capture-metadata retention excludes still-image GPS, serial numbers, MakerNote, XMP and thumbnails. Original video metadata is retained and may include location. Names and places displayed on the card remain visible in the exported image.
+
+## Build
+
+Requires **JDK 17** or a compatible newer JDK and **Android SDK Platform 37**. Gradle 9.6.1 is included through the Wrapper. Configure `JAVA_HOME` and `ANDROID_HOME` as needed; uncached dependencies require network access.
 
 ```bash
-# Optional on macOS: copy the local reference fonts (subject to their licenses).
+# Optional on macOS, subject to the font licenses.
 bash scripts/copy-macos-font.sh
 
-# Unit tests, Debug/Release Lint, and Debug/Release APKs.
+# Unit tests, Debug/Release Lint and APK builds.
 bash scripts/build-macos.sh
 ```
 
-The build script recognizes SDK directories named `android-37` or `android-37.0`. Set `JAVA_HOME` and `ANDROID_HOME` when needed. It does not install SDK packages or accept licenses. A failed task exits nonzero; inspect its first error. Extra Gradle arguments can be passed to the script.
+APKs are written to `app/build/outputs/apk/debug/` and `app/build/outputs/apk/release/`. Build failures return a nonzero exit code; check the first reported error. Run `./gradlew clean` to remove build outputs.
 
-Normal Release and Debug builds are installable. Filenames include the version and ABI; use each directory’s `output-metadata.json` as the source of truth. Install the latest universal Release with:
+To install the latest universal Release on an authorized ADB device:
 
 ```bash
 python3 - <<'PYAPK'
@@ -79,100 +122,45 @@ subprocess.run(['adb', 'install', '-r', str(apk)], check=True)
 PYAPK
 ```
 
-An authorized device is required; successful installation prints `Success`. For a signature mismatch, rebuild with the original signing key instead of uninstalling and losing private drafts/settings. To intentionally remove Release, use `adb uninstall ing.fuyaoskyrocket.photoinfo`; exported gallery images remain. `./gradlew clean` removes build outputs without resetting the build counter.
+A successful installation prints `Success`. If signatures differ, rebuild with the original signing key to retain app data.
 
-## Variants and signing
+### Variants and signing
 
 | Variant | Application ID suffix | Signing |
 | --- | --- | --- |
-| Debug | `.debug` | Local debug key; installable |
+| Debug | `.debug` | Local debug key |
 | Debug Unsigned | `.debug.unsigned` | None |
-| Release | None | Private key when configured; otherwise local debug key |
+| Release | None | Configured private key, or local debug key |
 | Release Unsigned | `.unsigned` | None |
 
-Tasks are `assembleDebug`, `assembleDebugUnsigned`, `assembleRelease` and `assembleReleaseUnsigned`. Release uses R8 and resource shrinking. Configure a private key through the ignored `signing.properties`, using `signing.properties.example`. Without private signing properties, Release explicitly uses the local debug key to remain installable, matching the other Fuyao apps. Normal signed builds enable APK v1 and v2. This fallback is a local build, not a production-key release. Unsigned variants cannot be installed. No private signing key is included.
+Configure private signing using [signing.properties.example](signing.properties.example). Signed variants enable APK v1/v2; unsigned variants require signing before installation. No private key is included. Release builds use R8 and resource shrinking.
 
-## Versions and APK names
+### Versions and APK names
 
-The marketing version is **27.0**, with build train **1A**. Real builds atomically increment the workspace-local `.build-counter`; all variants and ABIs in one invocation share a sequence. Failed builds consume their number. Help, IDE sync and dry-run do not. A fresh workspace starts at sequence 1.
-
-`versionName` is `1Asequence` with non-Release variant suffixes. `versionCode` concatenates marketing base `270` and a sequence padded to at least three digits: `1A4` becomes `270004`. Outputs cover arm64-v8a, armeabi-v7a, x86, x86_64 and universal:
+Marketing version **27.0** uses build train **1A**. Each build increments the local sequence; all variants and ABIs in that invocation share it. APKs are available for arm64-v8a, armeabi-v7a, x86, x86_64 and universal:
 
 ```text
 FuyaoPhotoInfo-applicationId-27.0(1Asequence)-ABI-variant.apk
 ```
 
-## Interface and edge-to-edge
+### Tests
 
-The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: ColorPicker-style 48dp compact app bars with semibold titles, 28dp action icons and 48dp touch targets, dynamic color and consistent groups. App bars retain status-bar and horizontal cutout insets without extra vertical padding at normal font sizes; larger text can increase the bar height. Photo content uses a 4:3 viewport with Fit scaling and a combined size/media/progress row, with stacked or side-by-side inspector layouts. Lens profiles use a dedicated editor with numeric keyboards, inline validation and deletion undo. Apply edits to the profile draft, then save profiles explicitly.
+The build script runs JVM unit tests and Android Harmony DOM compatibility tests. With an authorized device, run `./gradlew :app:connectedDebugAndroidTest` for Android rendering and media tests, including HDR cases on Android 14+. Host tests do not replace device validation.
 
-The editor is the only top-level destination. Its app bar provides Open photos, Save and Settings; About lives in Settings. Existing Navigation Compose handles page and predictive-back transitions. On Android 16+, a non-consuming system-back observer clears unchanged photo sessions while the system handles back-to-home. Unsaved work requires confirmation, including replacing an open photo session.
+## Technology and structure
 
-Full-screen inspection first shows the editor thumbnail, then loads an original-resolution render without resetting zoom. A memory guard and a shared lock keep full-size preview and export work from allocating concurrently; failed detail loads keep a labeled thumbnail and offer retry. The workspace adapts to content width, height, font scale and the keyboard. WindowManager separates preview and controls around separating fold hinges; narrow windows keep a stacked layout. Form contents scroll with their insets, and full-screen preview surfaces extend behind system bars. Import, save, preview and font errors provide recovery steps; TalkBack can switch between photos through named actions.
+Kotlin · Jetpack Compose / Material 3 · Camera2 · ExifInterface 1.4.2 · AGP 9.2.1 · compile/target SDK 37.
 
-System bars are transparent and insets are consumed once. Backgrounds reach the window edge while final list items and bottom actions remain reachable. Full-screen photos stay in the HDR activity with dark system-bar styling, zoom buttons and interruptible reset. Rendering progress overlays the photo without changing its bounds; field edits and original comparison stay immediate. Exported card styling remains independent from the UI theme.
+Application ID: `ing.fuyaoskyrocket.photoinfo`. Application sources are under `app/src/main/java/ing/fuyaoskyrocket/photoinfo/`:
 
-A single Navigation Compose back stack handles Settings, lens profiles, lens editing and full-screen preview, including predictive back progress and cancellation. With an open session, Back asks to discard only when edits are unsaved or processing is active; a clean session closes directly, and an empty editor leaves back-to-home to Android. Settings and lens pages compare their current values with their initial values before asking. Saving explicitly returns without a second discard prompt. Export options use a Material 3 modal bottom sheet with segmented format selection and a fully clickable metadata row. Actual gesture behavior still requires device validation.
-
-## Technology and project structure
-
-The package prefix, four variants, shared run configurations and bilingual documentation follow [FuyaoColorPicker](https://github.com/skyrocketingHong/FuyaoColorPicker); the README structure also follows [FuyaoLocale](https://github.com/skyrocketingHong/FuyaoLocale). Their application code and image assets were not copied.
-
-AGP 9.2.1 · Gradle 9.6.1 · Compose compiler 2.4.10 · Compose BOM 2026.06.01 · compile/target SDK 37 · ExifInterface 1.4.2. Application ID: `ing.fuyaoskyrocket.photoinfo`.
-
-| Directory | Responsibility |
+| Directory | Purpose |
 | --- | --- |
-| `data/photo`, `data/export` | Private drafts, EXIF, decoding, encoding and publication |
-| `domain/model`, `metadata`, `layout`, `render` | Fields, formatting, geometry and blur |
-| `platform` | Android bitmap compositing and font loading |
-| `presentation`, `ui` | Saved editor state, operation sequencing and Material 3 controls |
-| `scripts`, `.run`, `.github/workflows` | Local checks, builds and CI definition |
-| `references` | Local reference screenshots, excluded from source control |
+| `data/` | Photos, exports, geocoding, settings and camera inventory |
+| `domain/` | Metadata, lens matching, card layout, typography and media formats |
+| `platform/` | Android rendering and font loading |
+| `presentation/`, `ui/` | Editing state and application screens |
 
-See [metadata recognition](docs/METADATA.md) for GPS, default-photographer and lens-profile behavior. See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for data flow and restoration boundaries. The legacy `install-workspace.py` helper is for importing an extracted package into another workspace; it is unnecessary when already working in this project.
-
-## Configuring lenses
-
-In Settings → Lens profiles, product name and original EXIF model are separate fields. Product name is read from available vendor marketing-name properties, with the public manufacturer/model as a fallback, and remains editable. The EXIF model comes from the current original photo and is the matching identifier; renaming the product does not change that identifier. Android IDs and serial numbers are not read.
-
-Configure native equivalent focal and zoom endpoints separately from the optional maximum digital zoom. For a fixed main lens, native 23–23 mm / 1–1× can cover 2× and 3.1× crops. Physical focal metadata takes priority for lens identity. Without that evidence, explicit digital limits define coverage; otherwise, coverage extends toward the next native lens of the same direction. A last lens has no assumed unlimited digital range. Native-range interpolation and digital scaling retain the actual zoom instead of clamping it to the optical endpoint. Ambiguous overlaps remain unmatched.
-
-Xiaomi 17 Ultra lens configuration example:
-
-| Lens | Native equivalent range | Native zoom | Optional digital maximum |
-| --- | --- | --- | --- |
-| Main | 23–23 mm | 1–1× | 3.1× |
-| Ultra-wide | 14–14 mm | 0.6–0.6× | 0.9× |
-| Telephoto | 75–100 mm | 3.2–4.3× | Set the confirmed total maximum if needed |
-
-Physical focal values must be actual Camera2/EXIF millimetres, not the equivalent values above. If missing, leave them blank. Saved legacy profiles retain their IDs and EXIF identity; fixed-focal profiles that used the old upper zoom as a digital limit are migrated to separate native and digital values.
-
-Scanning lists unconfigured hardware only. Configured Camera2 IDs appear with their saved profiles, and a manually created profile can be linked to a scanned lens. Bindings are scoped to the local device model so another device's ID `0` does not hide this device's ID `0`. A Camera2 ID is not treated as an EXIF lens ID. Save the lens editor, then the profile list, and re-import existing photos to apply changed matching rules.
-
-## HDR and Motion Photo preservation
-
-- On Android 14+, recognized JPEG Ultra HDR images retain their gainmap and decoded color space. The card region receives corresponding gainmap edits; unrelated gainmap pixels remain unchanged before JPEG encoding. All base-image drawing, including JPEG background flattening, finishes before the final gainmap is attached: constructing another Canvas would clear it. The encoded gainmap parameters and color space are checked before publication.
-- Standard JPEG Motion Photos and compatible legacy Microvideo files retain the complete original MP4/MOV payload, including audio and video metadata, without transcoding. Export verifies the copied payload with SHA-256 and preserves its presentation timestamp.
-- HDR Motion Photos retain the GainMap directory item before the video item. EXIF/XMP insertion updates MPF sizes and offsets. Gallery filenames end in `_MP.jpg`.
-- PNG export is disabled for HDR/Motion inputs. Unknown auxiliary data, malformed containers, unsupported formats or failed verification stop export rather than silently discarding media.
-
-Prefer importing the complete original through Files; HDR/video already stripped by an upstream provider cannot be recovered. The current preservation path supports JPEG-based containers. HEIC/AVIF preservation, separate-file Apple Live Photos, undocumented vendor motion formats, animated images and high-bit-depth PNG are not supported for export. Android encoding/display, vendor camera enumeration and gallery playback still require device testing. JPEG base and gainmap images are re-encoded; this is not a pixel-lossless workflow. Video bytes are preserved exactly. Sharing apps can subsequently change or flatten the file.
-
-## Fonts, privacy and output limits
-
-This local checkout uses SF Compact Rounded from macOS with weight 500, the `cv04` centered-colon and `cv05` capital-I alternates, and proportional figures (`pnum`). The digit `1` stays in this face; SF Mono Medium from Terminal supplies `0` and `2`–`9`. This is a screenshot-guided approximation, not a verified identification of Apple’s original fonts. Spaces, colons, decimal separators, slashes and parentheses use the proportional face. The serifed-one alternate is not enabled. The proportional face is scaled to match the monospace face’s measured capital height, so letters and the narrow `1` no longer rely on equal nominal point sizes. Standalone proportional `1` receives a further 3% optical size correction at the same baseline across all fields. Measurement, wrapping, preview, export and HDR text coverage share this calibration and the same shaping path. Available local fonts are embedded in APKs built from this checkout. The font binary and original reference folder are excluded from Git. Selected README images are versioned in `assets/readme/`; their image rights are separate from the source license. A source checkout without these fonts remains buildable with system proportional glyphs and selected monospace digits. Runtime imports (up to 10 MB) remain in app-private storage.
-
-The app declares Internet and photo-metadata (`ACCESS_MEDIA_LOCATION`) access, plus optional camera permission for hardware enumeration, with no current-location or broad storage permission. Place lookup can send photo coordinates to the Android system geocoding provider; the photograph itself stays local. Disable lookup in Settings when not needed. Optional capture metadata uses an allowlist excluding GPS, serial numbers, MakerNote, XMP and thumbnails. Editing the visible card does not rewrite original capture tags. Visible names and places remain part of exported image pixels.
-
-Ordinary still images can be exported as JPEG or 8-bit PNG. Ultra HDR and Motion Photo exports follow the preservation path above. Source images are never overwritten. Capture-tag retention excludes GPS from the still-image EXIF; an untouched video retains its own metadata, which can include location information.
-
-Insufficient memory produces an error without silently lowering resolution. Input caps of 512 MB / 200 MP do not guarantee that every device can export those sizes. Batch processing, free dragging and background export services are outside this version.
-
-## Validation
-
-Use `bash scripts/build-macos.sh` for host checks and APKs. It includes `:app:testAndroidDom`, which repeats media-container tests with Android's Harmony DOM implementation to catch differences from desktop Java. Its Android runtime dependency is test-only and is not packaged in APKs; this check does not execute native HDR codecs or replace device testing.
-
-Use `./gradlew :app:connectedDebugAndroidTest` with an authorized device for orientation, pixel-boundary, export-metadata, settings, font-reset and Android 14+ HDR/Motion tests. `scripts/test-core.sh` is an optional offline route requiring Kotlin CLI. See [VALIDATION.md](docs/VALIDATION.md) for actual coverage and remaining device checks. The GitHub workflow has not been run remotely.
+Build helpers are in `scripts/`; tests are in `app/src/test/` and `app/src/androidTest/`.
 
 ## License
 
