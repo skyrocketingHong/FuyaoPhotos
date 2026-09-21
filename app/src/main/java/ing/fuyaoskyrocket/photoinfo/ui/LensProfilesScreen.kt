@@ -71,7 +71,7 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
     }
     val requestBack = rememberConfirmedBack(onBack, hasChanges = profiles != initial)
     FuyaoScaffold(stringResource(R.string.lens_profiles),onBack=requestBack,snackbarHost={ SnackbarHost(snackbar, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) },actions={
-        FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.add_lens),{ onEdit(draft()) },enabled=profiles.size<64&&productName!=null)
+        FuyaoAppBarAction(R.drawable.ic_plus,stringResource(R.string.add_lens),{ onEdit(draft()) },enabled=profiles.size<64&&productName!=null)
         TextButton(onClick={ onSave(profiles) },enabled=!duplicateBindings) { Text(stringResource(R.string.save)) }
     }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding),contentAlignment=Alignment.TopCenter) {

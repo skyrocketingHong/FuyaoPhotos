@@ -79,7 +79,7 @@ FuyaoPhotoInfo-applicationId-27.0(1Asequence)-ABI-variant.apk
 
 ## Interface and edge-to-edge
 
-The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: standard 64dp app bars that accommodate larger text, dynamic color, the default Material type scale and consistent groups. Photo content uses a 4:3 viewport with Fit scaling and a combined size/media/progress row, with stacked or side-by-side inspector layouts. Lens profiles use a dedicated editor with numeric keyboards, inline validation and deletion undo.
+The interface follows the FuyaoLocale / FuyaoColorPicker Material 3 baseline: ColorPicker-style 48dp compact app bars with semibold titles, 28dp action icons and 48dp touch targets, dynamic color and consistent groups. App bars retain status-bar and horizontal cutout insets without extra vertical padding. Photo content uses a 4:3 viewport with Fit scaling and a combined size/media/progress row, with stacked or side-by-side inspector layouts. Lens profiles use a dedicated editor with numeric keyboards, inline validation and deletion undo.
 
 System bars are transparent and insets are consumed once. Backgrounds reach the window edge while final list items and bottom actions remain reachable. Full-screen photos stay in the HDR activity with dark system-bar styling, zoom buttons and interruptible reset. Rendering progress overlays the photo without changing its bounds; field edits and original comparison stay immediate. Exported card styling remains independent from the UI theme.
 

@@ -26,7 +26,7 @@
 
 ### Interface
 
-- Use standard Material 3 app bars, typography and input shapes while retaining Fuyao dynamic color and grouping.
+- Match FuyaoColorPicker’s 48dp compact app bars, semibold titles and 28dp action icons, preserving 48dp touch targets and system-bar insets. Retain Material 3 input shapes, Fuyao dynamic color and grouping.
 - Add Navigation Compose predictive back for settings, lens pages and full-screen preview; use a Material 3 export bottom sheet with segmented format selection.
 - Improve edge-to-edge, keyboard handling, adaptive inspector layouts and large-text behavior.
 - Add a dedicated lens editor, inline validation, deletion undo and saved editing state.

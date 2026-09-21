@@ -8,11 +8,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
@@ -21,7 +21,7 @@ object FuyaoSpacing {
     val xs=4.dp;val small=8.dp;val compact=12.dp;val content=16.dp;val large=24.dp;val extraLarge=32.dp
 }
 object FuyaoLayout {
-    val appBar=64.dp;val readable=840.dp;val editor=1040.dp;val inspector=360.dp
+    val appBar=48.dp;val appBarIcon=28.dp;val readable=840.dp;val editor=1040.dp;val inspector=360.dp
 }
 object FuyaoMotion {
     const val resetMillis=200
@@ -32,16 +32,30 @@ object FuyaoMotion {
 @Composable
 fun FuyaoScaffold(title:String,modifier:Modifier=Modifier,onBack:(()->Unit)?=null,
     actions:@Composable RowScope.()->Unit={},snackbarHost:@Composable ()->Unit={},content:@Composable (PaddingValues)->Unit) {
-    val titleHeight=with(LocalDensity.current) { MaterialTheme.typography.titleLarge.lineHeight.toDp() }+16.dp
     Scaffold(modifier=modifier.fillMaxSize(),containerColor=MaterialTheme.colorScheme.surface,
         contentWindowInsets=WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
         topBar={ TopAppBar(
-            title={ Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleLarge) },
-            navigationIcon={ if(onBack!=null)FuyaoIconButton(R.drawable.ic_back,stringResource(R.string.back),onBack) },
-            actions=actions,expandedHeight=maxOf(FuyaoLayout.appBar,titleHeight),
+            title={ Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold) },
+            navigationIcon={ if(onBack!=null)FuyaoAppBarAction(R.drawable.ic_back,stringResource(R.string.back),onBack) },
+            actions=actions,expandedHeight=FuyaoLayout.appBar,
             windowInsets=WindowInsets.statusBars.only(WindowInsetsSides.Top).union(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
             colors=TopAppBarDefaults.topAppBarColors(containerColor=MaterialTheme.colorScheme.surface,actionIconContentColor=MaterialTheme.colorScheme.onSurfaceVariant)) },
         snackbarHost=snackbarHost,content=content)
+}
+
+/** ColorPicker's compact toolbar geometry, without changing buttons in photo content. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FuyaoAppBarAction(icon:Int,label:String,onClick:()->Unit,enabled:Boolean=true) {
+    TooltipBox(
+        positionProvider=TooltipDefaults.rememberTooltipPositionProvider(positioning=TooltipAnchorPosition.Above),
+        tooltip={ PlainTooltip { Text(label) } },
+        state=rememberTooltipState(),
+    ) {
+        IconButton(onClick=onClick,enabled=enabled,modifier=Modifier.size(48.dp)) {
+            Icon(painterResource(icon),label,Modifier.size(FuyaoLayout.appBarIcon))
+        }
+    }
 }
 
 @Composable

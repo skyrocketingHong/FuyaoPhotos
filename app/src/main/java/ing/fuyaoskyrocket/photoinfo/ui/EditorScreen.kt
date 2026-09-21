@@ -130,7 +130,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 title = R.string.exit_title, message = R.string.exit_message, confirmLabel = R.string.exit_confirm)
             FuyaoScaffold(title=stringResource(R.string.editor_title),actions={
                 Box {
-                    FuyaoIconButton(R.drawable.ic_photo_add,stringResource(R.string.select_photo),{ showPhotoMenu=true },enabled=!state.busy)
+                    FuyaoAppBarAction(R.drawable.ic_photo_add,stringResource(R.string.select_photo),{ showPhotoMenu=true },enabled=!state.busy)
                     DropdownMenu(showPhotoMenu,onDismissRequest={ showPhotoMenu=false }) {
                         DropdownMenuItem(text={ Text(stringResource(R.string.from_gallery)) },onClick={
                             showPhotoMenu=false;photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -138,9 +138,9 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                         DropdownMenuItem(text={ Text(stringResource(R.string.from_file)) },onClick={ showPhotoMenu=false;filePicker.launch(arrayOf("image/*")) })
                     }
                 }
-                FuyaoIconButton(R.drawable.ic_export,if(state.photos.size>1) stringResource(R.string.batch_export,state.photos.size) else stringResource(R.string.export),{ showExport=true },enabled=state.canExport)
+                FuyaoAppBarAction(R.drawable.ic_export,if(state.photos.size>1) stringResource(R.string.batch_export,state.photos.size) else stringResource(R.string.export),{ showExport=true },enabled=state.canExport)
                 Box {
-                    FuyaoIconButton(R.drawable.ic_more,stringResource(R.string.more),{ showMore=true })
+                    FuyaoAppBarAction(R.drawable.ic_more,stringResource(R.string.more),{ showMore=true })
                     DropdownMenu(showMore,onDismissRequest={ showMore=false }) {
                         DropdownMenuItem(text={ Text(stringResource(R.string.settings)) },enabled=!state.busy,onClick={ showMore=false;settingsLenses=state.settings.lenses;navigation.navigate(PhotoPage.SETTINGS.name) })
                         DropdownMenuItem(text={ Text(stringResource(R.string.about)) },onClick={ showMore=false;showAbout=true })
