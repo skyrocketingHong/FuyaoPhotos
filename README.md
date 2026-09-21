@@ -14,7 +14,7 @@ An Android editor for single photos and batches, with local image processing and
 
 ### Exported sample
 
-An exported Hong Kong photo with the app’s inset information card, at **4080 × 3072**. Click the image to open the full-size file.
+An exported Hong Kong photo with the app’s inset information card, at **4080 × 3072**. This example uses uniform monospace text; the current default mixes rounded letters with monospace digits. Click the image to open the full-size file.
 
 <p align="center">
   <a href="assets/readme/sample-hong-kong.jpg"><img src="assets/readme/sample-hong-kong.jpg" width="960" alt="Hong Kong waterfront photo with a rounded information card in the lower-right corner, showing Xiaomi 17 Ultra, Leica 75–100mm telephoto and capture details"></a>
@@ -43,7 +43,7 @@ Apple and the credited photographers retain their respective image rights. See [
 - Scale card geometry with the photo's short edge. Long text wraps along the same left edge; ordinary one-line credit wrapping preserves the reference card size. Longer content expands upward without shrinking or ellipsizing text.
 - Adjust card scale and independent text size (80–180%), opacity, blur, corner radius and right/bottom insets. Default text size remains at the reference 100%; increasing text size preserves card width and expands height only as needed. Compare the original and zoom into a full-screen preview.
 - Confirm only when leaving with unsaved changes or interrupting ongoing processing; unchanged forms return directly. Reverting edits clears the warning, and successful photo exports update their saved baseline. Exiting the app clears the open session and its private drafts; published photos remain. Cancelled back gestures and cancelled confirmations preserve edits. Save notifications disappear automatically and can also be dismissed.
-- Use locally bundled SF Mono Regular when present, or Android monospace otherwise. Import a custom TTF/OTF/TTC and reset to the default font.
+- Use a mixed reference style: SF Pro Rounded Medium letters and punctuation with the seriffed capital-I feature, and SF Mono Medium digits when the local fonts are available. System sans-serif and monospace faces provide the fallback. An imported TTF/OTF/TTC applies uniformly to all characters; reset restores the mixed default.
 - Export a new original-resolution JPEG (quality slider 0–100, default 100) or PNG through the same renderer as the preview. Android 10+ saves to `Pictures/FuyaoPhotoInfo`; Android 8/9 uses Save As for one photo or a folder picker for a batch. Share completed exports through the system share sheet.
 
 The 1527 × 859 reference uses a 215 × 168 card, 77 px right / 35 px bottom inset, 20 px corners, 19 px horizontal padding, 10.5 px text, 12.5 px leading and a 7 px group gap. The backdrop starts at `#5A5A5A` / 60% opacity with 25 px approximate blur. These are reproduction settings from the reference screenshots, not an Apple specification. See [STYLE_SPEC.md](docs/STYLE_SPEC.md).
@@ -57,7 +57,7 @@ The 1527 × 859 reference uses a 215 × 168 card, 77 px right / 35 px bottom ins
 From the project root:
 
 ```bash
-# Optional on macOS: copy the local font used by this checkout.
+# Optional on macOS: copy the local reference fonts (subject to their licenses).
 bash scripts/copy-macos-font.sh
 
 # Unit tests, Debug/Release Lint, and Debug/Release APKs.
@@ -160,7 +160,7 @@ Prefer importing the complete original through Files; HDR/video already stripped
 
 ## Fonts, privacy and output limits
 
-This local checkout contains SF Mono Regular copied from the macOS Terminal bundle. It is loaded automatically and embedded in APKs built from this checkout. The font binary and original reference folder are excluded from Git. Selected README images are versioned in `assets/readme/`; their image rights are separate from the source license. A source checkout without the font remains buildable with Android monospace. Runtime imports (up to 10 MB) remain in app-private storage.
+This local checkout uses SF Pro Rounded from macOS with weight 500 and the `cv05` capital-I alternate, plus SF Mono Medium from Terminal for ASCII digits. This is a screenshot-guided approximation, not a verified identification of Apple’s original fonts. Spaces, colons, decimal separators, slashes and parentheses use the proportional face. Measurement, wrapping, preview, export and HDR text coverage share the same shaping path. Available local fonts are embedded in APKs built from this checkout. The font binary and original reference folder are excluded from Git. Selected README images are versioned in `assets/readme/`; their image rights are separate from the source license. A source checkout without these fonts remains buildable with system sans-serif letters and monospace digits. Runtime imports (up to 10 MB) remain in app-private storage.
 
 The app declares Internet and photo-metadata (`ACCESS_MEDIA_LOCATION`) access, plus optional camera permission for hardware enumeration, with no current-location or broad storage permission. Place lookup can send photo coordinates to the Android system geocoding provider; the photograph itself stays local. Disable lookup in Settings when not needed. Optional capture metadata uses an allowlist excluding GPS, serial numbers, MakerNote, XMP and thumbnails. Editing the visible card does not rewrite original capture tags. Visible names and places remain part of exported image pixels.
 

@@ -12,6 +12,7 @@
 
 ### Photo editing
 
+- Refine reference typography with rounded Medium letters, a legible capital I and SF Mono Medium digits; tighten punctuation spacing and share shaping between layout, output and HDR coverage. Imported fonts remain uniform.
 - Add up to 50-photo sessions with horizontal paging, independent edits, sequential save-all, progress and partial-failure reporting.
 - Add discard confirmation to editor exit and save pages; clear private drafts on confirmed exit.
 - Use matching import buttons, a 4:3 preview with compact status, auto-dismiss save notices and a JPEG quality slider defaulting to 100.
