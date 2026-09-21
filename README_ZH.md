@@ -8,6 +8,10 @@
   <img src="https://img.shields.io/badge/License-AGPL--3.0--only-blue" alt="AGPL-3.0-only">
 </p>
 
+## 下载
+
+前往 [Releases](https://github.com/skyrocketingHong/FuyaoPhotoInfo/releases/latest) 下载。不了解设备架构时选择 **universal** 通用安装包。支持 Android 8.0 及以上，HDR 显示需要 Android 14+ 和兼容硬件。
+
 ## 效果展示
 
 ### 导出样例

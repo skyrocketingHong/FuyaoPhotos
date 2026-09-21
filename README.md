@@ -8,6 +8,10 @@
   <img src="https://img.shields.io/badge/License-AGPL--3.0--only-blue" alt="AGPL-3.0-only">
 </p>
 
+## Download
+
+Download the [latest release](https://github.com/skyrocketingHong/FuyaoPhotoInfo/releases/latest). Choose the **universal** APK if unsure of your device architecture. Requires Android 8.0 or later; HDR display requires Android 14+ and compatible hardware.
+
 ## Showcase
 
 ### Exported sample
