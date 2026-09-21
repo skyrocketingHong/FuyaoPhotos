@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="18 18 72 72" role="img" aria-labelledby="title">
+  <title id="title">Fuyao Photo Info app icon</title>
+  <rect x="18" y="18" width="72" height="72" rx="16" fill="#14382F"/>
+  <path d="M28,29 L80,29 Q83,29 83,32 L83,76 Q83,79 80,79 L28,79 Q25,79 25,76 L25,32 Q25,29 28,29 Z" fill="#D9F6EB"/>
+  <path d="M29,67 L44,48 L56,61 L65,51 L79,70 L79,75 L29,75 Z" fill="#3FB797"/>
+  <path d="M56,48 L80,48 L80,76 L56,76 Z" fill="#296252"/>
+  <path d="M60,54 L75,54 M60,58 L70,58" fill="none" stroke="#FFDA45" stroke-width="2"/>
+  <path d="M60,64 L75,64 M60,68 L75,68 M60,72 L70,72" fill="none" stroke="#FFFFFF" stroke-width="1.5"/>
+</svg>

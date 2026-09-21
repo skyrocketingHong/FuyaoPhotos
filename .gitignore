@@ -9,7 +9,7 @@ signing.properties
 *.keystore
 .DS_Store
 .local/
-# Personal source photographs and font binaries are never committed.
+# Original personal photos and fonts stay local; selected README media is allowlisted below.
 references/*
 !references/README.md
 app/src/main/assets/fonts/*
@@ -30,3 +30,12 @@ agents.md
 .kotlin/
 
 .build-counter
+
+# Only the explicitly selected README media is versioned here.
+/assets/readme/*
+!/assets/readme/README.md
+!/assets/readme/app-icon.svg
+!/assets/readme/apple-keynote-portrait.png
+!/assets/readme/apple-keynote-night-sky.png
+!/assets/readme/apple-keynote-stairs.png
+!/assets/readme/sample-hong-kong.jpg

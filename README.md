@@ -1,4 +1,5 @@
 <p align="center">English | <a href="README_ZH.md">简体中文</a></p>
+<p align="center"><img src="assets/readme/app-icon.svg" width="112" height="112" alt="Fuyao Photo Info app icon"></p>
 <h1 align="center">Fuyao Photo Info</h1>
 <p align="center">A compact frosted camera-information card, inside the photograph.</p>
 <p align="center">
@@ -8,6 +9,30 @@
 </p>
 
 An Android editor for single photos and batches, with local image processing and optional system place-name lookup. It reads available EXIF metadata and overlays an editable information card without adding a border or changing the photo dimensions. Local build evidence is kept in the ignored `docs/` directory; device/runtime limits are summarized below.
+
+## Showcase
+
+### Exported sample
+
+An exported Hong Kong photo with the app’s inset information card, at **4080 × 3072**. Click the image to open the full-size file.
+
+<p align="center">
+  <a href="assets/readme/sample-hong-kong.jpg"><img src="assets/readme/sample-hong-kong.jpg" width="960" alt="Hong Kong waterfront photo with a rounded information card in the lower-right corner, showing Xiaomi 17 Ultra, Leica 75–100mm telephoto and capture details"></a>
+</p>
+
+### Apple keynote references
+
+Apple keynote screenshots show the visual reference for the information card. Each reference is **2560 × 1440**; click a screenshot to view it at full size.
+
+<table>
+  <tr>
+    <td align="center"><a href="assets/readme/apple-keynote-portrait.png"><img src="assets/readme/apple-keynote-portrait.png" width="300" alt="Apple keynote reference: portrait with a lower-right information card"></a><br>Portrait</td>
+    <td align="center"><a href="assets/readme/apple-keynote-night-sky.png"><img src="assets/readme/apple-keynote-night-sky.png" width="300" alt="Apple keynote reference: night sky with a lower-right information card"></a><br>Night sky</td>
+    <td align="center"><a href="assets/readme/apple-keynote-stairs.png"><img src="assets/readme/apple-keynote-stairs.png" width="300" alt="Apple keynote reference: staircase scene with a lower-right information card"></a><br>Staircase</td>
+  </tr>
+</table>
+
+Apple and the credited photographers retain their respective image rights. See [media sources and rights](assets/readme/README.md) and the [Apple-related notice](#apple-related-notice).
 
 ## Features
 
@@ -21,7 +46,7 @@ An Android editor for single photos and batches, with local image processing and
 - Use locally bundled SF Mono Regular when present, or Android monospace otherwise. Import a custom TTF/OTF/TTC and reset to the default font.
 - Export a new original-resolution JPEG (quality slider 0–100, default 100) or PNG through the same renderer as the preview. Android 10+ saves to `Pictures/FuyaoPhotoInfo`; Android 8/9 uses Save As for one photo or a folder picker for a batch. Share completed exports through the system share sheet.
 
-The 1527 × 859 reference uses a 215 × 168 card, 77 px right / 35 px bottom inset, 20 px corners, 19 px horizontal padding, 10.5 px text, 12.5 px leading and a 7 px group gap. The backdrop starts at `#5A5A5A` / 60% opacity with 25 px approximate blur. These are reproduction settings from the supplied screenshots, not an Apple specification. See [STYLE_SPEC.md](docs/STYLE_SPEC.md).
+The 1527 × 859 reference uses a 215 × 168 card, 77 px right / 35 px bottom inset, 20 px corners, 19 px horizontal padding, 10.5 px text, 12.5 px leading and a 7 px group gap. The backdrop starts at `#5A5A5A` / 60% opacity with 25 px approximate blur. These are reproduction settings from the reference screenshots, not an Apple specification. See [STYLE_SPEC.md](docs/STYLE_SPEC.md).
 
 ## Requirements and quick start
 
@@ -112,7 +137,7 @@ In Settings → Lens profiles, product name and original EXIF model are separate
 
 Configure native equivalent focal and zoom endpoints separately from the optional maximum digital zoom. For a fixed main lens, native 23–23 mm / 1–1× can cover 2× and 3.1× crops. Physical focal metadata takes priority for lens identity. Without that evidence, explicit digital limits define coverage; otherwise, coverage extends toward the next native lens of the same direction. A last lens has no assumed unlimited digital range. Native-range interpolation and digital scaling retain the actual zoom instead of clamping it to the optical endpoint. Ambiguous overlaps remain unmatched.
 
-For the supplied Xiaomi 17 Ultra ranges:
+Xiaomi 17 Ultra lens configuration example:
 
 | Lens | Native equivalent range | Native zoom | Optional digital maximum |
 | --- | --- | --- | --- |
@@ -135,7 +160,7 @@ Prefer importing the complete original through Files; HDR/video already stripped
 
 ## Fonts, privacy and output limits
 
-This local checkout contains SF Mono Regular copied from the macOS Terminal bundle. It is loaded automatically and embedded in APKs built from this checkout. The font binary and reference screenshots are excluded from Git and are not covered by the source license. A source checkout without the font remains buildable with Android monospace. Runtime imports (up to 10 MB) remain in app-private storage.
+This local checkout contains SF Mono Regular copied from the macOS Terminal bundle. It is loaded automatically and embedded in APKs built from this checkout. The font binary and original reference folder are excluded from Git. Selected README images are versioned in `assets/readme/`; their image rights are separate from the source license. A source checkout without the font remains buildable with Android monospace. Runtime imports (up to 10 MB) remain in app-private storage.
 
 The app declares Internet and photo-metadata (`ACCESS_MEDIA_LOCATION`) access, plus optional camera permission for hardware enumeration, with no current-location or broad storage permission. Place lookup can send photo coordinates to the Android system geocoding provider; the photograph itself stays local. Disable lookup in Settings when not needed. Optional capture metadata uses an allowlist excluding GPS, serial numbers, MakerNote, XMP and thumbnails. Editing the visible card does not rewrite original capture tags. Visible names and places remain part of exported image pixels.
 

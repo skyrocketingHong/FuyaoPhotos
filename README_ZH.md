@@ -1,4 +1,5 @@
 <p align="center"><a href="README.md">English</a> | 简体中文</p>
+<p align="center"><img src="assets/readme/app-icon.svg" width="112" height="112" alt="Fuyao Photo Info 应用图标"></p>
 <h1 align="center">Fuyao Photo Info</h1>
 <p align="center">直接嵌入照片的紧凑磨砂拍摄信息卡。</p>
 <p align="center">
@@ -8,6 +9,30 @@
 </p>
 
 在本机处理图片、可选调用系统地名服务的 Android 单图／批量照片编辑器。读取可用 EXIF，将可编辑信息卡叠加在照片内部，不增加底部边框、不改变照片尺寸。本机验证记录保存在被忽略的 `docs/` 目录；设备与格式支持边界见下文。
+
+## 效果展示
+
+### 导出样例
+
+应用导出的香港海滨照片，右下角叠加拍摄信息卡，尺寸为 **4080 × 3072**。点击图片可查看原尺寸文件。
+
+<p align="center">
+  <a href="assets/readme/sample-hong-kong.jpg"><img src="assets/readme/sample-hong-kong.jpg" width="960" alt="香港海滨照片，右下角圆角信息卡展示小米 17 Ultra、徕卡 75–100mm 长焦镜头及拍摄参数"></a>
+</p>
+
+### Apple 发布会参考截图
+
+Apple 发布会截图，展示信息卡的设计参考。三张截图均为 **2560 × 1440**，点击可查看原尺寸版本。
+
+<table>
+  <tr>
+    <td align="center"><a href="assets/readme/apple-keynote-portrait.png"><img src="assets/readme/apple-keynote-portrait.png" width="300" alt="Apple 发布会参考：人物肖像与右下角信息卡"></a><br>人物肖像</td>
+    <td align="center"><a href="assets/readme/apple-keynote-night-sky.png"><img src="assets/readme/apple-keynote-night-sky.png" width="300" alt="Apple 发布会参考：星空与右下角信息卡"></a><br>星空</td>
+    <td align="center"><a href="assets/readme/apple-keynote-stairs.png"><img src="assets/readme/apple-keynote-stairs.png" width="300" alt="Apple 发布会参考：楼梯场景与右下角信息卡"></a><br>楼梯场景</td>
+  </tr>
+</table>
+
+Apple 与画面署名摄影者保留各自的图片权利，详见[素材来源与权利说明](assets/readme/README.md)及 [Apple 相关声明](#apple-相关声明)。
 
 ## 功能
 
@@ -23,7 +48,7 @@
 - 优先使用本地构建附带的 SF Mono Regular，缺失时使用 Android 等宽字体。可导入 TTF/OTF/TTC，并重置回默认字体。
 - 通过与预览相同的渲染器导出原尺寸 JPEG（质量滑块 0～100，默认 100）或 PNG。Android 10+ 保存至 `Pictures/FuyaoPhotoInfo`，Android 8/9 单张使用系统另存为，多张选择输出文件夹；导出后支持系统分享。
 
-1527 × 859 基准采用 215 × 168 卡片、右侧 77 px / 底部 35 px 边距、20 px 圆角、19 px 水平内边距、10.5 px 字号、12.5 px 行高和 7 px 分组间距。背景起点为 `#5A5A5A`、60% 不透明度和约 25 px 模糊。这是依据所提供截图的复刻参数，不是 Apple 官方规范，详见 [STYLE_SPEC.md](docs/STYLE_SPEC.md)。
+1527 × 859 基准采用 215 × 168 卡片、右侧 77 px / 底部 35 px 边距、20 px 圆角、19 px 水平内边距、10.5 px 字号、12.5 px 行高和 7 px 分组间距。背景起点为 `#5A5A5A`、60% 不透明度和约 25 px 模糊。这是依据参考截图的复刻参数，不是 Apple 官方规范，详见 [STYLE_SPEC.md](docs/STYLE_SPEC.md)。
 
 ## 环境要求与快速开始
 
@@ -114,7 +139,7 @@ GPS、默认摄影者与镜头档案规则见[元数据识别说明](docs/METADA
 
 原生等效焦段、原生倍率和数码变焦上限分开设置。固定主摄的原生 23～23 mm、1～1× 也能覆盖 2×、3.1× 裁切。识别优先使用真实物理焦距；缺失时按明确设置的数码上限匹配，未填写时根据同朝向下一镜头推断范围。最后一颗镜头不自动推断无限数码范围。原生区间插值、区间外按数码比例计算倍率，不再钳制到光学端点；存在重叠且缺少证据时不猜测。
 
-按用户提供的小米 17 Ultra 范围：
+小米 17 Ultra 镜头配置示例：
 
 | 镜头 | 原生等效焦段 | 原生倍率 | 数码最高倍率（可选） |
 | --- | --- | --- | --- |
@@ -137,7 +162,7 @@ GPS、默认摄影者与镜头档案规则见[元数据识别说明](docs/METADA
 
 ## 字体、隐私与输出边界
 
-当前本机工程包含从 macOS Terminal 复制的 SF Mono Regular，应用自动加载，基于此目录编译的 APK 会包含该字体。字体二进制及参考截图被 Git 忽略，不适用项目源码许可证；不含字体的源码检出仍可使用 Android 等宽字体构建。运行时导入的字体最大 10 MB，仅存放在应用私有目录。
+当前本机工程包含从 macOS Terminal 复制的 SF Mono Regular，应用自动加载，基于此目录编译的 APK 会包含该字体。字体二进制与原始参考图目录被 Git 忽略；选入 README 的图片保存在 `assets/readme/` 并纳入版本控制，图片权利独立于源码许可证；不含字体的源码检出仍可使用 Android 等宽字体构建。运行时导入的字体最大 10 MB，仅存放在应用私有目录。
 
 Manifest 声明联网及照片元数据（`ACCESS_MEDIA_LOCATION`）权限，镜头扫描可选请求相机权限，不打开相机或拍摄，不请求设备当前位置或全盘存储权限。地名查询可能将照片坐标发送给 Android 系统地名服务，照片本身在本机处理；可在设置中关闭自动查询。可选保留的拍摄元数据采用白名单，排除 GPS、序列号、MakerNote、XMP 与缩略图。信息卡编辑不会改写原始拍摄参数；填写的姓名、地点仍会成为导出照片中的可见像素。
 

@@ -6,7 +6,7 @@ Build-number allocation, APK naming, system-bar handling and UI token patterns a
 from FuyaoLocale and FuyaoColorPicker (AGPL-3.0-only). Historic color tables and
 image assets were not copied.
 
-The style follows user-provided measurements and five local reference screenshots.
+The style follows measurements taken from five local reference screenshots.
 These measurements are independent estimates, not official Apple specifications.
 
 Apple-related notice
@@ -17,8 +17,11 @@ trademarks of Apple Inc. References to Apple products, fonts or visual styles do
 not imply affiliation, certification or permission to use Apple materials.
 
 This local checkout uses SF Mono Regular copied from the macOS Terminal bundle.
-The font binary and reference photographs are Git-ignored local assets and are
-not covered by this project's AGPL-3.0-only source license. APKs built while the
+The font binary and original reference folder are Git-ignored local assets.
+Selected README screenshots and the exported sample are versioned under
+assets/readme/; Apple and the respective photographers retain their image rights.
+These font and image assets are not covered by the project's AGPL-3.0-only source
+license; see assets/readme/README.md for their sources. APKs built while the
 font is present include it; builds without it use Android monospace.
 Apple fonts remain subject to their applicable licenses. Neither the project
 license, the copying script nor this notice grants embedding or redistribution
