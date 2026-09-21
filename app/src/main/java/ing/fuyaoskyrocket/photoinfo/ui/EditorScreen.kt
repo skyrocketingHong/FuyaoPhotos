@@ -124,6 +124,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     ) {
         composable(PhotoPage.EDITOR.name) {
             rememberConfirmedBack(onConfirmed = { vm.closeSession(onExit) },
+                hasChanges = state.hasChanges || state.importing || state.exporting, handleCleanBack = true,
                 enabled = (state.photos.isNotEmpty() || state.importing) && !state.closing &&
                     !showExport && !showAbout && !showMore && !showPhotoMenu && state.error == null,
                 title = R.string.exit_title, message = R.string.exit_message, confirmLabel = R.string.exit_confirm)

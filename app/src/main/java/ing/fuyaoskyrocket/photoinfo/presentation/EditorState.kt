@@ -43,6 +43,7 @@ data class EditorState(
     val importing: Boolean = false,
     val loadingPhoto: Boolean = false,
     val closing: Boolean = false,
+    val hasChanges: Boolean = false,
     val exportCompleted: Int = 0,
     val exportTotal: Int = 0,
     val exportRequiresJpeg: Boolean = false,

@@ -25,7 +25,10 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
     var geocode by rememberSaveable { mutableStateOf(settings.resolvePhotoLocation) }
     var mainFocal by rememberSaveable { mutableStateOf(settings.fallbackMainFocal) }
     val draft=EditorSettings(author,geocode,mainFocal,settings.lenses)
-    val requestBack = rememberConfirmedBack(onBack)
+    val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
+        listOf(settings.defaultAuthor, settings.resolvePhotoLocation.toString(), settings.fallbackMainFocal),
+        listOf(author, geocode.toString(), mainFocal), setOf(2))
+    val requestBack = rememberConfirmedBack(onBack, hasChanges = changed)
     FuyaoScaffold(stringResource(R.string.settings),onBack=requestBack,actions={
         TextButton(onClick={ onSave(draft,false) },enabled=draft.validFocal) { Text(stringResource(R.string.save)) }
     }) { padding ->

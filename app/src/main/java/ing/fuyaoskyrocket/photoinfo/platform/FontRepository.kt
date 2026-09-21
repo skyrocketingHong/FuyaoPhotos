@@ -18,6 +18,7 @@ class FontRepository(private val context: Context) {
     var typeface: Typeface = load(); private set
     val displayName: String? get() = preferences.getString("name", null)
         ?: if (bundledTypeface != null) "SF Mono Regular" else null
+    val selectionKey: String get() = preferences.getString("file", null) ?: "bundled-default"
     val hasCustomFont: Boolean get() = preferences.contains("file")
 
     private fun load(): Typeface {

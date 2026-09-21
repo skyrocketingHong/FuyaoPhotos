@@ -35,7 +35,10 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit) 
         zoomMin=zoomMin.toDoubleOrNull(),zoomMax=zoomMax.toDoubleOrNull(),physicalMin=physicalMin.toDoubleOrNull(),physicalMax=physicalMax.toDoubleOrNull())
     val numeric=listOf(zoomMin,zoomMax,physicalMin,physicalMax).all { it.isBlank() || it.toDoubleOrNull()?.isFinite()==true }
     val valid=draft.valid()&&numeric
-    val requestBack = rememberConfirmedBack(onBack)
+    val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
+        listOf(lens.device, lens.name, number(lens.equivalentMin), number(lens.equivalentMax), number(lens.zoomMin), number(lens.zoomMax), number(lens.physicalMin), number(lens.physicalMax)),
+        listOf(device, name, min, max, zoomMin, zoomMax, physicalMin, physicalMax), (2..7).toSet())
+    val requestBack = rememberConfirmedBack(onBack, hasChanges = changed)
     FuyaoScaffold(stringResource(R.string.configure_lens),onBack=requestBack,actions={
         TextButton(onClick={ onSave(draft) },enabled=valid) { Text(stringResource(R.string.save)) }
     }) { padding ->

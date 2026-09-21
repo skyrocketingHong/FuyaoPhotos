@@ -19,6 +19,7 @@ import ing.fuyaoskyrocket.photoinfo.data.settings.SettingsRepository
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardOverflowException
 import ing.fuyaoskyrocket.photoinfo.domain.model.*
 import ing.fuyaoskyrocket.photoinfo.domain.session.PhotoEditSnapshot
+import ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges
 import ing.fuyaoskyrocket.photoinfo.platform.CardRenderer
 import ing.fuyaoskyrocket.photoinfo.platform.FontRepository
 import kotlinx.coroutines.*
@@ -36,6 +37,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private val settingsRepository = SettingsRepository(application)
     private val geocoder = PhotoGeocoder(application)
     private var drafts = emptyList<SessionPhoto>()
+    private var baselines = saved.get<ArrayList<String>>("editBaselines").orEmpty().chunked(2)
+        .filter { it.size == 2 }.associate { it[0] to it[1] }
     private var source: PhotoSource? = null
     private var resolvedLocation = ""
     private var locationEdited = false
@@ -117,6 +120,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                     renderPreview(); return@launch
                 }
                 drafts = imported.toList()
+                baselines = drafts.associate { it.source.file.name to fingerprint(it) }
                 publishCollection()
                 // Commit the new private copies before deleting any previous session files.
                 saveSnapshots()
@@ -230,10 +234,11 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         val value = quality.coerceIn(0, 100)
         saved["jpegQuality"] = value
         state = state.copy(jpegQuality = value)
+        refreshChanges()
     }
     fun setKeepMetadata(keep: Boolean) {
         if (state.busy) return
-        saved["keepMetadata"] = keep; state = state.copy(keepCaptureMetadata = keep)
+        saved["keepMetadata"] = keep; state = state.copy(keepCaptureMetadata = keep); refreshChanges()
     }
     fun importFont(uri: Uri) {
         if (state.busy) return
@@ -243,7 +248,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
             try {
                 withContext(Dispatchers.IO) { fonts.import(uri) }
                 state = state.copy(busy = false, fontName = fonts.displayName, hasCustomFont = fonts.hasCustomFont)
-                renderPreview()
+                refreshChanges(); renderPreview()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) { state = state.copy(busy = false, error = errorMessage(failure)); renderPreview() }
             catch (failure: OutOfMemoryError) { state = state.copy(busy = false, error = errorMessage(failure)); renderPreview() }
@@ -251,7 +256,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     }
     fun resetFont() {
         if (state.busy) return
-        fonts.reset(); state = state.copy(fontName = fonts.displayName, hasCustomFont = fonts.hasCustomFont); renderPreview()
+        fonts.reset(); state = state.copy(fontName = fonts.displayName, hasCustomFont = fonts.hasCustomFont); refreshChanges(); renderPreview()
     }
 
     fun export(format: ExportFormat, destination: Uri? = null, directory: Uri? = null) {
@@ -262,6 +267,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         val typeface = fonts.typeface
         val keepMetadata = state.keepCaptureMetadata
         val jpegQuality = state.jpegQuality
+        val fontKey = fonts.selectionKey
         state = state.copy(busy = true, exporting = true, rendering = false, error = null, notice = null, exportCompleted = 0, exportTotal = snapshot.size)
         workJob = viewModelScope.launch {
             try {
@@ -277,7 +283,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                             drafts = drafts.toMutableList().apply { set(index, draft.copy(info = info, resolvedLocation = place)) }
                         }
                     }
-                    withContext(Dispatchers.IO) {
+                    val exported = withContext(Dispatchers.IO) {
                         val target = if (directory == null) destination else {
                             val parent = DocumentsContract.buildDocumentUriUsingTree(directory, DocumentsContract.getTreeDocumentId(directory))
                             DocumentsContract.createDocument(app.contentResolver, parent, format.mime, PhotoExporter.filename(format, draft.source.media.motion != null))
@@ -289,6 +295,9 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                             throw failure
                         }
                     }
+                    baselines = baselines + (draft.source.file.name to EditChanges.fingerprint(draft.snapshot(), jpegQuality, keepMetadata, fontKey))
+                    saveBaselines()
+                    exported
                 }
                 val active = drafts[state.photoIndex]
                 resolvedLocation = active.resolvedLocation
@@ -364,12 +373,17 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                 resolvedLocation = resolvedLocation, locationEdited = locationEdited)) }
         }
         saveSnapshots()
+        refreshChanges()
         val s = state.style
         saved["style.scale"] = s.scale; saved["style.opacity"] = s.opacity; saved["style.blur"] = s.blur
         saved["style.right"] = s.rightInset; saved["style.bottom"] = s.bottomInset
         saved["style.radius"] = s.cornerRadius; saved["style.textScale"] = s.textScale
     }
+    private fun fingerprint(draft: SessionPhoto) = EditChanges.fingerprint(draft.snapshot(), state.jpegQuality, state.keepCaptureMetadata, fonts.selectionKey)
+    private fun refreshChanges() { state = state.copy(hasChanges = drafts.any { baselines[it.source.file.name] != fingerprint(it) }) }
+    private fun saveBaselines() { saved["editBaselines"] = ArrayList(baselines.flatMap { listOf(it.key, it.value) }) }
     private fun saveSnapshots() {
+        saveBaselines()
         saved["session"] = ArrayList(drafts.flatMap { it.snapshot().fields() })
         saved["photoIndex"] = state.photoIndex
         saved.remove<String>("source")
@@ -377,6 +391,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         saved.remove<String>("resolvedLocation"); saved.remove<Boolean>("locationEdited")
     }
     private fun forgetSession() {
+        baselines = emptyMap(); saved.remove<ArrayList<String>>("editBaselines")
         saved.remove<ArrayList<String>>("session"); saved.remove<Int>("photoIndex"); saved.remove<String>("source")
         FieldId.entries.forEach { saved.remove<String>("field.${it.name}") }
         saved.remove<String>("resolvedLocation"); saved.remove<Boolean>("locationEdited")
