@@ -41,8 +41,8 @@
   <string name="original">Original</string>
   <string name="enlarge">Full-screen preview</string>
   <string name="export_size">Original resolution · %1$d × %2$d</string>
-  <string name="keep_metadata">Keep capture details</string>
-  <string name="export_boundary">HDR and Motion Photos require JPEG. Their video stays unchanged. If these data cannot be preserved, saving stops.</string>
+  <string name="keep_metadata">Keep EXIF capture details</string>
+  <string name="export_boundary">HDR and Motion Photos require JPEG. Video/audio are not re-encoded; metadata follows these options. Unsupported containers stop saving.</string>
   <string name="save">Save</string>
   <string name="cancel">Cancel</string>
   <string name="export_success">Photo saved</string>
@@ -166,7 +166,7 @@
   <string name="hardware_linked">Detected and linked</string>
   <string name="fixed_zoom_error">Fixed native focal length needs equal native zoom endpoints. Enter digital coverage in the field below.</string>
   <string name="read_photo_model">Use current photo model</string>
-  <string name="keep_metadata_hint">Photo GPS is excluded. Unchanged video may still contain location data.</string>
+  <string name="keep_metadata_hint">Device, lens and exposure details. Location and time are separate; video device metadata follows this choice.</string>
   <string name="error_import_title">Could not open photos</string>
   <string name="error_export_title">Some photos were not saved</string>
   <string name="error_font_title">Could not import font</string>
@@ -216,4 +216,12 @@
   <string name="preview_quality">%1$s · %2$s</string>
   <string name="original_size_preview">Original size</string>
   <string name="thumbnail_preview">Thumbnail</string>
+  <string name="keep_location">Keep location</string>
+  <string name="keep_location_hint">Retain original photo/video location, or remove it when off. Visible card text is unchanged.</string>
+  <string name="keep_capture_time">Keep capture time</string>
+  <string name="keep_capture_time_hint">Retain photo capture dates and video creation times. Turn off to omit the original capture time.</string>
+  <string name="export_defaults">Default save options</string>
+  <string name="export_defaults_hint">Used for each save. Temporary changes apply only to that save.</string>
+  <string name="export_temporary_hint">These choices apply to this save only, without changing defaults.</string>
+  <string name="video_metadata_unsupported">This video container cannot be safely cleaned. Adjust save options or use a supported original Motion Photo.</string>
 </resources>

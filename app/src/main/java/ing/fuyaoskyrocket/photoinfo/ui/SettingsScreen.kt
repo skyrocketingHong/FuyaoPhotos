@@ -2,6 +2,8 @@ package ing.fuyaoskyrocket.photoinfo.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
+import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsControls
+import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsSaver
 import ing.fuyaoskyrocket.photoinfo.ui.components.AboutDialog
 import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import androidx.compose.foundation.layout.*
@@ -26,10 +28,11 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
     var author by rememberSaveable { mutableStateOf(settings.defaultAuthor) }
     var geocode by rememberSaveable { mutableStateOf(settings.resolvePhotoLocation) }
     var mainFocal by rememberSaveable { mutableStateOf(settings.fallbackMainFocal) }
-    val draft=EditorSettings(author,geocode,mainFocal,settings.lenses)
+    var exportDefaults by rememberSaveable(stateSaver=ExportOptionsSaver) { mutableStateOf(settings.exportDefaults) }
+    val draft=EditorSettings(author,geocode,mainFocal,settings.lenses,exportDefaults)
     val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
         listOf(settings.defaultAuthor, settings.resolvePhotoLocation.toString(), settings.fallbackMainFocal),
-        listOf(author, geocode.toString(), mainFocal), setOf(2))
+        listOf(author, geocode.toString(), mainFocal), setOf(2)) || exportDefaults != settings.exportDefaults
     val requestBack = rememberConfirmedBack(onBack, hasChanges = changed, enabled = !showAbout)
     FuyaoScaffold(stringResource(R.string.settings),onBack=requestBack,actions={
         TextButton(onClick={ onSave(draft,false) },enabled=draft.validFocal) { Text(stringResource(R.string.save_settings)) }
@@ -38,6 +41,9 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
             SectionHeading(stringResource(R.string.default_author),stringResource(R.string.default_author_hint))
             OutlinedTextField(author,{ if(it.length<=512)author=it },Modifier.fillMaxWidth(),label={ Text(stringResource(R.string.field_author)) },maxLines=3)
             TextButton(onClick={ onSave(draft,true) },enabled=hasPhoto&&draft.validFocal) { Text(stringResource(R.string.save_apply_author)) }
+            HorizontalDivider()
+            SectionHeading(stringResource(R.string.export_defaults),stringResource(R.string.export_defaults_hint))
+            ExportOptionsControls(exportDefaults,{ exportDefaults=it })
             HorizontalDivider()
             SectionHeading(stringResource(R.string.section_metadata))
             val locationLabel=stringResource(R.string.resolve_location)

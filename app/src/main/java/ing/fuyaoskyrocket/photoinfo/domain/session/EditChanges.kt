@@ -13,12 +13,13 @@ object EditChanges {
     }
 
     /** Only user edits count: automatic GPS lookups do not create a discard warning. */
-    fun fingerprint(edit: PhotoEditSnapshot, quality: Int, keepMetadata: Boolean, font: String): String {
+    fun fingerprint(edit: PhotoEditSnapshot, quality: Int, keepMetadata: Boolean, font: String, keepLocation: Boolean = false, keepCaptureTime: Boolean = true): String {
         val location = edit.overrides[FieldId.LOCATION].orEmpty()
         val manualLocation = if (edit.locationEdited && location != edit.resolvedLocation) mapOf(FieldId.LOCATION to location) else emptyMap()
         val normalized = edit.copy(path = "", resolvedLocation = "", locationEdited = false,
             overrides = (edit.overrides - FieldId.LOCATION) + manualLocation)
-        val fields = normalized.fields() + listOf(quality.toString(), keepMetadata.toString(), font)
+        val fields = normalized.fields() + listOf(quality.toString(), keepMetadata.toString(), font) +
+            (if (keepLocation || !keepCaptureTime) listOf("metadata-v2", keepLocation.toString(), keepCaptureTime.toString()) else emptyList())
         val digest = MessageDigest.getInstance("SHA-256")
         fields.forEach { value ->
             val bytes = value.toByteArray(Charsets.UTF_8)

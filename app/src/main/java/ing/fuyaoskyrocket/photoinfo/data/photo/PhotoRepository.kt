@@ -108,7 +108,7 @@ class PhotoRepository(private val context: Context) {
             FieldId.ISO to exif?.getAttributeInt(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY, 0)
                 ?.takeIf { it > 0 }?.toString().orEmpty(),
         ))
-        val tags = CAPTURE_TAGS.mapNotNull { tag -> text(tag).takeIf { it.isNotEmpty() }?.let { tag to it } }.toMap()
+        val tags = ing.fuyaoskyrocket.photoinfo.domain.metadata.ExportMetadata.readableTags.mapNotNull { tag -> text(tag).takeIf { it.isNotEmpty() }?.let { tag to it } }.toMap()
         val media = ing.fuyaoskyrocket.photoinfo.domain.media.MotionPhoto.inspect(file, bounds.outMimeType.orEmpty(), exif?.getAttribute(ExifInterface.TAG_XMP))
         return PhotoSource(file, width, height, orientation, info, tags, coordinates, media)
     }
@@ -149,14 +149,4 @@ class PhotoRepository(private val context: Context) {
         } finally { oriented.recycle() }
     }
 
-    companion object {
-        // Explicit allowlist excludes GPS, serial numbers, MakerNote, XMP and embedded thumbnails.
-        private val CAPTURE_TAGS = listOf(
-            ExifInterface.TAG_MAKE, ExifInterface.TAG_MODEL, ExifInterface.TAG_LENS_MAKE,
-            ExifInterface.TAG_LENS_MODEL, ExifInterface.TAG_EXPOSURE_TIME, ExifInterface.TAG_F_NUMBER,
-            ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY, ExifInterface.TAG_FOCAL_LENGTH,
-            ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM, ExifInterface.TAG_DATETIME_ORIGINAL,
-            ExifInterface.TAG_OFFSET_TIME_ORIGINAL, ExifInterface.TAG_WHITE_BALANCE, ExifInterface.TAG_FLASH,
-        )
-    }
 }

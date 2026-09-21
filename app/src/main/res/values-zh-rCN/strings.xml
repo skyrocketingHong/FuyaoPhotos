@@ -41,8 +41,8 @@
   <string name="original">原图</string>
   <string name="enlarge">全屏预览</string>
   <string name="export_size">原图尺寸 · %1$d × %2$d</string>
-  <string name="keep_metadata">保留拍摄参数</string>
-  <string name="export_boundary">HDR 和动态照片需保存为 JPEG，视频保持原样。无法完整保留时会停止保存。</string>
+  <string name="keep_metadata">保留 EXIF 拍摄参数</string>
+  <string name="export_boundary">HDR 和动态照片需保存为 JPEG。视频和音频不转码，元数据按上述选项处理；不支持的封装会停止保存。</string>
   <string name="save">保存</string>
   <string name="cancel">取消</string>
   <string name="export_success">照片已保存</string>
@@ -166,7 +166,7 @@
   <string name="hardware_linked">已检测并关联</string>
   <string name="fixed_zoom_error">定焦镜头的原生倍率上下限应相同；数码变焦上限请填写在下方。</string>
   <string name="read_photo_model">使用当前照片型号</string>
-  <string name="keep_metadata_hint">不保留静态照片的 GPS；原样保留的视频仍可能包含位置信息。</string>
+  <string name="keep_metadata_hint">设备、镜头、曝光等参数；定位和时间分别设置。视频设备信息同步处理。</string>
   <string name="error_import_title">未能打开照片</string>
   <string name="error_export_title">有照片未能保存</string>
   <string name="error_font_title">未能导入字体</string>
@@ -216,4 +216,12 @@
   <string name="preview_quality">%1$s · %2$s</string>
   <string name="original_size_preview">原尺寸</string>
   <string name="thumbnail_preview">缩略预览</string>
+  <string name="keep_location">保留定位</string>
+  <string name="keep_location_hint">保留原照片和视频中的定位；关闭则移除。卡片上的地点文字不受影响。</string>
+  <string name="keep_capture_time">保留拍摄时间</string>
+  <string name="keep_capture_time_hint">保留照片拍摄日期和视频创建时间；关闭后不写入原拍摄时间。</string>
+  <string name="export_defaults">默认保存选项</string>
+  <string name="export_defaults_hint">长期生效，每次保存均可临时调整。</string>
+  <string name="export_temporary_hint">本次选择仅用于此次保存，不修改全局默认。</string>
+  <string name="video_metadata_unsupported">无法安全移除此视频封装的元数据。请调整保存选项，或换用受支持的动态照片原片。</string>
 </resources>

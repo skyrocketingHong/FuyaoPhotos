@@ -49,9 +49,12 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private var locationJob: Job? = null
     private var renderJob: Job? = null
     private var workJob: Job? = null
+    private val initialSettings = settingsRepository.read()
     var state by mutableStateOf(EditorState(style = readStyle(), fontName = fonts.displayName,
-        hasCustomFont = fonts.hasCustomFont, keepCaptureMetadata = saved["keepMetadata"] ?: true,
-        settings = settingsRepository.read(), jpegQuality = saved["jpegQuality"] ?: PhotoExporter.DEFAULT_JPEG_QUALITY)); private set
+        hasCustomFont = fonts.hasCustomFont, keepCaptureMetadata = saved["keepMetadata"] ?: initialSettings.exportDefaults.keepExif,
+        settings = initialSettings, jpegQuality = saved["jpegQuality"] ?: initialSettings.exportDefaults.jpegQuality,
+        keepLocation = saved["keepLocation"] ?: initialSettings.exportDefaults.keepLocation,
+        keepCaptureTime = saved["keepCaptureTime"] ?: initialSettings.exportDefaults.keepCaptureTime)); private set
 
     init {
         val session = saved.get<ArrayList<String>>("session")
@@ -250,6 +253,16 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         if (state.busy) return
         saved["keepMetadata"] = keep; state = state.copy(keepCaptureMetadata = keep); refreshChanges()
     }
+    fun setExportOptions(options: ExportOptions) {
+        if (state.busy) return
+        val value=options.sanitized()
+        saved["jpegQuality"]=value.jpegQuality; saved["keepMetadata"]=value.keepExif
+        saved["keepLocation"]=value.keepLocation; saved["keepCaptureTime"]=value.keepCaptureTime
+        state=state.copy(jpegQuality=value.jpegQuality,keepCaptureMetadata=value.keepExif,
+            keepLocation=value.keepLocation,keepCaptureTime=value.keepCaptureTime)
+        refreshChanges()
+    }
+    fun reportExternalError(message: Int) { state=state.copy(errorTitle=R.string.error_import_title,error=app.getString(message)) }
     fun importFont(uri: Uri) {
         if (state.busy) return
         renderJob?.cancel()
@@ -302,7 +315,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         val snapshot = drafts.toList()
         val settings = state.settings
         val typography = fonts.typography
-        val keepMetadata = state.keepCaptureMetadata
+        val options = state.exportOptions.copy(format=format)
+        val keepMetadata = options.keepExif
         val jpegQuality = state.jpegQuality
         val fontKey = fonts.selectionKey
         state = state.copy(busy = true, exporting = true, rendering = false, error = null, errorTitle = R.string.error_export_title, notice = null, exportCompleted = 0, exportTotal = snapshot.size)
@@ -326,13 +340,13 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                             DocumentsContract.createDocument(app.contentResolver, parent, format.mime, PhotoExporter.filename(format, draft.source.media.motion != null))
                                 ?: throw java.io.IOException("Cannot create exported photo")
                         }
-                        try { fullSizeMutex.withLock { ExportedPhoto(exporter.export(draft.source, info, draft.style, typography, format, keepMetadata, target, jpegQuality), format) } }
+                        try { fullSizeMutex.withLock { ExportedPhoto(exporter.export(draft.source, info, draft.style, typography, format, keepMetadata, target, jpegQuality, options), format) } }
                         catch (failure: Throwable) {
                             if (directory != null && target != null) runCatching { DocumentsContract.deleteDocument(app.contentResolver, target) }
                             throw failure
                         }
                     }
-                    baselines = baselines + (draft.source.file.name to EditChanges.fingerprint(draft.snapshot(), jpegQuality, keepMetadata, fontKey))
+                    baselines = baselines + (draft.source.file.name to EditChanges.fingerprint(draft.snapshot(), jpegQuality, keepMetadata, fontKey, options.keepLocation, options.keepCaptureTime))
                     saveBaselines()
                     exported
                 }
@@ -360,7 +374,9 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
             workJob?.cancelAndJoin(); renderJob?.cancelAndJoin(); locationJob?.cancelAndJoin()
             drafts = emptyList(); source = null; resolvedLocation = ""; locationEdited = false
             state = EditorState(style = state.style, settings = state.settings, fontName = fonts.displayName,
-                hasCustomFont = fonts.hasCustomFont, keepCaptureMetadata = state.keepCaptureMetadata, closing = true, busy = true, closingInBackground = !showProgress)
+                hasCustomFont = fonts.hasCustomFont, keepCaptureMetadata = state.settings.exportDefaults.keepExif,
+                jpegQuality = state.settings.exportDefaults.jpegQuality, keepLocation = state.settings.exportDefaults.keepLocation,
+                keepCaptureTime = state.settings.exportDefaults.keepCaptureTime, closing = true, busy = true, closingInBackground = !showProgress)
             fullSizeMutex.withLock { withContext(Dispatchers.IO) { photos.removeOtherDrafts(emptyList()) } }
             state = state.copy(closing = false, busy = false, closingInBackground = false)
             onClosed()
@@ -416,7 +432,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         saved["style.right"] = s.rightInset; saved["style.bottom"] = s.bottomInset
         saved["style.radius"] = s.cornerRadius; saved["style.textScale"] = s.textScale
     }
-    private fun fingerprint(draft: SessionPhoto) = EditChanges.fingerprint(draft.snapshot(), state.jpegQuality, state.keepCaptureMetadata, fonts.selectionKey)
+    private fun fingerprint(draft: SessionPhoto) = EditChanges.fingerprint(draft.snapshot(), state.jpegQuality, state.keepCaptureMetadata, fonts.selectionKey, state.keepLocation, state.keepCaptureTime)
     private fun refreshChanges() { state = state.copy(hasChanges = drafts.any { baselines[it.source.file.name] != fingerprint(it) }) }
     private fun saveBaselines() { saved["editBaselines"] = ArrayList(baselines.flatMap { listOf(it.key, it.value) }) }
     private fun saveSnapshots() {

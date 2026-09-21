@@ -42,6 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.data.export.PhotoExporter
+import ing.fuyaoskyrocket.photoinfo.domain.model.ExportOptions
+import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsControls
+import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsSaver
 import ing.fuyaoskyrocket.photoinfo.domain.model.ExportFormat
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorViewModel
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorControls
@@ -75,7 +78,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     }
     val importConfirmedPhotos: (List<Uri>) -> Unit = { uris ->
         if (uris.isNotEmpty()) {
-            if (state.settings.resolvePhotoLocation && Build.VERSION.SDK_INT >= 29 &&
+            if ((state.settings.resolvePhotoLocation || state.settings.exportDefaults.keepLocation) && Build.VERSION.SDK_INT >= 29 &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 pendingPhotos = ArrayList(uris.map(Uri::toString))
                 photoPermission.launch(Manifest.permission.ACCESS_MEDIA_LOCATION)
@@ -241,8 +244,10 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             dismissButton = { TextButton(onClick = { replacementPhotos = null }) { Text(stringResource(R.string.continue_editing)) } })
     }
     if (showExport) ExportDialog(
-        width = state.width, height = state.height, count = state.photos.size, jpegRequired = state.exportRequiresJpeg, keepMetadata = state.keepCaptureMetadata,
-        quality = state.jpegQuality, onQuality = vm::setJpegQuality, onMetadata = vm::setKeepMetadata, onDismiss = { showExport = false }, onExport = { format ->
+        width = state.width, height = state.height, count = state.photos.size, jpegRequired = state.exportRequiresJpeg, defaults = state.settings.exportDefaults,
+        onDismiss = { showExport = false }, onExport = { options ->
+            vm.setExportOptions(options)
+            val format=options.format
             showExport = false
             if (Build.VERSION.SDK_INT >= 29) vm.export(format)
             else if (state.photos.size > 1) { folderFormat = format.name; exportFolder.launch(null) }
@@ -264,9 +269,9 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Boolean, keepMetadata: Boolean,
-    quality: Int, onQuality: (Int) -> Unit, onMetadata: (Boolean) -> Unit, onDismiss: () -> Unit, onExport: (ExportFormat) -> Unit) {
-    var png by rememberSaveable(jpegRequired) { mutableStateOf(false) }
+private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Boolean, defaults: ExportOptions,
+    onDismiss: () -> Unit, onExport: (ExportOptions) -> Unit) {
+    var options by rememberSaveable(stateSaver=ExportOptionsSaver) { mutableStateOf(defaults.sanitized(jpegRequired)) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var submitting by remember { mutableStateOf(false) }
@@ -276,36 +281,8 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
             Text(if(count>1) stringResource(R.string.batch_export,count) else stringResource(R.string.export), style = MaterialTheme.typography.headlineSmall)
             Text(if(count>1) stringResource(R.string.batch_export_size,count) else stringResource(R.string.export_size, width, height),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                SegmentedButton(selected = !png, onClick = { png = false },
-                    shape = SegmentedButtonDefaults.itemShape(0, 2), modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.format_jpeg))
-                }
-                SegmentedButton(selected = png, onClick = { png = true }, enabled = !jpegRequired,
-                    shape = SegmentedButtonDefaults.itemShape(1, 2), modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.format_png))
-                }
-            }
-            if (!png) {
-                val qualityLabel = stringResource(R.string.jpeg_quality)
-                Row(Modifier.fillMaxWidth()) {
-                    Text(qualityLabel, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                    Text(stringResource(R.string.value_percent,quality), style = MaterialTheme.typography.labelLarge)
-                }
-                Slider(value = quality.toFloat(), onValueChange = { onQuality(it.roundToInt()) }, valueRange = 0f..100f, steps = 99,
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = qualityLabel })
-                Text(stringResource(R.string.jpeg_quality_hint),
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                .toggleable(value = keepMetadata, role = Role.Checkbox, onValueChange = onMetadata),
-                verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = keepMetadata, onCheckedChange = null)
-                Spacer(Modifier.width(16.dp))
-                Text(stringResource(R.string.keep_metadata), style = MaterialTheme.typography.bodyLarge)
-            }
-            Text(stringResource(R.string.keep_metadata_hint), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.export_temporary_hint),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            ExportOptionsControls(options,{ options=it },jpegRequired)
             Text(stringResource(R.string.export_boundary), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(enabled = !submitting, onClick = {
@@ -313,7 +290,7 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
                 scope.launch {
                     try {
                         sheetState.hide()
-                        onExport(if (png && !jpegRequired) ExportFormat.PNG else ExportFormat.JPEG)
+                        onExport(options.sanitized(jpegRequired))
                     } finally { submitting = false }
                 }
             }, modifier = Modifier.fillMaxWidth()) { Text(if(count>1)stringResource(R.string.batch_export,count) else stringResource(R.string.export)) }

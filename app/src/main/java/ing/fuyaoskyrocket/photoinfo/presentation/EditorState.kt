@@ -29,6 +29,8 @@ data class EditorState(
     val fontName: String? = null,
     val hasCustomFont: Boolean = false,
     val keepCaptureMetadata: Boolean = true,
+    val keepLocation: Boolean = false,
+    val keepCaptureTime: Boolean = true,
     val exported: ExportedPhoto? = null,
     val settings: EditorSettings = EditorSettings(),
     val locationStatus: LocationStatus = LocationStatus.IDLE,
@@ -52,6 +54,8 @@ data class EditorState(
     val exportRequiresJpeg: Boolean = false,
     val jpegQuality: Int = ing.fuyaoskyrocket.photoinfo.data.export.PhotoExporter.DEFAULT_JPEG_QUALITY,
 ) {
+    val exportOptions get() = ing.fuyaoskyrocket.photoinfo.domain.model.ExportOptions(jpegQuality = jpegQuality,
+        keepExif = keepCaptureMetadata, keepLocation = keepLocation, keepCaptureTime = keepCaptureTime)
     val canExport get() = photos.isNotEmpty() && !busy && !rendering &&
         (photos.size > 1 || (original != null && previewError == null && !preservationBlocked))
 }

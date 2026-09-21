@@ -11,6 +11,7 @@ import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.ExportMetadata
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.data.photo.PhotoRepository
 import ing.fuyaoskyrocket.photoinfo.data.photo.PhotoSource
@@ -29,7 +30,8 @@ import kotlinx.coroutines.ensureActive
 class PhotoExporter(private val context: Context, private val photos: PhotoRepository) {
     private val renderer=CardRenderer()
     suspend fun export(source:PhotoSource,info:PhotoInfo,style:CardStyle,typography:CardTypography,
-        format:ExportFormat,keepCaptureMetadata:Boolean,destination:Uri?=null,jpegQuality:Int=DEFAULT_JPEG_QUALITY):Uri {
+        format:ExportFormat,keepCaptureMetadata:Boolean,destination:Uri?=null,jpegQuality:Int=DEFAULT_JPEG_QUALITY,
+        options:ExportOptions=ExportOptions(format,jpegQuality,keepCaptureMetadata,keepCaptureTime=keepCaptureMetadata)):Uri {
         val media=source.media
         require(!media.blocked) { context.getString(R.string.media_unsupported) }
         require(!media.hdrHint || Build.VERSION.SDK_INT>=34) { context.getString(R.string.hdr_requires_android14) }
@@ -40,7 +42,13 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         val encoded=File.createTempFile("encoded-",".${format.extension}",context.cacheDir)
         val assembled=File.createTempFile("export-",".${format.extension}",context.cacheDir)
         val metadata=File.createTempFile("metadata-",".jpg",context.cacheDir)
+        val videoFile=File.createTempFile("video-", ".mp4", context.cacheDir)
+        val selectedTags=ExportMetadata.select(source.captureTags,options)
         try {
+            if(media.motion!=null) {
+                try { VideoMetadata.copy(source.file,media.motion.offset,media.motion.length,videoFile,options) }
+                catch(failure:Exception) { throw IOException(context.getString(R.string.video_metadata_unsupported),failure) }
+            }
             if(peak>freeHeap*.8)throw OutOfMemoryError()
             var expectedGain:FloatArray?=null
             var expectedColor:String?=null
@@ -61,24 +69,24 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 }
             } finally { bitmap.recycle() }
             if(format==ExportFormat.JPEG) {
-                val exif=if(keepCaptureMetadata) {
+                val exif=if(selectedTags.isNotEmpty()) {
                     val tiny=Bitmap.createBitmap(1,1,Bitmap.Config.ARGB_8888)
                     try { metadata.outputStream().use { check(tiny.compress(Bitmap.CompressFormat.JPEG,90,it)) } } finally { tiny.recycle() }
-                    writeCaptureExif(metadata,source)
+                    writeCaptureExif(metadata,source,selectedTags)
                     JpegContainer.exif(JpegContainer.inspect(metadata))
                 } else emptyList()
                 val layout=JpegContainer.inspect(encoded)
                 JpegContainer.rewrite(encoded,assembled,exif,MotionPhoto.xmp(layout,media.motion))
                 // Assemble into private storage, then validate before publishing any output.
                 if(media.motion!=null) {
-                    java.io.FileOutputStream(assembled,true).use { JpegContainer.copyRange(source.file,media.motion.offset,media.motion.length,it) }
+                    java.io.FileOutputStream(assembled,true).use { JpegContainer.copyRange(videoFile,0,media.motion.length,it) }
                 }
                 val verified=MotionPhoto.inspect(assembled,"image/jpeg")
                 require(!verified.blocked) { context.getString(R.string.media_validation_failed) }
                 media.motion?.let { original ->
                     val video=requireNotNull(verified.motion)
                     require(video.length==original.length && video.timestampUs==original.timestampUs &&
-                        MotionPhoto.digest(source.file,original.offset,original.length).contentEquals(MotionPhoto.digest(assembled,video.offset,video.length))) { context.getString(R.string.media_validation_failed) }
+                        MotionPhoto.digest(videoFile,0,original.length).contentEquals(MotionPhoto.digest(assembled,video.offset,video.length))) { context.getString(R.string.media_validation_failed) }
                 }
                 val options=BitmapFactory.Options().apply {
                     var sample=1
@@ -94,18 +102,19 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 } finally { checkBitmap.recycle() }
             } else {
                 encoded.copyTo(assembled,overwrite=true)
-                if(keepCaptureMetadata)writeCaptureExif(assembled,source)
+                if(selectedTags.isNotEmpty())writeCaptureExif(assembled,source,selectedTags)
             }
             currentCoroutineContext().ensureActive()
-            return publish(assembled,format,destination,media.motion!=null)
+            return publish(assembled,format,destination,media.motion!=null,
+                if(options.keepCaptureTime) ExportMetadata.capturedAt(selectedTags) else null)
         } catch(failure:Throwable) {
             if(destination!=null)runCatching { DocumentsContract.deleteDocument(context.contentResolver,destination) }
             throw failure
-        } finally { encoded.delete();assembled.delete();metadata.delete() }
+        } finally { encoded.delete();assembled.delete();metadata.delete();videoFile.delete() }
     }
-    private fun writeCaptureExif(file:File,source:PhotoSource) {
+    private fun writeCaptureExif(file:File,source:PhotoSource,tags:Map<String,String>) {
         ExifInterface(file).apply {
-            source.captureTags.forEach { (tag,value)->setAttribute(tag,value) }
+            tags.forEach { (tag,value)->setAttribute(tag,value) }
             setAttribute(ExifInterface.TAG_ORIENTATION,"1")
             setAttribute(ExifInterface.TAG_IMAGE_WIDTH,source.width.toString());setAttribute(ExifInterface.TAG_IMAGE_LENGTH,source.height.toString())
             setAttribute(ExifInterface.TAG_PIXEL_X_DIMENSION,source.width.toString());setAttribute(ExifInterface.TAG_PIXEL_Y_DIMENSION,source.height.toString())
@@ -113,12 +122,13 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             saveAttributes()
         }
     }
-    private fun publish(file:File,format:ExportFormat,destination:Uri?,motion:Boolean):Uri {
+    private fun publish(file:File,format:ExportFormat,destination:Uri?,motion:Boolean,capturedAt:Long?):Uri {
         val resolver=context.contentResolver;val gallery=destination==null
         val uri=destination ?: run {
             check(Build.VERSION.SDK_INT>=29)
             resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME,filename(format,motion));put(MediaStore.Images.Media.MIME_TYPE,format.mime)
+                if(capturedAt!=null)put(MediaStore.Images.Media.DATE_TAKEN,capturedAt)
                 put(MediaStore.Images.Media.RELATIVE_PATH,"${Environment.DIRECTORY_PICTURES}/FuyaoPhotoInfo");put(MediaStore.Images.Media.IS_PENDING,1)
             }) ?: throw IOException("Cannot create gallery item")
         }
