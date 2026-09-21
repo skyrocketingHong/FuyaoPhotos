@@ -16,17 +16,17 @@ or endorsed by, or affiliated with, Apple Inc. Apple, iPhone and macOS are
 trademarks of Apple Inc. References to Apple products, fonts or visual styles do
 not imply affiliation, certification or permission to use Apple materials.
 
-This local checkout uses SF Pro Rounded from macOS (weight 500, cv05 capital-I
-alternate) for letters and punctuation, and SF Mono Medium from Terminal for
-ASCII digits. This is a reference-style approximation, not an identification of
+This local checkout uses SF Compact Rounded from macOS (weight 500, centered colons,
+seriffed capital I and proportional figures) for letters, punctuation and digit 1.
+SF Mono Medium from Terminal supplies only ASCII digits 0 and 2-9. This is a reference-style approximation, not an identification of
 the exact fonts used in Apple materials.
 The font binary and original reference folder are Git-ignored local assets.
 Selected README screenshots and the exported sample are versioned under
 assets/readme/; Apple and the respective photographers retain their image rights.
 These font and image assets are not covered by the project's AGPL-3.0-only source
 license; see assets/readme/README.md for their sources. APKs built while the
-fonts are present include them; builds without them use system sans-serif letters
-and monospace digits.
+fonts are present include them; builds without them use system proportional glyphs
+and selected monospace digits.
 Apple fonts remain subject to their applicable licenses. Neither the project
 license, the copying script nor this notice grants embedding or redistribution
 rights. Distribute an APK containing an Apple font only with a license covering

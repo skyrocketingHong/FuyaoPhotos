@@ -29,16 +29,17 @@ class CardTypographyTest {
     private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
     private fun reference()=FontRepository(context).defaultTypography
 
-    @Test fun digitsAreMonospacedWhileBracketsAndSpacesUseTheLetterFace() {
+    @Test fun oneIsProportionalWhileOtherSelectedDigitsStayMonospaced() {
         val typography=reference()
         val renderer=CardTextRenderer(typography,40f)
-        assertEquals(renderer.measure("111"),renderer.measure("888"),.01f)
+        assertEquals(renderer.measure("222"),renderer.measure("888"),.01f)
+        assertTrue(renderer.measure("1")<renderer.measure("8"))
         assertTrue(renderer.measure("(")<renderer.measure("8"))
         assertTrue(renderer.measure(" ")<renderer.measure("8"))
         val text="24 MM (1X)"
         val styled=renderer.styledText(text) as Spanned
         val spans=styled.getSpans(0,text.length,MetricAffectingSpan::class.java)
-        assertEquals(listOf("24","1"),spans.map { text.substring(styled.getSpanStart(it),styled.getSpanEnd(it)) })
+        assertEquals(listOf("24"),spans.map { text.substring(styled.getSpanStart(it),styled.getSpanEnd(it)) })
         spans.forEach { span ->
             val measurement=TextPaint().apply { fontFeatureSettings="'cv05' 1" }
             val drawing=TextPaint(measurement)
@@ -47,6 +48,25 @@ class CardTypographyTest {
             assertSame(measurement.typeface,drawing.typeface)
             assertNull(drawing.fontFeatureSettings)
         }
+    }
+
+    @Test fun centeredColonUsesTheBaseFontFeatureWithoutMovingItsBaseline() {
+        val typography=reference()
+        if (!context.assets.list("fonts").orEmpty().contains("SF-Compact-Rounded.ttf")) return
+        assertEquals("'cv04' 1, 'cv05' 1, 'pnum' 1",typography.letterFeatures)
+        val styled=CardTextRenderer(typography,60f).styledText(":1") as Spanned
+        assertTrue(styled.getSpans(0,styled.length,MetricAffectingSpan::class.java).isEmpty())
+        fun center(text:String):Float {
+            val bitmap=Bitmap.createBitmap(120,100,Bitmap.Config.ARGB_8888)
+            try {
+                CardTextRenderer(typography,60f).draw(Canvas(bitmap),text,10f,0f,80f,Color.WHITE)
+                val pixels=IntArray(120*100);bitmap.getPixels(pixels,0,120,0,0,120,100)
+                val rows=(0 until 100).filter { y -> (0 until 120).any { x -> Color.alpha(pixels[y*120+x])>128 } }
+                assertTrue(rows.isNotEmpty())
+                return (rows.first()+rows.last())/2f
+            } finally { bitmap.recycle() }
+        }
+        assertEquals(center("H"),center(":"),2f)
     }
 
     @Test fun customFontsRemainUniformIncludingDigitsAndPunctuation() {

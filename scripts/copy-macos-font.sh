@@ -16,5 +16,5 @@ copy_font() {
     cmp "$source" "$target"
     printf 'Local card font: %s\n' "$target"
 }
-copy_font '/System/Library/Fonts/SFNSRounded.ttf' 'SF-Pro-Rounded.ttf'
+copy_font '/System/Library/Fonts/SFCompactRounded.ttf' 'SF-Compact-Rounded.ttf'
 copy_font '/System/Applications/Utilities/Terminal.app/Contents/Resources/Fonts/SF-Mono-Medium.otf' 'SF-Mono-Medium.otf'

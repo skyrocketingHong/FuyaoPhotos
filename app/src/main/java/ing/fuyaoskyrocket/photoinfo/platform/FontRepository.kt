@@ -14,7 +14,7 @@ class FontRepository(private val context: Context) {
     private val preferences = context.getSharedPreferences("font", Context.MODE_PRIVATE)
     private val directory = File(context.filesDir, "fonts").apply { mkdirs() }
     private val roundedTypeface = runCatching {
-        Typeface.Builder(context.assets, "fonts/SF-Pro-Rounded.ttf")
+        Typeface.Builder(context.assets, "fonts/SF-Compact-Rounded.ttf")
             .setFontVariationSettings("'wght' 500").setWeight(500).build()
     }.getOrNull()
     private val monoTypeface = runCatching {
@@ -23,15 +23,16 @@ class FontRepository(private val context: Context) {
     internal val defaultTypography = CardTypography(
         letters = roundedTypeface ?: Typeface.create("sans-serif-medium", Typeface.NORMAL),
         numbers = monoTypeface ?: if (Build.VERSION.SDK_INT >= 28) Typeface.create(Typeface.MONOSPACE, 500, false) else Typeface.MONOSPACE,
-        // cv05 keeps the legible, seriffed capital I within the rounded family.
-        letterFeatures = if (roundedTypeface != null) "'cv05' 1" else null,
+        // cv04 centers colons vertically; cv05 keeps the legible capital I.
+        // pnum preserves the narrow base-font 1 rather than a tabular alternate.
+        letterFeatures = if (roundedTypeface != null) "'cv04' 1, 'cv05' 1, 'pnum' 1" else "'pnum' 1",
         mixedDigits = true,
     )
     var typography: CardTypography = load(); private set
     val displayName: String get() = preferences.getString("name", null)
         ?: context.getString(if (roundedTypeface != null && monoTypeface != null) R.string.reference_fonts else R.string.system_mixed_fonts)
     val selectionKey: String get() = preferences.getString("file", null)
-        ?: "reference-v2:${roundedTypeface != null}:${monoTypeface != null}"
+        ?: "reference-v3-compact-one-colon:${roundedTypeface != null}:${monoTypeface != null}"
     val hasCustomFont: Boolean get() = preferences.contains("file")
 
     private fun load(): CardTypography {

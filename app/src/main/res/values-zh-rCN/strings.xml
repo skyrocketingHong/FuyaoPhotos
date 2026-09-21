@@ -207,6 +207,6 @@
   <string name="focal_example">24</string>
   <string name="about_version">%1$s（%2$s）· %3$s</string>
   <string name="about_credit">AGPL-3.0-only · 扶摇skyrocketing</string>
-  <string name="reference_fonts">SF Pro Rounded Medium + SF Mono Medium</string>
-  <string name="system_mixed_fonts">系统无衬线字母 + 等宽数字</string>
+  <string name="reference_fonts">SF Compact Rounded Medium + SF Mono Medium</string>
+  <string name="system_mixed_fonts">系统比例字形 + 等宽字形混排</string>
 </resources>

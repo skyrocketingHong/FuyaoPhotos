@@ -2,17 +2,17 @@
 
 Local default typography uses two independent faces:
 
-- `SF-Pro-Rounded.ttf`: copied byte-for-byte from `/System/Library/Fonts/SFNSRounded.ttf`, loaded at `wght=500`; `cv05` enables the seriffed capital I.
-- `SF-Mono-Medium.otf`: copied byte-for-byte from the macOS Terminal font bundle; used for ASCII digits 0–9.
+- `SF-Compact-Rounded.ttf`: copied byte-for-byte from `/System/Library/Fonts/SFCompactRounded.ttf`, loaded at `wght=500`; `cv04` centers colons vertically, `cv05` enables the seriffed capital I, and `pnum` preserves the proportional digit `1` (without `cv09`).
+- `SF-Mono-Medium.otf`: copied byte-for-byte from the macOS Terminal font bundle; used only for ASCII digits `0` and `2`–`9`; `1` stays in Compact Rounded.
 
 Spaces, punctuation, parentheses and decimal separators use the proportional
-letter face. Android measurement, wrapping, color rendering and HDR text coverage
+base face. Android measurement, wrapping, color rendering and HDR text coverage
 share the same styled text. The 10.5 px font-size and 12.5 px line-height reference
 remain unchanged and scale with the photo short edge and text-size control.
 
 The combination approximates the reference screenshots; it is not a verified
 identification of the fonts used in Apple materials. Without local font binaries,
-builds fall back to system sans-serif letters and monospace digits. A custom
+builds fall back to system proportional glyphs (including `1`) and the selected monospace digits. A custom
 TTF/OTF/TTC replaces both faces and does not receive the reference OpenType features.
 
 Font binaries stay Git-ignored. `scripts/copy-macos-font.sh` copies bytes without

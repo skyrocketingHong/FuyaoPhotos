@@ -17,6 +17,7 @@ import kotlin.math.ceil
 
 /** Immutable font selection, captured together for each preview/export operation. */
 data class CardTypography(
+    // Proportional base face also owns punctuation and the narrow digit 1.
     val letters: Typeface,
     val numbers: Typeface = letters,
     val letterFeatures: String? = null,
@@ -46,7 +47,7 @@ class CardTextRenderer(private val typography: CardTypography, fontSize: Float) 
     internal fun styledText(text: String): CharSequence {
         if (!typography.mixedDigits) return text
         return SpannableString(text).apply {
-            CardFontRuns.digits(text).forEach { range ->
+            CardFontRuns.monospacedDigits(text).forEach { range ->
                 setSpan(DigitTypefaceSpan(typography.numbers), range.start, range.end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         }

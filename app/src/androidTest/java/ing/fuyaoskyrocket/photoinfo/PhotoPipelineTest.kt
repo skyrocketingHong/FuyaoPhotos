@@ -90,7 +90,7 @@ class PhotoPipelineTest {
     @Test fun bundledFontIsDefaultAndResetRestoresIt() {
         val fonts = FontRepository(context)
         fonts.reset()
-        val bundled = context.assets.list("fonts").orEmpty().asList().containsAll(listOf("SF-Pro-Rounded.ttf", "SF-Mono-Medium.otf"))
+        val bundled = context.assets.list("fonts").orEmpty().asList().containsAll(listOf("SF-Compact-Rounded.ttf", "SF-Mono-Medium.otf"))
         assertEquals(context.getString(if(bundled)R.string.reference_fonts else R.string.system_mixed_fonts), fonts.displayName)
         assertTrue(fonts.typography.mixedDigits)
         assertFalse(fonts.hasCustomFont)
