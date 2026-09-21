@@ -3,6 +3,7 @@ package ing.fuyaoskyrocket.photoinfo
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.BitmapFactory
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
@@ -18,6 +19,12 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CancellationException
+import ing.fuyaoskyrocket.photoinfo.platform.CardRenderer
+import ing.fuyaoskyrocket.photoinfo.platform.FontRepository
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -85,6 +92,46 @@ class EditorSessionTest {
             onMain { store.clear() }
             app.cleanPreferences()
             root.deleteRecursively()
+        }
+    }
+
+    @Test fun fullScreenLoadsOriginalPixelsWithoutReplacingTheEditorThumbnail() {
+        val context=instrumentation.targetContext
+        val root=File(context.cacheDir,"detail-test-${UUID.randomUUID()}").apply { mkdirs() }
+        val app=IsolatedApplication(context,root)
+        val original=File(root,"original.jpg")
+        val source=Bitmap.createBitmap(2400,1600,Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GRAY) }
+        try { original.outputStream().use { source.compress(Bitmap.CompressFormat.JPEG,100,it) } }
+        finally { source.recycle() }
+        val store=ViewModelStore();lateinit var vm:EditorViewModel
+        var id="";var info=PhotoInfo();var style=CardStyle();var thumbnail:Bitmap?=null
+        try {
+            SettingsRepository(app).save(EditorSettings(resolvePhotoLocation=false))
+            onMain { vm=EditorViewModel(app,SavedStateHandle());store.put("editor",vm);vm.importPhoto(Uri.fromFile(original)) }
+            awaitReady(vm)
+            onMain { vm.updateField(FieldId.AUTHOR,"LEICA 1 28") }
+            awaitReady(vm)
+            onMain {
+                id=vm.state.photos.single().id;info=vm.state.info;style=vm.state.style;thumbnail=vm.state.preview
+                assertTrue(requireNotNull(thumbnail).width<=2048)
+            }
+            val expected=BitmapFactory.decodeFile(original.absolutePath,BitmapFactory.Options().apply { inMutable=true })
+            val detail=runBlocking { withContext(Dispatchers.Main) { vm.fullResolutionPreview(id,false) } }
+            try {
+                assertEquals(2400,detail.width);assertEquals(1600,detail.height)
+                CardRenderer().drawInPlace(expected,info,style,FontRepository(app).typography)
+                assertTrue(expected.sameAs(detail))
+                onMain { assertSame(thumbnail,vm.state.preview);assertFalse(vm.state.busy) }
+            } finally { detail.recycle();expected.recycle() }
+            val unedited=BitmapFactory.decodeFile(original.absolutePath)
+            val fullOriginal=runBlocking { withContext(Dispatchers.Main) { vm.fullResolutionPreview(id,true) } }
+            try { assertTrue(unedited.sameAs(fullOriginal)) }
+            finally { unedited.recycle();fullOriginal.recycle() }
+            val rejected=runCatching { runBlocking { withContext(Dispatchers.Main) { vm.fullResolutionPreview("stale-id",false) } } }.exceptionOrNull()
+            assertTrue(rejected is CancellationException)
+        } finally {
+            onMain { store.clear() }
+            app.cleanPreferences();root.deleteRecursively()
         }
     }
 

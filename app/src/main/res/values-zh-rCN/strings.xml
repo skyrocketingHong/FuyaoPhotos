@@ -209,4 +209,11 @@
   <string name="about_credit">AGPL-3.0-only · 扶摇skyrocketing</string>
   <string name="reference_fonts">SF Compact Rounded Medium + SF Mono Medium</string>
   <string name="system_mixed_fonts">系统比例字形 + 等宽字形混排</string>
+  <string name="full_preview_error">无法加载原尺寸预览</string>
+  <string name="retry_preview">重新加载</string>
+  <string name="keep_thumbnail_preview">继续查看缩略预览</string>
+  <string name="full_preview_loading">正在加载原尺寸预览…</string>
+  <string name="preview_quality">%1$s · %2$s</string>
+  <string name="original_size_preview">原尺寸</string>
+  <string name="thumbnail_preview">缩略预览</string>
 </resources>

@@ -209,4 +209,11 @@
   <string name="about_credit">AGPL-3.0-only · 扶摇skyrocketing</string>
   <string name="reference_fonts">SF Compact Rounded Medium + SF Mono Medium</string>
   <string name="system_mixed_fonts">System proportional + monospace mix</string>
+  <string name="full_preview_error">Original-size preview unavailable</string>
+  <string name="retry_preview">Retry loading</string>
+  <string name="keep_thumbnail_preview">Continue with thumbnail</string>
+  <string name="full_preview_loading">Loading original-size preview…</string>
+  <string name="preview_quality">%1$s · %2$s</string>
+  <string name="original_size_preview">Original size</string>
+  <string name="thumbnail_preview">Thumbnail</string>
 </resources>

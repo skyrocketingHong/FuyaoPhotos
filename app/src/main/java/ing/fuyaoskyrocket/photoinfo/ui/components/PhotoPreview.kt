@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.stateDescription
@@ -30,7 +31,12 @@ import androidx.core.view.WindowCompat
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.layout.PreviewViewport
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Job
+import ing.fuyaoskyrocket.photoinfo.presentation.PhotoFailureMessages
+import ing.fuyaoskyrocket.photoinfo.presentation.PhotoOperation
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -42,15 +48,42 @@ fun PhotoPreview(bitmap:Bitmap?,modifier:Modifier=Modifier) {
 }
 
 @Composable
-fun FullScreenPreview(bitmap:Bitmap,onDismiss:()->Unit) {
-    var scale by remember(bitmap) { mutableFloatStateOf(1f) }
-    var offset by remember(bitmap) { mutableStateOf(Offset.Zero) }
+fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()->Bitmap,onDismiss:()->Unit) {
+    val context=LocalContext.current
+    val currentLoader by rememberUpdatedState(loadFullResolution)
+    var detail by remember(photoId,bitmap) { mutableStateOf<Bitmap?>(null) }
+    var loading by remember(photoId,bitmap) { mutableStateOf(true) }
+    var failure by remember(photoId,bitmap) { mutableStateOf<String?>(null) }
+    var retry by remember(photoId,bitmap) { mutableIntStateOf(0) }
+    LaunchedEffect(photoId,bitmap,retry) {
+        var pending:Bitmap?=null
+        loading=true;failure=null
+        try {
+            val result=currentLoader().also { pending=it }
+            currentCoroutineContext().ensureActive()
+            detail=result;pending=null
+        } catch(cancelled:CancellationException) { throw cancelled }
+        catch(error:Exception) { failure=PhotoFailureMessages.describe(context,error,PhotoOperation.PREVIEW) }
+        catch(error:OutOfMemoryError) { failure=PhotoFailureMessages.describe(context,error,PhotoOperation.PREVIEW) }
+        finally { pending?.recycle();loading=false }
+    }
+    // The published bitmap stays alive while Compose draws it; only unpublished results are recycled.
+    val displayed=detail ?: bitmap
+    val currentBitmap by rememberUpdatedState(displayed)
+    failure?.let { message ->
+        AlertDialog(onDismissRequest={ failure=null },
+            title={ Text(stringResource(R.string.full_preview_error)) },text={ Text(message) },
+            confirmButton={ TextButton(onClick={ retry++ }) { Text(stringResource(R.string.retry_preview)) } },
+            dismissButton={ TextButton(onClick={ failure=null }) { Text(stringResource(R.string.keep_thumbnail_preview)) } })
+    }
+    var scale by remember(photoId) { mutableFloatStateOf(1f) }
+    var offset by remember(photoId) { mutableStateOf(Offset.Zero) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
     val scope=rememberCoroutineScope()
     var resetJob by remember { mutableStateOf<Job?>(null) }
-    DisposableEffect(bitmap) { onDispose { resetJob?.cancel() } }
+    DisposableEffect(photoId) { onDispose { resetJob?.cancel() } }
     fun bounded(value:Offset,zoom:Float):Offset {
-        val pan=PreviewViewport.clamp(bitmap.width,bitmap.height,viewport.width,viewport.height,zoom,value.x,value.y)
+        val pan=PreviewViewport.clamp(currentBitmap.width,currentBitmap.height,viewport.width,viewport.height,zoom,value.x,value.y)
         return Offset(pan.x,pan.y)
     }
     fun moveTo(target:Float) {
@@ -80,7 +113,7 @@ fun FullScreenPreview(bitmap:Bitmap,onDismiss:()->Unit) {
     }
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().background(Color.Black).onSizeChanged { viewport=it }
-            .pointerInput(bitmap) {
+            .pointerInput(photoId) {
                 detectTransformGestures { centroid,pan,zoom,_ ->
                     resetJob?.cancel()
                     val old=scale;val next=(old*zoom).coerceIn(1f,8f)
@@ -88,16 +121,18 @@ fun FullScreenPreview(bitmap:Bitmap,onDismiss:()->Unit) {
                     val anchored=(offset-(centroid-center))*(next/old)+(centroid-center)+pan
                     scale=next;offset=bounded(anchored,next)
                 }
-            }.pointerInput(bitmap) { detectTapGestures(onDoubleTap={ moveTo(1f) }) }) {
+            }.pointerInput(photoId) { detectTapGestures(onDoubleTap={ moveTo(1f) }) }) {
             val zoomDescription=stringResource(R.string.zoom_value,(scale*100).roundToInt())
-            Image(bitmap.asImageBitmap(),stringResource(R.string.preview_content),Modifier.fillMaxSize()
+            Image(displayed.asImageBitmap(),stringResource(R.string.preview_content),Modifier.fillMaxSize()
                 .semantics { stateDescription=zoomDescription }
                 .graphicsLayer { scaleX=scale;scaleY=scale;translationX=offset.x;translationY=offset.y },contentScale=ContentScale.Fit)
             Surface(Modifier.align(Alignment.TopCenter),
                 color=Color.Black.copy(alpha=.72f),contentColor=Color.White) {
                 Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)).heightIn(min=48.dp).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically) {
                     FuyaoIconButton(R.drawable.ic_close,stringResource(R.string.close),onDismiss)
-                    Text(zoomDescription,Modifier.weight(1f),style=MaterialTheme.typography.labelLarge)
+                    Text(if(loading)stringResource(R.string.full_preview_loading) else stringResource(R.string.preview_quality,
+                        zoomDescription,stringResource(if(detail!=null)R.string.original_size_preview else R.string.thumbnail_preview)),
+                        Modifier.weight(1f),style=MaterialTheme.typography.labelLarge,maxLines=2)
                     FuyaoIconButton(R.drawable.ic_minus,stringResource(R.string.zoom_out),{ moveTo(scale/1.5f) },enabled=scale>1f)
                     FuyaoIconButton(R.drawable.ic_fit,stringResource(R.string.reset_zoom),{ moveTo(1f) })
                     FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.zoom_in),{ moveTo(scale*1.5f) },enabled=scale<8f)

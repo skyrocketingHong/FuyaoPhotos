@@ -22,6 +22,8 @@ import ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges
 import ing.fuyaoskyrocket.photoinfo.platform.CardRenderer
 import ing.fuyaoskyrocket.photoinfo.platform.FontRepository
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 private data class SessionPhoto(val source: PhotoSource, val info: PhotoInfo, val style: CardStyle,
     val resolvedLocation: String = "", val locationEdited: Boolean = false) {
@@ -32,6 +34,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private val photos = PhotoRepository(application)
     private val fonts = FontRepository(application)
     private val renderer = CardRenderer()
+    private val fullSizeMutex=Mutex()
     private val exporter = PhotoExporter(application, photos)
     private val settingsRepository = SettingsRepository(application)
     private val geocoder = PhotoGeocoder(application)
@@ -266,6 +269,33 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         fonts.reset(); state = state.copy(fontName = fonts.displayName, hasCustomFont = fonts.hasCustomFont); refreshChanges(); renderPreview()
     }
 
+    /** Full-screen inspection uses original pixels; the editor keeps its inexpensive thumbnail. */
+    suspend fun fullResolutionPreview(photoId: String, original: Boolean): Bitmap {
+        val photo=source?.takeIf { it.file.name==photoId } ?: throw CancellationException("Photo changed")
+        val info=state.info;val style=state.style;val typography=fonts.typography
+        var pending: Bitmap?=null
+        try {
+            val result=fullSizeMutex.withLock {
+                if(state.closing || source?.file!=photo.file)throw CancellationException("Photo changed")
+                withContext(Dispatchers.Default) {
+                    ensureActive()
+                    val runtime=Runtime.getRuntime()
+                    val available=runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory())
+                    val peak=photo.width.toLong()*photo.height*4*(if(photo.orientation in 2..8)2 else 1)+32L*1024*1024
+                    if(peak>available*.8)throw OutOfMemoryError("Original-size preview exceeds available memory")
+                    val bitmap=photos.decode(photo,preview=false).also { pending=it }
+                    ensureActive()
+                    if(!original)renderer.drawInPlace(bitmap,info,style,typography)
+                    ensureActive()
+                    bitmap
+                }
+            }
+            currentCoroutineContext().ensureActive()
+            pending=null
+            return result
+        } finally { pending?.recycle() }
+    }
+
     fun export(format: ExportFormat, destination: Uri? = null, directory: Uri? = null) {
         if (drafts.isEmpty() || state.busy || (destination != null && drafts.size != 1)) return
         renderJob?.cancel(); cancelLocation(); persist()
@@ -296,7 +326,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                             DocumentsContract.createDocument(app.contentResolver, parent, format.mime, PhotoExporter.filename(format, draft.source.media.motion != null))
                                 ?: throw java.io.IOException("Cannot create exported photo")
                         }
-                        try { ExportedPhoto(exporter.export(draft.source, info, draft.style, typography, format, keepMetadata, target, jpegQuality), format) }
+                        try { fullSizeMutex.withLock { ExportedPhoto(exporter.export(draft.source, info, draft.style, typography, format, keepMetadata, target, jpegQuality), format) } }
                         catch (failure: Throwable) {
                             if (directory != null && target != null) runCatching { DocumentsContract.deleteDocument(app.contentResolver, target) }
                             throw failure
@@ -331,7 +361,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
             drafts = emptyList(); source = null; resolvedLocation = ""; locationEdited = false
             state = EditorState(style = state.style, settings = state.settings, fontName = fonts.displayName,
                 hasCustomFont = fonts.hasCustomFont, keepCaptureMetadata = state.keepCaptureMetadata, closing = true, busy = true, closingInBackground = !showProgress)
-            withContext(Dispatchers.IO) { photos.removeOtherDrafts(emptyList()) }
+            fullSizeMutex.withLock { withContext(Dispatchers.IO) { photos.removeOtherDrafts(emptyList()) } }
             state = state.copy(closing = false, busy = false, closingInBackground = false)
             onClosed()
         }

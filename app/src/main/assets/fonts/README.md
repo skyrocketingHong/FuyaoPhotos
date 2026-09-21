@@ -7,8 +7,11 @@ Local default typography uses two independent faces:
 
 Spaces, punctuation, parentheses and decimal separators use the proportional
 base face. Android measurement, wrapping, color rendering and HDR text coverage
-share the same styled text. The 10.5 px font-size and 12.5 px line-height reference
-remain unchanged and scale with the photo short edge and text-size control.
+share the same styled text. The 10.5 px reference uses the monospace face as its visual-size anchor. The
+proportional face is calibrated against actual H outlines at a large probe size,
+then scaled as a whole to match capital height; digits keep the reference em size.
+The shared baseline and 12.5 px line-height reference scale with the photo short
+edge and text-size control. Imported uniform fonts do not receive this calibration.
 
 The combination approximates the reference screenshots; it is not a verified
 identification of the fonts used in Apple materials. Without local font binaries,

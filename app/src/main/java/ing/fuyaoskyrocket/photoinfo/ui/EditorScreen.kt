@@ -224,7 +224,9 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         }
         composable(PhotoPage.PREVIEW.name) {
             val bitmap = if (original) state.original else state.preview
-            if (bitmap != null) FullScreenPreview(bitmap) { returnFrom(PhotoPage.PREVIEW) }
+            val photoId=state.photos.getOrNull(state.photoIndex)?.id
+            if (bitmap != null && photoId != null) FullScreenPreview(bitmap,photoId,
+                loadFullResolution={ vm.fullResolutionPreview(photoId,original) }) { returnFrom(PhotoPage.PREVIEW) }
             else LaunchedEffect(state.busy) { if (!state.busy) returnFrom(PhotoPage.PREVIEW) }
         }
     }
