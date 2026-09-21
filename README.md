@@ -38,17 +38,21 @@ Apple and the credited photographers retain their respective image rights. See [
 - **EXIF metadata** — Read available photo metadata, resolve locations from photo GPS and edit every displayed field.
 - **Batch editing** — Select up to 50 photos, swipe between them and save the full selection. Each photo keeps its own information and style.
 - **Style controls** — Adjust card size, text size, opacity, blur, corners and margins; import TTF/OTF/TTC fonts.
+- **Save preferences** — Set default format, JPEG quality, EXIF details, location and capture-time retention. Override them for one save without changing defaults.
+- **Gallery integration** — Share one or multiple photos into the editor; open or share completed exports.
 - **Photographer and lens profiles** — Save a default credit and configure lens names, focal ranges and zoom values.
 - **Preview and export** — Compare with the original, inspect at full resolution and export JPEG/PNG at the original dimensions. JPEG quality defaults to 100 and is adjustable from 0 to 100.
 - **HDR and Motion Photos** — Preserve supported JPEG Ultra HDR gainmaps and Motion Photo video/audio when editing the cover.
 
 ## Usage
 
-1. Open one photo or select multiple photos. Use **Import from Files (original)** for HDR/Motion Photos.
+1. Open one photo, select multiple photos, or share images from your gallery to **Fuyao Photo Info**. Use **Import from Files (original)** for HDR/Motion Photos.
 2. Edit the information and card style. Swipe horizontally to switch photos in a batch.
-3. Choose **Save**, select the format and JPEG quality, then save the full selection.
+3. Choose **Save**, select the format, JPEG quality and metadata options, then save the full selection.
 
 On Android 10+, exports are saved to `Pictures/FuyaoPhotoInfo`. Android 8/9 uses a file picker for one photo or a folder picker for a batch. Original files remain unchanged; completed exports can be shared from the app.
+
+Save global defaults in **Settings → Default save options**. Each save starts with these defaults; temporary choices apply to that save only. The completion notice offers **Open** (the last successful export) and **Share** (all successful exports).
 
 Set a default photographer in **Settings**. The photo's EXIF Artist takes priority; the saved default can also be applied to the current photo.
 
@@ -74,10 +78,10 @@ Camera scanning lists unconfigured hardware for linking to profiles. Apply each 
 | --- | --- | --- |
 | Ordinary still image | JPEG / 8-bit PNG | Original dimensions; optional capture metadata |
 | JPEG Ultra HDR (Android 14+) | JPEG | Gainmap and decoded color space |
-| Supported JPEG Motion Photo / Microvideo | JPEG | Original video, audio and video metadata |
+| Supported JPEG Motion Photo / Microvideo | JPEG | Original encoded video/audio; selected metadata |
 | Supported JPEG Ultra HDR Motion Photo (Android 14+) | JPEG | Both HDR and motion data |
 
-JPEG images and gainmaps are re-encoded; video is copied without transcoding. HDR/Motion Photos cannot be exported as PNG. Import the complete original file: media removed by a messaging app or provider cannot be recovered.
+JPEG images and gainmaps are re-encoded; video/audio are not transcoded. Location and capture-time switches apply to both photo and video metadata. For supported MP4/MOV files, metadata is cleared without moving encoded samples or changing playback timing; unchanged ranges are verified. All-retained video is copied byte for byte. HDR/Motion Photos cannot be exported as PNG. Import the complete original file: media removed by a messaging app or provider cannot be recovered.
 
 HEIC/AVIF preservation, separate-file Apple Live Photos, undocumented vendor motion formats, animated images and high-bit-depth PNG export are not supported. Unrecognized or damaged media stops export. HDR display and motion playback depend on the device and gallery app; compatibility is not verified across all devices.
 
@@ -93,7 +97,8 @@ Font binaries are excluded from the repository. See [font setup and licensing](a
 
 - Photos are processed on the device. Optional place lookup sends photo coordinates to the Android system geocoding provider; it can be disabled in Settings.
 - Camera permission is optional and used to scan lens information. The app does not request the device's current location or broad storage access.
-- Optional capture-metadata retention excludes still-image GPS, serial numbers, MakerNote, XMP and thumbnails. Original video metadata is retained and may include location. Names and places displayed on the card remain visible in the exported image.
+- EXIF capture details, location and capture time have separate controls. Location retention defaults to off. Video metadata follows the same controls; unsupported containers stop export when removal cannot be verified. Serial numbers, MakerNote, arbitrary source XMP and thumbnails are not copied. Names and places displayed on the card remain visible.
+- Turning off capture time removes the original photo/video dates; a newly saved file still has its own filesystem creation time, and galleries may display the save time.
 
 ## Build
 

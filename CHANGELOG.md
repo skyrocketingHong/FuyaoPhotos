@@ -12,6 +12,8 @@
 
 ### Photo editing
 
+- Add persistent save defaults with temporary per-save overrides for format, JPEG quality, EXIF details, location and capture time. Apply privacy choices to both photos and supported motion-video metadata without transcoding media.
+- Receive single/multiple images from the Android share menu; add Open alongside Share to export completion notices.
 - Apply a 3% optical size correction to the narrow proportional digit 1 across all card fields, using the same measurement and rendering path.
 - Match visible capital heights across mixed font faces; load original-resolution full-screen previews with cancellation, memory guards and retained zoom.
 - Refine reference typography with SF Compact Rounded Medium, a proportional digit 1, centered colons and a legible capital I; use SF Mono Medium for 0 and 2–9. Share shaping between layout, output and HDR coverage; imported fonts remain uniform.
