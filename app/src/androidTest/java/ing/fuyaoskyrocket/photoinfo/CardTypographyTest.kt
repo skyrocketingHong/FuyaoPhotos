@@ -47,6 +47,8 @@ class CardTypographyTest {
             assertSame(typography.numbers,measurement.typeface)
             assertSame(measurement.typeface,drawing.typeface)
             assertNull(drawing.fontFeatureSettings)
+            assertEquals(40f,measurement.textSize,0f)
+            assertEquals(measurement.textSize,drawing.textSize,0f)
         }
     }
 
@@ -67,6 +69,29 @@ class CardTypographyTest {
             } finally { bitmap.recycle() }
         }
         assertEquals(center("H"),center(":"),2f)
+    }
+
+    @Test fun capitalsAndProportionalOneHaveTheSameVisibleHeightAsMonoDigits() {
+        val typography=reference()
+        fun inkHeight(text:String,fonts:CardTypography=typography):Int {
+            val bitmap=Bitmap.createBitmap(700,180,Bitmap.Config.ARGB_8888)
+            try {
+                CardTextRenderer(fonts,96f).draw(Canvas(bitmap),text,12f,0f,140f,Color.WHITE)
+                val pixels=IntArray(700*180);bitmap.getPixels(pixels,0,700,0,0,700,180)
+                val rows=(0 until 180).filter { y -> (0 until 700).any { x -> Color.alpha(pixels[y*700+x])>128 } }
+                assertTrue(rows.isNotEmpty())
+                return rows.last()-rows.first()+1
+            } finally { bitmap.recycle() }
+        }
+        val mono=CardTypography.uniform(typography.numbers)
+        val referenceCap=inkHeight("H",mono)
+        for (text in listOf("H","1","111")) {
+            assertTrue("$text does not match reference capitals",kotlin.math.abs(inkHeight(text)-referenceCap)<=2)
+        }
+        // Rounded C/8 naturally overshoot flat capitals; compare equivalent outlines.
+        assertTrue(kotlin.math.abs(inkHeight("LEICA")-inkHeight("LEICA",mono))<=2)
+        assertEquals(inkHeight("28",mono),inkHeight("28"))
+        assertEquals(1f,CardTypography.uniform(Typeface.SERIF).letterSizeScale,0f)
     }
 
     @Test fun customFontsRemainUniformIncludingDigitsAndPunctuation() {
