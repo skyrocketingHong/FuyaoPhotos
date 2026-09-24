@@ -219,4 +219,6 @@
 "card.error.storageFull" = "There is not enough free storage to save this photo.";
 "card.compare" = "Compare Original";
 "card.restore.selected" = "Restore Default";
+"card.restore.current" = "Reset Item";
+"card.restore.all" = "Reset All";
 "card.field.focalLength.short" = "Focal Length";

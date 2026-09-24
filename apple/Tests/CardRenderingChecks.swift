@@ -97,8 +97,14 @@ import UniformTypeIdentifiers
         }
         try require(pixel.prefix(3).max()! > 1, "actual HDR luminance survives outside card")
         try await processor.export(source, card: card, options: options, hdr: false, to: root.appendingPathComponent("live.jpg"), live: true)
-        _ = try await processor.preview(source, card: card, hdr: false)
-        print("PASS: card geometry, wrapping, font scale, orientation, EXIF, 24 image / 8 movie metadata combinations, HDR JPEG/HEIC gain maps and luminance, Live Photo identifier, preview")
+        let fullPreview = try await processor.preview(source, card: card, hdr: false)
+        let cardDetail = try await processor.previewCardDetail(source, card: card)
+        try require(cardDetail.width > 0 && cardDetail.height > 0 &&
+                    cardDetail.width < fullPreview.width && cardDetail.height < fullPreview.height,
+                    "card detail renders only the card region")
+        let rotatedDetail = try await processor.previewCardDetail(orientationURL, card: card)
+        try require(rotatedDetail.width > 0 && rotatedDetail.height > 0, "rotated card detail")
+        print("PASS: card geometry, wrapping, font scale, orientation, EXIF, 24 image / 8 movie metadata combinations, HDR JPEG/HEIC gain maps and luminance, Live Photo identifier, preview and card detail")
     }
 
     static func checkMovie(root: URL, options: CardSaveOptions, require: (Bool, String) throws -> Void) throws {

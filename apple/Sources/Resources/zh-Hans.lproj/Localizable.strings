@@ -219,4 +219,6 @@
 "card.error.storageFull" = "设备剩余存储空间不足，无法保存照片。";
 "card.compare" = "对比原图";
 "card.restore.selected" = "恢复默认";
+"card.restore.current" = "恢复当前";
+"card.restore.all" = "全部恢复";
 "card.field.focalLength.short" = "焦距";

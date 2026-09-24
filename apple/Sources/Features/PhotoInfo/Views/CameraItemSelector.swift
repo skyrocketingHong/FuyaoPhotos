@@ -10,14 +10,16 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        GeometryReader { geometry in
+        let motionIsReduced = reduceMotion
+        return GeometryReader { geometry in
+            let edgeHeight = max(0, min(56, (geometry.size.height-rowHeight)/2-6))
             ZStack {
                 ScrollView(.vertical) {
                     LazyVStack(spacing:0) {
                         ForEach(0..<(items.count*101),id:\.self) { slot in
                             let item=items[slot%items.count]
                             Button {
-                                withAnimation(reduceMotion ? nil : .snappy) { position=slot }
+                                withAnimation(motionIsReduced ? nil : .snappy) { position=slot }
                             } label: {
                                 Text(title(item))
                                     .font(.body.weight(.semibold))
@@ -29,7 +31,7 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                             }
                             .buttonStyle(.plain)
                             .scrollTransition(.interactive,axis:.vertical) { content,phase in
-                                content.opacity(reduceMotion || phase.isIdentity ? 1 : 0.25)
+                                content.opacity(motionIsReduced || phase.isIdentity ? 1 : 0.25)
                             }
                             .id(slot)
                         }
@@ -41,13 +43,17 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                 .scrollPosition(id:$position,anchor:.center)
                 .scrollIndicators(.hidden)
                 .scrollDismissesKeyboard(.immediately)
-                .mask {
-                    LinearGradient(stops:[
-                        .init(color:.clear,location:0),
-                        .init(color:.white,location:0.13),
-                        .init(color:.white,location:0.87),
-                        .init(color:.clear,location:1)
-                    ],startPoint:.top,endPoint:.bottom)
+                .overlay {
+                    VStack(spacing: 0) {
+                        ProgressiveBackdropEdge(edge: .top, material: .thinMaterial,
+                                                reducedTransparencyColor: .black.opacity(0.85))
+                            .frame(height: edgeHeight)
+                        Spacer(minLength: 0)
+                        ProgressiveBackdropEdge(edge: .bottom, material: .thinMaterial,
+                                                reducedTransparencyColor: .black.opacity(0.85))
+                            .frame(height: edgeHeight)
+                    }
+                    .allowsHitTesting(false)
                 }
                 .onScrollPhaseChange { _,phase in
                     guard phase == .idle,let position,
@@ -61,7 +67,7 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth:.infinity)
                     .frame(height:rowHeight)
-                    .glassEffect(.regular.tint(.yellow.opacity(0.14)),in:.capsule)
+                    .glassEffect(.clear,in:.capsule)
                     .padding(.horizontal,6)
                     .allowsHitTesting(false)
             }

@@ -70,6 +70,25 @@ actor CardImageProcessor {
         return result
     }
 
+    func previewCardDetail(_ url: URL, card: PhotoCard, maxDimension: CGFloat = 1600) throws -> CGImage {
+        try Task.checkCancellation()
+        guard !card.rows.isEmpty,
+              var image = CIImage(contentsOf: url, options: [.applyOrientationProperty: true, .expandToHDR: false, .toneMapHDRtoSDR: true])
+        else { throw CardError.invalidImage }
+        let scale = min(1, maxDimension / max(image.extent.width, image.extent.height))
+        image = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let layout = try CardLayout(size: image.extent.size, card: card)
+        let margin = max(6, min(layout.rect.width, layout.rect.height) * 0.08)
+        let crop = layout.rect.insetBy(dx: -margin, dy: -margin).integral.intersection(image.extent)
+        guard crop.width > 0, crop.height > 0 else { throw CardError.invalidImage }
+        let rendered = try CardRenderer.render(image, card: card)
+        try Task.checkCancellation()
+        guard let detail = context.createCGImage(rendered, from: crop, format: .RGBA8,
+            colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!, deferred: false)
+        else { throw CardError.exportFailed }
+        return detail
+    }
+
     func export(_ url: URL, card: PhotoCard, options: CardSaveOptions, hdr: Bool, to destination: URL, live: Bool, liveIdentifier: String? = nil) throws {
         try Task.checkCancellation()
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),

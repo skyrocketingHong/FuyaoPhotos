@@ -9,6 +9,7 @@ import CoreLocation
     let originalName: String
     let assetIdentifier: String?
     let metadata: CardPhotoMetadata
+    private(set) var defaultCard: PhotoCard
     private let workingDirectory: PhotoWorkingDirectory
     var isLive: Bool { sourceMovieURL != nil }
     var card: PhotoCard {
@@ -29,6 +30,12 @@ import CoreLocation
         sourceURL = resources.image; sourceMovieURL = resources.movie
         workingDirectory = PhotoWorkingDirectory(resources.image.deletingLastPathComponent())
         originalName = resources.originalName; assetIdentifier = resources.assetIdentifier
-        self.metadata = metadata; card = metadata.card
+        self.metadata = metadata; defaultCard = metadata.card; card = metadata.card
+    }
+
+    func applyResolvedLocation(_ value: String) {
+        guard !value.isEmpty else { return }
+        defaultCard[.location] = value
+        card[.location] = value
     }
 }

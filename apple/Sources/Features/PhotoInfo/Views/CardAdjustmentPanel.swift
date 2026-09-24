@@ -45,7 +45,7 @@ struct CardAdjustmentPanel: View {
     @State private var adjustment: CardAdjustment = .scale
     @State private var mode: EditingMode = .information
     @FocusState private var focusedField: CardField?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private enum EditingMode: Hashable { case information, style }
 
     var body: some View {
@@ -103,7 +103,12 @@ struct CardAdjustmentPanel: View {
                         .font(.title3.weight(.semibold)).foregroundStyle(.yellow)
                     Spacer(minLength: 8)
                     CircularIconButton("card.restore.selected", systemImage: "arrow.counterclockwise") {
-                        document.card[field] = document.metadata.card[field]
+                        document.card[field] = document.defaultCard[field]
+                    }
+                    CircularIconButton("card.restore.all", systemImage: "arrow.counterclockwise.circle") {
+                        var card = document.card
+                        for item in CardField.allCases { card[item] = document.defaultCard[item] }
+                        document.card = card
                     }
                 }
                 Text(LocalizedStringKey("card.field." + field.rawValue + ".hint"))
@@ -124,21 +129,23 @@ struct CardAdjustmentPanel: View {
                     CircularIconButton("card.restore.selected", systemImage: "arrow.counterclockwise") {
                         document.card.style[keyPath: adjustment.keyPath] = PhotoCardStyle()[keyPath: adjustment.keyPath]
                     }
+                    CircularIconButton("card.restore.all", systemImage: "arrow.counterclockwise.circle") {
+                        document.card.style = PhotoCardStyle()
+                    }
                 }
                 Text(LocalizedStringKey("card.style." + adjustment.rawValue + ".hint"))
                     .font(.subheadline).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(adjustment.percentage
-                     ? document.card.style[keyPath: adjustment.keyPath].formatted(.percent.precision(.fractionLength(0)))
-                     : document.card.style[keyPath: adjustment.keyPath].formatted(.number.precision(.fractionLength(0))))
-                    .font(.title3.monospacedDigit()).foregroundStyle(.yellow)
-                Slider(value: $document.card.style[dynamicMember: adjustment.keyPath], in: adjustment.range) {
-                    Text(adjustment.title)
-                } minimumValueLabel: {
-                    Image(systemName: adjustment.symbols.0).accessibilityHidden(true)
-                } maximumValueLabel: {
-                    Image(systemName: adjustment.symbols.1).accessibilityHidden(true)
-                }
+                CardStyleSlider(
+                    value: $document.card.style[dynamicMember: adjustment.keyPath],
+                    in: adjustment.range,
+                    defaultValue: PhotoCardStyle()[keyPath: adjustment.keyPath],
+                    label: adjustment.title,
+                    minimumSymbol: adjustment.symbols.0,
+                    maximumSymbol: adjustment.symbols.1,
+                    formattedValue: adjustment.percentage
+                        ? document.card.style[keyPath: adjustment.keyPath].formatted(.percent.precision(.fractionLength(0)))
+                        : document.card.style[keyPath: adjustment.keyPath].formatted(.number.precision(.fractionLength(0))))
             }
         }
     }
@@ -153,8 +160,9 @@ struct CardAdjustmentPanel: View {
             }
             .pickerStyle(.segmented)
             GeometryReader { geometry in
-                let selectorWidth = min(200, geometry.size.width * 0.4)
-                let detailWidth = max(0, geometry.size.width - selectorWidth - 16)
+                let contentWidth = min(640, geometry.size.width)
+                let selectorWidth = min(200, contentWidth * (dynamicTypeSize.isAccessibilitySize ? 0.32 : 0.4))
+                let detailWidth = max(0, contentWidth - selectorWidth - 16)
                 HStack(alignment: .top, spacing: 16) {
                     Group {
                         if mode == .information {
@@ -168,21 +176,12 @@ struct CardAdjustmentPanel: View {
                     .id(mode)
                     .frame(width: selectorWidth)
 
-                    ZStack(alignment: .topLeading) {
-                        if mode == .information {
-                            MobileInformationDetail(document: document, field: field)
-                                .id(detailID)
-                                .transition(.opacity)
-                        } else {
-                            MobileStyleDetail(document: document, adjustment: adjustment)
-                                .id(detailID)
-                                .transition(.opacity)
-                        }
-                    }
-                    .frame(width: detailWidth, height: max(0, geometry.size.height - 12), alignment: .topLeading)
-                    .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.22), value: detailID)
-                    .padding(.top, 12)
+                    MobileCardInspector(document: document, field: field, adjustment: adjustment,
+                                        information: mode == .information, selectionID: detailID)
+                        .frame(width: detailWidth, height: geometry.size.height)
                 }
+                .frame(width: contentWidth)
+                .frame(maxWidth: .infinity)
             }
             .frame(maxHeight: .infinity)
         }
@@ -197,81 +196,126 @@ struct CardAdjustmentPanel: View {
 }
 
 #if !os(macOS)
-private struct MobileInformationDetail: View {
+private struct MobileCardInspector: View {
     @Bindable var document: CardDocument
     let field: CardField
-    @ScaledMetric(relativeTo: .body) private var controlHeight: CGFloat = 104
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            MobileDetailDescription(key: LocalizedStringKey("card.field." + field.rawValue + ".hint"))
-
-            TextField("", text: $document.card[field], axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(4...4)
-                .foregroundStyle(.yellow)
-                .frame(height: controlHeight, alignment: .top)
-                .accessibilityLabel(Text(LocalizedStringKey(field.titleKey)))
-
-            Button("card.restore.selected") {
-                document.card[field] = document.metadata.card[field]
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .frame(height: 44, alignment: .leading)
-        }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-    }
-}
-
-private struct MobileStyleDetail: View {
-    @Bindable var document: CardDocument
     let adjustment: CardAdjustment
-    @ScaledMetric(relativeTo: .body) private var controlHeight: CGFloat = 104
+    let information: Bool
+    let selectionID: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @FocusState private var editingText: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            MobileDetailDescription(key: LocalizedStringKey("card.style." + adjustment.rawValue + ".hint"))
+        GeometryReader { geometry in
+            let height = geometry.size.height
+            let buttonHeight: CGFloat = dynamicTypeSize.isAccessibilitySize ? 64 : 48
+            let controlHeight = min(dynamicTypeSize.isAccessibilitySize ? 100 : 80, max(68, height * 0.22))
+            let descriptionHeight = min(dynamicTypeSize.isAccessibilitySize ? 130 : 88,
+                                        max(52, height * (dynamicTypeSize.isAccessibilitySize ? 0.3 : 0.22)))
+            let showsDescription = height >= (dynamicTypeSize.isAccessibilitySize ? 270 : 210)
+            let showsDetail = height >= (dynamicTypeSize.isAccessibilitySize ? 420 : 280)
+            let previewHeight = min(176, max(64, height - controlHeight - descriptionHeight - buttonHeight - 24))
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text(adjustment.percentage
-                     ? document.card.style[keyPath: adjustment.keyPath].formatted(.percent.precision(.fractionLength(0)))
-                     : document.card.style[keyPath: adjustment.keyPath].formatted(.number.precision(.fractionLength(0))))
-                    .font(.headline.monospacedDigit())
-                    .foregroundStyle(.yellow)
-                Slider(value: $document.card.style[dynamicMember: adjustment.keyPath], in: adjustment.range) {
-                    Text(adjustment.title)
-                } minimumValueLabel: {
-                    Image(systemName: adjustment.symbols.0).accessibilityHidden(true)
-                } maximumValueLabel: {
-                    Image(systemName: adjustment.symbols.1).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 8) {
+                if showsDetail { CardDetailPreview(document: document, height: previewHeight) }
+
+                ZStack(alignment: .leading) {
+                    if information {
+                        TextField("", text: $document.card[field], axis: .vertical)
+                            .textFieldStyle(.roundedBorder)
+                            .lineLimit(2...3)
+                            .foregroundStyle(.yellow)
+                            .tint(.yellow)
+                            .focused($editingText)
+                            .accessibilityLabel(Text(LocalizedStringKey(field.titleKey)))
+                            .id(selectionID)
+                            .transition(.opacity)
+                    } else {
+                        CardStyleSlider(
+                            value: $document.card.style[dynamicMember: adjustment.keyPath],
+                            in: adjustment.range,
+                            defaultValue: PhotoCardStyle()[keyPath: adjustment.keyPath],
+                            label: adjustment.title,
+                            minimumSymbol: adjustment.symbols.0,
+                            maximumSymbol: adjustment.symbols.1,
+                            formattedValue: adjustment.percentage
+                                ? document.card.style[keyPath: adjustment.keyPath].formatted(.percent.precision(.fractionLength(0)))
+                                : document.card.style[keyPath: adjustment.keyPath].formatted(.number.precision(.fractionLength(0))))
+                            .id(selectionID)
+                            .transition(.opacity)
+                    }
                 }
-            }
-            .frame(height: controlHeight, alignment: .top)
+                .frame(height: controlHeight)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
 
-            Button("card.restore.selected") {
-                document.card.style[keyPath: adjustment.keyPath] = PhotoCardStyle()[keyPath: adjustment.keyPath]
+                Spacer(minLength: 0)
+
+                if showsDescription {
+                    ZStack(alignment: .topLeading) {
+                        Text(LocalizedStringKey(information
+                             ? "card.field." + field.rawValue + ".hint"
+                             : "card.style." + adjustment.rawValue + ".hint"))
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(4)
+                            .id(selectionID)
+                            .transition(.opacity)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: descriptionHeight, alignment: .topLeading)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
+                }
+
+                HStack(spacing: 6) {
+                    restoreButton("card.restore.current", symbol: "arrow.counterclockwise",
+                                  height: buttonHeight, action: restoreCurrent)
+                    restoreButton("card.restore.all", symbol: "arrow.counterclockwise.circle",
+                                  height: buttonHeight, action: restoreAll)
+                }
+                .frame(height: buttonHeight)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .frame(height: 44, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .onChange(of: selectionID) { _, _ in editingText = false }
     }
-}
 
-private struct MobileDetailDescription: View {
-    let key: LocalizedStringKey
-    @ScaledMetric(relativeTo: .subheadline) private var reservedHeight: CGFloat = 120
+    private func restoreButton(_ title: LocalizedStringKey, symbol: String, height: CGFloat,
+                               action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                Image(systemName: symbol)
+                    .font(.caption)
+                    .accessibilityHidden(true)
+                Text(title)
+                    .font(.caption2.weight(.medium))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .frame(maxWidth: .infinity)
+    }
 
-    var body: some View {
-        Text(key)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .lineLimit(6)
-            .minimumScaleFactor(0.9)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .frame(height: reservedHeight)
+    private func restoreCurrent() {
+        if information {
+            document.card[field] = document.defaultCard[field]
+        } else {
+            document.card.style[keyPath: adjustment.keyPath] = PhotoCardStyle()[keyPath: adjustment.keyPath]
+        }
+    }
+
+    private func restoreAll() {
+        if information {
+            var card = document.card
+            for item in CardField.allCases { card[item] = document.defaultCard[item] }
+            document.card = card
+        } else {
+            document.card.style = PhotoCardStyle()
+        }
     }
 }
 #endif

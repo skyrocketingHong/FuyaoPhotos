@@ -81,7 +81,7 @@ import os
                 if locationRequest === request { locationRequest = nil }
                 guard !Task.isCancelled, CardPreferences.shared.resolveLocation,
                       documents.contains(where: { $0.id == document.id }), document.locationRevision == revision else { continue }
-                document.card[.location] = result?.first?.addressRepresentations?.cityWithContext(.full) ?? ""
+                document.applyResolvedLocation(result?.first?.addressRepresentations?.cityWithContext(.full) ?? "")
             }
         }
     }
