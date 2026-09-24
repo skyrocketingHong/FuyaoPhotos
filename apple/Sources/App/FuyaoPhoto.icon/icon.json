@@ -1,0 +1,176 @@
+{
+  "features" : [
+    "refractivity"
+  ],
+  "fill" : {
+    "automatic-gradient" : "display-p3:0.33370,0.62302,0.53582,1.00000"
+  },
+  "groups" : [
+    {
+      "blur-material" : 0.2,
+      "layers" : [
+        {
+          "image-name" : "60-info-metadata.svg",
+          "name" : "60-info-metadata",
+          "position" : {
+            "scale" : 13,
+            "translation-in-points" : [
+              -25,
+              1
+            ]
+          }
+        },
+        {
+          "image-name" : "50-info-accent.svg",
+          "name" : "50-info-accent",
+          "position" : {
+            "scale" : 13,
+            "translation-in-points" : [
+              -25,
+              1
+            ]
+          }
+        },
+        {
+          "fill" : "none",
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "40-info-card.svg",
+          "name" : "40-info-card",
+          "position" : {
+            "scale" : 13,
+            "translation-in-points" : [
+              -25,
+              1
+            ]
+          }
+        }
+      ],
+      "lighting" : "combined",
+      "name" : "info-card",
+      "refractivity" : {
+        "depth" : 0,
+        "enabled" : true,
+        "strength" : 0.5
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "hidden" : false,
+      "layers" : [
+        {
+          "hidden" : false,
+          "image-name" : "20-photo-sun.svg",
+          "name" : "20-photo-sun",
+          "position" : {
+            "scale" : 20,
+            "translation-in-points" : [
+              106.132088792981,
+              90
+            ]
+          }
+        }
+      ],
+      "name" : "sun",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "hidden" : true,
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "hidden" : false,
+          "image-name" : "21-photo-moon.svg",
+          "name" : "21-photo-moon"
+        }
+      ],
+      "name" : "moon",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "blur-material" : 0.5,
+      "layers" : [
+        {
+          "image-name" : "31-photo-mountains-front.svg",
+          "name" : "31-photo-mountains-front",
+          "position" : {
+            "scale" : 13,
+            "translation-in-points" : [
+              0,
+              15
+            ]
+          }
+        },
+        {
+          "image-name" : "30-photo-mountains-back.svg",
+          "name" : "30-photo-mountains-back",
+          "position" : {
+            "scale" : 13,
+            "translation-in-points" : [
+              0,
+              15
+            ]
+          }
+        },
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "light",
+              "value" : "automatic"
+            }
+          ],
+          "hidden" : false,
+          "image-name" : "10-photo-panel.svg",
+          "name" : "10-photo-panel",
+          "position" : {
+            "scale" : 14,
+            "translation-in-points" : [
+              0,
+              6
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "name" : "photo",
+      "refractivity" : {
+        "depth" : 0,
+        "enabled" : true,
+        "strength" : 0.5
+      },
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}

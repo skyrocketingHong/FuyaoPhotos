@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Aligned crescent moon</title>
+  <path fill="#FDD945" fill-rule="evenodd" clip-rule="evenodd"
+        d="M278 222a100 100 0 1 0 0 200a100 100 0 1 0 0-200z
+           M320 212a86 86 0 1 1 0 172a86 86 0 1 1 0-172z"/>
+  <path d="M278 224 A98 98 0 0 0 278 420" fill="none" stroke="#FFF2A0" stroke-width="4" stroke-linecap="round"/>
+</svg>

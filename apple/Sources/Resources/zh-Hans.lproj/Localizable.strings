@@ -1,0 +1,222 @@
+/*
+  Localizable.strings (Simplified Chinese)
+  Photo Map
+
+  Created by skyrocketing Hong on 2025-12-31.
+*/
+
+// MARK: - App General
+"app.title" = "照片地图";
+"done" = "完成";
+"loading" = "加载中...";
+"all" = "全部";
+
+// MARK: - Map Display Mode
+"display.mode.photo" = "照片";
+"display.mode.cluster" = "聚合";
+
+// MARK: - Map Style
+"map.style.explore" = "探索";
+"map.style.satellite" = "卫星";
+"map.style.hybrid" = "混合";
+
+// MARK: - Year Filter
+"year.filter.title" = "年份筛选";
+"year.filter.all" = "全部年份";
+
+// MARK: - Sidebar Sections
+"sidebar.display.mode" = "展示模式";
+"sidebar.map.style" = "地图样式";
+
+// MARK: - Photo Detail
+"photo.detail.title" = "照片详情";
+"photo.detail.location.info" = "位置信息";
+"photo.detail.photo.properties" = "照片属性";
+"photo.detail.map.location" = "地图位置";
+
+// MARK: - Photo Detail Fields
+"photo.detail.latitude" = "纬度";
+"photo.detail.longitude" = "经度";
+"photo.detail.creation.time" = "拍摄时间";
+"photo.detail.width" = "宽度";
+"photo.detail.height" = "高度";
+"photo.detail.media.type" = "类型";
+
+// MARK: - Media Types
+"media.type.image" = "图片";
+"media.type.video" = "视频";
+"media.type.audio" = "音频";
+
+// MARK: - Photo Count
+"photo.count.photos" = "张照片";
+"photo.count.videos" = "个视频";
+"photo.count.separator" = "，";
+
+// MARK: - Loading States
+"loading.photos" = "正在加载照片...";
+"loading.locations" = "正在加载位置...";
+
+// MARK: - Permissions
+"permission.photo.library" = "需要访问照片库权限";
+
+// MARK: - Errors
+"error.loading.failed" = "加载失败";
+
+// MARK: - Settings
+"settings.title" = "设置";
+"settings.defaults.header" = "默认设置";
+"settings.defaults.footer" = "这些设置将在应用启动时生效";
+"settings.default.display.mode" = "默认展示模式";
+"settings.default.map.style" = "默认地图样式";
+"settings.start.year.header" = "年份范围起点";
+"settings.start.year.footer" = "设置年份筛选菜单的起始年份，如出生年份等有纪念意义的年份。未设置时将使用照片中最早的年份";
+"settings.enable.start.year" = "自定义起始年份";
+"settings.start.year" = "起始年份";
+"settings.default.year.header" = "默认年份筛选";
+"settings.default.year.footer" = "设置应用启动时自动选中的年份，可以快速查看特定年份的照片";
+"settings.enable.default.year" = "启用默认年份";
+"settings.default.year" = "默认年份";
+"settings.about.header" = "关于";
+"settings.version" = "版本";
+"settings.reset.defaults" = "重置";
+
+// MARK: - Map Session and Photo Loading
+"display.mode.heatmap" = "热力图";
+"photo.count.visible %lld" = "当前区域 %lld 项";
+"action.retry" = "重试";
+"action.load.more" = "加载更多";
+"permission.photo.library.description" = "请在系统设置中允许访问照片库，然后重试。地图仅显示包含位置信息的照片。";
+"permission.photo.library.limited" = "仅显示已获授权的照片。";
+"error.library.retry" = "暂时无法加载照片库，请重试。";
+"error.map.query" = "暂时无法更新当前区域。";
+"map.empty.region" = "当前区域和年份下没有包含位置的照片或视频。";
+"map.cluster.open %lld" = "打开 %lld 项内容";
+"map.cluster.member.count %lld" = "此分组共 %lld 项";
+"map.cluster.title" = "此区域的照片";
+"map.cluster.empty" = "这些照片已不可用。";
+"error.cluster.members" = "暂时无法加载照片，请重试。";
+"photo.preview.unavailable" = "预览不可用";
+"photo.preview.retry.description" = "照片可能已被移除，或需要从 iCloud 下载。请检查网络连接后重试。";
+"photo.date.unknown" = "日期未知";
+"media.type.unknown" = "类型未知";
+
+"tab.map" = "照片地图";
+"tab.cards" = "信息卡片";
+"map.options" = "地图选项";
+"map.style.muted" = "简洁";
+"map.appearance" = "地图外观";
+"map.appearance.system" = "跟随系统";
+"map.appearance.light" = "日间";
+"map.appearance.dark" = "夜间";
+"map.traffic" = "实时交通";
+"map.points" = "兴趣点";
+"map.elevation" = "三维地形";
+"map.compass" = "指南针";
+"map.scale" = "比例尺";
+"map.heat.radius" = "热区范围";
+"map.heat.opacity" = "热区强度";
+"card.open" = "打开照片";
+"card.save" = "全部保存";
+"card.close" = "关闭照片";
+"card.cancel" = "取消";
+"card.share" = "分享";
+"card.empty.title" = "制作照片信息卡";
+"card.empty.description" = "选择照片，添加拍摄参数、地点和署名。";
+"card.information" = "照片信息";
+"card.field.device" = "设备";
+"card.field.author" = "拍摄者";
+"card.field.location" = "地点";
+"card.field.camera" = "镜头";
+"card.field.imageSize" = "像素数";
+"card.field.focalLength" = "焦距与倍率";
+"card.field.exposure" = "曝光时间";
+"card.field.aperture" = "光圈";
+"card.field.iso" = "感光度";
+"card.defaultAuthor" = "默认拍摄者";
+"card.resolveLocation" = "解析照片地点";
+"card.resolveLocation.description" = "使用系统地名服务查询照片 GPS 对应的地点，不请求当前位置。";
+"card.style" = "卡片样式";
+"card.scale" = "卡片大小";
+"card.textScale" = "字体大小";
+"card.opacity" = "不透明度";
+"card.blur" = "模糊";
+"card.rightInset" = "右边距";
+"card.bottomInset" = "下边距";
+"card.radius" = "圆角";
+"card.style.reset" = "恢复参考样式";
+"card.preview" = "照片预览";
+"card.preview.full" = "原尺寸预览";
+"card.preview.reset" = "重置缩放";
+"card.preview.loading" = "正在生成预览…";
+"card.processing %lld %lld" = "正在处理 %lld/%lld";
+"card.photo.number %lld" = "第 %lld 张照片";
+"card.saved %lld" = "已保存 %lld 张照片";
+"card.replace.confirm" = "替换尚未保存的照片？";
+"card.replace" = "选择其他照片";
+"card.close.confirm" = "关闭照片并放弃未保存的修改？";
+"card.import.failed" = "%d 张照片无法打开。请检查相册权限及 iCloud 下载状态后重试。";
+"card.error.title" = "操作未完成";
+"card.error.invalidImage" = "无法读取照片，请尝试导入原图。";
+"card.error.tooLarge" = "照片过大，无法处理，请选择较小的原图。";
+"card.error.overflow" = "卡片超出照片范围，请减小卡片或精简文字。";
+"card.error.exportFailed" = "无法保存照片，请检查剩余空间及相册权限后重试。";
+"card.error.permission" = "请在系统设置中允许访问照片，以保存照片或保留此实况照片。";
+"card.error.unavailable" = "原片不可用，请先在相册中下载 iCloud 原片，再重新打开。";
+"card.error.unsupportedMedia" = "照片包含目前无法完整保留的附加媒体，原片未被修改。";
+"card.error.hdrFormat" = "请选择 JPEG 或 HEIC 保留 HDR，并确认系统能解码原片的增益图。";
+"card.error.livePairing" = "实况照片无法与视频配对，原片未被修改。";
+"card.error.videoMetadata" = "无法完整清理视频元数据，请保留元数据或选择其他照片。";
+"card.save.destination" = "保存到相册";
+"card.save.update" = "更新相册原照片";
+"card.save.update.description" = "将编辑写入原照片，相册保留原片，可随时还原。";
+"card.save.copy.description" = "另存一张新照片，保留原照片。";
+"card.save.format" = "图片格式";
+"card.save.quality" = "编码质量";
+"card.save.exif" = "保留拍摄参数";
+"card.save.location" = "保留定位";
+"card.save.time" = "保留拍摄时间";
+"card.save.metadata" = "保存元数据";
+"card.save.metadata.footer" = "选项同时作用于照片及实况视频。已经写在卡片上的文字仍会保留。";
+"settings.year.auto" = "最早照片年份";
+"settings.apple.notice" = "Fuyao Photos 为独立应用，与 Apple 无关联，亦未获其认可。Apple 及其产品名称为 Apple Inc. 的商标。";
+"card.live.preview" = "播放实况照片";
+"card.save.update.unavailable" = "更新原片需要可访问的静态相册照片，实况照片另存为新副本。";
+"card.more" = "更多";
+"card.edit.mode" = "编辑工具";
+"card.edit.field" = "信息字段";
+"card.save.complete" = "已存储到照片";
+"photo.open.library" = "在相册中打开";
+"photo.add.card" = "添加信息卡片";
+"photo.open.failed" = "无法打开系统相册。";
+"photo.dimensions" = "尺寸";
+"photo.file.size" = "文件大小";
+
+"map.fit.photos" = "显示全部照片";
+"card.previous" = "上一张照片";
+"card.next" = "下一张照片";
+"card.photo.position %lld %lld" = "第 %lld 张，共 %lld 张";
+"card.field.device.hint" = "相机或手机的产品名称，留空则隐藏。";
+"card.field.author.hint" = "当前照片的摄影者署名。";
+"card.field.location.hint" = "由照片 GPS 解析的城市和国家，也可以自行填写。";
+"card.field.camera.hint" = "从原片读取的镜头名称。";
+"card.field.imageSize.hint" = "以 MP 表示像素数量，不是文件大小。";
+"card.field.focalLength.hint" = "35 mm 等效焦距，可附上变焦倍率。";
+"card.field.exposure.hint" = "快门时间，例如 1/100 或 30SEC。";
+"card.field.aperture.hint" = "镜头光圈数值，例如 1.8。";
+"card.field.iso.hint" = "相机记录的 ISO 感光度。";
+"card.style.scale.hint" = "同时调整整张信息卡的大小。";
+"card.style.textScale.hint" = "调整字号，保留卡片宽度。";
+"card.style.opacity.hint" = "调整卡片底色透明度，文字保持不透明。";
+"card.style.blur.hint" = "模糊卡片背后的照片细节。";
+"card.style.rightInset.hint" = "距照片右边缘的距离，随照片尺寸缩放。";
+"card.style.bottomInset.hint" = "距照片底边的距离，随照片尺寸缩放。";
+"card.style.cornerRadius.hint" = "调整信息卡的圆角大小。";
+"card.error.imageEncoding" = "系统未能编码这张照片，请尝试另一种图片格式。原片未修改。";
+"card.error.imageValidation" = "编码后的照片未能保留原尺寸或 HDR 数据，因此没有保存。";
+"card.error.auxiliaryEncoding" = "系统未能保留照片的景深或蒙版数据，因此没有保存。";
+"card.error.librarySave" = "图片已生成，但系统相册未能添加。请重试保存。";
+"card.error.libraryResource" = "系统相册未接受生成的照片或实况配对，请尝试 HEIC 格式后重新保存。";
+"card.error.storageFull" = "设备剩余存储空间不足，无法保存照片。";
+"card.compare" = "对比原图";
+"card.restore.selected" = "恢复默认";
+"card.field.focalLength.short" = "焦距";

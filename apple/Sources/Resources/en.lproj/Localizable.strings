@@ -1,0 +1,222 @@
+/*
+  Localizable.strings (English)
+  Photo Map
+
+  Created by skyrocketing Hong on 2025-12-31.
+*/
+
+// MARK: - App General
+"app.title" = "Photo Map";
+"done" = "Done";
+"loading" = "Loading...";
+"all" = "All";
+
+// MARK: - Map Display Mode
+"display.mode.photo" = "Photo";
+"display.mode.cluster" = "Cluster";
+
+// MARK: - Map Style
+"map.style.explore" = "Explore";
+"map.style.satellite" = "Satellite";
+"map.style.hybrid" = "Hybrid";
+
+// MARK: - Year Filter
+"year.filter.title" = "Year Filter";
+"year.filter.all" = "All Years";
+
+// MARK: - Sidebar Sections
+"sidebar.display.mode" = "Display Mode";
+"sidebar.map.style" = "Map Style";
+
+// MARK: - Photo Detail
+"photo.detail.title" = "Photo Details";
+"photo.detail.location.info" = "Location Info";
+"photo.detail.photo.properties" = "Photo Properties";
+"photo.detail.map.location" = "Map Location";
+
+// MARK: - Photo Detail Fields
+"photo.detail.latitude" = "Latitude";
+"photo.detail.longitude" = "Longitude";
+"photo.detail.creation.time" = "Captured";
+"photo.detail.width" = "Width";
+"photo.detail.height" = "Height";
+"photo.detail.media.type" = "Type";
+
+// MARK: - Media Types
+"media.type.image" = "Image";
+"media.type.video" = "Video";
+"media.type.audio" = "Audio";
+
+// MARK: - Photo Count
+"photo.count.photos" = "Photos";
+"photo.count.videos" = "Videos";
+"photo.count.separator" = ",";
+
+// MARK: - Loading States
+"loading.photos" = "Loading photos...";
+"loading.locations" = "Loading locations...";
+
+// MARK: - Permissions
+"permission.photo.library" = "Photo library access required";
+
+// MARK: - Errors
+"error.loading.failed" = "Loading failed";
+
+// MARK: - Settings
+"settings.title" = "Settings";
+"settings.defaults.header" = "Defaults";
+"settings.defaults.footer" = "These settings will take effect when the app launches";
+"settings.default.display.mode" = "Default Display Mode";
+"settings.default.map.style" = "Default Map Style";
+"settings.start.year.header" = "Year Range Start";
+"settings.start.year.footer" = "Set the starting year for the year filter menu, such as your birth year or other meaningful dates. If not set, it will use the earliest year from your photos";
+"settings.enable.start.year" = "Custom Start Year";
+"settings.start.year" = "Start Year";
+"settings.default.year.header" = "Default Year Filter";
+"settings.default.year.footer" = "Set the year that will be automatically selected when the app launches, allowing quick access to photos from a specific year";
+"settings.enable.default.year" = "Enable Default Year";
+"settings.default.year" = "Default Year";
+"settings.about.header" = "About";
+"settings.version" = "Version";
+"settings.reset.defaults" = "Reset";
+
+// MARK: - Map Session and Photo Loading
+"display.mode.heatmap" = "Heatmap";
+"photo.count.visible %lld" = "%lld items in this area";
+"action.retry" = "Retry";
+"action.load.more" = "Load More";
+"permission.photo.library.description" = "Allow photo library access in system settings, then retry. Only photos with location data appear on the map.";
+"permission.photo.library.limited" = "Showing only the photos you allowed access to.";
+"error.library.retry" = "The photo library could not be loaded. Please try again.";
+"error.map.query" = "Could not update this area.";
+"map.empty.region" = "No geotagged photos or videos in this area for the selected year.";
+"map.cluster.open %lld" = "Open %lld items";
+"map.cluster.member.count %lld" = "%lld items in this group";
+"map.cluster.title" = "Photos in This Area";
+"map.cluster.empty" = "These photos are no longer available.";
+"error.cluster.members" = "Could not load more photos. Please retry.";
+"photo.preview.unavailable" = "Preview Unavailable";
+"photo.preview.retry.description" = "The photo may have been removed or may need to download from iCloud. Check your connection and retry.";
+"photo.date.unknown" = "Unknown date";
+"media.type.unknown" = "Unknown type";
+
+"tab.map" = "Map";
+"tab.cards" = "Photo Cards";
+"map.options" = "Map Options";
+"map.style.muted" = "Muted";
+"map.appearance" = "Appearance";
+"map.appearance.system" = "System";
+"map.appearance.light" = "Day";
+"map.appearance.dark" = "Night";
+"map.traffic" = "Traffic";
+"map.points" = "Points of Interest";
+"map.elevation" = "3D Terrain";
+"map.compass" = "Compass";
+"map.scale" = "Scale";
+"map.heat.radius" = "Heat Radius";
+"map.heat.opacity" = "Heat Intensity";
+"card.open" = "Open Photos";
+"card.save" = "Save All";
+"card.close" = "Close Photos";
+"card.cancel" = "Cancel";
+"card.share" = "Share";
+"card.empty.title" = "Create a Photo Card";
+"card.empty.description" = "Choose photos to add camera details, a location and your credit.";
+"card.information" = "Photo Information";
+"card.field.device" = "Device";
+"card.field.author" = "Shot by";
+"card.field.location" = "Location";
+"card.field.camera" = "Lens";
+"card.field.imageSize" = "Image size";
+"card.field.focalLength" = "Focal length and zoom";
+"card.field.exposure" = "Exposure time";
+"card.field.aperture" = "Aperture";
+"card.field.iso" = "ISO";
+"card.defaultAuthor" = "Default photographer";
+"card.resolveLocation" = "Look Up Photo Locations";
+"card.resolveLocation.description" = "Use the system place service to look up photo GPS coordinates. Your current location is not requested.";
+"card.style" = "Card Style";
+"card.scale" = "Card Size";
+"card.textScale" = "Text Size";
+"card.opacity" = "Opacity";
+"card.blur" = "Blur";
+"card.rightInset" = "Right Inset";
+"card.bottomInset" = "Bottom Inset";
+"card.radius" = "Corner Radius";
+"card.style.reset" = "Restore Reference Style";
+"card.preview" = "Photo Preview";
+"card.preview.full" = "Full Resolution Preview";
+"card.preview.reset" = "Reset Zoom";
+"card.preview.loading" = "Rendering preview…";
+"card.processing %lld %lld" = "Processing %lld of %lld";
+"card.photo.number %lld" = "Photo %lld";
+"card.saved %lld" = "Saved %lld photos";
+"card.replace.confirm" = "Replace the photos with unsaved changes?";
+"card.replace" = "Choose Other Photos";
+"card.close.confirm" = "Close photos and discard unsaved changes?";
+"card.import.failed" = "%d photos could not be opened. Check library access and iCloud downloads, then try again.";
+"card.error.title" = "Could Not Complete";
+"card.error.invalidImage" = "The image could not be read. Try the original photo.";
+"card.error.tooLarge" = "This photo is too large to process. Choose a smaller original.";
+"card.error.overflow" = "The card does not fit inside the photo. Reduce card size or shorten the text.";
+"card.error.exportFailed" = "The photo could not be saved. Check available storage and Photos access, then try again.";
+"card.error.permission" = "Allow Photos access in System Settings to save photos or preserve this Live Photo.";
+"card.error.unavailable" = "The original is unavailable. Download it from iCloud in Photos, then reopen it.";
+"card.error.unsupportedMedia" = "This photo includes additional media that this editor cannot yet preserve. The original has not been changed.";
+"card.error.hdrFormat" = "Choose JPEG or HEIC to preserve HDR. The system must be able to decode the original gain map.";
+"card.error.livePairing" = "The Live Photo could not be paired with its video. The original has not been changed.";
+"card.error.videoMetadata" = "The video metadata could not be removed safely. Keep its metadata or choose another photo.";
+"card.save.destination" = "Save to Photos";
+"card.save.update" = "Update Original Photo";
+"card.save.update.description" = "Save an edit to the original library photo. Photos keeps the original so you can revert.";
+"card.save.copy.description" = "Save a new copy and keep the original photo.";
+"card.save.format" = "Format";
+"card.save.quality" = "Encoding Quality";
+"card.save.exif" = "Keep Camera Details";
+"card.save.location" = "Keep Location";
+"card.save.time" = "Keep Capture Time";
+"card.save.metadata" = "Saved Metadata";
+"card.save.metadata.footer" = "These choices apply to the image and its Live Photo video. Text already shown on the card stays visible.";
+"settings.year.auto" = "Earliest Photo";
+"settings.apple.notice" = "Fuyao Photos is an independent app and is not affiliated with or endorsed by Apple. Apple and its product names are trademarks of Apple Inc.";
+"card.live.preview" = "Play Live Photo";
+"card.save.update.unavailable" = "Updating originals requires accessible still photos in the library. Live Photos are saved as new copies.";
+"card.more" = "More";
+"card.edit.mode" = "Editing Tools";
+"card.edit.field" = "Information Field";
+"card.save.complete" = "Saved to Photos";
+"photo.open.library" = "Open in Photos";
+"photo.add.card" = "Add Photo Card";
+"photo.open.failed" = "Photos could not be opened.";
+"photo.dimensions" = "Dimensions";
+"photo.file.size" = "File Size";
+
+"map.fit.photos" = "Show All Photos";
+"card.previous" = "Previous Photo";
+"card.next" = "Next Photo";
+"card.photo.position %lld %lld" = "%lld of %lld";
+"card.field.device.hint" = "Camera or phone product name. Leave blank to hide it.";
+"card.field.author.hint" = "Photographer credit for this photo.";
+"card.field.location.hint" = "City and country from the photo’s GPS, or your own location text.";
+"card.field.camera.hint" = "Lens name read from the original photo.";
+"card.field.imageSize.hint" = "Resolution in megapixels, not file size.";
+"card.field.focalLength.hint" = "35 mm-equivalent focal length and optional zoom ratio.";
+"card.field.exposure.hint" = "Shutter time, such as 1/100 or 30SEC.";
+"card.field.aperture.hint" = "Lens aperture, such as 1.8.";
+"card.field.iso.hint" = "ISO sensitivity recorded by the camera.";
+"card.style.scale.hint" = "Resize the entire information card.";
+"card.style.textScale.hint" = "Change text size while keeping the card width.";
+"card.style.opacity.hint" = "Adjust background opacity; text stays opaque.";
+"card.style.blur.hint" = "Blur photo details behind the card.";
+"card.style.rightInset.hint" = "Distance from the right edge, scaled with the photo.";
+"card.style.bottomInset.hint" = "Distance from the bottom edge, scaled with the photo.";
+"card.style.cornerRadius.hint" = "Adjust the card’s rounded corners.";
+"card.error.imageEncoding" = "The system could not encode this photo. Try the other image format; the original is unchanged.";
+"card.error.imageValidation" = "The encoded photo did not retain its dimensions or HDR data. It was not saved.";
+"card.error.auxiliaryEncoding" = "The system could not preserve the photo’s depth or matte data. It was not saved.";
+"card.error.librarySave" = "The photo was created, but Photos could not add it to the library. Try saving again.";
+"card.error.libraryResource" = "Photos did not accept the generated photo or Live Photo pair. Try HEIC, then save again.";
+"card.error.storageFull" = "There is not enough free storage to save this photo.";
+"card.compare" = "Compare Original";
+"card.restore.selected" = "Restore Default";
+"card.field.focalLength.short" = "Focal Length";
