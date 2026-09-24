@@ -5,7 +5,6 @@ struct CardCanvas: View {
     let open: () -> Void
     let save: () -> Void
     let close: () -> Void
-    @Environment(PhotoWorkspace.self) private var workspace
     @State private var preview = CardPreviewState()
 
     var body: some View {
@@ -26,29 +25,32 @@ struct CardCanvas: View {
                             .frame(height: max(160, min(geometry.size.height * 0.43, 320)))
                             .padding(.horizontal, 20)
                             .padding(.top, 16)
-                        CardActionStrip(document: document, preview: preview, open: open, save: save, close: close) {
-                            workspace.selectedTab = .settings
-                        }
+                        CardActionStrip(document: document, preview: preview, open: open, save: save, close: close)
                         CardAdjustmentPanel(document: document)
                             .frame(maxHeight: .infinity)
                     }
                     .background(Color(white: 0.06))
                 }
 #else
+                let photoHeight = min(geometry.size.width * 0.75,
+                                      min(geometry.size.height * 0.46, max(0, geometry.size.height - 420)))
                 VStack(spacing: 8) {
-                    if geometry.size.height>=300 {
-                    CardFilmstrip(session: session, preview: preview)
-                        .frame(height: max(100,min(geometry.size.width * 0.75,geometry.size.height * 0.46)))
-                        .padding(.horizontal,8)
-                        .shadow(color:.black.opacity(0.55),radius:4,y:2)
+                    if photoHeight >= 120 {
+                        CardFilmstrip(session: session, preview: preview)
+                            .frame(height: photoHeight)
+                            .padding(.horizontal, 8)
+                            .shadow(color: .black.opacity(0.55), radius: 4, y: 2)
                     }
-                    CardActionStrip(document:document,preview:preview,open:open,save:save,close:close) {
-                        workspace.selectedTab = .settings
-                    }
-                    CardAdjustmentPanel(document:document)
-                        .frame(maxHeight:.infinity)
+                    CardActionStrip(document: document, preview: preview, open: open, save: save, close: close)
+                    CardAdjustmentPanel(document: document)
+                        .frame(maxHeight: .infinity)
                 }
-                .padding(.top,4)
+                .padding(.top, 4)
+                .background {
+                    PhotoAmbientBackdrop(sourceURL: document.sourceURL)
+                        .id(document.id)
+                        .ignoresSafeArea(edges: .top)
+                }
 #endif
                 }
                 .onChange(of:session.selectedID) { _,_ in preview.playing=false;preview.original=false }
@@ -63,9 +65,7 @@ struct CardCanvas: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
-            CardActionStrip(document: document, preview: preview, open: open, save: save, close: close) {
-                workspace.selectedTab = .settings
-            }
+            CardActionStrip(document: document, preview: preview, open: open, save: save, close: close)
                 .padding(.bottom, 12)
         }
         .background(Color(white: 0.06))
@@ -79,7 +79,6 @@ private struct CardActionStrip: View {
     let open: () -> Void
     let save: () -> Void
     let close: () -> Void
-    let settings: () -> Void
     var body: some View {
 #if os(macOS)
         HStack(spacing: 14) {
@@ -93,14 +92,15 @@ private struct CardActionStrip: View {
         .padding(.vertical, 10)
 #else
         GeometryReader { geometry in
+            let visible = visibleTools(for: geometry.size.width)
             HStack(spacing: 0) {
-                ForEach(visibleTools(for: geometry.size.width), id: \.self) { tool in
+                ForEach(visible, id: \.self) { tool in
                     control(for: tool, width: geometry.size.width)
-                        .frame(maxWidth: .infinity)
+                        .frame(width: 64, height: 64)
                 }
             }
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(width: CGFloat(visible.count) * 64, height: 64)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
         .frame(height: 64)
 #endif
@@ -108,19 +108,19 @@ private struct CardActionStrip: View {
 
 #if !os(macOS)
     private enum Tool: Hashable {
-        case live, hdr, compare, full, open, settings, save, more
+        case live, hdr, compare, full, open, save, more
     }
 
     private var optionalTools: [Tool] {
         var tools: [Tool] = []
         if document.isLive { tools.append(.live) }
         if document.metadata.hdr { tools.append(.hdr) }
-        tools.append(contentsOf: [.compare, .full, .open, .settings])
+        tools.append(contentsOf: [.compare, .full, .open])
         return tools
     }
 
     private func visibleTools(for width: CGFloat) -> [Tool] {
-        let slots = min(8, max(2, Int((max(0, width - 24)) / 56)))
+        let slots = min(7, max(2, Int((max(0, width - 32)) / 64)))
         return Array(optionalTools.prefix(slots - 2)) + [.save, .more]
     }
 
@@ -177,8 +177,6 @@ private struct CardActionStrip: View {
             }
         case .open:
             CircularIconButton("card.open", systemImage: "photo.badge.plus", action: open)
-        case .settings:
-            CircularIconButton("settings.title", systemImage: "gearshape", action: settings)
         case .save:
             CircularIconButton("card.save", systemImage: "square.and.arrow.down", action: save)
         case .more:
@@ -219,8 +217,6 @@ private struct CardActionStrip: View {
             }
         case .open:
             Button("card.open", systemImage: "photo.badge.plus", action: open)
-        case .settings:
-            Button("settings.title", systemImage: "gearshape", action: settings)
         case .save, .more:
             EmptyView()
         }
@@ -271,7 +267,9 @@ private struct CardFilmstrip: View {
                 .padding(.horizontal, 12).padding(.vertical, 8)
             }
         }
+#if os(macOS)
         .background(Color(white:0.06))
+#endif
     }
     private var selectedIndex:Int { session.documents.firstIndex { $0.id==session.selectedID } ?? 0 }
     private func move(_ amount:Int) {

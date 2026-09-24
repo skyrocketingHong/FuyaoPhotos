@@ -153,6 +153,8 @@ struct CardAdjustmentPanel: View {
             }
             .pickerStyle(.segmented)
             GeometryReader { geometry in
+                let selectorWidth = min(200, geometry.size.width * 0.4)
+                let detailWidth = max(0, geometry.size.width - selectorWidth - 16)
                 HStack(alignment: .top, spacing: 16) {
                     Group {
                         if mode == .information {
@@ -164,26 +166,22 @@ struct CardAdjustmentPanel: View {
                         }
                     }
                     .id(mode)
-                    .frame(width: min(200, geometry.size.width * 0.4))
+                    .frame(width: selectorWidth)
 
-                    ScrollView {
-                        ZStack(alignment: .topLeading) {
-                            if mode == .information {
-                                MobileInformationDetail(document: document, field: field)
-                                    .id(detailID)
-                                    .transition(.opacity)
-                            } else {
-                                MobileStyleDetail(document: document, adjustment: adjustment)
-                                    .id(detailID)
-                                    .transition(.opacity)
-                            }
+                    ZStack(alignment: .topLeading) {
+                        if mode == .information {
+                            MobileInformationDetail(document: document, field: field)
+                                .id(detailID)
+                                .transition(.opacity)
+                        } else {
+                            MobileStyleDetail(document: document, adjustment: adjustment)
+                                .id(detailID)
+                                .transition(.opacity)
                         }
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.22), value: detailID)
-                        .padding(.top, 12)
-                        .padding(.bottom, 12)
                     }
-                    .scrollIndicators(.hidden)
+                    .frame(width: detailWidth, height: max(0, geometry.size.height - 12), alignment: .topLeading)
+                    .animation(.easeInOut(duration: reduceMotion ? 0.12 : 0.22), value: detailID)
+                    .padding(.top, 12)
                 }
             }
             .frame(maxHeight: .infinity)
@@ -264,17 +262,16 @@ private struct MobileStyleDetail: View {
 
 private struct MobileDetailDescription: View {
     let key: LocalizedStringKey
-    @ScaledMetric(relativeTo: .subheadline) private var reservedHeight: CGFloat = 112
+    @ScaledMetric(relativeTo: .subheadline) private var reservedHeight: CGFloat = 120
 
     var body: some View {
-        ScrollView(.vertical) {
-            Text(key)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-        }
-        .scrollIndicators(.hidden)
-        .frame(height: reservedHeight)
+        Text(key)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .lineLimit(6)
+            .minimumScaleFactor(0.9)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(height: reservedHeight)
     }
 }
 #endif

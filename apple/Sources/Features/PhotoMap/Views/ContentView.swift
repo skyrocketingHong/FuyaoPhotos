@@ -6,16 +6,24 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $workspace.selectedTab) {
             Tab("tab.map", systemImage: "map", value: PhotoWorkspace.Tab.map) { PhotoMapScreen() }
-            Tab("tab.cards", systemImage: "photo.badge.plus", value: PhotoWorkspace.Tab.cards) { PhotoCardScreen(session: workspace.cards) }
+            Tab("tab.cards", systemImage: "photo.badge.plus", value: PhotoWorkspace.Tab.cards) {
+                PhotoCardScreen(session: workspace.cards)
+#if !os(macOS)
+                    .toolbarBackground(.visible, for: .tabBar)
+                    .toolbarColorScheme(.dark, for: .tabBar)
+#endif
+            }
 #if !os(macOS)
             if #available(iOS 27, *) {
                 Tab("settings.title", systemImage: "gearshape", value: PhotoWorkspace.Tab.settings, role: .prominent) {
                     NavigationStack { SettingsView() }
                 }
+                .hidden(workspace.selectedTab == .cards)
             } else {
                 Tab("settings.title", systemImage: "gearshape", value: PhotoWorkspace.Tab.settings) {
                     NavigationStack { SettingsView() }
                 }
+                .hidden(workspace.selectedTab == .cards)
             }
 #endif
         }
