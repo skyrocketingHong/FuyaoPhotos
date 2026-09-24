@@ -29,13 +29,13 @@ nonisolated struct PhotoCard: Codable, Equatable, Sendable {
         get { fields[field, default: ""] }
         set { fields[field] = newValue }
     }
-    var rows: [(text: String, accent: Bool)] {
+    var rows: [(field: CardField, text: String, accent: Bool)] {
         CardField.allCases.compactMap { field in
             let raw = self[field].trimmingCharacters(in: .whitespacesAndNewlines)
             guard !raw.isEmpty else { return nil }
             let value = field == .device && raw.lowercased().hasPrefix("iphone")
                 ? "iPHONE" + raw.dropFirst(6).uppercased() : raw.uppercased()
-            return (field.label.isEmpty ? value : "\(field.label): \(value)", field.accent)
+            return (field, field.label.isEmpty ? value : "\(field.label): \(value)", field.accent)
         }
     }
 }

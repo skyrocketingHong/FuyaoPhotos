@@ -6,17 +6,42 @@ struct PhotoCardScreen: View {
     @Environment(PhotoWorkspace.self) private var workspace
     @State private var showingPicker = false
     @State private var showingSave = false
+    @State private var saveDetent = PresentationDetent.medium
     @State private var showingReplace = false
     @State private var showingClose = false
+    @State private var showingToolbarReplace = false
+    @State private var showingToolbarClose = false
+    @State private var showingExternalReplace = false
     @State private var replacementIDs: [String]?
+
+    private var replaceTitle: LocalizedStringKey {
+        session.documents.count == 1 ? "card.replace.confirm.one" : "card.replace.confirm.many"
+    }
+
+    private var closeTitle: LocalizedStringKey {
+        session.documents.count == 1 ? "card.close.confirm.one" : "card.close.confirm.many"
+    }
+
+    private var closeActionTitle: LocalizedStringKey {
+        session.documents.count == 1 ? "card.close.one" : "card.close.many"
+    }
+
+    private var saveActionTitle: LocalizedStringKey {
+        session.documents.count == 1 ? "card.save.action.one" : "card.save.action.many"
+    }
 
     var body: some View {
         NavigationStack {
             Group {
                 if session.current != nil {
-                    CardCanvas(session:session,open:choosePhotos,save:{ showingSave=true },close:{
-                        if session.hasChanges { showingClose=true } else { session.clear() }
-                    })
+                    CardCanvas(session: session,
+                        replaceConfirmation: $showingReplace,
+                        closeConfirmation: $showingClose,
+                        open: choosePhotos,
+                        save: presentSaveOptions,
+                        close: { if session.hasChanges { showingClose = true } else { session.clear() } },
+                        confirmReplace: replacePhotos,
+                        confirmClose: { session.clear() })
                 }
                 else {
                     ContentUnavailableView {
@@ -39,12 +64,16 @@ struct PhotoCardScreen: View {
             .toolbar {
                 if let document = session.current {
                     ToolbarItem(placement: .primaryAction) {
-                        Button("card.open", systemImage: "photo.badge.plus", action: choosePhotos)
+                        Button("card.open", systemImage: "photo.badge.plus", action: choosePhotosFromToolbar)
                             .labelStyle(.iconOnly).buttonBorderShape(.circle)
                             .keyboardShortcut("o")
+                            .confirmationDialog(replaceTitle, isPresented: $showingToolbarReplace, titleVisibility: .visible) {
+                                Button("card.replace", role: .destructive, action: replacePhotos)
+                                Button("card.cancel", role: .cancel) { replacementIDs = nil }
+                            }
                     }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("card.save", systemImage: "checkmark") { showingSave = true }
+                        Button(saveActionTitle, systemImage: "checkmark", action: presentSaveOptions)
                             .labelStyle(.iconOnly).buttonBorderShape(.circle)
                             .keyboardShortcut("s")
                     }
@@ -56,11 +85,14 @@ struct PhotoCardScreen: View {
                             if let url = document.exportURL, !document.isLive {
                                 ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
                             }
-                            Button("card.close", systemImage: "xmark") {
-                                if session.hasChanges { showingClose = true } else { session.clear() }
+                            Button(closeActionTitle, systemImage: "xmark") {
+                                if session.hasChanges { showingToolbarClose = true } else { session.clear() }
                             }
                         }
                         .labelStyle(.iconOnly).buttonBorderShape(.circle)
+                        .confirmationDialog(closeTitle, isPresented: $showingToolbarClose, titleVisibility: .visible) {
+                            Button(closeActionTitle, role: .destructive) { session.clear() }
+                        }
                     }
                 }
             }
@@ -89,16 +121,18 @@ struct PhotoCardScreen: View {
 #endif
         }
         .sheet(isPresented: $showingSave) {
-            CardSaveSheet(canUpdate: session.canUpdateOriginals,
+            CardSaveSheet(photoCount: session.documents.count,
+                canUpdate: session.canUpdateOriginals,
                 hasHDR: session.documents.contains { $0.metadata.hdr || $0.metadata.hasPortraitData },
                 hasLive: session.documents.contains { $0.isLive }) { options in Task { await session.save(options: options) } }
+#if !os(macOS)
+                .presentationDetents([.medium, .large], selection: $saveDetent)
+                .presentationContentInteraction(.scrolls)
+#endif
         }
-        .confirmationDialog("card.replace.confirm", isPresented: $showingReplace, titleVisibility: .visible) {
+        .confirmationDialog(replaceTitle, isPresented: $showingExternalReplace, titleVisibility: .visible) {
             Button("card.replace", role: .destructive, action: replacePhotos)
             Button("card.cancel", role: .cancel) { replacementIDs = nil }
-        }
-        .confirmationDialog("card.close.confirm", isPresented: $showingClose, titleVisibility: .visible) {
-            Button("card.close", role: .destructive) { session.clear() }
         }
         .alert("card.error.title", isPresented: Binding(get: { session.errorMessage != nil }, set: { if !$0 { session.dismissError() } })) {
             Button("done") { session.dismissError() }
@@ -110,7 +144,12 @@ struct PhotoCardScreen: View {
                 }
             }
             Button("done", role: .cancel) { session.savedCount = nil }
-        } message: { Text("card.saved \(session.savedCount ?? 0)") }
+        } message: {
+            if session.documents.count > 1, let count = session.savedCount {
+                if count == 1 { Text("card.saved.one") }
+                else { Text("card.saved \(count)") }
+            }
+        }
         .sensoryFeedback(.success, trigger: session.savedCount) { _, count in count != nil }
         .onChange(of: workspace.pendingAssetIDs) { _, _ in handlePendingImport() }
         .onChange(of: session.busy) { _, busy in if !busy { handlePendingImport() } }
@@ -124,6 +163,14 @@ struct PhotoCardScreen: View {
         replacementIDs = nil
         if session.hasChanges { showingReplace = true } else { showingPicker = true }
     }
+    private func choosePhotosFromToolbar() {
+        replacementIDs = nil
+        if session.hasChanges { showingToolbarReplace = true } else { showingPicker = true }
+    }
+    private func presentSaveOptions() {
+        saveDetent = .medium
+        showingSave = true
+    }
     private func replacePhotos() {
         if let ids = replacementIDs {
             replacementIDs = nil
@@ -133,7 +180,7 @@ struct PhotoCardScreen: View {
     private func handlePendingImport() {
         guard !session.busy, let ids = workspace.pendingAssetIDs else { return }
         workspace.pendingAssetIDs = nil
-        if session.hasChanges { replacementIDs = ids; showingReplace = true }
+        if session.hasChanges { replacementIDs = ids; showingExternalReplace = true }
         else { Task { await session.openAssets(ids) } }
     }
 }

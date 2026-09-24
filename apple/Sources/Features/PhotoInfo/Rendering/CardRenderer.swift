@@ -4,7 +4,12 @@ import CoreText
 import ImageIO
 
 nonisolated struct CardLayout {
-    struct Line { let text: NSAttributedString; let baseline: CGPoint }
+    struct Line {
+        let field: CardField
+        let text: NSAttributedString
+        let baseline: CGPoint
+        let bounds: CGRect
+    }
     let rect: CGRect
     let lines: [Line]
     let radius: CGFloat
@@ -17,7 +22,7 @@ nonisolated struct CardLayout {
         let fontSize = 10.5 * style.textScale
         let lineHeight = 12.5 * style.textScale
         let width = 177.0
-        var wrapped: [(NSAttributedString, Bool)] = []
+        var wrapped: [(field: CardField, text: NSAttributedString, accent: Bool)] = []
         for row in card.rows {
             let string = CardTypography.text(row.text, size: fontSize, accent: row.accent)
             let setter = CTTypesetterCreateWithAttributedString(string)
@@ -25,11 +30,11 @@ nonisolated struct CardLayout {
             while start < string.length {
                 let length = CTTypesetterSuggestLineBreak(setter, start, width)
                 guard length > 0 else { throw CardError.overflow }
-                wrapped.append((string.attributedSubstring(from: NSRange(location: start, length: length)), row.accent))
+                wrapped.append((row.field, string.attributedSubstring(from: NSRange(location: start, length: length)), row.accent))
                 start += length
             }
         }
-        let both = wrapped.contains { $0.1 } && wrapped.contains { !$0.1 }
+        let both = wrapped.contains { $0.accent } && wrapped.contains { !$0.accent }
         let contentHeight = Double(wrapped.count) * lineHeight + (both ? 7 : 0)
         let height = max(168, contentHeight + 36) * unit
         let cardWidth = 215 * unit
@@ -39,14 +44,32 @@ nonisolated struct CardLayout {
         radius = min(style.cornerRadius * unit, min(cardWidth, height) / 2)
         blur = style.blur * unit
         var top = height - (height - contentHeight * unit) / 2
-        var previousAccent = wrapped.first?.1 ?? false
-        lines = wrapped.map { string, accent in
+        var previousAccent = wrapped.first?.accent ?? false
+        lines = wrapped.map { field, string, accent in
             if previousAccent && !accent { top -= 7 * unit }
             let font = CardTypography.monoFont(size: fontSize)
-            let result = Line(text: string, baseline: CGPoint(x: 19 * unit, y: top - CTFontGetCapHeight(font) * unit))
+            let baseline = CGPoint(x: 19 * unit, y: top - CTFontGetCapHeight(font) * unit)
+            let ctLine = CTLineCreateWithAttributedString(string)
+            var ascent: CGFloat = 0
+            var descent: CGFloat = 0
+            let advance = CTLineGetTypographicBounds(ctLine, &ascent, &descent, nil)
+            let bounds = CGRect(x: baseline.x, y: baseline.y - descent * unit,
+                                width: advance * unit, height: (ascent + descent) * unit)
+            let result = Line(field: field, text: string, baseline: baseline, bounds: bounds)
             top -= lineHeight * unit
             previousAccent = accent
             return result
+        }
+    }
+
+    func normalizedTextRects(for field: CardField) -> [CGRect] {
+        lines.filter { $0.field == field }.compactMap { line in
+            let bounds = line.bounds.intersection(CGRect(origin: .zero, size: rect.size))
+            guard !bounds.isNull, bounds.width > 0, bounds.height > 0 else { return nil }
+            return CGRect(x: bounds.minX / rect.width,
+                          y: (rect.height - bounds.maxY) / rect.height,
+                          width: bounds.width / rect.width,
+                          height: bounds.height / rect.height)
         }
     }
 }

@@ -4,6 +4,12 @@ import ImageIO
 import UniformTypeIdentifiers
 import AVFoundation
 
+nonisolated struct CardDetailRender {
+    let image: CGImage
+    let cardRect: CGRect
+    let textRects: [CardField: [CGRect]]
+}
+
 nonisolated struct CardPhotoMetadata: Sendable {
     var card: PhotoCard
     let width: Int
@@ -70,7 +76,7 @@ actor CardImageProcessor {
         return result
     }
 
-    func previewCardDetail(_ url: URL, card: PhotoCard, maxDimension: CGFloat = 1600) throws -> CGImage {
+    func previewCardDetail(_ url: URL, card: PhotoCard, maxDimension: CGFloat = 1600) throws -> CardDetailRender {
         try Task.checkCancellation()
         guard !card.rows.isEmpty,
               var image = CIImage(contentsOf: url, options: [.applyOrientationProperty: true, .expandToHDR: false, .toneMapHDRtoSDR: true])
@@ -86,7 +92,17 @@ actor CardImageProcessor {
         guard let detail = context.createCGImage(rendered, from: crop, format: .RGBA8,
             colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!, deferred: false)
         else { throw CardError.exportFailed }
-        return detail
+        let cardRect = CGRect(x: layout.rect.minX - crop.minX,
+                              y: crop.maxY - layout.rect.maxY,
+                              width: layout.rect.width, height: layout.rect.height)
+        let textRects = Dictionary(uniqueKeysWithValues: CardField.allCases.map { field in
+            (field, layout.normalizedTextRects(for: field).map { rect in
+                CGRect(x: cardRect.minX + rect.minX * cardRect.width,
+                       y: cardRect.minY + rect.minY * cardRect.height,
+                       width: rect.width * cardRect.width, height: rect.height * cardRect.height)
+            })
+        })
+        return CardDetailRender(image: detail, cardRect: cardRect, textRects: textRects)
     }
 
     func export(_ url: URL, card: PhotoCard, options: CardSaveOptions, hdr: Bool, to destination: URL, live: Bool, liveIdentifier: String? = nil) throws {

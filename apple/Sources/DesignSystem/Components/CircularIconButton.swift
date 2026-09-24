@@ -4,6 +4,7 @@ struct CircularIconButton: View {
     let title: LocalizedStringKey
     let systemImage: String
     let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(_ title: LocalizedStringKey, systemImage: String, action: @escaping () -> Void) {
         self.title = title
@@ -15,6 +16,8 @@ struct CircularIconButton: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .frame(width: 20, height: 20)
+                .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+                .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: systemImage)
         }
 #if os(macOS)
             .buttonStyle(.bordered)

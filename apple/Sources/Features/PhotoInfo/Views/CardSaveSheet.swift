@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct CardSaveSheet: View {
+    let photoCount: Int
     let canUpdate: Bool
     let hasHDR: Bool
     let hasLive: Bool
@@ -8,30 +9,64 @@ struct CardSaveSheet: View {
     @State private var options = CardPreferences.shared.saveOptions
     @Environment(\.dismiss) private var dismiss
 
+    private var copyTitle: LocalizedStringKey {
+        photoCount == 1 ? "card.save.copy.one" : "card.save.copy.many"
+    }
+
+    private var updateTitle: LocalizedStringKey {
+        photoCount == 1 ? "card.save.update.one" : "card.save.update.many"
+    }
+
+    private var saveTitle: LocalizedStringKey {
+        photoCount == 1 ? "card.save.action.one" : "card.save.action.many"
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Section("card.save.destination") {
-                    Toggle("card.save.update", isOn: $options.updateOriginal).disabled(!canUpdate)
-                    Text(LocalizedStringKey(options.updateOriginal ? "card.save.update.description" : "card.save.copy.description"))
-                        .font(.caption).foregroundStyle(.secondary)
-                    if !canUpdate { Text("card.save.update.unavailable").font(.caption).foregroundStyle(.secondary) }
+                Section {
+                    if canUpdate {
+                        Picker("card.save.destination", selection: $options.updateOriginal) {
+                            Text(copyTitle).tag(false)
+                            Text(updateTitle).tag(true)
+                        }
+                    } else {
+                        LabeledContent("card.save.destination") {
+                            Text(copyTitle)
+                        }
+                    }
+                } footer: {
+                    if canUpdate && options.updateOriginal {
+                        if photoCount == 1 { Text("card.save.update.description") }
+                        else { Text("card.save.update.description.many") }
+                    } else if hasLive {
+                        Text("card.save.update.unavailable")
+                    } else if photoCount == 1 {
+                        Text("card.save.copy.description")
+                    } else {
+                        Text("card.save.copy.description.many")
+                    }
                 }
                 CardSaveControls(options: $options, hasHDR: hasHDR, hasLive: hasLive)
             }
             .formStyle(.grouped)
-            .navigationTitle("card.save")
+            .navigationTitle("card.save.options")
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("card.cancel", action: dismiss.callAsFunction) }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("card.save") { dismiss(); save(options) }.disabled((hasHDR || hasLive) && options.format == .png)
+                    Button(saveTitle) {
+                        dismiss()
+                        save(options)
+                    }
+                    .disabled((hasHDR || hasLive) && options.format == .png)
                 }
             }
         }
         .onAppear {
+            options = CardPreferences.shared.saveOptions
             if !canUpdate { options.updateOriginal = false }
             if (hasHDR || hasLive) && options.format == .png { options.format = .jpeg }
         }
@@ -46,7 +81,7 @@ struct CardSaveControls: View {
     var hasHDR = false
     var hasLive = false
     var body: some View {
-        Section("card.save.format") {
+        Section {
             Picker("card.save.format", selection: $options.format) {
                 ForEach(CardExportFormat.allCases) { format in
                     if format != .png || (!hasHDR && !hasLive) { Text(format.title).tag(format) }

@@ -14,6 +14,15 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
         return GeometryReader { geometry in
             let edgeHeight = max(0, min(56, (geometry.size.height-rowHeight)/2-6))
             ZStack {
+                Color.clear
+                    .frame(maxWidth: .infinity)
+                    .frame(height: rowHeight)
+                    .glassEffect(.clear, in: .capsule)
+                    .opacity(0.55)
+                    .padding(.horizontal, 6)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+
                 ScrollView(.vertical) {
                     LazyVStack(spacing:0) {
                         ForEach(0..<(items.count*101),id:\.self) { slot in
@@ -23,8 +32,7 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                             } label: {
                                 Text(title(item))
                                     .font(.body.weight(.semibold))
-                                    .foregroundStyle(Color.white.opacity(0.8))
-                                    .opacity(position==slot ? 0 : 1)
+                                    .foregroundStyle(position == slot ? Color.yellow : Color.white.opacity(0.8))
                                     .multilineTextAlignment(.center)
                                     .frame(maxWidth:.infinity).frame(height:rowHeight)
                                     .contentShape(Rectangle())
@@ -48,10 +56,12 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                         ProgressiveBackdropEdge(edge: .top, material: .thinMaterial,
                                                 reducedTransparencyColor: .black.opacity(0.85))
                             .frame(height: edgeHeight)
+                            .environment(\.colorScheme, .dark)
                         Spacer(minLength: 0)
                         ProgressiveBackdropEdge(edge: .bottom, material: .thinMaterial,
                                                 reducedTransparencyColor: .black.opacity(0.85))
                             .frame(height: edgeHeight)
+                            .environment(\.colorScheme, .dark)
                     }
                     .allowsHitTesting(false)
                 }
@@ -61,15 +71,6 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                     var transaction=Transaction();transaction.disablesAnimations=true
                     withTransaction(transaction) { self.position=items.count*50+position%items.count }
                 }
-                Text(title(selection))
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.yellow)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth:.infinity)
-                    .frame(height:rowHeight)
-                    .glassEffect(.clear,in:.capsule)
-                    .padding(.horizontal,6)
-                    .allowsHitTesting(false)
             }
         }
         .onAppear { if position==nil { position=items.count*50+(items.firstIndex(of:selection) ?? 0) } }

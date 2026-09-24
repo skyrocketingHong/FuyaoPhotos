@@ -1,6 +1,6 @@
 import SwiftUI
 
-private enum CardAdjustment: String, CaseIterable, Identifiable {
+enum CardAdjustment: String, CaseIterable, Identifiable {
     case scale, textScale, opacity, blur, rightInset, bottomInset, cornerRadius
     var id: Self { self }
     var percentage: Bool { self == .scale || self == .textScale || self == .opacity }
@@ -41,6 +41,7 @@ private enum CardAdjustment: String, CaseIterable, Identifiable {
 
 struct CardAdjustmentPanel: View {
     @Bindable var document: CardDocument
+    @Binding var textEditingActive: Bool
     @State private var field: CardField = .author
     @State private var adjustment: CardAdjustment = .scale
     @State private var mode: EditingMode = .information
@@ -164,29 +165,48 @@ struct CardAdjustmentPanel: View {
                 let selectorWidth = min(200, contentWidth * (dynamicTypeSize.isAccessibilitySize ? 0.32 : 0.4))
                 let detailWidth = max(0, contentWidth - selectorWidth - 16)
                 HStack(alignment: .top, spacing: 16) {
-                    Group {
+                    ZStack {
                         if mode == .information {
                             EditorItemPicker(items: CardField.allCases, selection: $field) {
                                 $0 == .focalLength ? "card.field.focalLength.short" : LocalizedStringKey($0.titleKey)
                             }
+                            .transition(.opacity)
                         } else {
                             EditorItemPicker(items: CardAdjustment.allCases, selection: $adjustment) { $0.title }
+                                .transition(.opacity)
                         }
                     }
-                    .id(mode)
+                    .animation(.easeInOut(duration: 0.18), value: mode)
                     .frame(width: selectorWidth)
 
                     MobileCardInspector(document: document, field: field, adjustment: adjustment,
-                                        information: mode == .information, selectionID: detailID)
+                                        information: mode == .information, selectionID: detailID,
+                                        textEditingActive: $textEditingActive)
                         .frame(width: detailWidth, height: geometry.size.height)
                 }
                 .frame(width: contentWidth)
                 .frame(maxWidth: .infinity)
+                .background(alignment: .topTrailing) {
+                    PhotoAmbientBackdrop(sourceURL: document.sourceURL)
+                        .frame(width: detailWidth + selectorWidth * 0.18,
+                               height: min(250, geometry.size.height * 0.58))
+                        .mask {
+                            LinearGradient(stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .white, location: 0.18),
+                                .init(color: .white, location: 0.82),
+                                .init(color: .clear, location: 1)
+                            ], startPoint: .leading, endPoint: .trailing)
+                        }
+                        .frame(width: contentWidth, height: geometry.size.height, alignment: .topTrailing)
+                        .allowsHitTesting(false)
+                }
             }
             .frame(maxHeight: .infinity)
         }
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
+        .onChange(of: mode) { _, _ in textEditingActive = false }
     }
 
     private var detailID: String {
@@ -202,6 +222,7 @@ private struct MobileCardInspector: View {
     let adjustment: CardAdjustment
     let information: Bool
     let selectionID: String
+    @Binding var textEditingActive: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @FocusState private var editingText: Bool
@@ -210,23 +231,31 @@ private struct MobileCardInspector: View {
         GeometryReader { geometry in
             let height = geometry.size.height
             let buttonHeight: CGFloat = dynamicTypeSize.isAccessibilitySize ? 64 : 48
-            let controlHeight = min(dynamicTypeSize.isAccessibilitySize ? 100 : 80, max(68, height * 0.22))
-            let descriptionHeight = min(dynamicTypeSize.isAccessibilitySize ? 130 : 88,
-                                        max(52, height * (dynamicTypeSize.isAccessibilitySize ? 0.3 : 0.22)))
+            let controlHeight = min(dynamicTypeSize.isAccessibilitySize ? 100 : 76, max(68, height * 0.20))
+            let descriptionHeight = min(dynamicTypeSize.isAccessibilitySize ? 130 : 76,
+                                        max(52, height * (dynamicTypeSize.isAccessibilitySize ? 0.3 : 0.19)))
             let showsDescription = height >= (dynamicTypeSize.isAccessibilitySize ? 270 : 210)
             let showsDetail = height >= (dynamicTypeSize.isAccessibilitySize ? 420 : 280)
-            let previewHeight = min(176, max(64, height - controlHeight - descriptionHeight - buttonHeight - 24))
+            let previewHeight = min(220, max(64, height - controlHeight - descriptionHeight - buttonHeight - 24))
 
             VStack(alignment: .leading, spacing: 8) {
-                if showsDetail { CardDetailPreview(document: document, height: previewHeight) }
+                if showsDetail {
+                    CardDetailPreview(document: document, height: previewHeight, processing: textEditingActive,
+                                      highlightedField: information ? field : nil,
+                                      highlightedStyle: information ? nil : adjustment)
+                }
 
                 ZStack(alignment: .leading) {
                     if information {
                         TextField("", text: $document.card[field], axis: .vertical)
-                            .textFieldStyle(.roundedBorder)
+                            .textFieldStyle(.plain)
                             .lineLimit(2...3)
                             .foregroundStyle(.yellow)
                             .tint(.yellow)
+                            .padding(10)
+                            .frame(height: controlHeight - 8, alignment: .top)
+                            .glassEffect(.clear.interactive(), in: .rect(cornerRadius: 12))
+                            .padding(4)
                             .focused($editingText)
                             .accessibilityLabel(Text(LocalizedStringKey(field.titleKey)))
                             .id(selectionID)
@@ -256,7 +285,7 @@ private struct MobileCardInspector: View {
                         Text(LocalizedStringKey(information
                              ? "card.field." + field.rawValue + ".hint"
                              : "card.style." + adjustment.rawValue + ".hint"))
-                            .font(.body)
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .lineLimit(4)
                             .id(selectionID)
@@ -277,7 +306,11 @@ private struct MobileCardInspector: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .onChange(of: selectionID) { _, _ in editingText = false }
+        .onChange(of: selectionID) { _, _ in editingText = false; textEditingActive = false }
+        .onChange(of: editingText) { _, active in if !active { textEditingActive = false } }
+        .onChange(of: document.card[field]) { oldValue, newValue in
+            if editingText && oldValue != newValue { textEditingActive = true }
+        }
     }
 
     private func restoreButton(_ title: LocalizedStringKey, symbol: String, height: CGFloat,

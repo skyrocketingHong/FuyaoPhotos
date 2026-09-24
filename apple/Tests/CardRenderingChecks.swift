@@ -19,11 +19,33 @@ import UniformTypeIdentifiers
         card[.iso] = "100"
         let layout = try CardLayout(size: CGSize(width: 1527, height: 859), card: card)
         try require(layout.rect == CGRect(x: 1235, y: 35, width: 215, height: 168), "reference geometry")
+        try require(layout.lines.filter { $0.field == .camera }.count == 2, "wrapped lines retain source field")
+        try require(layout.normalizedTextRects(for: .camera).count == 2, "wrapped camera highlight rects")
+        try require(layout.normalizedTextRects(for: .location).isEmpty, "missing field has no highlight rect")
+        for field in CardField.allCases {
+            let rects = layout.normalizedTextRects(for: field)
+            try require(rects.count == layout.lines.filter { $0.field == field }.count, "line/rect correspondence \(field)")
+            for rect in rects {
+                try require(rect.width > 0 && rect.height > 0 && rect.minX >= 0 && rect.minY >= 0 &&
+                            rect.maxX <= 1 && rect.maxY <= 1, "normalized highlight inside card \(field)")
+            }
+        }
         let large = try CardLayout(size: CGSize(width: 4080, height: 3072), card: card)
         try require(abs(large.rect.width - 215 * 3072 / 859) < 0.001, "short-edge scaling")
+        let referenceLine = layout.normalizedTextRects(for: .device).first!
+        let largeLine = large.normalizedTextRects(for: .device).first!
+        try require(abs(referenceLine.minX - largeLine.minX) < 0.0001 &&
+                    abs(referenceLine.minY - largeLine.minY) < 0.0001 &&
+                    abs(referenceLine.width - largeLine.width) < 0.0001 &&
+                    abs(referenceLine.height - largeLine.height) < 0.0001,
+                    "highlight scales with original-size card")
         var longer = card
         longer[.location] = String(repeating: "HONG KONG ", count: 30)
-        try require(try CardLayout(size: CGSize(width: 1527, height: 859), card: longer).rect.height > layout.rect.height, "long text expands card")
+        let longerLayout = try CardLayout(size: CGSize(width: 1527, height: 859), card: longer)
+        try require(longerLayout.rect.height > layout.rect.height, "long text expands card")
+        let locationRects = longerLayout.normalizedTextRects(for: .location)
+        try require(locationRects.count > 1 && zip(locationRects, locationRects.dropFirst()).allSatisfy { $0.minY < $1.minY },
+                    "wrapped highlight follows visual line order")
         let one = CardTypography.text("1", size: 10.5, accent: false)
         let letter = CardTypography.text("H", size: 10.5, accent: false)
         let f1 = one.attribute(NSAttributedString.Key(kCTFontAttributeName as String), at: 0, effectiveRange: nil) as! CTFont
@@ -99,11 +121,18 @@ import UniformTypeIdentifiers
         try await processor.export(source, card: card, options: options, hdr: false, to: root.appendingPathComponent("live.jpg"), live: true)
         let fullPreview = try await processor.preview(source, card: card, hdr: false)
         let cardDetail = try await processor.previewCardDetail(source, card: card)
-        try require(cardDetail.width > 0 && cardDetail.height > 0 &&
-                    cardDetail.width < fullPreview.width && cardDetail.height < fullPreview.height,
+        try require(cardDetail.image.width > 0 && cardDetail.image.height > 0 &&
+                    cardDetail.image.width < fullPreview.width && cardDetail.image.height < fullPreview.height,
                     "card detail renders only the card region")
+        try require(cardDetail.cardRect.minX >= 0 && cardDetail.cardRect.minY >= 0 &&
+                    cardDetail.cardRect.maxX <= CGFloat(cardDetail.image.width) + 1 &&
+                    cardDetail.cardRect.maxY <= CGFloat(cardDetail.image.height) + 1,
+                    "card detail geometry stays within crop")
+        try require(!(cardDetail.textRects[.author] ?? []).isEmpty &&
+                    (cardDetail.textRects[.location] ?? []).isEmpty,
+                    "field highlight uses rendered rows")
         let rotatedDetail = try await processor.previewCardDetail(orientationURL, card: card)
-        try require(rotatedDetail.width > 0 && rotatedDetail.height > 0, "rotated card detail")
+        try require(rotatedDetail.image.width > 0 && rotatedDetail.image.height > 0, "rotated card detail")
         print("PASS: card geometry, wrapping, font scale, orientation, EXIF, 24 image / 8 movie metadata combinations, HDR JPEG/HEIC gain maps and luminance, Live Photo identifier, preview and card detail")
     }
 
