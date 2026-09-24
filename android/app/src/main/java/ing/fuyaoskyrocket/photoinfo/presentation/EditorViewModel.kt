@@ -80,11 +80,11 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                             session.chunked(PhotoEditSnapshot.FIELD_COUNT).map { fields ->
                                 ensureActive()
                                 val edits = PhotoEditSnapshot.restore(fields)
-                                val photo = photos.restore(edits.path)
+                                val photo = restoreNamedPhoto(edits.path)
                                 SessionPhoto(photo, edits.info(photo.info), edits.style, edits.resolvedLocation, edits.locationEdited)
                             }
                         } else {
-                            val photo = photos.restore(requireNotNull(legacy))
+                            val photo = restoreNamedPhoto(requireNotNull(legacy))
                             val values = FieldId.entries.associateWith { saved.get<String>("field.${it.name}") ?: photo.info[it] }
                             listOf(SessionPhoto(photo, PhotoInfo(values), state.style,
                                 saved["resolvedLocation"] ?: "", saved["locationEdited"] ?: false))
@@ -123,7 +123,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         renderJob?.cancel(); cancelLocation()
         val style = state.style
         val settings = state.settings
-        state = state.copy(busy = true, importing = true, error = null, errorTitle = R.string.error_import_title, rendering = false, notice = null, exported = null)
+        state = state.copy(busy = true, importing = true, error = null, errorTitle = R.string.error_import_title, rendering = false,
+            notice = null, exported = null, photoDetails = null)
         workJob = viewModelScope.launch {
             val imported = mutableListOf<SessionPhoto>()
             val failures = mutableListOf<String>()
@@ -182,7 +183,9 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         source = draft.source
         resolvedLocation = draft.resolvedLocation
         locationEdited = draft.locationEdited
-        state = state.copy(photoIndex = index, info = draft.info, style = draft.style, original = null, preview = null, previewCardBox = null,
+        state = state.copy(photoIndex = index, info = draft.info, style = draft.style, original = null, preview = null,
+            previewCardBox = null, previewFieldRects = emptyMap(),
+            photoDetails = draft.source.details,
             width = draft.source.width, height = draft.source.height, busy = true, importing = false, loadingPhoto = true,
             rendering = false, previewError = null, hasPhotoGps = draft.source.coordinates != null, locationStatus = LocationStatus.IDLE)
         updateMediaState(draft.source)
@@ -191,7 +194,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
             val bitmap = withContext(Dispatchers.IO) { photos.decode(draft.source, preview = true).also { decoded = it } }
             currentCoroutineContext().ensureActive()
             if (source?.file != draft.source.file) throw CancellationException("Photo changed")
-            state = state.copy(original = bitmap, preview = bitmap, previewCardBox = null, busy = false, loadingPhoto = false)
+            state = state.copy(original = bitmap, preview = bitmap, previewCardBox = null,
+                previewFieldRects = emptyMap(), busy = false, loadingPhoto = false)
             decoded = null // The visible state now owns the bitmap; never recycle a displayed image.
             persist(); renderPreview()
             if (!locationEdited && draft.info[FieldId.LOCATION].isBlank()) resolveLocation()
@@ -453,16 +457,19 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                 val rendered = withContext(Dispatchers.Default) { renderer.preview(bitmap, info, style, typography).also { pending = it.bitmap } }
                 currentCoroutineContext().ensureActive()
                 if (source?.file != activeFile || state.original !== bitmap) throw CancellationException("Photo changed")
-                state = state.copy(preview = rendered.bitmap, previewCardBox = rendered.box, rendering = false)
+                state = state.copy(preview = rendered.bitmap, previewCardBox = rendered.box,
+                    previewFieldRects = rendered.fieldRects, rendering = false)
                 pending = null
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
                 if (source?.file == activeFile && state.original === bitmap)
-                    state = state.copy(preview = bitmap, previewCardBox = null, rendering = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW))
+                    state = state.copy(preview = bitmap, previewCardBox = null, previewFieldRects = emptyMap(),
+                        rendering = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW))
             }
             catch (failure: OutOfMemoryError) {
                 if (source?.file == activeFile && state.original === bitmap)
-                    state = state.copy(preview = bitmap, previewCardBox = null, rendering = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW))
+                    state = state.copy(preview = bitmap, previewCardBox = null, previewFieldRects = emptyMap(),
+                        rendering = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW))
             }
             finally { pending?.recycle() }
         }
@@ -486,6 +493,16 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private fun saveBaselines() { saved["editBaselines"] = ArrayList(baselines.flatMap { listOf(it.key, it.value) }) }
     private fun saveSnapshots() {
         saveBaselines()
+        val activeNames = drafts.map { it.source.file.name }.toSet()
+        saved.get<ArrayList<String>>("session").orEmpty().chunked(PhotoEditSnapshot.FIELD_COUNT)
+            .mapNotNull { it.firstOrNull()?.substringAfterLast('/') }
+            .filter { it !in activeNames }
+            .forEach { saved.remove<String>(displayNameKey(it)) }
+        drafts.forEach { draft ->
+            val key = displayNameKey(draft.source.file.name)
+            val name = draft.source.details.displayName
+            if (name == null) saved.remove<String>(key) else saved[key] = name
+        }
         saved["session"] = ArrayList(drafts.flatMap { it.snapshot().fields() })
         saved["photoIndex"] = state.photoIndex
         saved.remove<String>("source")
@@ -493,6 +510,10 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         saved.remove<String>("resolvedLocation"); saved.remove<Boolean>("locationEdited")
     }
     private fun forgetSession() {
+        val names = drafts.map { it.source.file.name } +
+            saved.get<ArrayList<String>>("session").orEmpty().chunked(PhotoEditSnapshot.FIELD_COUNT)
+                .mapNotNull { it.firstOrNull()?.substringAfterLast('/') }
+        names.distinct().forEach { saved.remove<String>(displayNameKey(it)) }
         saved.remove<Int>("jpegQuality"); saved.remove<Boolean>("keepMetadata")
         saved.remove<Boolean>("keepLocation"); saved.remove<Boolean>("keepCaptureTime")
         saved.remove<Boolean>("separateLivePhoto"); saved.remove<Boolean>("applePortrait")
@@ -504,6 +525,11 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private fun readStyle() = CardStyle(scale = saved["style.scale"] ?: 1f, opacity = saved["style.opacity"] ?: .6f,
         blur = saved["style.blur"] ?: 25f, rightInset = saved["style.right"] ?: 77f, bottomInset = saved["style.bottom"] ?: 35f,
         cornerRadius = saved["style.radius"] ?: 20f, textScale = saved["style.textScale"] ?: 1f).sanitized()
+    private fun restoreNamedPhoto(path: String): PhotoSource {
+        val photo = photos.restore(path)
+        return photo.copy(details = photo.details.copy(displayName = saved[displayNameKey(photo.file.name)]))
+    }
+    private fun displayNameKey(fileName: String) = "originalName.$fileName"
     private val app get() = getApplication<Application>()
     private fun errorMessage(failure: Throwable, operation: PhotoOperation = PhotoOperation.OPEN): String =
         PhotoFailureMessages.describe(app, failure, operation)

@@ -14,23 +14,34 @@ import ing.fuyaoskyrocket.photoinfo.domain.layout.CardLayout
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardLayoutEngine
 import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoInfo
+import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
 import ing.fuyaoskyrocket.photoinfo.domain.render.BoxBlur
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
-data class RenderedCardPreview(val bitmap: Bitmap, val box: CardBox?)
+data class RenderedCardPreview(val bitmap: Bitmap, val box: CardBox?, val fieldRects: Map<FieldId,List<RectF>>)
 
 /** The preview and full-resolution exporter share this exact renderer. No screen capture is exported. */
 class CardRenderer {
     fun preview(source: Bitmap, info: PhotoInfo, style: CardStyle, typography: CardTypography): RenderedCardPreview {
         val copy = checkNotNull(source.copy(if(source.config==Bitmap.Config.RGBA_F16)Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888, true))
         if (Build.VERSION.SDK_INT >= 34 && source.hasGainmap()) copy.setGainmap(source.gainmap)
-        try { return RenderedCardPreview(copy, drawInPlace(copy, info, style, typography)) }
+        try {
+            val layout=drawInPlace(copy, info, style, typography)
+            val measured=layout?.let { CardTextRenderer(typography,it.fontSize) }
+            val fieldRects=if(layout==null || measured==null) emptyMap() else
+                layout.lines.groupBy({ it.field }) { line ->
+                    RectF(line.x-2f,line.top-2f,
+                        (line.x+measured.measure(line.text)+2f).coerceAtMost(layout.box.right),
+                        (line.top+layout.lineHeight+2f).coerceAtMost(layout.box.bottom))
+                }
+            return RenderedCardPreview(copy,layout?.box,fieldRects)
+        }
         catch (failure: Throwable) { copy.recycle(); throw failure }
     }
 
-    fun drawInPlace(target: Bitmap, info: PhotoInfo, style: CardStyle, typography: CardTypography, opaqueBackground: Boolean = false): CardBox? {
+    fun drawInPlace(target: Bitmap, info: PhotoInfo, style: CardStyle, typography: CardTypography, opaqueBackground: Boolean = false): CardLayout? {
         require(target.isMutable) { "Renderer requires a mutable bitmap" }
         val s = style.sanitized()
         val referenceText = CardTextRenderer(typography, CardLayoutEngine.FONT_SIZE)
@@ -57,7 +68,7 @@ class CardRenderer {
         // Text color remains opaque; the same runs also draw the HDR mask.
         CardTextRenderer(typography, layout.fontSize).drawLines(canvas, layout)
         if (Build.VERSION.SDK_INT >= 34 && gainmap != null) HdrGainmaps.attachOverlay(target, gainmap, layout, typography, s.opacity > 0f || s.blur > 0f)
-        return layout.box
+        return layout
     }
 
     private fun paintBackdrop(source: Bitmap, canvas: Canvas, layout: CardLayout) {

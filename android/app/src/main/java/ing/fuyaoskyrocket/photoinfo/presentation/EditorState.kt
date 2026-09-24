@@ -1,11 +1,14 @@
 package ing.fuyaoskyrocket.photoinfo.presentation
 
 import android.graphics.Bitmap
+import android.graphics.RectF
 import android.net.Uri
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardBox
 import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
 import ing.fuyaoskyrocket.photoinfo.domain.model.ExportFormat
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoInfo
+import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
+import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoDetails
 import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
 
 enum class LocationStatus { IDLE, RESOLVING, RESOLVED, UNAVAILABLE, NO_GPS, DISABLED }
@@ -19,6 +22,8 @@ data class EditorState(
     val original: Bitmap? = null,
     val preview: Bitmap? = null,
     val previewCardBox: CardBox? = null,
+    val previewFieldRects: Map<FieldId,List<RectF>> = emptyMap(),
+    val photoDetails: PhotoDetails? = null,
     val width: Int = 0,
     val height: Int = 0,
     val busy: Boolean = false,

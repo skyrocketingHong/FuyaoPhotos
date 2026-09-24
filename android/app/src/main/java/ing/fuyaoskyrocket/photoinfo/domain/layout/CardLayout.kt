@@ -2,6 +2,7 @@ package ing.fuyaoskyrocket.photoinfo.domain.layout
 
 import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoInfo
+import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
 import java.text.BreakIterator
 import java.util.Locale
 import kotlin.math.max
@@ -13,7 +14,7 @@ data class CardBox(val left: Float, val top: Float, val width: Float, val height
     val right get() = left + width
     val bottom get() = top + height
 }
-data class CardLine(val text: String, val accent: Boolean, val x: Float, val top: Float)
+data class CardLine(val field: FieldId, val text: String, val accent: Boolean, val x: Float, val top: Float)
 data class CardLayout(
     val box: CardBox,
     val lines: List<CardLine>,
@@ -50,9 +51,9 @@ object CardLayoutEngine {
         val referenceLineHeight = LINE_HEIGHT * s.textScale
         val wrapped = rows.flatMap { row ->
             wrap(row.text, WIDTH - 2 * PADDING) { measureReferenceText(it) * s.textScale }
-                .map { it to row.accent }
+                .map { Triple(row.field, it, row.accent) }
         }
-        val hasBoth = wrapped.any { it.second } && wrapped.any { !it.second }
+        val hasBoth = wrapped.any { it.third } && wrapped.any { !it.third }
         val contentHeight = wrapped.size * referenceLineHeight + if (hasBoth) GROUP_GAP else 0f
         val cardHeight = max(MIN_HEIGHT, contentHeight + 2 * MIN_VERTICAL_PADDING) * unit
         val cardWidth = WIDTH * unit
@@ -63,10 +64,10 @@ object CardLayoutEngine {
         val box = CardBox(width - rightInset - cardWidth, height - bottomInset - cardHeight,
             cardWidth, cardHeight)
         var y = box.top + (cardHeight - contentHeight * unit) / 2f
-        var previousAccent = wrapped.first().second
-        val lines = wrapped.map { (text, accent) ->
+        var previousAccent = wrapped.first().third
+        val lines = wrapped.map { (field, text, accent) ->
             if (previousAccent && !accent) y += GROUP_GAP * unit
-            val line = CardLine(text, accent, box.left + PADDING * unit, y)
+            val line = CardLine(field, text, accent, box.left + PADDING * unit, y)
             y += referenceLineHeight * unit
             previousAccent = accent
             line

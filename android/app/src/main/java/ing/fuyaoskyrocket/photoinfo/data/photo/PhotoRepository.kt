@@ -11,10 +11,12 @@ import android.graphics.ColorSpace
 import android.graphics.Matrix
 import android.net.Uri
 import android.os.Build
+import android.provider.OpenableColumns
 import androidx.exifinterface.media.ExifInterface
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting as Format
 import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoInfo
+import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoDetails
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.AndroidLensMetadata
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.PhotoCoordinates
 import ing.fuyaoskyrocket.photoinfo.domain.media.HeifGraph
@@ -49,7 +51,10 @@ class PhotoRepository(private val context: Context) {
                     }
                 }
             } ?: throw IOException("Cannot open selected photo")
-            return inspect(file)
+            val name = readDisplayName(uri)
+            return inspect(file).let { source ->
+                source.copy(details = source.details.copy(displayName = name))
+            }
         } catch (failure: Throwable) {
             file.delete()
             throw failure
@@ -65,6 +70,16 @@ class PhotoRepository(private val context: Context) {
         // Providers may still redact GPS. File import and manual location entry remain available.
         return resolver.openInputStream(uri)
     }
+
+    private fun readDisplayName(uri: Uri): String? = runCatching {
+        resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (index < 0 || cursor.isNull(index)) null else cursor.getString(index)
+                ?.filterNot { Character.isISOControl(it) || it == '/' || it == '\\' }
+                ?.trim()?.take(255)?.takeIf(String::isNotEmpty)
+        }
+    }.getOrNull()
 
     fun restore(path: String): PhotoSource {
         val file = File(path).canonicalFile
@@ -128,7 +143,28 @@ class PhotoRepository(private val context: Context) {
                 blocked = !accepted,bitDepth=still?.bitDepth ?: 8,hdrTransfer=still?.hdrTransfer==true,
                 hdrTransferCode=still?.hdrTransferCode ?: 0)
         } else MotionPhoto.inspect(file, mime, exif?.getAttribute(ExifInterface.TAG_XMP))
-        return PhotoSource(file, width, height, orientation, info, tags, coordinates, media)
+        val detailTags = listOf(
+            ExifInterface.TAG_DATETIME_ORIGINAL, ExifInterface.TAG_DATETIME,
+            ExifInterface.TAG_MAKE, ExifInterface.TAG_MODEL,
+            ExifInterface.TAG_LENS_MAKE, ExifInterface.TAG_LENS_MODEL,
+            ExifInterface.TAG_ARTIST, ExifInterface.TAG_F_NUMBER,
+            ExifInterface.TAG_APERTURE_VALUE, ExifInterface.TAG_EXPOSURE_TIME,
+            ExifInterface.TAG_FOCAL_LENGTH, ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM,
+            ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY, ExifInterface.TAG_EXPOSURE_PROGRAM,
+            ExifInterface.TAG_METERING_MODE, ExifInterface.TAG_WHITE_BALANCE,
+            ExifInterface.TAG_FLASH, ExifInterface.TAG_X_RESOLUTION,
+            ExifInterface.TAG_Y_RESOLUTION, ExifInterface.TAG_RESOLUTION_UNIT,
+        ).mapNotNull { tag -> text(tag).takeIf(String::isNotEmpty)?.let { tag to it } }.toMap()
+        val details = PhotoDetails(
+            mimeType = mime.takeIf(String::isNotEmpty),
+            byteCount = file.length().takeIf { it > 0L },
+            width = width,
+            height = height,
+            colorSpace = bounds.outColorSpace?.name,
+            exif = detailTags,
+            coordinates = coordinates,
+        )
+        return PhotoSource(file, width, height, orientation, info, tags, coordinates, media, details)
     }
 
     /** Keep the decoded color space and gainmap. EXIF orientation applies to both base and gainmap. */

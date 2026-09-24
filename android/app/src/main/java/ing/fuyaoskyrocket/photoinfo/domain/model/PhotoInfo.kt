@@ -19,12 +19,12 @@ data class PhotoInfo(val values: Map<FieldId, String> = emptyMap()) {
             val value = if (field == FieldId.DEVICE && raw.startsWith("iphone", true)) {
                 "iPHONE" + raw.substring(6).uppercase(Locale.ROOT)
             } else raw.uppercase(Locale.ROOT)
-            InfoRow(if (field.label.isEmpty()) value else "${field.label}: $value", field.accent)
+            InfoRow(field, if (field.label.isEmpty()) value else "${field.label}: $value", field.accent)
         }
     }
 }
 
-data class InfoRow(val text: String, val accent: Boolean)
+data class InfoRow(val field: FieldId, val text: String, val accent: Boolean)
 
 data class CardStyle(
     val scale: Float = 1f,

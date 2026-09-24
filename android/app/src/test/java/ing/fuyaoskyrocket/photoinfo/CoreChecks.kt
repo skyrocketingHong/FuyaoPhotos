@@ -32,6 +32,13 @@ object CoreChecks {
             check(rows.take(3).all { it.accent }); check(rows.drop(3).none { it.accent })
             check(rows[0].text == "iPHONE 16 PRO"); check(rows[1].text == "SHOT BY: A. LEE"); check(rows.last().text == "ISO: 400")
         }
+        verify("rendered field highlights follow wrapped text") {
+            val expanded = all.with(FieldId.AUTHOR, "A LONG PHOTOGRAPHER CREDIT THAT WRAPS TO MULTIPLE LINES")
+            val rendered = checkNotNull(layout(1527, 859, expanded))
+            check(rendered.lines.count { it.field == FieldId.AUTHOR } > 1)
+            check(rendered.lines.none { it.field == FieldId.AUTHOR && !it.accent })
+            check(rendered.lines.any { it.field == FieldId.ISO && it.text == "ISO: 400" })
+        }
         verify("blank fields are not replaced by example metadata") {
             check(all.with(FieldId.ISO,"  ").displayRows().none { it.text.startsWith("ISO:") })
             check(PhotoInfo(mapOf(FieldId.CAMERA to "Lens")).displayRows().single().text == "CAMERA: LENS")
