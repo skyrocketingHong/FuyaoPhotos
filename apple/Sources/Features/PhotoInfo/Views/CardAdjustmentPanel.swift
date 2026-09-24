@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 enum CardAdjustment: String, CaseIterable, Identifiable {
     case scale, textScale, opacity, blur, rightInset, bottomInset, cornerRadius
@@ -307,9 +310,14 @@ private struct MobileCardInspector: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .onChange(of: selectionID) { _, _ in editingText = false; textEditingActive = false }
+        .onChange(of: document.id) { _, _ in editingText = false; textEditingActive = false }
         .onChange(of: editingText) { _, active in if !active { textEditingActive = false } }
         .onChange(of: document.card[field]) { oldValue, newValue in
             if editingText && oldValue != newValue { textEditingActive = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
+            editingText = false
+            textEditingActive = false
         }
     }
 
