@@ -22,39 +22,46 @@ struct PhotoCardScreen: View {
                     ContentUnavailableView {
                         Label("card.empty.title", systemImage: "photo.badge.plus")
                     } description: { Text("card.empty.description") }
-                    actions: { Button("card.open", action: choosePhotos).buttonStyle(.borderedProminent) }
+                    actions: {
+                        Button("card.open", action: choosePhotos)
+                            .buttonStyle(.borderedProminent)
+                            .keyboardShortcut("o")
+                    }
                 }
             }
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .scrollEdgeEffectHidden(true, for: .top)
-            .toolbarVisibility(session.current == nil ? .visible : .hidden, for: .navigationBar)
+            .toolbarVisibility(.hidden, for: .navigationBar)
             .toolbarColorScheme(.dark,for:.navigationBar)
 #endif
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("card.open", systemImage: "photo.badge.plus", action: choosePhotos)
-                        .labelStyle(.iconOnly).buttonBorderShape(.circle)
-                        .keyboardShortcut("o")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("card.save", systemImage: "checkmark") { showingSave = true }
-                        .labelStyle(.iconOnly).buttonBorderShape(.circle)
-                        .keyboardShortcut("s").disabled(session.documents.isEmpty)
-                }
-                ToolbarItem(placement: .secondaryAction) {
-                    Menu("card.more", systemImage: "ellipsis") {
-                        Button("card.style.reset", systemImage: "arrow.counterclockwise") { session.current?.card.style = PhotoCardStyle() }
-                        if let url = session.current?.exportURL, session.current?.isLive == false {
-                            ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
-                        }
-                        Button("card.close", systemImage: "xmark") {
-                            if session.hasChanges { showingClose = true } else { session.clear() }
-                        }
+                if let document = session.current {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("card.open", systemImage: "photo.badge.plus", action: choosePhotos)
+                            .labelStyle(.iconOnly).buttonBorderShape(.circle)
+                            .keyboardShortcut("o")
                     }
-                    .labelStyle(.iconOnly).buttonBorderShape(.circle)
-                    .disabled(session.documents.isEmpty)
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("card.save", systemImage: "checkmark") { showingSave = true }
+                            .labelStyle(.iconOnly).buttonBorderShape(.circle)
+                            .keyboardShortcut("s")
+                    }
+                    ToolbarItem(placement: .secondaryAction) {
+                        Menu("card.more", systemImage: "ellipsis") {
+                            Button("card.style.reset", systemImage: "arrow.counterclockwise") {
+                                document.card.style = PhotoCardStyle()
+                            }
+                            if let url = document.exportURL, !document.isLive {
+                                ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
+                            }
+                            Button("card.close", systemImage: "xmark") {
+                                if session.hasChanges { showingClose = true } else { session.clear() }
+                            }
+                        }
+                        .labelStyle(.iconOnly).buttonBorderShape(.circle)
+                    }
                 }
             }
             .disabled(session.busy)

@@ -6,11 +6,15 @@ import PhotoMapCore
 struct MapContainerView: View {
     let session: MapSession
     let scope: Namespace.ID
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
             if session.phase == .ready {
                 MapCanvas(session: session, scope: scope)
+                ProgressiveBackdropEdges()
+                    .environment(\.colorScheme, session.options.appearance.colorScheme ?? colorScheme)
+                    .ignoresSafeArea()
                 MapStatusOverlay(session: session)
             } else {
                 MapLoadingState(session: session)

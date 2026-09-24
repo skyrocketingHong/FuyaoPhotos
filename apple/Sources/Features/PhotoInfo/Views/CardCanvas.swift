@@ -76,6 +76,7 @@ struct CardCanvas: View {
 private struct CardActionStrip: View {
     let document: CardDocument
     @Bindable var preview: CardPreviewState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let open: () -> Void
     let save: () -> Void
     let close: () -> Void
@@ -133,8 +134,9 @@ private struct CardActionStrip: View {
         switch tool {
         case .live:
             Toggle(isOn: $preview.playing) {
-                Label("card.live.preview", systemImage: preview.playing ? "stop.circle" : "livephoto")
-                    .labelStyle(.iconOnly)
+                Image(systemName: preview.playing ? "stop.circle" : "livephoto")
+                    .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: preview.playing)
                     .frame(width: 20, height: 20)
             }
             .toggleStyle(.button)

@@ -5,25 +5,27 @@ struct ContentView: View {
     @State private var workspace = PhotoWorkspace()
     var body: some View {
         TabView(selection: $workspace.selectedTab) {
-            Tab("tab.map", systemImage: "map", value: PhotoWorkspace.Tab.map) { PhotoMapScreen() }
+            Tab("tab.map", systemImage: "map", value: PhotoWorkspace.Tab.map) {
+                PhotoMapScreen()
+                    .modifier(TabContentEntrance(active: workspace.selectedTab == .map))
+            }
             Tab("tab.cards", systemImage: "photo.badge.plus", value: PhotoWorkspace.Tab.cards) {
                 PhotoCardScreen(session: workspace.cards)
 #if !os(macOS)
                     .toolbarBackground(.visible, for: .tabBar)
                     .toolbarColorScheme(.dark, for: .tabBar)
 #endif
+                    .modifier(TabContentEntrance(active: workspace.selectedTab == .cards, darkroom: true))
             }
 #if !os(macOS)
             if #available(iOS 27, *) {
                 Tab("settings.title", systemImage: "gearshape", value: PhotoWorkspace.Tab.settings, role: .prominent) {
                     NavigationStack { SettingsView() }
                 }
-                .hidden(workspace.selectedTab == .cards)
             } else {
                 Tab("settings.title", systemImage: "gearshape", value: PhotoWorkspace.Tab.settings) {
                     NavigationStack { SettingsView() }
                 }
-                .hidden(workspace.selectedTab == .cards)
             }
 #endif
         }
@@ -32,6 +34,27 @@ struct ContentView: View {
         .frame(minWidth: 760, minHeight: 560)
 #endif
         .environment(workspace)
+    }
+}
+
+private struct TabContentEntrance: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var visible = false
+    let active: Bool
+    var darkroom = false
+
+    func body(content: Content) -> some View {
+        ZStack {
+            if darkroom { Color.black.ignoresSafeArea() }
+            content.opacity(visible ? 1 : 0)
+        }
+        .onChange(of: active, initial: true) { _, isActive in
+            if reduceMotion {
+                visible = isActive
+            } else {
+                withAnimation(.easeOut(duration: 0.2)) { visible = isActive }
+            }
+        }
     }
 }
 

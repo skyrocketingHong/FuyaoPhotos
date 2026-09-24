@@ -46,10 +46,18 @@ struct CardNeighborPreview: View {
 struct CardMediaControls: View {
     let document: CardDocument
     @Bindable var controls: CardPreviewState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         if document.isLive {
-            Toggle("card.live.preview", systemImage: controls.playing ? "stop.circle" : "livephoto", isOn: $controls.playing)
+            Toggle(isOn: $controls.playing) {
+                Image(systemName: controls.playing ? "stop.circle" : "livephoto")
+                    .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: controls.playing)
+                    .frame(width: 20, height: 20)
+            }
                 .toggleStyle(.button).buttonBorderShape(.circle).padding(6)
+                .accessibilityLabel(Text("card.live.preview"))
+                .help(Text("card.live.preview"))
         }
         if document.metadata.hdr {
             Toggle(isOn: $controls.hdr) { Label { Text("HDR") } icon: { Image("HDR") } }
