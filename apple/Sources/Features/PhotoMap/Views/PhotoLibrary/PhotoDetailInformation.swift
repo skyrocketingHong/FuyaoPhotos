@@ -1,34 +1,33 @@
 import SwiftUI
 import Photos
+import CoreLocation
 
 struct PhotoDetailInformation: View {
-    let location: PhotoLocation
-    let metadata: CardPhotoMetadata?
+    let asset: PHAsset?
+    let document: CardDocument?
+    let coordinate: CLLocationCoordinate2D?
+    @State private var details: PhotoTechnicalDetails?
+
     var body: some View {
-        Section("photo.detail.photo.properties") {
-            if let date = location.creationDate {
-                LabeledContent("photo.detail.creation.time") { Text(date, format: .dateTime.year().month().day().hour().minute()) }
+        let rows = PhotoInformationFacts.rows(asset: asset, metadata: document?.metadata,
+                                               details: details, coordinate: coordinate)
+        Section {
+            ForEach(rows) { row in
+                PhotoInformationRow(title: LocalizedStringKey(row.id), value: row.value,
+                                    monospacedDigits: row.numeric)
             }
-            LabeledContent("photo.dimensions", value: "\(location.asset.pixelWidth) × \(location.asset.pixelHeight)")
-            if let metadata {
-                LabeledContent("photo.file.size") { Text(Int64(metadata.fileSize), format: .byteCount(style: .file)) }
-                ForEach([CardField.device, .camera, .focalLength, .aperture, .exposure, .iso], id: \.self) { field in
-                    if !metadata.card[field].isEmpty {
-                        LabeledContent(LocalizedStringKey(field.titleKey)) {
-                            Text(metadata.card[field]).textSelection(.enabled)
-                        }
-                    }
-                }
-                if metadata.hdr { Label { Text("HDR") } icon: { Image("HDR") } }
-            }
+        } header: {
+            Text("photo.info.information")
+                .font(.title3)
+                .bold()
+                .textCase(nil)
         }
-        Section("photo.detail.location.info") {
-            LabeledContent("photo.detail.latitude") {
-                Text(location.coordinate.latitude, format: .number.precision(.fractionLength(6))).monospacedDigit().textSelection(.enabled)
-            }
-            LabeledContent("photo.detail.longitude") {
-                Text(location.coordinate.longitude, format: .number.precision(.fractionLength(6))).monospacedDigit().textSelection(.enabled)
-            }
+        .task(id: document?.sourceURL) {
+            details = nil
+            guard let url = document?.sourceURL else { return }
+            let loaded = await PhotoTechnicalDetailsReader.shared.read(url)
+            guard !Task.isCancelled else { return }
+            details = loaded
         }
     }
 }

@@ -56,7 +56,11 @@ struct PhotoDetailContent: View {
                     .background(.black)
 
                 HStack(alignment: .center, spacing: 12) {
-                    photoName
+                    if let document {
+                        PhotoInformationHeading(name: document.originalName,
+                                                fileExtension: document.sourceURL.pathExtension,
+                                                fileSize: document.metadata.fileSize)
+                    }
                     Spacer(minLength: 8)
                     photoActions
                 }
@@ -65,7 +69,7 @@ struct PhotoDetailContent: View {
             .frame(minWidth: 360)
 
             List {
-                PhotoDetailInformation(location: location, metadata: document?.metadata)
+                PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
             }
             .listStyle(.inset)
             .frame(minWidth: 260, idealWidth: 320)
@@ -76,13 +80,17 @@ struct PhotoDetailContent: View {
                 preview
                     .aspectRatio(4 / 3, contentMode: .fit)
                     .listRowInsets(EdgeInsets())
-                HStack(alignment: .center, spacing: 12) {
-                    photoName
-                    Spacer(minLength: 8)
-                    photoActions
+                    .listRowSeparator(.hidden)
+                if let document {
+                    PhotoInformationHeading(name: document.originalName,
+                                            fileExtension: document.sourceURL.pathExtension,
+                                            fileSize: document.metadata.fileSize)
+                        .listRowSeparator(.hidden)
                 }
+                photoActions
+                    .listRowSeparator(.hidden)
             }
-            PhotoDetailInformation(location: location, metadata: document?.metadata)
+            PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
         }
         .listStyle(.plain)
 #endif
@@ -103,31 +111,20 @@ struct PhotoDetailContent: View {
         }
     }
 
-    @ViewBuilder private var photoName: some View {
-        if let document {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(document.originalName)
-                    .font(.headline)
-                    .textSelection(.enabled)
-                Text(document.sourceURL.pathExtension.uppercased())
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
     private var photoActions: some View {
-        HStack(spacing: 0) {
-            CircularIconButton("photo.open.library", systemImage: "photo.on.rectangle") {
+        HStack(spacing: 10) {
+            Button("photo.open.library", systemImage: "photo.on.rectangle") {
                 Task { cannotOpenPhotos = !(await PhotosApplication.open()) }
             }
             if location.asset.mediaType == .image {
-                CircularIconButton("photo.add.card", systemImage: "photo.badge.plus") {
+                Button("photo.add.card", systemImage: "photo.badge.plus") {
                     addCard(location.id)
                 }
             }
         }
+        .buttonStyle(.bordered)
+        .controlSize(.regular)
+        .frame(minHeight: 44, alignment: .leading)
     }
 
     private func load() async {
