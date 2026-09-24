@@ -12,8 +12,8 @@ struct MapContainerView: View {
         ZStack {
             if session.phase == .ready {
                 MapCanvas(session: session, scope: scope)
-                ProgressiveBackdropEdges()
-                    .environment(\.colorScheme, session.options.appearance.colorScheme ?? colorScheme)
+                ProgressiveBackdropEdges(top: 96, bottom: 176, sides: 36)
+                    .environment(\.colorScheme, .dark)
                     .ignoresSafeArea()
                 MapStatusOverlay(session: session)
             } else {
@@ -97,6 +97,7 @@ private struct PhotoClusterMap: View {
 
 private struct MapLoadingState: View {
     let session: MapSession
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 16) {
@@ -118,7 +119,12 @@ private struct MapLoadingState: View {
                     Button("action.retry") { Task { await session.retry() } }
                 }
             default:
-                ProgressView("loading.photos")
+                VStack(spacing: 10) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.title)
+                        .symbolEffect(.pulse, isActive: !reduceMotion)
+                    Text("loading.photos")
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

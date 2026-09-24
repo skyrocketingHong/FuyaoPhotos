@@ -7,6 +7,9 @@ struct ContentView: View {
         TabView(selection: $workspace.selectedTab) {
             Tab("tab.map", systemImage: "map", value: PhotoWorkspace.Tab.map) {
                 PhotoMapScreen()
+#if !os(macOS)
+                    .toolbarBackground(.hidden, for: .tabBar)
+#endif
                     .modifier(TabContentEntrance(active: workspace.selectedTab == .map))
             }
             Tab("tab.cards", systemImage: "photo.badge.plus", value: PhotoWorkspace.Tab.cards) {
