@@ -2,6 +2,7 @@ package ing.fuyaoskyrocket.photoinfo.presentation
 
 import android.graphics.Bitmap
 import android.net.Uri
+import ing.fuyaoskyrocket.photoinfo.domain.layout.CardBox
 import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
 import ing.fuyaoskyrocket.photoinfo.domain.model.ExportFormat
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoInfo
@@ -17,6 +18,7 @@ data class EditorState(
     val style: CardStyle = CardStyle(),
     val original: Bitmap? = null,
     val preview: Bitmap? = null,
+    val previewCardBox: CardBox? = null,
     val width: Int = 0,
     val height: Int = 0,
     val busy: Boolean = false,

@@ -182,14 +182,16 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         source = draft.source
         resolvedLocation = draft.resolvedLocation
         locationEdited = draft.locationEdited
-        state = state.copy(photoIndex = index, info = draft.info, style = draft.style, original = null, preview = null,
+        state = state.copy(photoIndex = index, info = draft.info, style = draft.style, original = null, preview = null, previewCardBox = null,
             width = draft.source.width, height = draft.source.height, busy = true, importing = false, loadingPhoto = true,
             rendering = false, previewError = null, hasPhotoGps = draft.source.coordinates != null, locationStatus = LocationStatus.IDLE)
         updateMediaState(draft.source)
         var decoded: Bitmap? = null
         try {
             val bitmap = withContext(Dispatchers.IO) { photos.decode(draft.source, preview = true).also { decoded = it } }
-            state = state.copy(original = bitmap, preview = bitmap, busy = false, loadingPhoto = false)
+            currentCoroutineContext().ensureActive()
+            if (source?.file != draft.source.file) throw CancellationException("Photo changed")
+            state = state.copy(original = bitmap, preview = bitmap, previewCardBox = null, busy = false, loadingPhoto = false)
             decoded = null // The visible state now owns the bitmap; never recycle a displayed image.
             persist(); renderPreview()
             if (!locationEdited && draft.info[FieldId.LOCATION].isBlank()) resolveLocation()
@@ -207,8 +209,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         persist(); renderPreview()
     }
 
-    fun resetFields() {
-        if (state.busy) return
+    fun resetFields(photoId: String? = null) {
+        if (state.busy || (photoId != null && photoId != source?.file?.name)) return
         cancelLocation(); locationEdited = false
         source?.let { photo ->
             state = state.copy(info = photo.info.with(FieldId.AUTHOR, state.settings.authorFor(photo.info[FieldId.AUTHOR]))
@@ -441,18 +443,27 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private fun renderPreview() {
         renderJob?.cancel()
         val bitmap = state.original ?: return
+        val activeFile = source?.file ?: return
         val info = state.info; val style = state.style; val typography = fonts.typography
         state = state.copy(rendering = true, previewError = null)
         renderJob = viewModelScope.launch {
             var pending: Bitmap? = null
             try {
                 delay(90)
-                val rendered = withContext(Dispatchers.Default) { renderer.preview(bitmap, info, style, typography).also { pending = it } }
-                state = state.copy(preview = rendered, rendering = false)
+                val rendered = withContext(Dispatchers.Default) { renderer.preview(bitmap, info, style, typography).also { pending = it.bitmap } }
+                currentCoroutineContext().ensureActive()
+                if (source?.file != activeFile || state.original !== bitmap) throw CancellationException("Photo changed")
+                state = state.copy(preview = rendered.bitmap, previewCardBox = rendered.box, rendering = false)
                 pending = null
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: Exception) { state = state.copy(preview = bitmap, rendering = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW)) }
-            catch (failure: OutOfMemoryError) { state = state.copy(preview = bitmap, rendering = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW)) }
+            catch (failure: Exception) {
+                if (source?.file == activeFile && state.original === bitmap)
+                    state = state.copy(preview = bitmap, previewCardBox = null, rendering = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW))
+            }
+            catch (failure: OutOfMemoryError) {
+                if (source?.file == activeFile && state.original === bitmap)
+                    state = state.copy(preview = bitmap, previewCardBox = null, rendering = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW))
+            }
             finally { pending?.recycle() }
         }
     }
