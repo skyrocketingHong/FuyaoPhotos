@@ -1,104 +1,257 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
-import ing.fuyaoskyrocket.photoinfo.domain.model.*
-import ing.fuyaoskyrocket.photoinfo.presentation.*
+import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
+import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
+import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
+import ing.fuyaoskyrocket.photoinfo.presentation.LocationStatus
 import kotlin.math.roundToInt
 
 @Composable
-fun EditorControls(state:EditorState,onField:(FieldId,String)->Unit,onStyle:(CardStyle)->Unit,onResetField:(FieldId)->Unit,
-    onImportFont:()->Unit,onResetFont:()->Unit,onResolveLocation:()->Unit,modifier:Modifier=Modifier) {
+fun EditorControls(
+    state: EditorState,
+    onField: (FieldId, String) -> Unit,
+    onStyle: (CardStyle) -> Unit,
+    onResetField: (FieldId) -> Unit,
+    onResetAllFields: () -> Unit,
+    onImportFont: () -> Unit,
+    onResetFont: () -> Unit,
+    onResolveLocation: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var fieldIndex by rememberSaveable { mutableIntStateOf(0) }
     var styleIndex by rememberSaveable { mutableIntStateOf(0) }
-    val focus=LocalFocusManager.current
-    val field=FieldId.entries[fieldIndex]
-    val styleLabels=listOf(R.string.card_scale,R.string.text_scale,R.string.opacity,R.string.blur,R.string.radius,R.string.right_inset,R.string.bottom_inset,R.string.font)
-    val labels=(if(tab==0)FieldId.entries.map { if(it==FieldId.FOCAL_LENGTH)R.string.wheel_focal else fieldLabel(it) } else styleLabels).map { stringResource(it) }
-    Column(modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))) {
-        PrimaryTabRow(selectedTabIndex=tab,divider={}) {
-            listOf(R.string.tab_info,R.string.tab_style).forEachIndexed { index,title ->
-                Tab(selected=tab==index,onClick={ focus.clearFocus();tab=index },text={ Text(stringResource(title)) })
+    val focus = LocalFocusManager.current
+    val fieldLabels = FieldId.entries.map { stringResource(if (it == FieldId.FOCAL_LENGTH) R.string.wheel_focal else fieldLabel(it)) }
+    val styleLabels = StyleSetting.entries.map { stringResource(it.label) } + stringResource(R.string.font)
+    val labels = if (tab == 0) fieldLabels else styleLabels
+    Column(modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        PrimaryTabRow(selectedTabIndex = tab, divider = {}) {
+            listOf(R.string.tab_info, R.string.tab_style).forEachIndexed { index, title ->
+                Tab(selected = tab == index, onClick = { focus.clearFocus(); tab = index },
+                    text = { Text(stringResource(title)) })
             }
         }
-        Row(Modifier.fillMaxSize().padding(horizontal=12.dp),horizontalArrangement=Arrangement.spacedBy(16.dp),verticalAlignment=Alignment.Top) {
+        Row(Modifier.widthIn(max = 640.dp).fillMaxWidth().weight(1f).padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             key(tab) {
-            val pickerTab=tab
-            CyclicItemSelector(labels,if(tab==0)fieldIndex else styleIndex,!state.busy,Modifier.weight(.4f).fillMaxHeight()) {
-                if(tab==pickerTab && it in labels.indices) {
-                    focus.clearFocus()
-                    if(pickerTab==0)fieldIndex=it else styleIndex=it
+                val pickerTab = tab
+                CyclicItemSelector(labels, if (tab == 0) fieldIndex else styleIndex, !state.busy,
+                    Modifier.weight(.4f).fillMaxHeight()) { index ->
+                    if (tab == pickerTab && index in labels.indices) {
+                        focus.clearFocus()
+                        if (pickerTab == 0) fieldIndex = index else styleIndex = index
+                    }
                 }
             }
+            EditorInspector(state, tab, fieldIndex, styleIndex, onField, onStyle, onResetField,
+                onResetAllFields, onImportFont, onResetFont, onResolveLocation,
+                Modifier.weight(.6f).fillMaxHeight())
+        }
+    }
+}
+
+@Composable
+private fun EditorInspector(
+    state: EditorState,
+    tab: Int,
+    fieldIndex: Int,
+    styleIndex: Int,
+    onField: (FieldId, String) -> Unit,
+    onStyle: (CardStyle) -> Unit,
+    onResetField: (FieldId) -> Unit,
+    onResetAllFields: () -> Unit,
+    onImportFont: () -> Unit,
+    onResetFont: () -> Unit,
+    onResolveLocation: () -> Unit,
+    modifier: Modifier,
+) {
+    BoxWithConstraints(modifier) {
+        val tight = maxHeight < 200.dp
+        val controlHeight = if (tight) 76.dp else 90.dp
+        val hintHeight = if (maxWidth < 190.dp) 88.dp else 72.dp
+        val showHint = maxHeight >= controlHeight + 48.dp + hintHeight + 16.dp
+        val previewRoom = maxHeight - controlHeight - 48.dp -
+            (if (showHint) hintHeight + 24.dp else 16.dp)
+        val showPreview = maxHeight >= 300.dp && previewRoom >= 80.dp &&
+            LocalDensity.current.fontScale < 1.5f
+        val previewHeight = minOf(maxWidth * .72f, previewRoom, 220.dp)
+        val selection = tab to if (tab == 0) fieldIndex else styleIndex
+        val currentField = FieldId.entries[fieldIndex]
+        val currentStyle = StyleSetting.entries.getOrNull(styleIndex)
+        val hint = when {
+            tab == 0 -> fieldHint(currentField)
+            currentStyle != null -> currentStyle.hint
+            else -> R.string.font_hint
+        }
+        val resetCurrentLabel = stringResource(R.string.restore_current)
+        val resetAllLabel = stringResource(R.string.restore_all)
+        val shortLabels = maxWidth < 230.dp || tight
+        val canResetItem = !state.busy && (tab != 1 || currentStyle != null || state.hasCustomFont)
+        val resetItem: () -> Unit = {
+            if (tab == 0) onResetField(currentField)
+            else if (currentStyle == null) onResetFont()
+            else onStyle(currentStyle.update(state.style, currentStyle.value(CardStyle())))
+        }
+        val resetAll: () -> Unit = {
+            if (tab == 0) onResetAllFields()
+            else {
+                if (state.hasCustomFont) onResetFont()
+                onStyle(CardStyle())
             }
-            Column(Modifier.weight(.6f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(top=24.dp,bottom=16.dp),
-                verticalArrangement=Arrangement.spacedBy(20.dp)) {
-                Text(labels[if(tab==0)fieldIndex else styleIndex],style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary)
-                if(tab==0) {
-                    Text(stringResource(fieldHint(field)),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedTextField(state.info[field],{ onField(field,it) },Modifier.fillMaxWidth(),enabled=!state.busy,
-                        label={ Text(stringResource(fieldLabel(field))) },minLines=1,maxLines=4,
-                        keyboardOptions=KeyboardOptions(keyboardType=when(field) {
-                            FieldId.ISO -> KeyboardType.Number; FieldId.APERTURE -> KeyboardType.Decimal; else -> KeyboardType.Text
-                        }))
-                    if(field==FieldId.LOCATION && state.hasPhotoGps && state.settings.resolvePhotoLocation) {
-                        if(state.locationStatus==LocationStatus.RESOLVING)LinearProgressIndicator(Modifier.fillMaxWidth())
-                        TextButton(onClick=onResolveLocation,enabled=!state.busy && state.locationStatus!=LocationStatus.RESOLVING) {
-                            Text(stringResource(R.string.location_retry))
-                        }
-                    }
-                    TextButton(onClick={ onResetField(field) },enabled=!state.busy) { Text(stringResource(R.string.restore_selected)) }
-                } else if(styleIndex==7) {
-                    Text(state.fontName ?: stringResource(R.string.system_mono),style=MaterialTheme.typography.bodySmall)
-                    OutlinedButton(onClick=onImportFont,enabled=!state.busy) { Text(stringResource(R.string.import_font)) }
-                    TextButton(onClick=onResetFont,enabled=!state.busy&&state.hasCustomFont) { Text(stringResource(R.string.reset)) }
+        }
+        Column(Modifier.fillMaxSize()) {
+            if (showPreview) {
+                CardDetailPreview(state.preview, state.previewCardBox, state.rendering || state.loadingPhoto,
+                    state.previewError,
+                    Modifier.fillMaxWidth().height(previewHeight))
+                Spacer(Modifier.height(8.dp))
+            }
+            Crossfade(targetState = selection, animationSpec = tween(180), label = "editor setting",
+                modifier = Modifier.fillMaxWidth().height(controlHeight)) { (selectedTab, selectedIndex) ->
+                if (selectedTab == 0) {
+                    FieldControl(state, FieldId.entries[selectedIndex], onField, onResolveLocation)
+                } else if (selectedIndex == StyleSetting.entries.size) {
+                    FontControl(state, onImportFont)
                 } else {
-                    val s=state.style
-                    val values=listOf(s.scale,s.textScale,s.opacity,s.blur,s.cornerRadius,s.rightInset,s.bottomInset)
-                    val ranges=listOf(.6f..2f,.8f..1.8f,0f..1f,0f..50f,0f..40f,0f..250f,0f..250f)
-                    val hints=listOf(R.string.card_scale_hint,R.string.text_scale_hint,R.string.opacity_hint,R.string.blur_hint,R.string.radius_hint,R.string.inset_hint,R.string.inset_hint)
-                    Text(stringResource(hints[styleIndex]),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(stringResource(if(styleIndex<3)R.string.value_percent else R.string.value_pixels,
-                        (values[styleIndex]*(if(styleIndex<3)100 else 1)).roundToInt()),style=MaterialTheme.typography.labelLarge)
-                    Slider(values[styleIndex],{ value ->
-                        onStyle(when(styleIndex) {
-                            0->s.copy(scale=value);1->s.copy(textScale=value);2->s.copy(opacity=value);3->s.copy(blur=value)
-                            4->s.copy(cornerRadius=value);5->s.copy(rightInset=value);else->s.copy(bottomInset=value)
-                        })
-                    },enabled=!state.busy,valueRange=ranges[styleIndex])
-                    TextButton(onClick={
-                        val defaults=CardStyle()
-                        onStyle(when(styleIndex) {
-                            0->s.copy(scale=defaults.scale);1->s.copy(textScale=defaults.textScale);2->s.copy(opacity=defaults.opacity)
-                            3->s.copy(blur=defaults.blur);4->s.copy(cornerRadius=defaults.cornerRadius)
-                            5->s.copy(rightInset=defaults.rightInset);else->s.copy(bottomInset=defaults.bottomInset)
-                        })
-                    },enabled=!state.busy) { Text(stringResource(R.string.restore_selected)) }
+                    val setting = StyleSetting.entries[selectedIndex]
+                    val value = setting.value(state.style)
+                    val reference = setting.value(CardStyle())
+                    CardStyleSlider(value, { onStyle(setting.update(state.style, it)) },
+                        setting.minimum..setting.maximum, reference, stringResource(setting.label),
+                        styleValue(setting.percentage, value), styleValue(setting.percentage, reference),
+                        !state.busy, Modifier.fillMaxWidth())
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            if (showHint) {
+                Spacer(Modifier.height(8.dp))
+                Box(Modifier.fillMaxWidth().height(hintHeight), contentAlignment = Alignment.CenterStart) {
+                    val hintText = stringResource(hint)
+                    Text(hintText, Modifier.semantics { contentDescription = hintText },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 4, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                TextButton(onClick = resetItem, enabled = canResetItem,
+                    modifier = Modifier.weight(1f).height(48.dp).semantics { contentDescription = resetCurrentLabel }) {
+                    Text(stringResource(if (shortLabels) R.string.restore_current_short else R.string.restore_current),
+                        style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                }
+                TextButton(onClick = resetAll, enabled = !state.busy,
+                    modifier = Modifier.weight(1f).height(48.dp).semantics { contentDescription = resetAllLabel }) {
+                    Text(stringResource(if (shortLabels) R.string.restore_all_short else R.string.restore_all),
+                        style = MaterialTheme.typography.labelMedium, maxLines = 1)
                 }
             }
         }
     }
 }
-private fun fieldLabel(field:FieldId)=when(field) {
-    FieldId.DEVICE->R.string.field_device;FieldId.AUTHOR->R.string.field_author;FieldId.LOCATION->R.string.field_location
-    FieldId.CAMERA->R.string.field_camera;FieldId.IMAGE_SIZE->R.string.field_size;FieldId.FOCAL_LENGTH->R.string.field_focal
-    FieldId.EXPOSURE->R.string.field_exposure;FieldId.APERTURE->R.string.field_aperture;FieldId.ISO->R.string.field_iso
+
+@Composable
+private fun FieldControl(state: EditorState, field: FieldId, onField: (FieldId, String) -> Unit,
+    onResolveLocation: () -> Unit) {
+    val canResolve = field == FieldId.LOCATION && state.hasPhotoGps && state.settings.resolvePhotoLocation
+    val label = stringResource(fieldLabel(field))
+    val retryLabel = stringResource(R.string.location_retry)
+    Column(Modifier.fillMaxSize()) {
+        OutlinedTextField(value = state.info[field], onValueChange = { onField(field, it) },
+            modifier = Modifier.fillMaxWidth().weight(1f).semantics { contentDescription = label },
+            enabled = !state.busy, minLines = 1, maxLines = 3,
+            placeholder = { Text(stringResource(R.string.field_value_placeholder)) },
+            trailingIcon = if (canResolve) { {
+                if (state.locationStatus == LocationStatus.RESOLVING) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                else TextButton(onClick = onResolveLocation, enabled = !state.busy,
+                    modifier = Modifier.semantics { contentDescription = retryLabel }) {
+                    Text("GPS", style = MaterialTheme.typography.labelSmall)
+                }
+            } } else null,
+            keyboardOptions = KeyboardOptions(keyboardType = when (field) {
+                FieldId.ISO -> KeyboardType.Number
+                FieldId.APERTURE -> KeyboardType.Decimal
+                else -> KeyboardType.Text
+            }),
+        )
+        if (canResolve && state.locationStatus == LocationStatus.RESOLVING) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
+    }
 }
-private fun fieldHint(field:FieldId)=when(field) {
-    FieldId.DEVICE->R.string.card_device_hint;FieldId.AUTHOR->R.string.card_author_hint;FieldId.LOCATION->R.string.location_hint
-    FieldId.CAMERA->R.string.card_lens_hint;FieldId.IMAGE_SIZE->R.string.card_pixels_hint;FieldId.FOCAL_LENGTH->R.string.card_focal_hint
-    FieldId.EXPOSURE->R.string.card_exposure_hint;FieldId.APERTURE->R.string.card_aperture_hint;FieldId.ISO->R.string.card_iso_hint
+
+@Composable
+private fun FontControl(state: EditorState, onImportFont: () -> Unit) {
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+        Text(state.fontName ?: stringResource(R.string.system_mono),
+            style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        OutlinedButton(onClick = onImportFont, enabled = !state.busy,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text(stringResource(R.string.import_font), maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun styleValue(percentage: Boolean, value: Float): String =
+    stringResource(if (percentage) R.string.value_percent else R.string.value_pixels,
+        (value * if (percentage) 100 else 1).roundToInt())
+
+private enum class StyleSetting(val label: Int, val hint: Int, val minimum: Float,
+    val maximum: Float, val percentage: Boolean) {
+    CARD(R.string.card_scale, R.string.card_scale_hint, .6f, 2f, true),
+    TEXT(R.string.text_scale, R.string.text_scale_hint, .8f, 1.8f, true),
+    OPACITY(R.string.opacity, R.string.opacity_hint, 0f, 1f, true),
+    BLUR(R.string.blur, R.string.blur_hint, 0f, 50f, false),
+    RIGHT(R.string.right_inset, R.string.inset_hint, 0f, 250f, false),
+    BOTTOM(R.string.bottom_inset, R.string.inset_hint, 0f, 250f, false),
+    RADIUS(R.string.radius, R.string.radius_hint, 0f, 40f, false);
+
+    fun value(style: CardStyle): Float = when (this) {
+        CARD -> style.scale; TEXT -> style.textScale; OPACITY -> style.opacity; BLUR -> style.blur
+        RIGHT -> style.rightInset; BOTTOM -> style.bottomInset; RADIUS -> style.cornerRadius
+    }
+
+    fun update(style: CardStyle, value: Float): CardStyle = when (this) {
+        CARD -> style.copy(scale = value); TEXT -> style.copy(textScale = value)
+        OPACITY -> style.copy(opacity = value); BLUR -> style.copy(blur = value)
+        RIGHT -> style.copy(rightInset = value); BOTTOM -> style.copy(bottomInset = value)
+        RADIUS -> style.copy(cornerRadius = value)
+    }
+}
+
+private fun fieldLabel(field: FieldId) = when (field) {
+    FieldId.DEVICE -> R.string.field_device; FieldId.AUTHOR -> R.string.field_author
+    FieldId.LOCATION -> R.string.field_location; FieldId.CAMERA -> R.string.field_camera
+    FieldId.IMAGE_SIZE -> R.string.field_size; FieldId.FOCAL_LENGTH -> R.string.field_focal
+    FieldId.EXPOSURE -> R.string.field_exposure; FieldId.APERTURE -> R.string.field_aperture
+    FieldId.ISO -> R.string.field_iso
+}
+
+private fun fieldHint(field: FieldId) = when (field) {
+    FieldId.DEVICE -> R.string.card_device_hint; FieldId.AUTHOR -> R.string.card_author_hint
+    FieldId.LOCATION -> R.string.location_hint; FieldId.CAMERA -> R.string.card_lens_hint
+    FieldId.IMAGE_SIZE -> R.string.card_pixels_hint; FieldId.FOCAL_LENGTH -> R.string.card_focal_hint
+    FieldId.EXPOSURE -> R.string.card_exposure_hint; FieldId.APERTURE -> R.string.card_aperture_hint
+    FieldId.ISO -> R.string.card_iso_hint
 }

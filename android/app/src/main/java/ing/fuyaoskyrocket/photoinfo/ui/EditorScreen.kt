@@ -206,6 +206,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                                 key(photoId) {
                                     EditorControls(state, { field, value -> vm.updateField(field, value, photoId) },
                                         { vm.updateStyle(it, photoId) }, { field -> vm.resetField(field,photoId) },
+                                        { vm.resetFields(photoId) },
                                         { fontPicker.launch(arrayOf("*/*")) }, vm::resetFont, vm::resolveLocation, modifier)
                                 }
                             },

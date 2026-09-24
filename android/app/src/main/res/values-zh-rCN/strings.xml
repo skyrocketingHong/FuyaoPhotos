@@ -240,4 +240,11 @@
   <string name="wheel_focal">焦距</string>
   <string name="photo_details">照片详情</string>
   <string name="restore_selected">恢复默认</string>
+  <string name="restore_current">恢复当前项</string>
+  <string name="restore_all">全部恢复</string>
+  <string name="restore_current_short">恢复当前</string>
+  <string name="restore_all_short">全部恢复</string>
+  <string name="style_reference">参考值 %1$s</string>
+  <string name="field_value_placeholder">输入内容</string>
+  <string name="font_hint">为信息卡选择本地字体；恢复此项可使用参考字体。</string>
 </resources>

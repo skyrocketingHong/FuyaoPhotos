@@ -240,4 +240,11 @@
   <string name="wheel_focal">Focal length</string>
   <string name="photo_details">Photo details</string>
   <string name="restore_selected">Restore default</string>
+  <string name="restore_current">Reset item</string>
+  <string name="restore_all">Reset all</string>
+  <string name="restore_current_short">Reset</string>
+  <string name="restore_all_short">Reset all</string>
+  <string name="style_reference">Reference %1$s</string>
+  <string name="field_value_placeholder">Enter a value</string>
+  <string name="font_hint">Choose a local font for this card. The reference typeface is restored when you reset it.</string>
 </resources>

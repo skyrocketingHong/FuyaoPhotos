@@ -12,6 +12,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
@@ -74,7 +80,14 @@ internal fun CyclicItemSelector(labels:List<String>,selected:Int,enabled:Boolean
             .background(MaterialTheme.colorScheme.secondaryContainer,MaterialTheme.shapes.large))
         LazyColumn(state=state,userScrollEnabled=enabled,
             flingBehavior=rememberSnapFlingBehavior(state,snapPosition=SnapPosition.Center),
-            modifier=Modifier.fillMaxSize().selectableGroup()) {
+            modifier=Modifier.fillMaxSize().graphicsLayer { compositingStrategy=CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    val edge=(rowHeightPx*1.5f/size.height).coerceIn(.12f,.35f)
+                    drawRect(Brush.verticalGradient(
+                        0f to Color.Transparent,edge to Color.Black,
+                        (1f-edge) to Color.Black,1f to Color.Transparent),blendMode=BlendMode.DstIn)
+                }.selectableGroup()) {
             items(count*101,key={ it }) { position ->
                 val active=position==(centered ?: middle+selected)
                 Box(Modifier.fillMaxWidth().height(rowHeight)
