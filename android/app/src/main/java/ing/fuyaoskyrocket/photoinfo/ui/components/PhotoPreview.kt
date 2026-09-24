@@ -52,6 +52,8 @@ fun PhotoPreview(bitmap:Bitmap?,modifier:Modifier=Modifier) {
 fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()->Bitmap,motion:MotionClipSource?,
     showHdr:Boolean,hdrEnabled:Boolean,hdrAvailable:Boolean,onHdr:()->Unit,onDismiss:()->Unit) {
     var playing by remember(photoId) { mutableStateOf(false) }
+    var motionProgress by remember(photoId) { mutableStateOf<Float?>(null) }
+    LaunchedEffect(playing) { if(!playing)motionProgress=null }
     var playbackError by remember(photoId) { mutableStateOf(false) }
     val context=LocalContext.current
     val currentLoader by rememberUpdatedState(loadFullResolution)
@@ -135,6 +137,7 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
                 .semantics { stateDescription=zoomDescription }
                 .graphicsLayer { scaleX=scale;scaleY=scale;translationX=offset.x;translationY=offset.y },contentScale=ContentScale.Fit)
             if(playing && motion!=null)MotionPhotoPreview(motion,Modifier.fillMaxSize(),
+                onProgress={ motionProgress=it },
                 onFinished={ playing=false },onError={ playing=false;playbackError=true })
             Surface(Modifier.align(Alignment.TopCenter),
                 color=Color.Black.copy(alpha=.72f),contentColor=Color.White) {
@@ -144,7 +147,8 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
                         zoomDescription,stringResource(if(detail!=null)R.string.original_size_preview else R.string.thumbnail_preview)),
                         Modifier.weight(1f),style=MaterialTheme.typography.labelLarge,maxLines=2)
                     if(motion!=null)PreviewMediaButton(if(playing)R.drawable.ic_stop else R.drawable.ic_motion,
-                        stringResource(if(playing)R.string.stop_motion else R.string.play_motion),playing,{ playing=!playing },enabled=!loading)
+                        stringResource(if(playing)R.string.stop_motion else R.string.play_motion),playing,{ playing=!playing },
+                        enabled=!loading,progress=motionProgress)
                     if(showHdr)PreviewMediaButton(R.drawable.ic_hdr,
                         stringResource(if(!hdrAvailable)R.string.hdr_unavailable else if(hdrEnabled)R.string.disable_hdr else R.string.enable_hdr),
                         hdrEnabled && hdrAvailable,{ playing=false;onHdr() },enabled=hdrAvailable)

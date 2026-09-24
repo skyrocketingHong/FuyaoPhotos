@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -34,37 +35,59 @@ fun EditorControls(
     onImportFont: () -> Unit,
     onResetFont: () -> Unit,
     onResolveLocation: () -> Unit,
+    onEditingActiveChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var fieldIndex by rememberSaveable { mutableIntStateOf(0) }
     var styleIndex by rememberSaveable { mutableIntStateOf(0) }
+    var editingActive by remember { mutableStateOf(false) }
+    var fieldFocused by remember { mutableStateOf(false) }
+    var imeSeen by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val editingCallback = rememberUpdatedState(onEditingActiveChange)
+    fun setEditingActive(active: Boolean) {
+        if (editingActive != active) {
+            editingActive = active
+            editingCallback.value(active)
+        }
+    }
+    LaunchedEffect(imeVisible) {
+        if (imeVisible) imeSeen = true
+        else if (imeSeen) {
+            imeSeen = false
+            setEditingActive(false)
+        }
+    }
+    DisposableEffect(Unit) { onDispose { editingCallback.value(false) } }
     val fieldLabels = FieldId.entries.map { stringResource(if (it == FieldId.FOCAL_LENGTH) R.string.wheel_focal else fieldLabel(it)) }
     val styleLabels = StyleSetting.entries.map { stringResource(it.label) } + stringResource(R.string.font)
-    val labels = if (tab == 0) fieldLabels else styleLabels
     Column(modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
         horizontalAlignment = Alignment.CenterHorizontally) {
         PrimaryTabRow(selectedTabIndex = tab, divider = {}) {
             listOf(R.string.tab_info, R.string.tab_style).forEachIndexed { index, title ->
-                Tab(selected = tab == index, onClick = { focus.clearFocus(); tab = index },
+                Tab(selected = tab == index, onClick = { focus.clearFocus(); setEditingActive(false); tab = index },
                     text = { Text(stringResource(title)) })
             }
         }
         Row(Modifier.widthIn(max = 640.dp).fillMaxWidth().weight(1f).padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            key(tab) {
-                val pickerTab = tab
-                CyclicItemSelector(labels, if (tab == 0) fieldIndex else styleIndex, !state.busy,
-                    Modifier.weight(.4f).fillMaxHeight()) { index ->
-                    if (tab == pickerTab && index in labels.indices) {
-                        focus.clearFocus()
+            Crossfade(targetState = tab, animationSpec = tween(180), label = "editor wheel",
+                modifier = Modifier.weight(.4f).fillMaxHeight()) { pickerTab ->
+                val pickerLabels = if (pickerTab == 0) fieldLabels else styleLabels
+                CyclicItemSelector(pickerLabels, if (pickerTab == 0) fieldIndex else styleIndex, !state.busy,
+                    Modifier.fillMaxSize()) { index ->
+                    if (tab == pickerTab && index in pickerLabels.indices) {
+                        focus.clearFocus(); setEditingActive(false)
                         if (pickerTab == 0) fieldIndex = index else styleIndex = index
                     }
                 }
             }
             EditorInspector(state, tab, fieldIndex, styleIndex, onField, onStyle, onResetField,
                 onResetAllFields, onImportFont, onResetFont, onResolveLocation,
+                editingActive, { fieldFocused = it; if (!it) setEditingActive(false) },
+                { if (fieldFocused) setEditingActive(true) },
                 Modifier.weight(.6f).fillMaxHeight())
         }
     }
@@ -83,18 +106,21 @@ private fun EditorInspector(
     onImportFont: () -> Unit,
     onResetFont: () -> Unit,
     onResolveLocation: () -> Unit,
+    editingActive: Boolean,
+    onFieldFocus: (Boolean) -> Unit,
+    onFieldEdited: () -> Unit,
     modifier: Modifier,
 ) {
     BoxWithConstraints(modifier) {
         val tight = maxHeight < 200.dp
-        val controlHeight = if (tight) 76.dp else 90.dp
+        val controlHeight = if (tight) 64.dp else 76.dp
         val hintHeight = if (maxWidth < 190.dp) 88.dp else 72.dp
         val showHint = maxHeight >= controlHeight + 48.dp + hintHeight + 16.dp
         val previewRoom = maxHeight - controlHeight - 48.dp -
-            (if (showHint) hintHeight + 24.dp else 16.dp)
-        val showPreview = maxHeight >= 300.dp && previewRoom >= 80.dp &&
+            (if (showHint) hintHeight + 20.dp else 12.dp)
+        val showPreview = maxHeight >= 250.dp && previewRoom >= 80.dp &&
             LocalDensity.current.fontScale < 1.5f
-        val previewHeight = minOf(maxWidth * .72f, previewRoom, 220.dp)
+        val previewHeight = minOf(maxWidth * .94f, previewRoom, 240.dp)
         val selection = tab to if (tab == 0) fieldIndex else styleIndex
         val currentField = FieldId.entries[fieldIndex]
         val currentStyle = StyleSetting.entries.getOrNull(styleIndex)
@@ -119,17 +145,34 @@ private fun EditorInspector(
                 onStyle(CardStyle())
             }
         }
+        EditorAmbientBackdrop(state.original,
+            Modifier.align(Alignment.TopCenter).requiredWidth(maxWidth + 24.dp)
+                .height(minOf(240.dp, maxHeight * .58f)))
         Column(Modifier.fillMaxSize()) {
             if (showPreview) {
-                CardDetailPreview(state.preview, state.previewCardBox, state.rendering || state.loadingPhoto,
-                    state.previewError,
-                    Modifier.fillMaxWidth().height(previewHeight))
+                CardDetailPreview(
+                    bitmap = state.preview,
+                    box = state.previewCardBox,
+                    rendering = state.rendering || state.loadingPhoto,
+                    errorMessage = state.previewError,
+                    editingActive = editingActive,
+                    highlightRects = if (tab == 0) state.previewFieldRects[currentField].orEmpty() else emptyList(),
+                    highlightStyle = when {
+                        tab == 0 && state.previewFieldRects[currentField].isNullOrEmpty() -> CardPreviewStyleHighlight.CARD
+                        tab == 0 || currentStyle == null -> null
+                        currentStyle == StyleSetting.RIGHT -> CardPreviewStyleHighlight.RIGHT
+                        currentStyle == StyleSetting.BOTTOM -> CardPreviewStyleHighlight.BOTTOM
+                        else -> CardPreviewStyleHighlight.CARD
+                    },
+                    modifier = Modifier.fillMaxWidth().height(previewHeight),
+                )
                 Spacer(Modifier.height(8.dp))
             }
             Crossfade(targetState = selection, animationSpec = tween(180), label = "editor setting",
                 modifier = Modifier.fillMaxWidth().height(controlHeight)) { (selectedTab, selectedIndex) ->
                 if (selectedTab == 0) {
-                    FieldControl(state, FieldId.entries[selectedIndex], onField, onResolveLocation)
+                    FieldControl(state, FieldId.entries[selectedIndex], onField, onResolveLocation,
+                        onFieldFocus, onFieldEdited)
                 } else if (selectedIndex == StyleSetting.entries.size) {
                     FontControl(state, onImportFont)
                 } else {
@@ -172,13 +215,15 @@ private fun EditorInspector(
 
 @Composable
 private fun FieldControl(state: EditorState, field: FieldId, onField: (FieldId, String) -> Unit,
-    onResolveLocation: () -> Unit) {
+    onResolveLocation: () -> Unit, onFieldFocus: (Boolean) -> Unit, onFieldEdited: () -> Unit) {
     val canResolve = field == FieldId.LOCATION && state.hasPhotoGps && state.settings.resolvePhotoLocation
     val label = stringResource(fieldLabel(field))
     val retryLabel = stringResource(R.string.location_retry)
     Column(Modifier.fillMaxSize()) {
-        OutlinedTextField(value = state.info[field], onValueChange = { onField(field, it) },
-            modifier = Modifier.fillMaxWidth().weight(1f).semantics { contentDescription = label },
+        OutlinedTextField(value = state.info[field], onValueChange = { onFieldEdited(); onField(field, it) },
+            modifier = Modifier.fillMaxWidth().weight(1f)
+                .onFocusChanged { onFieldFocus(it.isFocused) }
+                .semantics { contentDescription = label },
             enabled = !state.busy, minLines = 1, maxLines = 3,
             placeholder = { Text(stringResource(R.string.field_value_placeholder)) },
             trailingIcon = if (canResolve) { {

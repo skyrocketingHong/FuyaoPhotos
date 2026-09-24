@@ -64,6 +64,8 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var showExport by rememberSaveable { mutableStateOf(false) }
+    val activePhotoId = state.photos.getOrNull(state.photoIndex)?.id
+    var editingPhotoText by remember(activePhotoId) { mutableStateOf(false) }
     var original by rememberSaveable { mutableStateOf(false) }
     var hdrEnabled by rememberSaveable { mutableStateOf(true) }
     val hasGainmap=Build.VERSION.SDK_INT>=34 && state.original?.hasGainmap()==true
@@ -200,14 +202,15 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                             preview = { modifier, bottomSafe ->
                                 EditorPreviewPane(state, vm::selectPhoto, original, { original = !original },
                                     { openPage(PhotoPage.EDITOR, PhotoPage.PREVIEW) }, vm.motionClip(photoId),state.hdrPhoto || hasGainmap,
-                                    hdrEnabled,hdrAvailable,{ hdrEnabled=!hdrEnabled },modifier,bottomSafe,editorActions)
+                                    hdrEnabled,hdrAvailable,{ hdrEnabled=!hdrEnabled },modifier,bottomSafe,editingPhotoText,editorActions)
                             },
                             controls = { modifier ->
                                 key(photoId) {
                                     EditorControls(state, { field, value -> vm.updateField(field, value, photoId) },
                                         { vm.updateStyle(it, photoId) }, { field -> vm.resetField(field,photoId) },
                                         { vm.resetFields(photoId) },
-                                        { fontPicker.launch(arrayOf("*/*")) }, vm::resetFont, vm::resolveLocation, modifier)
+                                        { fontPicker.launch(arrayOf("*/*")) }, vm::resetFont, vm::resolveLocation,
+                                        { editingPhotoText = it }, modifier)
                                 }
                             },
                         )
@@ -257,8 +260,9 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     }
     replacementPhotos?.let { selected ->
         AlertDialog(onDismissRequest = { replacementPhotos = null },
-            title = { Text(stringResource(R.string.replace_photos_title)) },
-            text = { Text(stringResource(R.string.replace_photos_message)) },
+            title = { Text(stringResource(if(state.photos.size==1)R.string.replace_photos_title_one else R.string.replace_photos_title_many)) },
+            text = { Text(stringResource(if(selected.size==1)R.string.replace_photos_message_one else R.string.replace_photos_message_many,
+                selected.size)) },
             confirmButton = { TextButton(onClick = {
                 replacementPhotos = null
                 importConfirmedPhotos(selected.map(Uri::parse))
@@ -308,19 +312,17 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
             else -> supported
         }).sanitized(jpegRequired))
     }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
     var submitting by remember { mutableStateOf(false) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(if(count>1) stringResource(R.string.batch_export,count) else stringResource(R.string.export), style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.save_options), style = MaterialTheme.typography.headlineSmall)
             Text(if(count>1) stringResource(R.string.batch_export_size,count) else stringResource(R.string.export_size, width, height),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(stringResource(R.string.export_temporary_hint),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             ExportOptionsControls(options,{ options=it },jpegRequired,hasMotion,hasPortrait,showLiveOption=hasMotion,showPortraitOption=hasPortrait,avifRequired=avifRequired)
-            Text(stringResource(R.string.export_boundary), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.export_temporary_hint),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             if(avifRequired)Text(stringResource(R.string.avif_precision_required),style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
             val compatible=(!hasPortrait || options.format==(if(options.applePortrait)ExportFormat.HEIC else ExportFormat.JPEG)) &&

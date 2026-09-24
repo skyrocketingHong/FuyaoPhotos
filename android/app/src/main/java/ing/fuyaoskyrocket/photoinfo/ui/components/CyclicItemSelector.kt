@@ -1,6 +1,7 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
@@ -77,7 +78,8 @@ internal fun CyclicItemSelector(labels:List<String>,selected:Int,enabled:Boolean
         }
         Box(Modifier.fillMaxWidth().height(rowHeight)
             .align(Alignment.Center)
-            .background(MaterialTheme.colorScheme.secondaryContainer,MaterialTheme.shapes.large))
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .72f),
+                MaterialTheme.shapes.large))
         LazyColumn(state=state,userScrollEnabled=enabled,
             flingBehavior=rememberSnapFlingBehavior(state,snapPosition=SnapPosition.Center),
             modifier=Modifier.fillMaxSize().graphicsLayer { compositingStrategy=CompositingStrategy.Offscreen }
@@ -94,9 +96,12 @@ internal fun CyclicItemSelector(labels:List<String>,selected:Int,enabled:Boolean
                     .selectable(selected=active,enabled=enabled,role=Role.RadioButton) {
                         scope.launch { state.animateScrollToItem(position-precedingRows,firstOffsetPx) }
                     }.padding(horizontal=8.dp),contentAlignment=Alignment.Center) {
-                    Text(labels[position%count],style=if(active)MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+                    Text(labels[position%count],
+                        modifier = Modifier.fillMaxWidth().then(if(active) Modifier.basicMarquee() else Modifier),
+                        style=if(active)MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
                         color=if(active)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+                        textAlign=androidx.compose.ui.text.style.TextAlign.Center,
+                        maxLines = 1, softWrap = false)
                 }
             }
         }

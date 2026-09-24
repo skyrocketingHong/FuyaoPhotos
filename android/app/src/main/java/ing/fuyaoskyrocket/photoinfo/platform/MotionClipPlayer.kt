@@ -21,6 +21,7 @@ class MotionClipPlayer(
         .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build()
     private var player: MediaPlayer?=null
     private var released=false
+    private var prepared=false
     private var hasFocus=false
     private val focus=AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
         .setAudioAttributes(attributes).setOnAudioFocusChangeListener { change ->
@@ -38,6 +39,7 @@ class MotionClipPlayer(
             media.setOnPreparedListener {
                 if(!released) {
                     try {
+                        prepared=true
                         hasFocus=audio.requestAudioFocus(focus)==AudioManager.AUDIOFOCUS_REQUEST_GRANTED
                         if(hasFocus) { it.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT);it.start();onReady() } else fail()
                     } catch (_: RuntimeException) { fail() }
@@ -51,9 +53,18 @@ class MotionClipPlayer(
     }
     private fun finish() { release();onFinished() }
     private fun fail() { release();onError() }
+    fun playbackProgress(): Float? {
+        val media=player ?: return null
+        if(released || !prepared)return null
+        return try {
+            val duration=media.duration.takeIf { it>0 } ?: return null
+            (media.currentPosition.toFloat()/duration).coerceIn(0f,1f)
+        } catch (_: IllegalStateException) { null }
+    }
     fun release() {
         if(released)return
         released=true
+        prepared=false
         player?.apply {
             setOnPreparedListener(null);setOnCompletionListener(null);setOnErrorListener(null);setOnVideoSizeChangedListener(null)
             release()

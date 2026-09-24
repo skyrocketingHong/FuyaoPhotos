@@ -4,12 +4,14 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -17,24 +19,35 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import ing.fuyaoskyrocket.photoinfo.platform.MotionClipPlayer
 import ing.fuyaoskyrocket.photoinfo.platform.MotionClipSource
+import ing.fuyaoskyrocket.photoinfo.R
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 @Composable
-fun MotionPhotoPreview(source: MotionClipSource, modifier: Modifier = Modifier, onFinished: () -> Unit, onError: () -> Unit) {
+fun MotionPhotoPreview(source: MotionClipSource, modifier: Modifier = Modifier,
+    onProgress: (Float?) -> Unit = {}, onFinished: () -> Unit, onError: () -> Unit) {
     val context=LocalContext.current
     val owner=LocalLifecycleOwner.current
     val finished by rememberUpdatedState(onFinished)
     val failed by rememberUpdatedState(onError)
+    val progressChanged by rememberUpdatedState(onProgress)
     var ratio by remember(source) { mutableFloatStateOf(4f/3f) }
     var loading by remember(source) { mutableStateOf(true) }
     val player=remember(source) { MotionClipPlayer(context,
         onSize={ width,height -> ratio=width.toFloat()/height },onReady={ loading=false },
-        onFinished={ finished() },onError={ failed() }) }
+        onFinished={ progressChanged(null);finished() },onError={ progressChanged(null);failed() }) }
+    LaunchedEffect(player, loading) {
+        if(!loading)while(isActive) {
+            progressChanged(player.playbackProgress())
+            delay(100)
+        }
+    }
     DisposableEffect(player,owner) {
         val observer=LifecycleEventObserver { _,event ->
             if(event==Lifecycle.Event.ON_PAUSE || event==Lifecycle.Event.ON_STOP) { player.release();finished() }
         }
         owner.lifecycle.addObserver(observer)
-        onDispose { owner.lifecycle.removeObserver(observer);player.release() }
+        onDispose { owner.lifecycle.removeObserver(observer);player.release();progressChanged(null) }
     }
     BoxWithConstraints(modifier.background(Color.Black),contentAlignment=Alignment.Center) {
         val width=minOf(maxWidth,maxHeight*ratio)
@@ -45,6 +58,7 @@ fun MotionPhotoPreview(source: MotionClipSource, modifier: Modifier = Modifier, 
                 override fun surfaceDestroyed(holder: SurfaceHolder) { player.release();finished() }
             })
         } },modifier=Modifier.width(width).height(width/ratio),onReset=null,onRelease={ player.release() })
-        if(loading)CircularProgressIndicator(Modifier.size(24.dp),color=Color.White,strokeWidth=2.dp)
+        if(loading)Icon(painterResource(R.drawable.ic_motion),stringResource(R.string.loading_motion),
+            Modifier.size(24.dp),tint=Color.White)
     }
 }

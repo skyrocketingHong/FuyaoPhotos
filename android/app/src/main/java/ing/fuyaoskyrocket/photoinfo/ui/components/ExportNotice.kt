@@ -1,12 +1,17 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorNotice
+import androidx.compose.ui.unit.dp
 
 class ExportNoticeVisuals(val notice: EditorNotice, override val actionLabel: String?) : SnackbarVisuals {
     override val message get()=notice.text
@@ -25,5 +30,10 @@ fun ExportNotice(data: SnackbarData, onOpen: (EditorNotice)->Unit, onShare: (Edi
         }
     },dismissAction={
         IconButton(onClick=data::dismiss) { Icon(painterResource(R.drawable.ic_close),stringResource(R.string.close)) }
-    }) { Text(notice.text) }
+    }) {
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically) {
+            Icon(painterResource(R.drawable.ic_check),null,Modifier.size(20.dp))
+            Text(notice.text)
+        }
+    }
 }

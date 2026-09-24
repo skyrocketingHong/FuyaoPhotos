@@ -1,13 +1,12 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
 import android.graphics.Bitmap
+import android.graphics.RectF
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,9 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -31,6 +35,7 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 
 private data class CardCrop(val left: Int, val top: Int, val width: Int, val height: Int)
+internal enum class CardPreviewStyleHighlight { CARD, RIGHT, BOTTOM }
 
 @Composable
 internal fun CardDetailPreview(
@@ -38,31 +43,74 @@ internal fun CardDetailPreview(
     box: CardBox?,
     rendering: Boolean,
     errorMessage: String? = null,
+    editingActive: Boolean = false,
+    highlightRects: List<RectF> = emptyList(),
+    highlightStyle: CardPreviewStyleHighlight? = null,
     modifier: Modifier = Modifier,
 ) {
     val label = stringResource(if (errorMessage == null) R.string.preview_content else R.string.error_preview_title)
+    val updating = stringResource(R.string.card_preview_updating)
+    val accent = MaterialTheme.colorScheme.primary
     Box(
         modifier.clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .semantics { contentDescription = errorMessage ?: label },
+            .semantics {
+                contentDescription = errorMessage ?: label
+                if (rendering || editingActive) stateDescription = updating
+            },
         contentAlignment = Alignment.Center,
     ) {
         if (bitmap != null && box != null) {
             val image = remember(bitmap) { bitmap.asImageBitmap() }
             val crop = remember(bitmap, box) { cardCrop(bitmap, box) }
-            Canvas(Modifier.fillMaxSize()) {
-                if (size.width <= 0f || size.height <= 0f) return@Canvas
-                val scale = minOf(size.width / crop.width, size.height / crop.height)
-                val width = (crop.width * scale).roundToInt().coerceAtLeast(1)
-                val height = (crop.height * scale).roundToInt().coerceAtLeast(1)
-                drawImage(
-                    image = image,
-                    srcOffset = IntOffset(crop.left, crop.top),
-                    srcSize = IntSize(crop.width, crop.height),
-                    dstOffset = IntOffset(((size.width - width) / 2f).roundToInt(), ((size.height - height) / 2f).roundToInt()),
-                    dstSize = IntSize(width, height),
-                    filterQuality = FilterQuality.High,
-                )
+            PendingPhotoEffect(rendering || editingActive, Modifier.fillMaxSize()) {
+                Canvas(Modifier.fillMaxSize()) {
+                    if (size.width <= 0f || size.height <= 0f) return@Canvas
+                    val scale = minOf(size.width / crop.width, size.height / crop.height)
+                    val width = (crop.width * scale).roundToInt().coerceAtLeast(1)
+                    val height = (crop.height * scale).roundToInt().coerceAtLeast(1)
+                    val left = ((size.width - width) / 2f).roundToInt()
+                    val top = ((size.height - height) / 2f).roundToInt()
+                    drawImage(
+                        image = image,
+                        srcOffset = IntOffset(crop.left, crop.top),
+                        srcSize = IntSize(crop.width, crop.height),
+                        dstOffset = IntOffset(left, top),
+                        dstSize = IntSize(width, height),
+                        filterQuality = FilterQuality.High,
+                    )
+                    val xScale = width.toFloat() / crop.width
+                    val yScale = height.toFloat() / crop.height
+                    fun map(rect: RectF) = RectF(
+                        left + (rect.left - crop.left) * xScale,
+                        top + (rect.top - crop.top) * yScale,
+                        left + (rect.right - crop.left) * xScale,
+                        top + (rect.bottom - crop.top) * yScale,
+                    )
+                    val selectedRows = highlightRects.filter { it.width() > 0f && it.height() > 0f }
+                    selectedRows.forEach { row ->
+                        val rect = map(row)
+                        val corner = CornerRadius(3.dp.toPx())
+                        drawRoundRect(accent.copy(alpha = .18f), Offset(rect.left, rect.top),
+                            Size(rect.width(), rect.height()), corner)
+                        drawRoundRect(accent, Offset(rect.left, rect.top),
+                            Size(rect.width(), rect.height()), corner,
+                            style = Stroke(1.5.dp.toPx()))
+                    }
+                    if (highlightStyle != null) {
+                        val rect = map(RectF(box.left, box.top, box.right, box.bottom))
+                        val stroke = 2.dp.toPx()
+                        when (highlightStyle) {
+                            CardPreviewStyleHighlight.CARD -> drawRoundRect(
+                                accent, Offset(rect.left, rect.top), Size(rect.width(), rect.height()),
+                                CornerRadius(8.dp.toPx()), style = Stroke(stroke))
+                            CardPreviewStyleHighlight.RIGHT -> drawLine(accent,
+                                Offset(rect.right, rect.top), Offset(rect.right, rect.bottom), stroke)
+                            CardPreviewStyleHighlight.BOTTOM -> drawLine(accent,
+                                Offset(rect.left, rect.bottom), Offset(rect.right, rect.bottom), stroke)
+                        }
+                    }
+                }
             }
         } else {
             Text(
@@ -71,12 +119,6 @@ internal fun CardDetailPreview(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-            )
-        }
-        if (rendering) {
-            CircularProgressIndicator(
-                Modifier.align(Alignment.TopEnd).padding(8.dp).size(20.dp),
-                strokeWidth = 2.dp,
             )
         }
     }
