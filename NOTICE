@@ -1,4 +1,4 @@
-Fuyao Photo Info — original Android implementation, 2026.
+Fuyao Photos, original Android implementation, 2026.
 
 Project conventions and documentation structure were inspected in the local
 FuyaoColorPicker and FuyaoLocale projects owned by skyrocketingHong.
@@ -11,7 +11,7 @@ These measurements are independent estimates, not official Apple specifications.
 
 Apple-related notice
 --------------------
-Fuyao Photo Info is an independent third-party project, not developed, sponsored
+Fuyao Photos is an independent third-party project, not developed, sponsored
 or endorsed by, or affiliated with, Apple Inc. Apple, iPhone and macOS are
 trademarks of Apple Inc. References to Apple products, fonts or visual styles do
 not imply affiliation, certification or permission to use Apple materials.
@@ -50,3 +50,12 @@ The livephoto symbol carries Apple Live Photos-specific usage restrictions.
 
 Standard action icons are Google Material Symbols Outlined, distributed under
 Apache-2.0. Their pinned sources and license are in assets/icons/material/.
+
+XDRemux format reference
+------------------------
+The native HEIF graph inspection work draws on format and validation research in
+BeetMan/XDRemux-Flutter, revision 747ad8f, and its predecessor 21Z121Z1/XDRemux.
+The upstream source is MIT licensed; its license is retained at
+third_party/XDRemux-Flutter/LICENSE. The application uses its own Kotlin and Swift
+implementations rather than bundling upstream Flutter or Rust binaries.
+https://github.com/BeetMan/XDRemux-Flutter

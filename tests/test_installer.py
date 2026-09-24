@@ -21,7 +21,9 @@ class InstallerChecks(unittest.TestCase):
             self.assertEqual(0, self.invoke(destination).returncode)
             self.assertEqual('original repository configuration', (destination / '.git/config').read_text())
             self.assertEqual(b'original-user-reference', (destination / 'reference.png').read_bytes())
-            self.assertTrue((destination / 'app/build.gradle.kts').is_file())
+            self.assertTrue((destination / 'android/app/build.gradle.kts').is_file())
+            self.assertTrue((destination / 'apple/FuyaoPhotos.xcodeproj/project.pbxproj').is_file())
+            self.assertFalse((destination / 'apple/.build').exists())
             again = self.invoke(destination)
             self.assertEqual(0, again.returncode)
             self.assertIn('Copied 0 new files', again.stdout)
@@ -33,13 +35,13 @@ class InstallerChecks(unittest.TestCase):
             result = self.invoke(destination)
             self.assertEqual(2, result.returncode)
             self.assertEqual('existing code must not be overwritten', (destination / 'README.md').read_text())
-            self.assertFalse((destination / 'app').exists())
+            self.assertFalse((destination / 'android').exists())
 
     def test_symlink_cannot_redirect_source_writes(self):
         with tempfile.TemporaryDirectory() as temp:
             destination = Path(temp) / 'project'; destination.mkdir()
             outside = Path(temp) / 'outside'; outside.mkdir()
-            (destination / 'app').symlink_to(outside, target_is_directory=True)
+            (destination / 'android').symlink_to(outside, target_is_directory=True)
             self.assertEqual(2, self.invoke(destination).returncode)
             self.assertEqual([], list(outside.iterdir()))
             self.assertFalse((destination / 'README.md').exists())
@@ -47,7 +49,7 @@ class InstallerChecks(unittest.TestCase):
     def test_parent_file_is_reported_before_writing(self):
         with tempfile.TemporaryDirectory() as temp:
             destination = Path(temp)
-            (destination / 'app').write_text('not a directory')
+            (destination / 'android').write_text('not a directory')
             self.assertEqual(2, self.invoke(destination).returncode)
             self.assertFalse((destination / 'README.md').exists())
 

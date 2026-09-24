@@ -12,8 +12,8 @@ signing.properties
 # Original personal photos and fonts stay local; selected README media is allowlisted below.
 references/*
 !references/README.md
-app/src/main/assets/fonts/*
-!app/src/main/assets/fonts/README.md
+android/app/src/main/assets/fonts/*
+!android/app/src/main/assets/fonts/README.md
 *.ttf
 *.otf
 *.ttc
@@ -30,6 +30,13 @@ agents.md
 .kotlin/
 
 .build-counter
+
+# Apple build products and per-user Xcode state.
+**/.build/
+**/.swiftpm/
+**/DerivedData/
+**/xcuserdata/
+*.xcuserstate
 
 # Only the explicitly selected README media is versioned here.
 /assets/readme/*

@@ -23,14 +23,14 @@ jobs:
       - name: Install compile SDK
         run: sdkmanager 'platforms;android-37.0' 'build-tools;36.0.0'
       - name: Unit tests, lint and Debug/Release APKs
-        run: bash scripts/build-macos.sh
+        run: bash android/scripts/build-macos.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: FuyaoPhotoInfo-apks
+          name: FuyaoPhotos-apks
           path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
-            app/build/reports/tests/testDebugUnitTest/
-            app/build/reports/tests/testAndroidDom/
-            app/build/reports/lint-results-debug.html
-            app/build/reports/lint-results-release.html
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/reports/tests/testDebugUnitTest/
+            android/app/build/reports/tests/testAndroidDom/
+            android/app/build/reports/lint-results-debug.html
+            android/app/build/reports/lint-results-release.html

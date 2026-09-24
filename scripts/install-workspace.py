@@ -8,8 +8,8 @@ import shutil
 import subprocess
 import sys
 
-DEFAULT = Path('/Volumes/Thunderbolt 5 SSD (2TB)/Code/GitHub/FuyaoPhotoInfo')
-SKIP = {'.git', '.gradle', '.local', 'build', '__pycache__'}
+DEFAULT = Path('/Volumes/Thunderbolt 5 SSD (2TB)/Code/GitHub/FuyaoPhotos')
+SKIP = {'.git', '.gradle', '.kotlin', '.local', 'build', '.build', '.swiftpm', 'DerivedData', 'xcuserdata', '__pycache__'}
 PRIVATE = {'local.properties', 'signing.properties'}
 PRIVATE_SUFFIXES = {'.ttf', '.otf', '.ttc', '.woff', '.woff2', '.jks', '.keystore', '.p12'}
 
@@ -77,7 +77,7 @@ def main() -> int:
     else:
         print(f'Already in target workspace: {destination}')
     if args.build:
-        return subprocess.call(['bash', str(destination / 'scripts/build-macos.sh')], cwd=destination)
+        return subprocess.call(['bash', str(destination / 'android/scripts/build-macos.sh')], cwd=destination)
     return 0
 
 if __name__ == '__main__':

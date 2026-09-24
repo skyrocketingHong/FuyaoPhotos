@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108" role="img">
+  <g id="photo-panel"><rect x="24" y="28" width="60" height="54" rx="8" fill="#E2F5EE"/></g>
+  <g id="photo-sun"><circle cx="37" cy="41" r="7.5" fill="#FFDA45"/></g>
+  <g id="photo-mountains-back"><path d="M29 70 L41 54 L51 65 L58 59 L79 77 L79 78 L29 78 Z" fill="#8BDCC4"/></g>
+  <g id="photo-mountains-front"><path d="M29 78 L44 61 L55 73 L64 64 L79 78 Z" fill="#3FB797"/></g>
+  <g id="info-card"><rect x="50" y="48" width="31" height="31" rx="6" fill="#285E51"/><rect x="50.75" y="48.75" width="29.5" height="29.5" rx="5.25" fill="none" stroke="#BEE9DC" stroke-width="1.5" stroke-opacity="0.45"/></g>
+  <g id="info-accent"><path d="M55 55 H76 M55 60 H70" fill="none" stroke="#FFDA45" stroke-width="2.5" stroke-linecap="round"/></g>
+  <g id="info-metadata"><path d="M55 66 H76 M55 71 H73 M55 75 H68" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/></g>
+</svg>
