@@ -1,13 +1,10 @@
 import SwiftUI
 import PhotosUI
 import Photos
-import AVFoundation
 
 struct CardLivePhotoPreview: View {
     let resources: [URL]
     let movieURL: URL
-    let durationLoaded: (TimeInterval?) -> Void
-    let playbackStarted: (Date) -> Void
     let finished: () -> Void
     @State private var photo: PHLivePhoto?
     @State private var failed = false
@@ -18,7 +15,7 @@ struct CardLivePhotoPreview: View {
 
     var body: some View {
         ZStack {
-            if let photo { LivePhotoSurface(photo: photo, started: playbackStarted, finished: finished) }
+            if let photo { LivePhotoSurface(photo: photo, finished: finished) }
             else if failed {
                 ContentUnavailableView {
                     Label("photo.preview.unavailable", systemImage: "livephoto.slash")
@@ -44,17 +41,6 @@ struct CardLivePhotoPreview: View {
                 }
             }
         }
-        .task(id: movieURL) {
-            do {
-                let duration = try await AVURLAsset(url: movieURL).load(.duration)
-                guard !Task.isCancelled else { return }
-                let seconds = duration.seconds
-                durationLoaded(duration.isValid && seconds.isFinite && seconds > 0 ? seconds : nil)
-            } catch {
-                guard !Task.isCancelled else { return }
-                durationLoaded(nil)
-            }
-        }
         .onDisappear {
             active = false
             if let requestID { PHLivePhoto.cancelRequest(withRequestID: requestID) }
@@ -64,14 +50,9 @@ struct CardLivePhotoPreview: View {
 }
 
 @MainActor private final class LivePlaybackDelegate: NSObject, PHLivePhotoViewDelegate {
-    var started: (Date) -> Void
     var finished: () -> Void
-    init(started: @escaping (Date) -> Void, finished: @escaping () -> Void) {
-        self.started = started
+    init(finished: @escaping () -> Void) {
         self.finished = finished
-    }
-    func livePhotoView(_ livePhotoView: PHLivePhotoView, willBeginPlaybackWith playbackStyle: PHLivePhotoViewPlaybackStyle) {
-        started(.now)
     }
     func livePhotoView(_ livePhotoView: PHLivePhotoView, didEndPlaybackWith playbackStyle: PHLivePhotoViewPlaybackStyle) {
         finished()
@@ -81,14 +62,12 @@ struct CardLivePhotoPreview: View {
 #if os(macOS)
 private struct LivePhotoSurface: NSViewRepresentable {
     let photo: PHLivePhoto
-    let started: (Date) -> Void
     let finished: () -> Void
-    func makeCoordinator() -> LivePlaybackDelegate { LivePlaybackDelegate(started: started, finished: finished) }
+    func makeCoordinator() -> LivePlaybackDelegate { LivePlaybackDelegate(finished: finished) }
     func makeNSView(context: Context) -> PHLivePhotoView {
         let view = PHLivePhotoView(); view.delegate = context.coordinator; return view
     }
     func updateNSView(_ view: PHLivePhotoView, context: Context) {
-        context.coordinator.started = started
         context.coordinator.finished = finished
         guard view.livePhoto !== photo else { return }
         view.livePhoto = photo; view.startPlayback(with: .full)
@@ -100,14 +79,12 @@ private struct LivePhotoSurface: NSViewRepresentable {
 #else
 private struct LivePhotoSurface: UIViewRepresentable {
     let photo: PHLivePhoto
-    let started: (Date) -> Void
     let finished: () -> Void
-    func makeCoordinator() -> LivePlaybackDelegate { LivePlaybackDelegate(started: started, finished: finished) }
+    func makeCoordinator() -> LivePlaybackDelegate { LivePlaybackDelegate(finished: finished) }
     func makeUIView(context: Context) -> PHLivePhotoView {
         let view = PHLivePhotoView(); view.contentMode = .scaleAspectFit; view.delegate = context.coordinator; return view
     }
     func updateUIView(_ view: PHLivePhotoView, context: Context) {
-        context.coordinator.started = started
         context.coordinator.finished = finished
         guard view.livePhoto !== photo else { return }
         view.livePhoto = photo; view.startPlayback(with: .full)

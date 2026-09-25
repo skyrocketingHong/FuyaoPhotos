@@ -8,19 +8,10 @@ import UIKit
     var original = false
     var playing = false
     var fullScreen = false
-    var liveDuration: TimeInterval?
-    var liveStartedAt: Date?
     var isRendering = false
-
-    var livePlaybackInterval: ClosedRange<Date>? {
-        guard playing, let liveDuration, liveDuration > 0, let liveStartedAt else { return nil }
-        return liveStartedAt...liveStartedAt.addingTimeInterval(liveDuration)
-    }
 
     func finishLivePlayback() {
         playing = false
-        liveStartedAt = nil
-        liveDuration = nil
     }
 }
 
@@ -45,18 +36,13 @@ struct CardPreviewSurface: View {
             CardPreviewImage(document: document, hdr: controls.hdr, fullResolution: false,
                              original: controls.original, onRenderingChanged: { controls.isRendering = $0 })
             if controls.playing, let movie = document.sourceMovieURL {
-                CardLivePhotoPreview(resources: [document.sourceURL, movie], movieURL: movie,
-                                     durationLoaded: { controls.liveDuration = $0 },
-                                     playbackStarted: { controls.liveStartedAt = $0 }) {
+                CardLivePhotoPreview(resources: [document.sourceURL, movie], movieURL: movie) {
                     controls.finishLivePlayback()
                 }
             }
         }
             .sheet(isPresented: $controls.fullScreen) {
                 CardFullPreview(document: document, hdr: controls.hdr, original: controls.original)
-            }
-            .onChange(of: controls.playing) { _, playing in
-                if !playing { controls.liveStartedAt = nil; controls.liveDuration = nil }
             }
             .onDisappear {
                 controls.finishLivePlayback()
@@ -101,25 +87,10 @@ struct CardLivePlaybackIndicator: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Group {
-            if let interval = controls.livePlaybackInterval {
-                TimelineView(.periodic(from: .now, by: reduceMotion ? 1 : 0.1)) { context in
-                    let duration = interval.upperBound.timeIntervalSince(interval.lowerBound)
-                    let progress = min(1, max(0, context.date.timeIntervalSince(interval.lowerBound) / duration))
-                    Gauge(value: progress, in: 0...1) {
-                        Text("card.live.preview")
-                    } currentValueLabel: {
-                        Image(systemName: "stop.fill").font(.system(size: 8, weight: .semibold))
-                    }
-                    .gaugeStyle(.accessoryCircular)
-                }
-            } else {
-                Image(systemName: controls.playing ? "stop.circle" : "livephoto")
-                    .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
-                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: controls.playing)
-            }
-        }
-        .frame(width: 22, height: 22)
+        Image(systemName: controls.playing ? "stop.circle" : "livephoto")
+            .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+            .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: controls.playing)
+            .frame(width: 22, height: 22)
     }
 }
 
