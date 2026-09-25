@@ -110,7 +110,9 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                 PreviewMediaButton(R.drawable.ic_compare,stringResource(R.string.original),original,{ playing=false;onOriginal() },enabled=state.original!=null)
                 actions()
                 FuyaoIconButton(R.drawable.ic_expand,stringResource(R.string.enlarge),{ playing=false;onEnlarge() },enabled=state.preview!=null)
-                BadgedBox(badge={ if(state.preservationBlocked || state.previewError!=null)Badge() }) {
+                val badgeDescription=stringResource(R.string.media_badge_description)
+                BadgedBox(badge={ if(state.preservationBlocked || state.previewError!=null)
+                    Badge(Modifier.semantics { contentDescription=badgeDescription }) }) {
                     FuyaoIconButton(R.drawable.ic_info,stringResource(R.string.photo_details),{ showingInfo=true })
                 }
             }

@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,6 +47,7 @@ fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
     val size = details.byteCount?.let { android.text.format.Formatter.formatFileSize(context, it) }
     val subtitle = listOfNotNull(kind, size).joinToString(" · ")
     val maxHeight = (LocalConfiguration.current.screenHeightDp * .9f).dp
+    val exportNotice = exportBlockingNotice(state)
     // Opening directly at full height keeps list drags from fighting the sheet's
     // half-to-expanded settling, which used to bounce the sheet at the list end.
     ModalBottomSheet(
@@ -53,6 +55,24 @@ fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
         Column(Modifier.fillMaxWidth().heightIn(max = maxHeight)) {
+            if (exportNotice != null) {
+                Surface(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(painterResource(R.drawable.ic_info), null, Modifier.size(20.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(stringResource(R.string.photo_export_blocked_title),
+                                style = MaterialTheme.typography.titleSmall)
+                            Text(exportNotice, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
             Surface(
                 Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -232,6 +252,15 @@ private fun imageKind(context: Context, mime: String): String {
         else -> return mime
     }
     return context.getString(R.string.photo_info_image_kind, format)
+}
+
+/** The import-time reason this photo cannot preserve its original data, shown where the badge points. */
+@Composable
+internal fun exportBlockingNotice(state: EditorState): String? {
+    if (state.photos.isEmpty()) return null
+    if (state.previewError != null) return state.previewError
+    if (!state.preservationBlocked) return null
+    return state.mediaMessage?.let { stringResource(it) } ?: stringResource(R.string.media_unsupported)
 }
 
 private fun parseExifNumber(value: String): Double? {

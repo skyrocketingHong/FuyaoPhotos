@@ -53,6 +53,7 @@ import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsSaver
 import ing.fuyaoskyrocket.photoinfo.domain.model.ExportFormat
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorViewModel
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorControls
+import ing.fuyaoskyrocket.photoinfo.ui.components.exportBlockingNotice
 import ing.fuyaoskyrocket.photoinfo.ui.components.FullScreenPreview
 
 private enum class PhotoPage { EDITOR, SETTINGS, LENSES, LENS_EDIT, PREVIEW }
@@ -64,6 +65,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var showExport by rememberSaveable { mutableStateOf(false) }
+    var showExportBlocked by rememberSaveable { mutableStateOf(false) }
     val activePhotoId = state.photos.getOrNull(state.photoIndex)?.id
     var editingPhotoText by remember(activePhotoId) { mutableStateOf(false) }
     var original by rememberSaveable { mutableStateOf(false) }
@@ -162,7 +164,10 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                         DropdownMenuItem(text={ Text(stringResource(R.string.from_file)) },onClick={ showPhotoMenu=false;filePicker.launch(arrayOf("image/*")) })
                     }
                 }
-                FuyaoAppBarAction(R.drawable.ic_export,if(state.photos.size>1) stringResource(R.string.batch_export,state.photos.size) else stringResource(R.string.export),{ showExport=true },enabled=state.canExport)
+                val exportNotice=exportBlockingNotice(state)
+                FuyaoAppBarAction(R.drawable.ic_export,if(state.photos.size>1) stringResource(R.string.batch_export,state.photos.size) else stringResource(R.string.export),{
+                    if(exportNotice!=null)showExportBlocked=true else showExport=true
+                },enabled=!state.busy)
                 FuyaoAppBarAction(R.drawable.ic_settings,stringResource(R.string.settings),{
                     if(atPage(PhotoPage.EDITOR)) {
                         settingsLenses=state.settings.lenses
@@ -269,6 +274,10 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             }) { Text(stringResource(R.string.replace_photos_confirm)) } },
             dismissButton = { TextButton(onClick = { replacementPhotos = null }) { Text(stringResource(R.string.continue_editing)) } })
     }
+    if (showExportBlocked) AlertDialog(onDismissRequest={ showExportBlocked=false },
+        title={ Text(stringResource(R.string.photo_export_blocked_title)) },
+        text={ Text(exportBlockingNotice(state) ?: stringResource(R.string.media_unsupported)) },
+        confirmButton={ TextButton(onClick={ showExportBlocked=false }) { Text(stringResource(R.string.close)) } })
     if (showExport) ExportDialog(
         width = state.width, height = state.height, count = state.photos.size, jpegRequired = state.exportRequiresJpeg,
         hasMotion = state.exportHasMotion, hasPortrait = state.exportHasPortrait, avifRequired=state.exportRequiresAvif, defaults = state.settings.exportDefaults,

@@ -96,7 +96,7 @@ object MotionPhoto {
                     !attr(XIAOMI_BOKEH,"capsStream").isNullOrEmpty()) {
                     xiaomiPortrait=true
                     val depthXml=attr(XIAOMI_CAMERA,"XMPMeta").orEmpty()
-                    fun declaredLength(name:String):Long? = Regex("\\b$name=\"([0-9]{1,10})\"")
+                    fun declaredLength(name:String):Long? = Regex("\\b$name=[\"']([0-9]{1,10})[\"']")
                         .find(depthXml)?.groupValues?.get(1)?.toLongOrNull()
                     val raw=declaredLength("rawlength")
                     val depth=declaredLength("depthlength")
@@ -135,7 +135,7 @@ object MotionPhoto {
             val auxiliary=JpegContainer.auxiliary(layout)
             require(auxiliary.size<=1 && (auxiliary.isEmpty() || hdr))
             val end=auxiliary.singleOrNull()?.let { it.offset+it.length } ?: layout.primaryEnd
-            val portraitTail=if(video==null && xiaomiPortrait && hdr && end<file.length()) {
+            val portraitTail=if(video==null && xiaomiPortrait && end<file.length()) {
                 inspectXiaomiPortraitTail(file,end,requireNotNull(portraitLengths))
             } else null
             require(end+(if(auxiliary.isEmpty() && video!=null)primaryPadding else 0L)==
@@ -230,7 +230,9 @@ object MotionPhoto {
             }.getOrDefault(false)
         } ?: throw IOException("Xiaomi portrait XMP is missing")
         val source=document(packet)
-        val target=document(requireNotNull(encoded) { "Encoded HDR XMP is missing" })
+        // SDR portraits re-encode without a gain map, so the target packet starts empty.
+        val target=document(encoded
+            ?: "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"$RDF\"><rdf:Description/></rdf:RDF></x:xmpmeta>")
         val sourceDescriptions=source.getElementsByTagNameNS(RDF,"Description")
         val targetDescriptions=target.getElementsByTagNameNS(RDF,"Description")
         require(sourceDescriptions.length>0 && targetDescriptions.length>0)

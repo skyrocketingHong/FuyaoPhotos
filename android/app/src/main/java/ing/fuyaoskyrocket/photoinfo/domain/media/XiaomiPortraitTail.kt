@@ -37,10 +37,15 @@ object XiaomiPortraitTail {
 
     fun layout(bytes: ByteArray): Layout {
         require(bytes.size in 1..MAX_TAIL)
+        // SDR portrait tails carry one JPEG (the unblurred original); HDR tails add its
+        // gain map as a second JPEG before the signature. Both must end at rawlength.
         val first = jpeg(bytes, 0)
+        if (bytes.startsAt(first.first, signature)) {
+            return Layout(first.first, first.first,
+                first.second.map { SegmentRange(it.marker, it.markerAt, it.dataAt, it.end) })
+        }
         val second = jpeg(bytes, first.first)
-        require(second.first + signature.size <= bytes.size &&
-            signature.indices.all { bytes[second.first + it] == signature[it] }) {
+        require(bytes.startsAt(second.first, signature)) {
             "Xiaomi portrait trailer is missing"
         }
         return Layout(first.first, second.first,

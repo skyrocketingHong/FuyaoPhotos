@@ -40,6 +40,31 @@ class MediaContainerTest {
         out.appendBytes(v.dropLast(1).toByteArray())
         assertTrue(MotionPhoto.inspect(out,"image/jpeg").blocked)
     }
+    @Test fun sdrXiaomiPortraitTailWithoutGainMapIsAccepted() {
+        val bokeh="http://ns.xiaomi.com/photos/1.0/camera/bokeh"
+        val camera="http://ns.xiaomi.com/photos/1.0/camera/"
+        val unblurred=jpeg()
+        val depth=ByteArray(2048) { it.toByte() }
+        val tail=unblurred+"MCBOKEHSOT".toByteArray(Charsets.US_ASCII)+depth
+        val xmp=JpegContainer.XMP+"""
+            <x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+            <rdf:RDF xmlns:bokeh="$bokeh" xmlns:camera="$camera"><rdf:Description bokeh:capsInfo="1" bokeh:capsStream="1">
+            <camera:XMPMeta>&lt;d rawlength="${unblurred.size}" depthlength="${tail.size-unblurred.size}"/&gt;</camera:XMPMeta>
+            </rdf:Description></rdf:RDF></x:xmpmeta>
+        """.trimIndent().toByteArray(Charsets.UTF_8)
+        val photo=file(jpeg(segment(0xe1,xmp))+tail)
+        val envelope=MotionPhoto.inspect(photo,"image/jpeg")
+        assertFalse(envelope.blocked)
+        assertFalse(envelope.hdrHint)
+        val part=requireNotNull(envelope.portraitTail)
+        assertEquals(tail.size.toLong(),part.length)
+        assertEquals(photo.length()-tail.size,part.offset)
+        // SDR exports re-encode without a gain map, so the merged packet starts empty.
+        val merged=MotionPhoto.xiaomiPortraitXmp(JpegContainer.inspect(photo),null)
+        assertTrue(merged.contains("capsInfo"))
+        // The embedded declaration survives as an escaped attribute or element value.
+        assertTrue(Regex("rawlength=[\"']?&quot;?${unblurred.size}").containsMatchIn(merged))
+    }
     @Test fun maliciousXmpCannotResolveExternalEntities() {
         val xml="<!DOCTYPE x [<!ENTITY leak SYSTEM 'file:///etc/passwd'>]><x>&leak;</x>"
         assertTrue(MotionPhoto.inspect(file(jpeg(segment(0xe1,JpegContainer.XMP+xml.toByteArray()))),"image/jpeg").blocked)

@@ -248,6 +248,8 @@
   <string name="error_storage_full">设备剩余存储空间不足，无法保存照片。</string>
   <string name="wheel_focal">焦距</string>
   <string name="photo_details">照片详情</string>
+  <string name="photo_export_blocked_title">这张照片无法导出</string>
+  <string name="media_badge_description">照片数据存在无法保留的内容</string>
   <string name="photo_map_title">地图</string>
   <string name="photo_map_reserved_title">地图功能即将到来</string>
   <string name="photo_map_reserved_body">照片地图模块已预留，将在后续更新中提供。</string>
