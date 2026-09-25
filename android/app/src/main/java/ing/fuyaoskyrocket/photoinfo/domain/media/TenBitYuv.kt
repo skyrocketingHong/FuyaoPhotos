@@ -113,9 +113,10 @@ internal object TenBitYuv {
     fun encodeP010(halfs: java.nio.ShortBuffer, width: Int, height: Int, stride: Int, sliceHeight: Int,
         colorSpaceName: String, hdrTransferAllowed: Boolean = true, sourceLinear: Boolean = true): ByteArray {
         require(halfs.remaining() >= width * height * 4 && stride >= width && sliceHeight >= height) { "p010 source ${halfs.remaining()} shorts, ${width}x${height} at $stride" }
+        // The destination colour space follows the source primaries so the exported
+        // profile matches the original photo instead of migrating gamut.
         val matrix = when (primariesFor(colorSpaceName)) {
-            Primaries.BT709 -> BT709_TO_2020
-            Primaries.P3 -> P3_TO_2020
+            Primaries.BT709, Primaries.P3 -> IDENTITY
             Primaries.BT2020 -> IDENTITY
         }
         // An SDR-container source (Ultra HDR JPEG) must keep its SDR base curve even when the

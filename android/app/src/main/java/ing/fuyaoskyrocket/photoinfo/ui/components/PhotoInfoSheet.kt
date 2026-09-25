@@ -97,6 +97,9 @@ fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    state.photos.getOrNull(state.photoIndex)?.path?.takeIf { it.isNotEmpty() }?.let { path ->
+                        PortraitDepthPreview(file = java.io.File(path), modifier = Modifier.fillMaxWidth())
+                    }
                     if (state.hdrPhoto || state.motionPhoto) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (state.hdrPhoto) Text(stringResource(R.string.media_hdr),
                             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)

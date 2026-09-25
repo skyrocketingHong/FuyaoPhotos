@@ -342,7 +342,7 @@ internal data class HeifImageContainer(
                 val id = if (version == 2) r.u16() else r.id32()
                 require(r.u16() == 0) { "Protected image item" }
                 val type = r.fourCC()
-                require(type in setOf("hvc1", "av01", "grid", "Exif", "tmap", "mime")) { "heif item type $type" }
+                require(type in setOf("hvc1", "av01", "grid", "Exif", "tmap", "mime", "uri ")) { "heif item type $type" }
                 Item(id, type, bytes.copyOfRange(entry.end - r.remaining(), entry.end), byteArrayOf(), hidden = flags == 1)
             }
             require(itemInfo.map { it.id }.distinct().size == count && itemInfo.any { it.id == primary })

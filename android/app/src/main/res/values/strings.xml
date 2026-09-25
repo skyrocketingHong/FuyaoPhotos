@@ -254,6 +254,8 @@
   <string name="error_storage_full">There is not enough free storage to save this photo.</string>
   <string name="wheel_focal">Focal length</string>
   <string name="photo_details">Photo details</string>
+  <string name="portrait_depth_preview">Recognized portrait depth</string>
+  <string name="portrait_depth_unavailable">Depth preview unavailable</string>
   <string name="photo_export_blocked_title">This photo cannot be exported</string>
   <string name="media_badge_description">Photo data needs attention</string>
   <string name="photo_map_title">Map</string>

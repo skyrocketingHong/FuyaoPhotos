@@ -392,6 +392,10 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         }
         val scaled=Bitmap.createScaledBitmap(cropped,1024,768,true)
         if(scaled!==cropped && cropped!==bitmap)cropped.recycle()
+        // createScaledBitmap copies the source gain map on U+; an aux image with its own
+        // tone map produces a second tmap that breaks HDR readers, and the thumbnail has
+        // no HDR role to play anyway.
+        if(android.os.Build.VERSION.SDK_INT>=34)scaled.setGainmap(null)
         return scaled
     }
 }

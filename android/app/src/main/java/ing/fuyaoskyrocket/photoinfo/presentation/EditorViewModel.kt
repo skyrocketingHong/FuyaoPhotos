@@ -164,7 +164,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     }
 
     private fun publishCollection() {
-        state = state.copy(photos = drafts.map { PhotoPageItem(it.source.file.name, it.source.width, it.source.height) },
+        state = state.copy(photos = drafts.map {
+            PhotoPageItem(it.source.file.name, it.source.width, it.source.height, it.source.file.absolutePath) },
             photoIndex = 0, sessionId = state.sessionId + 1,
             exportHasMotion = drafts.any { it.source.media.motion != null },
             exportHasPortrait = drafts.any { it.source.media.portraitTail != null },
@@ -467,7 +468,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         state = state.copy(sourceDevice = photo.info[FieldId.DEVICE], sourceModel = photo.captureTags[androidx.exifinterface.media.ExifInterface.TAG_MODEL].orEmpty(), preservationBlocked = media.blocked || oldHdr,
             blockDetail = media.blockReason.takeIf { media.blocked },
             jpegRequired = media.hdrHint || media.motion != null || media.portraitTail != null,
-            motionPhoto = media.motion != null, hdrPhoto = media.hdrHint,
+            motionPhoto = media.motion != null, hdrPhoto = media.hdrHint, portraitDepth = media.portraitTail != null,
             mediaMessage = when {
                 media.blocked -> R.string.media_unsupported
                 oldHdr -> R.string.hdr_requires_android14

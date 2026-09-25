@@ -34,7 +34,8 @@ internal object HeicEncoder {
             val space = bitmap.colorSpace
             val encoding = if (tenBit) {
                 val wide = space?.name?.contains("PQ") == true || space?.name?.contains("HLG") == true
-                9 to when {
+                val primaries = if (space?.name?.contains("P3") == true) 12 else 9
+                primaries to when {
                     !hdrTransfer || !wide -> 13
                     space?.name?.contains("HLG") == true -> 18
                     else -> 16

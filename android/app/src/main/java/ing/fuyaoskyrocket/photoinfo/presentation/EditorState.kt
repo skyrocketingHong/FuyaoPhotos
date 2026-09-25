@@ -15,7 +15,7 @@ enum class LocationStatus { IDLE, RESOLVING, RESOLVED, UNAVAILABLE, NO_GPS, DISA
 
 data class ExportedPhoto(val uri: Uri, val format: ExportFormat, val movieUri: Uri? = null)
 data class EditorNotice(val id: Long, val text: String, val photos: List<ExportedPhoto> = emptyList())
-data class PhotoPageItem(val id: String, val width: Int, val height: Int)
+data class PhotoPageItem(val id: String, val width: Int, val height: Int, val path: String = "")
 data class EditorState(
     val info: PhotoInfo = PhotoInfo(),
     val style: CardStyle = CardStyle(),
@@ -48,6 +48,7 @@ data class EditorState(
     val jpegRequired: Boolean = false,
     val motionPhoto: Boolean = false,
     val hdrPhoto: Boolean = false,
+    val portraitDepth: Boolean = false,
     val mediaMessage: Int? = null,
     val sourceDevice: String = "",
     val sourceModel: String = "",
