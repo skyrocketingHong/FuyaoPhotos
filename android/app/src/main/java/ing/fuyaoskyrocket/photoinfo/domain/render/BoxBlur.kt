@@ -3,7 +3,7 @@ package ing.fuyaoskyrocket.photoinfo.domain.render
 /** Three separable box passes approximate a Gaussian. O(width*height), independent of radius. */
 object BoxBlur {
     fun blur(input: IntArray, width: Int, height: Int, radius: Int): IntArray {
-        require(width > 0 && height > 0 && width.toLong() * height == input.size.toLong())
+        require(width > 0 && height > 0 && width.toLong() * height == input.size.toLong()) { "blur plane ${width}x${height} vs ${input.size}" }
         if (radius <= 0) return input.copyOf()
         val r = radius.coerceAtMost(128)
         // Android getPixels returns unpremultiplied color; premultiply to avoid transparent color fringes.

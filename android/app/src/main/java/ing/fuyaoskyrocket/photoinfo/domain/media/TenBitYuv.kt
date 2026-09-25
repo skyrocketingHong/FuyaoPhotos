@@ -97,7 +97,7 @@ internal object TenBitYuv {
      */
     fun encodeP010(halfs: java.nio.ShortBuffer, width: Int, height: Int, stride: Int, sliceHeight: Int,
         colorSpaceName: String, hdrTransferAllowed: Boolean = true): ByteArray {
-        require(halfs.remaining() >= width * height * 4 && stride >= width && sliceHeight >= height)
+        require(halfs.remaining() >= width * height * 4 && stride >= width && sliceHeight >= height) { "p010 source ${halfs.remaining()} shorts, ${width}x${height} at $stride" }
         val matrix = when (primariesFor(colorSpaceName)) {
             Primaries.BT709 -> BT709_TO_2020
             Primaries.P3 -> P3_TO_2020

@@ -3,7 +3,12 @@ package ing.fuyaoskyrocket.photoinfo.presentation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.yield
 
-internal data class BatchFailure(val index: Int, val message: String)
+internal data class BatchFailure(val index: Int, val message: String, val detail: String? = null)
+
+internal fun stackTraceOf(failure: Throwable): String = buildString {
+    append(failure.toString())
+    failure.stackTrace.forEach { element -> append("\n\tat ").append(element) }
+}
 internal data class BatchProgress(val completed: Int, val total: Int, val failed: Int)
 internal data class BatchResult<T>(val saved: List<T>, val failures: List<BatchFailure>)
 
@@ -17,8 +22,8 @@ internal suspend fun <T, R> runBatch(items: List<T>, describe: (Throwable) -> St
         yield()
         try { saved += export(index, item) }
         catch (cancelled: CancellationException) { throw cancelled }
-        catch (failure: Exception) { failures += BatchFailure(index, describe(failure)) }
-        catch (failure: OutOfMemoryError) { failures += BatchFailure(index, describe(failure)) }
+        catch (failure: Exception) { failures += BatchFailure(index, describe(failure), stackTraceOf(failure)) }
+        catch (failure: OutOfMemoryError) { failures += BatchFailure(index, describe(failure), stackTraceOf(failure)) }
         onProgress(BatchProgress(index + 1, items.size, failures.size))
     }
     return BatchResult(saved.toList(), failures.toList())

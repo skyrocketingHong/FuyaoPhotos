@@ -42,7 +42,7 @@ object CardLayoutEngine {
         style: CardStyle,
         measureReferenceText: (String) -> Float,
     ): CardLayout? {
-        require(width > 0 && height > 0)
+        require(width > 0 && height > 0) { "card layout target ${width}x${height}" }
         val rows = info.displayRows()
         if (rows.isEmpty()) return null
         val s = style.sanitized()
@@ -78,7 +78,7 @@ object CardLayoutEngine {
 
     /** Word wrapping with grapheme fallback for long identifiers and CJK; never ellipsizes. */
     fun wrap(text: String, maxWidth: Float, measure: (String) -> Float): List<String> {
-        require(maxWidth > 0)
+        require(maxWidth > 0) { "card wrap width $maxWidth" }
         val result = mutableListOf<String>()
         for (paragraph in text.replace("\r", "").split('\n')) {
             var remaining = paragraph.trim()

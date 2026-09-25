@@ -247,7 +247,7 @@ internal data class HeifImageContainer(
     }
 
     fun write(file: File) {
-        require(items.size in 1..4096 && items.map { it.id }.distinct().size == items.size)
+        require(items.size in 1..4096 && items.map { it.id }.distinct().size == items.size) { "heif item ids" }
         require(items.all { it.id in 1..65535 && it.properties.size <= 255 })
         require(properties.size < 32768)
         val ftyp = box("ftyp", data {
@@ -308,13 +308,13 @@ internal data class HeifImageContainer(
         }
         fun read(bytes: ByteArray): HeifImageContainer {
             val top = IsoBmff.boxes(bytes)
-            require(top.first().type == "ftyp" && top.all { it.type in setOf("ftyp", "meta", "mdat", "free", "skip") })
+            require(top.first().type == "ftyp" && top.all { it.type in setOf("ftyp", "meta", "mdat", "free", "skip") }) { "heif top boxes ${top.map { it.type }}" }
             val ftyp = top.single { it.type == "ftyp" }
             val brands = String(bytes, ftyp.payload, ftyp.end - ftyp.payload, Charsets.ISO_8859_1)
             val avif = brands.chunked(4).any { it == "avif" }
             require(avif || brands.chunked(4).any { it in setOf("heic", "heix", "mif1") })
             val meta = top.single { it.type == "meta" }
-            require(IsoBmff.uint(bytes, meta.payload) == 0L)
+            require(IsoBmff.uint(bytes, meta.payload) == 0L) { "heif meta version" }
             val children = IsoBmff.boxes(bytes, meta.payload + 4, meta.end)
             require(children.all { it.type in setOf("hdlr", "pitm", "iloc", "iinf", "iref", "iprp", "idat", "dinf", "grpl") })
             fun reader(box: IsoBmff.Box) = IsoBmff.Reader(bytes, box.payload, box.end)
@@ -325,15 +325,15 @@ internal data class HeifImageContainer(
             val ir = reader(info); val iv = ir.u8(); ir.skip(3); require(iv in 0..1)
             val count = if (iv == 0) ir.u16() else ir.id32()
             val entries = IsoBmff.boxes(bytes, info.payload + if (iv == 0) 6 else 8, info.end)
-            require(count == entries.size && count in 1..4096)
+            require(count == entries.size && count in 1..4096) { "heif item count $count vs ${entries.size}" }
             val itemInfo = entries.map { entry ->
-                require(entry.type == "infe")
+                require(entry.type == "infe") { "heif info entry ${entry.type}" }
                 val r = reader(entry); val version = r.u8(); val flags = (r.u8() shl 16) or (r.u8() shl 8) or r.u8()
-                require(version in 2..3 && flags in 0..1)
+                require(version in 2..3 && flags in 0..1) { "heif infe v$version f$flags" }
                 val id = if (version == 2) r.u16() else r.id32()
                 require(r.u16() == 0) { "Protected image item" }
                 val type = r.fourCC()
-                require(type in setOf("hvc1", "av01", "grid", "Exif", "tmap", "mime"))
+                require(type in setOf("hvc1", "av01", "grid", "Exif", "tmap", "mime")) { "heif item type $type" }
                 Item(id, type, bytes.copyOfRange(entry.end - r.remaining(), entry.end), byteArrayOf(), hidden = flags == 1)
             }
             require(itemInfo.map { it.id }.distinct().size == count && itemInfo.any { it.id == primary })
@@ -363,9 +363,9 @@ internal data class HeifImageContainer(
                         write(bytes, start.toInt(), length.toInt())
                     }
                 }
-                require(payloads.put(id, payload) == null)
+                require(payloads.put(id, payload) == null) { "heif duplicate item $id" }
             }
-            require(loc.remaining() == 0)
+            require(loc.remaining() == 0) { "heif iloc trailing bytes" }
             val iprp = children.single { it.type == "iprp" }
             val iprpChildren = IsoBmff.boxes(bytes, iprp.payload, iprp.end)
             val ipco = iprpChildren.single { it.type == "ipco" }
@@ -382,9 +382,9 @@ internal data class HeifImageContainer(
                         val mask = if (flags == 0) 0x80 else 0x8000
                         Property(value and (mask - 1), value and mask != 0)
                     }.filter { it.index > 0 }
-                    require(props.all { it.index <= properties.size } && associations.put(id, props) == null)
+                    require(props.all { it.index <= properties.size } && associations.put(id, props) == null) { "heif associations for $id" }
                 }
-                require(r.remaining() == 0)
+                require(r.remaining() == 0) { "heif ipma trailing bytes" }
             }
             val references = children.singleOrNull { it.type == "iref" }?.let { ref ->
                 val r = reader(ref); val version = r.u8(); r.skip(3); require(version in 0..1)
@@ -398,7 +398,7 @@ internal data class HeifImageContainer(
             }.orEmpty()
             val ids = itemInfo.map { it.id }.toSet()
             require(payloads.keys == ids && associations.keys.all { it in ids } &&
-                references.all { it.from in ids && it.to.all(ids::contains) })
+                references.all { it.from in ids && it.to.all(ids::contains) }) { "heif graph mismatch" }
             return HeifImageContainer(avif, primary, itemInfo.map {
                 it.copy(payload = payloads.getValue(it.id), properties = associations[it.id].orEmpty())
             }, properties, references)

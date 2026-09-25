@@ -24,7 +24,7 @@ object HeicTenBitEncoder {
     private class Candidate(val name: String, val level: Int, val p010: Boolean)
 
     fun encode(bitmap: Bitmap, destination: File, quality: Int, exif: ByteArray?, hdrTransfer: Boolean) {
-        require(bitmap.config == Bitmap.Config.RGBA_F16)
+        require(bitmap.config == Bitmap.Config.RGBA_F16) { "ten-bit encoder needs an F16 plane" }
         check(android.os.Build.VERSION.SDK_INT >= 33) { "Ten-bit HEIC encoding needs Android 13 or newer" }
         val widePq = hdrTransfer && TenBitYuv.transferFor(bitmap.colorSpace?.name.orEmpty()) == TenBitYuv.Transfer.PQ
         val wideHlg = hdrTransfer && TenBitYuv.transferFor(bitmap.colorSpace?.name.orEmpty()) != TenBitYuv.Transfer.PQ &&

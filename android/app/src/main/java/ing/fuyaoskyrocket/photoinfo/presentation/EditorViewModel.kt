@@ -404,12 +404,15 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                 resolvedLocation = active.resolvedLocation
                 state = state.copy(busy = false, exporting = false, info = active.info, exported = result.saved.lastOrNull(),
                     error = result.failures.takeIf { it.isNotEmpty() }?.map { it.message }?.distinct()?.joinToString("\n"),
+                    errorDetail = result.failures.firstOrNull()?.detail,
                     notice = if (result.saved.isEmpty()) null else EditorNotice(++noticeId,
                         if (snapshot.size == 1) app.getString(R.string.export_success)
                         else app.getString(R.string.batch_saved, result.saved.size, result.failures.size), result.saved))
                 persist(); renderPreview()
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: Exception) { state = state.copy(busy = false, exporting = false, error = errorMessage(failure, PhotoOperation.SAVE)) }
+            catch (failure: Exception) { state = state.copy(busy = false, exporting = false,
+                error = errorMessage(failure, PhotoOperation.SAVE),
+                errorDetail = stackTraceOf(failure)) }
             finally { reloadOriginalAfterExport() }
         }
     }
@@ -475,7 +478,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                 else -> null
             })
     }
-    fun clearError() { state = state.copy(error = null) }
+    fun clearError() { state = state.copy(error = null, errorDetail = null) }
     fun clearNotice(id: Long) { if (state.notice?.id == id) state = state.copy(notice = null) }
 
     private fun renderPreview() {

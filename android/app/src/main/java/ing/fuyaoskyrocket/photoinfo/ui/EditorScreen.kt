@@ -29,6 +29,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -304,10 +305,25 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         text = { Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             CircularProgressIndicator(Modifier.size(24.dp)); Text(stringResource(R.string.closing_session))
         } })
+    var showErrorDetails by rememberSaveable { mutableStateOf(false) }
     state.error?.let { message ->
         AlertDialog(onDismissRequest = vm::clearError, title = { Text(stringResource(state.errorTitle)) },
             text = { Text(message, Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) },
-            confirmButton = { TextButton(onClick = vm::clearError) { Text(stringResource(R.string.close)) } })
+            confirmButton = { TextButton(onClick = vm::clearError) { Text(stringResource(R.string.close)) } },
+            dismissButton = state.errorDetail?.let { detail ->
+                { TextButton(onClick = { showErrorDetails = true }) { Text(stringResource(R.string.error_show_details)) } }
+            })
+    }
+    if (showErrorDetails) {
+        AlertDialog(onDismissRequest = { showErrorDetails = false },
+            title = { Text(stringResource(state.errorTitle)) },
+            text = {
+                Text(state.errorDetail.orEmpty(),
+                    Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())
+                        .horizontalScroll(rememberScrollState()),
+                    style = MaterialTheme.typography.bodySmall)
+            },
+            confirmButton = { TextButton(onClick = { showErrorDetails = false }) { Text(stringResource(R.string.close)) } })
     }
     }
 }

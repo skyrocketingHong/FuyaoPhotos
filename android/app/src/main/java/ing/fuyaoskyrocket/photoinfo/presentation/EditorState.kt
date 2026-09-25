@@ -30,6 +30,7 @@ data class EditorState(
     val exporting: Boolean = false,
     val rendering: Boolean = false,
     val error: String? = null,
+    val errorDetail: String? = null,
     val errorTitle: Int = ing.fuyaoskyrocket.photoinfo.R.string.error_import_title,
     val previewError: String? = null,
     val notice: EditorNotice? = null,

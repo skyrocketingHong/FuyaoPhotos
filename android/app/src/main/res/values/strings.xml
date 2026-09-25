@@ -147,6 +147,7 @@
   <string name="keep_metadata_hint">Device, lens and exposure details. Location and time are separate; video device metadata follows this choice.</string>
   <string name="error_import_title">Could not open photos</string>
   <string name="error_export_title">Some photos were not saved</string>
+  <string name="error_show_details">Show details</string>
   <string name="error_font_title">Could not import font</string>
   <string name="error_preview_title">Preview unavailable</string>
   <string name="error_import">The photo could not be read. Download the original to this device, then choose it from Files.</string>

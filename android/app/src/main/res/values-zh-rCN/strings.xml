@@ -147,6 +147,7 @@
   <string name="keep_metadata_hint">设备、镜头、曝光等参数；定位和时间分别设置。视频设备信息同步处理。</string>
   <string name="error_import_title">未能打开照片</string>
   <string name="error_export_title">有照片未能保存</string>
+  <string name="error_show_details">展示详细信息</string>
   <string name="error_font_title">未能导入字体</string>
   <string name="error_preview_title">无法显示预览</string>
   <string name="error_import">无法读取照片。请先将原片下载到本机，再从文件选择。</string>
