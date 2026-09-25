@@ -174,7 +174,8 @@ object HeicTenBitEncoder {
         val parameters = units.filter { it.first in 32..34 }
         val slices = units.filter { it.first !in 32..34 }
         check(parameters.any { it.first == 33 } && parameters.any { it.first == 34 }) {
-            "Encoder stream lacks SPS/PPS: ${parameters.map { it.first }}"
+            "Encoder stream lacks SPS/PPS: units=${units.map { it.first }}, first=${units.firstOrNull()?.second
+                ?.take(8)?.joinToString(" ") { (it.toInt() and 255).toString(16) }}"
         }
         check(slices.isNotEmpty()) { "Encoder produced no coded slice" }
         return CodedStream(parameters, slices)
@@ -239,6 +240,8 @@ object HeicTenBitEncoder {
     private fun readHalfBuffer(bitmap: Bitmap): java.nio.ShortBuffer {
         val buffer = ByteBuffer.allocate(bitmap.byteCount).order(ByteOrder.nativeOrder())
         bitmap.copyPixelsToBuffer(buffer)
+        // copyPixelsToBuffer leaves the position at the end; the short view would be empty.
+        buffer.rewind()
         return buffer.asShortBuffer()
     }
 
