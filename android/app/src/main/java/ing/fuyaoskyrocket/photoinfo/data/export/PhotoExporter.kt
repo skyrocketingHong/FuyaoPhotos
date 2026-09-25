@@ -128,6 +128,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             stage=R.string.export_stage_decode
             val bitmap=photos.decode(renderSource,preview=false)
             try {
+                tenBitSource=bitmap.config==Bitmap.Config.RGBA_F16
                 currentCoroutineContext().ensureActive()
                 val hdr=Build.VERSION.SDK_INT>=34 && bitmap.hasGainmap()
                 require(!media.hdrHint || hdr || (media.hdrTransfer && bitmap.config==Bitmap.Config.RGBA_F16)) { context.getString(R.string.hdr_not_decoded) }
