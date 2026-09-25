@@ -12,7 +12,9 @@ import kotlin.math.pow
 internal object HeifGainmaps {
     fun attach(file: File, bitmap: Bitmap, sampleSize: Int) {
         val container = HeifImageContainer.read(file)
-        container.validateEditable()
+        // The editable-import policy caps HEIC at eight bits; ten-bit exports are this
+        // helper's bread and butter, so only the structural invariants apply here.
+        require(container.bitDepth in 8..12) { "Unsupported image precision" }
         val (id, metadata) = container.gainMap() ?: return
         val extracted = File.createTempFile("decode-gain-", if (container.avif) ".avif" else ".heic", file.parentFile)
         try {
