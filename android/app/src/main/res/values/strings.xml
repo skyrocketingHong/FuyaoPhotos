@@ -42,6 +42,7 @@
   <string name="export_success">Photo saved</string>
   <string name="error_overflow">The information card is too tall. Reduce its size or shorten the text, then save again.</string>
   <string name="error_memory">There is not enough memory to process this photo. Close other apps and try again, or choose a smaller photo.</string>
+  <string name="error_portrait_export">The portrait depth data could not be preserved during export. Try keeping location and capture time enabled in the save options, or turn off Apple portrait conversion.</string>
   <string name="settings">Settings</string>
   <string name="back">Back</string>
   <string name="default_author">Default photographer</string>

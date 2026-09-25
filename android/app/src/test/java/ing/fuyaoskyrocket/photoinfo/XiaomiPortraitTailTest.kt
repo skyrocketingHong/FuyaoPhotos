@@ -11,7 +11,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class XiaomiPortraitTailTest {
-    private fun fixture(): ByteArray {
+    private fun fixture(xmpPadding: Int = 256): ByteArray {
         val tiff = ByteBuffer.allocate(100).order(ByteOrder.LITTLE_ENDIAN)
         tiff.put(byteArrayOf('I'.code.toByte(), 'I'.code.toByte()))
         tiff.putShort(42).putInt(8)
@@ -33,7 +33,7 @@ class XiaomiPortraitTailTest {
             ((exif.size + 2) ushr 8).toByte(), (exif.size + 2).toByte())
         val xmp = "http://ns.adobe.com/xap/1.0/\u0000".toByteArray(Charsets.US_ASCII) +
             """<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:exif="http://ns.adobe.com/exif/1.0/" xmlns:xmp="http://ns.adobe.com/xap/1.0/"><rdf:RDF><rdf:Description exif:GPSLatitude="30" xmp:CreateDate="2026-08-02T10:46:50"/></rdf:RDF></x:xmpmeta>"""
-                .toByteArray(Charsets.UTF_8) + ByteArray(256) { ' '.code.toByte() }
+                .toByteArray(Charsets.UTF_8) + ByteArray(xmpPadding) { ' '.code.toByte() }
         val xmpMarker = byteArrayOf(0xff.toByte(), 0xe1.toByte(),
             ((xmp.size + 2) ushr 8).toByte(), (xmp.size + 2).toByte())
         val tinyJpeg = byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte(), 0xd9.toByte())
@@ -73,6 +73,25 @@ class XiaomiPortraitTailTest {
         val offset = altered.indexOfSlice(marker)
         altered[offset] = 'X'.code.toByte()
         assertThrows(IllegalArgumentException::class.java) { XiaomiPortraitTail.layout(altered) }
+    }
+
+    @Test fun unpaddedXmpDegradesToEmptyPacketInsteadOfFailing() {
+        // Real vendor tails carry XMP without spare padding, so an in-place rewrite cannot fit.
+        val original = fixture(xmpPadding = 0)
+        val file = File.createTempFile("xiaomi-tail-", ".bin")
+        try {
+            file.writeBytes(original)
+            val part = JpegContainer.Part(0, original.size.toLong())
+            val output = ByteArrayOutputStream()
+            val filtered = XiaomiPortraitTail.writeFiltered(file, part, output,
+                ExportOptions(keepExif = true, keepLocation = false, keepCaptureTime = true))
+            assertArrayEquals(filtered, output.toByteArray())
+            assertEquals(original.size, filtered.size)
+            val text = filtered.toString(Charsets.ISO_8859_1)
+            assertFalse("GPSLatitude" in text)
+            assertEquals(XiaomiPortraitTail.layout(original).secondEnd,
+                XiaomiPortraitTail.layout(filtered).secondEnd)
+        } finally { file.delete() }
     }
 
     private fun ByteArray.indexOfSlice(slice: ByteArray): Int =

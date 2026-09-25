@@ -18,6 +18,9 @@ internal object PhotoFailureMessages {
             val cause=failure.cause
             if(cause is android.system.ErrnoException && cause.errno==android.system.OsConstants.ENOSPC)return context.getString(R.string.error_storage_full)
             if(cause is ing.fuyaoskyrocket.photoinfo.domain.layout.CardOverflowException)return context.getString(R.string.error_overflow)
+            if(cause?.message?.contains("portrait", ignoreCase = true) == true) {
+                return context.getString(R.string.error_portrait_export)
+            }
             return context.getString(failure.stage)
         }
         val messageId = when (failure) {

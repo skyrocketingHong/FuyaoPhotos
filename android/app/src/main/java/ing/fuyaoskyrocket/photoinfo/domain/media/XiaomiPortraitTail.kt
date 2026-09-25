@@ -58,8 +58,14 @@ object XiaomiPortraitTail {
                             bytes[segment.markerAt + 1] = 0xef.toByte()
                             bytes.fill(0, segment.dataAt, segment.end)
                         } else {
-                            scrubExif(bytes, segment.dataAt + exif.size, segment.end,
-                                options.keepLocation, options.keepCaptureTime)
+                            // Vendor EXIF that cannot be rewritten in place degrades to full removal;
+                            // the segment length stays untouched so the depth layout is preserved.
+                            runCatching {
+                                scrubExif(bytes, segment.dataAt + exif.size, segment.end,
+                                    options.keepLocation, options.keepCaptureTime)
+                            }.onFailure {
+                                bytes.fill(0, segment.dataAt + exif.size, segment.end)
+                            }
                         }
                     }
                     bytes.startsAt(segment.dataAt, xmp) -> {
@@ -190,35 +196,47 @@ object XiaomiPortraitTail {
         if (!listOf("GPS", "Latitude", "Longitude", "Location", "Altitude", "Date", "Time")
                 .any { original.contains(it, true) }) return
         require(!original.contains("<!DOCTYPE", true) && !original.contains("<!ENTITY", true))
-        val factory = DocumentBuilderFactory.newInstance().apply {
-            isNamespaceAware = true
-            isExpandEntityReferences = false
-            runCatching { setFeature("http://xml.org/sax/features/external-general-entities", false) }
-            runCatching { setFeature("http://xml.org/sax/features/external-parameter-entities", false) }
+        val rewritten = runCatching {
+            val factory = DocumentBuilderFactory.newInstance().apply {
+                isNamespaceAware = true
+                isExpandEntityReferences = false
+                runCatching { setFeature("http://xml.org/sax/features/external-general-entities", false) }
+                runCatching { setFeature("http://xml.org/sax/features/external-parameter-entities", false) }
+            }
+            val builder = factory.newDocumentBuilder().apply {
+                setEntityResolver { _, _ -> InputSource(StringReader("")) }
+            }
+            val doc = builder.parse(ByteArrayInputStream(original.toByteArray(Charsets.UTF_8)))
+            val nodes = doc.getElementsByTagName("*")
+            val elements = List(nodes.length) { nodes.item(it) as Element }
+            for (element in elements.asReversed()) {
+                val attributes = List(element.attributes.length) { element.attributes.item(it) }
+                attributes.filter { sensitive(it.localName ?: it.nodeName) }
+                    .forEach { attribute ->
+                        if (attribute.namespaceURI != null && attribute.localName != null)
+                            element.removeAttributeNS(attribute.namespaceURI, attribute.localName)
+                        else element.removeAttribute(attribute.nodeName)
+                    }
+                if (sensitive(element.localName ?: element.tagName)) element.parentNode?.removeChild(element)
+            }
+            val transformed = StringWriter()
+            TransformerFactory.newInstance().newTransformer().apply {
+                setOutputProperty(javax.xml.transform.OutputKeys.OMIT_XML_DECLARATION, "yes")
+            }.transform(DOMSource(doc), StreamResult(transformed))
+            transformed.toString().toByteArray(Charsets.UTF_8)
+        }.getOrNull()
+        // The region length is fixed by the depth layout; anything that cannot be rewritten in
+        // place degrades to a minimal empty packet padded with spaces instead of failing export.
+        val fallback = ("<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF " +
+            "xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><rdf:Description/></rdf:RDF></x:xmpmeta>")
+            .toByteArray(Charsets.UTF_8)
+        val payload = when {
+            rewritten != null && rewritten.size <= end - start -> rewritten
+            fallback.size <= end - start -> fallback
+            else -> ByteArray(end - start)
         }
-        val builder = factory.newDocumentBuilder().apply {
-            setEntityResolver { _, _ -> InputSource(StringReader("")) }
-        }
-        val doc = builder.parse(ByteArrayInputStream(original.toByteArray(Charsets.UTF_8)))
-        val nodes = doc.getElementsByTagName("*")
-        val elements = List(nodes.length) { nodes.item(it) as Element }
-        for (element in elements.asReversed()) {
-            val attributes = List(element.attributes.length) { element.attributes.item(it) }
-            attributes.filter { sensitive(it.localName ?: it.nodeName) }
-                .forEach { attribute ->
-                    if (attribute.namespaceURI != null && attribute.localName != null)
-                        element.removeAttributeNS(attribute.namespaceURI, attribute.localName)
-                    else element.removeAttribute(attribute.nodeName)
-                }
-            if (sensitive(element.localName ?: element.tagName)) element.parentNode?.removeChild(element)
-        }
-        val transformed = StringWriter()
-        TransformerFactory.newInstance().newTransformer()
-            .transform(DOMSource(doc), StreamResult(transformed))
-        val rewritten = transformed.toString().toByteArray(Charsets.UTF_8)
-        require(rewritten.size <= end - start) { "Filtered portrait XMP exceeds its original allocation" }
         bytes.fill(' '.code.toByte(), start, end)
-        rewritten.copyInto(bytes, start)
+        payload.copyInto(bytes, start)
     }
 
     private fun ByteArray.startsAt(offset: Int, prefix: ByteArray): Boolean =

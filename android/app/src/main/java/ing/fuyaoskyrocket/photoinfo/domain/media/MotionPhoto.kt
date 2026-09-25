@@ -218,8 +218,17 @@ object MotionPhoto {
         val out=StringWriter();TransformerFactory.newInstance().newTransformer().transform(DOMSource(doc),StreamResult(out));return out.toString()
     }
     fun xiaomiPortraitXmp(original:JpegContainer.Layout, encoded:String?):String {
-        val packet=JpegContainer.xmp(original).singleOrNull()
-            ?: throw IOException("Xiaomi portrait XMP is missing")
+        // Vendors may ship the bokeh declaration as attributes or child elements and mix it into
+        // any packet; mirror the import-side value() lookup instead of requiring a single packet.
+        val packet=JpegContainer.xmp(original).firstOrNull { candidate ->
+            runCatching {
+                val doc=document(candidate);val elements=doc.getElementsByTagName("*")
+                (0 until elements.length).any {
+                    val element=elements.item(it) as Element
+                    value(element,XIAOMI_BOKEH,"capsInfo")!=null && value(element,XIAOMI_BOKEH,"capsStream")!=null
+                }
+            }.getOrDefault(false)
+        } ?: throw IOException("Xiaomi portrait XMP is missing")
         val source=document(packet)
         val target=document(requireNotNull(encoded) { "Encoded HDR XMP is missing" })
         val sourceDescriptions=source.getElementsByTagNameNS(RDF,"Description")
@@ -239,6 +248,13 @@ object MotionPhoto {
                 val attribute=from.attributes.item(index)
                 if(attribute.namespaceURI==XIAOMI_BOKEH || attribute.namespaceURI==XIAOMI_CAMERA) {
                     into.setAttributeNS(attribute.namespaceURI,attribute.nodeName,attribute.nodeValue)
+                    copied++
+                }
+            }
+            for(index in 0 until from.childNodes.length) {
+                val child=from.childNodes.item(index)
+                if(child is Element && (child.namespaceURI==XIAOMI_BOKEH || child.namespaceURI==XIAOMI_CAMERA)) {
+                    into.setAttributeNS(child.namespaceURI,child.nodeName,child.textContent)
                     copied++
                 }
             }

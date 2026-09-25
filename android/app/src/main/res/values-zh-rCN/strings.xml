@@ -42,6 +42,7 @@
   <string name="export_success">照片已保存</string>
   <string name="error_overflow">信息卡高度超过照片。请减小卡片大小或精简文字后重新保存。</string>
   <string name="error_memory">内存不足，无法处理这张照片。请关闭其他应用后重试，或选择较小的照片。</string>
+  <string name="error_portrait_export">无法在导出时保留人像景深数据。可在保存选项中保留定位与拍摄时间后重试，或关闭 Apple 人像转换。</string>
   <string name="settings">设置</string>
   <string name="back">返回</string>
   <string name="default_author">默认摄影者</string>
