@@ -224,6 +224,7 @@
   <string name="apple_style">Apple 摄影风格</string>
   <string name="apple_style_hint">为 HEIC 导出写入身份（标准）摄影风格，Apple 设备会显示风格调节入口。</string>
   <string name="style_heic_required">摄影风格元数据需要 HEIC 格式。</string>
+  <string name="heic_motion_hint">动态照片仅在 JPEG 导出时被安卓相册识别；Apple 设备需使用配对的 Live Photo 输出。</string>
   <string name="apple_portrait_hint">使用未虚化原片、相对景深和人像蒙版，以 HEIC 保存，供 Apple 设备继续编辑景深。</string>
   <string name="portrait_heic_required">请使用 HEIC 保存 Apple 人像景深。</string>
   <string name="avif_precision_required">请选择 AVIF 或 HEIC，以保存这张照片的 10 位色彩和动态范围。</string>

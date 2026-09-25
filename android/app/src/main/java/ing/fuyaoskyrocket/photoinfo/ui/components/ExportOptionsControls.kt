@@ -66,6 +66,8 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
     }
     if(options.format==ExportFormat.HEIC) Text(stringResource(R.string.heic_sdr_hint),
         style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    if(options.format==ExportFormat.HEIC && hasMotion && !options.separateLivePhoto) Text(stringResource(R.string.heic_motion_hint),
+        style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     if(options.format!=ExportFormat.PNG) {
         val label=stringResource(R.string.encoding_quality)
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {

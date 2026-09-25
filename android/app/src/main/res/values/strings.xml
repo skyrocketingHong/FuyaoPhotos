@@ -224,6 +224,7 @@
   <string name="apple_style">Apple Photographic Style</string>
   <string name="apple_style_hint">Tags the HEIC export with an identity (Standard) photographic style so Apple devices show the style controls.</string>
   <string name="style_heic_required">Photographic style metadata requires HEIC format.</string>
+  <string name="heic_motion_hint">Motion photos are recognized by Android galleries only in JPEG exports; Apple devices need the paired Live Photo output.</string>
   <string name="apple_portrait_hint">Use the unblurred image, relative depth and portrait mask. Save as HEIC for depth editing on Apple devices.</string>
   <string name="portrait_heic_required">Choose HEIC to include Apple portrait depth.</string>
   <string name="avif_precision_required">Choose AVIF or HEIC to preserve this photo’s 10-bit color and dynamic range.</string>
