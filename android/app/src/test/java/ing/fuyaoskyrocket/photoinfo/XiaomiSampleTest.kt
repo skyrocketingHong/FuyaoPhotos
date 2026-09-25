@@ -76,6 +76,16 @@ class XiaomiSampleTest {
             mean(plane - decoded.disparity.width * 8, plane)) / 2
         assertTrue("center disparity $center should exceed border $border", center > border + 10)
 
+        // The depth conversion renders from the extracted raw capture; its envelope decides
+        // the decode configuration, so pin it here exactly as the exporter slices it.
+        val fragment=java.io.File.createTempFile("unblurred-",".jpg")
+        try {
+            fragment.outputStream().use { it.write(tail,0,layout.secondEnd) }
+            val raw=MotionPhoto.inspect(fragment,"image/jpeg")
+            assertFalse("fragment blocked: ${raw.blockReason}",raw.blocked)
+            assertTrue("fragment must decode as HDR (gain map aux or declaration)",raw.hdrHint)
+        } finally { fragment.delete() }
+
         // The export merge and the filtered rewrite must keep the declaration intact.
         val merged = MotionPhoto.xiaomiPortraitXmp(JpegContainer.inspect(file), null)
         assertTrue(merged.contains("capsInfo"))

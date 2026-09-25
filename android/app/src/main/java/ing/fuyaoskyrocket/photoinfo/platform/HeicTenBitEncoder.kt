@@ -21,31 +21,45 @@ import java.nio.ByteOrder
  * the Exif payload as a sample exactly like HeifWriter delivers it.
  */
 object HeicTenBitEncoder {
+    private class Candidate(val name: String, val level: Int, val p010: Boolean)
+
     fun encode(bitmap: Bitmap, destination: File, quality: Int, exif: ByteArray?, hdrTransfer: Boolean) {
         require(bitmap.config == Bitmap.Config.RGBA_F16)
         check(android.os.Build.VERSION.SDK_INT >= 33) { "Ten-bit HEIC encoding needs Android 13 or newer" }
         val widePq = hdrTransfer && TenBitYuv.transferFor(bitmap.colorSpace?.name.orEmpty()) == TenBitYuv.Transfer.PQ
         val wideHlg = hdrTransfer && TenBitYuv.transferFor(bitmap.colorSpace?.name.orEmpty()) != TenBitYuv.Transfer.PQ &&
             bitmap.colorSpace?.name?.contains("HLG") == true
-        val p010Name = pickEncoder(preferP010 = true)
-        if (p010Name != null) {
+        val candidates = pickEncoders()
+        if (candidates.isEmpty()) error("This device exposes no HEVC Main10 encoder for ten-bit HEIC")
+        var bufferFailure: Throwable? = null
+        val p010 = candidates.firstOrNull { it.p010 }
+        if (p010 != null) {
             try {
-                encodeWithBuffers(bitmap, destination, quality, exif, p010Name, hdrTransfer, widePq)
+                encodeWithBuffers(bitmap, destination, quality, exif, p010, hdrTransfer, widePq)
                 return
             } catch (failure: Throwable) {
                 if (failure is OutOfMemoryError) throw failure
-                // Fall through to the surface path; buffer input is the fragile half of the
-                // encoder API and vendors list support they later refuse at configure time.
+                // Buffer input is the fragile half of the encoder API; vendors list support
+                // they later refuse at configure time, so record and try the surface route.
+                bufferFailure = failure
             }
         }
-        val surfaceName = pickEncoder(preferP010 = false)
-            ?: error("This device exposes no HEVC Main10 encoder for ten-bit HEIC")
-        encodeThroughSurface(bitmap, destination, quality, exif, surfaceName, widePq, wideHlg)
+        val surface = candidates.first()
+        try {
+            encodeThroughSurface(bitmap, destination, quality, exif, surface, widePq, wideHlg)
+        } catch (failure: Throwable) {
+            val bufferNote = if (p010 == null) "unavailable" else bufferFailure?.javaClass?.simpleName
+            throw IllegalStateException(
+                "Ten-bit HEVC failed [p010 ${p010?.name ?: "none"}: $bufferNote] " +
+                "[surface ${surface.name}: ${failure.javaClass.simpleName}: ${failure.message}]", failure)
+        }
     }
 
-    private fun baseFormat(bitmap: Bitmap, quality: Int, widePq: Boolean): MediaFormat =
+    private fun baseFormat(bitmap: Bitmap, quality: Int, widePq: Boolean, level: Int): MediaFormat =
         MediaFormat.createVideoFormat("video/hevc", bitmap.width, bitmap.height).apply {
             setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10)
+            // Several vendor firmwares refuse a profile-only configuration.
+            setInteger(MediaFormat.KEY_LEVEL, level)
             setInteger(MediaFormat.KEY_BIT_RATE, bitrate(bitmap.width, bitmap.height, quality))
             setInteger(MediaFormat.KEY_FRAME_RATE, 30)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 0)
@@ -56,17 +70,19 @@ object HeicTenBitEncoder {
         }
 
     private fun encodeWithBuffers(bitmap: Bitmap, destination: File, quality: Int, exif: ByteArray?,
-        codecName: String, hdrTransfer: Boolean, widePq: Boolean) {
-        val format = baseFormat(bitmap, quality, widePq).apply {
+        candidate: Candidate, hdrTransfer: Boolean, widePq: Boolean) {
+        val format = baseFormat(bitmap, quality, widePq, candidate.level).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUVP010)
         }
-        val codec = MediaCodec.createByCodecName(codecName)
+        val codec = MediaCodec.createByCodecName(candidate.name)
         val muxer = MediaMuxer(destination.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_HEIF)
         try {
             codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             codec.start()
-            val stride = if (codec.inputFormat.containsKey(MediaFormat.KEY_STRIDE))
+            var stride = if (codec.inputFormat.containsKey(MediaFormat.KEY_STRIDE))
                 codec.inputFormat.getInteger(MediaFormat.KEY_STRIDE) else bitmap.width
+            // Some encoders report the luma stride in bytes even for 16-bit samples.
+            if (stride >= bitmap.width * 2) stride /= 2
             val sliceHeight = if (codec.inputFormat.containsKey(MediaFormat.KEY_SLICE_HEIGHT))
                 codec.inputFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT) else bitmap.height
             val plane = TenBitYuv.encodeP010(readHalfBuffer(bitmap), bitmap.width, bitmap.height,
@@ -122,9 +138,9 @@ object HeicTenBitEncoder {
      * dataspace values are stable, and this is the one hook that reaches it.
      */
     private fun encodeThroughSurface(bitmap: Bitmap, destination: File, quality: Int, exif: ByteArray?,
-        codecName: String, widePq: Boolean, wideHlg: Boolean) {
-        val format = baseFormat(bitmap, quality, widePq)
-        val codec = MediaCodec.createByCodecName(codecName)
+        candidate: Candidate, widePq: Boolean, wideHlg: Boolean) {
+        val format = baseFormat(bitmap, quality, widePq, candidate.level)
+        val codec = MediaCodec.createByCodecName(candidate.name)
         val muxer = MediaMuxer(destination.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_HEIF)
         try {
             codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -208,16 +224,18 @@ object HeicTenBitEncoder {
         return (width.toLong() * height * bitsPerPixel.toLong()).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
     }
 
-    private fun pickEncoder(preferP010: Boolean): String? = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
+    /** P010-capable encoders first, then any Main10 encoder, each with a reported level. */
+    private fun pickEncoders(): List<Candidate> = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
         .filter { it.isEncoder && !it.name.startsWith("OMX.") }
-        .firstOrNull { info ->
+        .mapNotNull { info ->
             runCatching {
                 val capability = info.getCapabilitiesForType("video/hevc")
-                val main10 = capability.profileLevels.any {
-                    it.profile == MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10
-                }
-                main10 && (!preferP010 || capability.colorFormats.contains(
-                    MediaCodecInfo.CodecCapabilities.COLOR_FormatYUVP010))
-            }.getOrDefault(false)
-        }?.name
+                val level = capability.profileLevels
+                    .firstOrNull { it.profile == MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10 }
+                    ?.level ?: return@runCatching null
+                Candidate(info.name, level,
+                    capability.colorFormats.contains(MediaCodecInfo.CodecCapabilities.COLOR_FormatYUVP010))
+            }.getOrNull()
+        }
+        .sortedByDescending { it.p010 }
 }
