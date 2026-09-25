@@ -286,3 +286,8 @@
 "settings.card.appearance" = "编辑器外观";
 "settings.appearance.darkroom" = "暗房";
 "settings.appearance.system" = "跟随系统";
+
+"photo.info.group.file" = "文件";
+"photo.info.group.camera" = "相机";
+"photo.info.group.capture" = "拍摄";
+"photo.info.group.location" = "位置";

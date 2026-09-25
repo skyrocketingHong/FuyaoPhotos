@@ -286,3 +286,8 @@
 "settings.card.appearance" = "Editor Appearance";
 "settings.appearance.darkroom" = "Darkroom";
 "settings.appearance.system" = "Follow System";
+
+"photo.info.group.file" = "File";
+"photo.info.group.camera" = "Camera";
+"photo.info.group.capture" = "Capture";
+"photo.info.group.location" = "Location";

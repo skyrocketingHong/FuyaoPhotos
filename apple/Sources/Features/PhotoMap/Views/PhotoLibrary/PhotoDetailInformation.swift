@@ -9,18 +9,20 @@ struct PhotoDetailInformation: View {
     @State private var details: PhotoTechnicalDetails?
 
     var body: some View {
-        let rows = PhotoInformationFacts.rows(asset: asset, metadata: document?.metadata,
-                                               details: details, coordinate: coordinate)
-        Section {
-            ForEach(rows) { row in
-                PhotoInformationRow(title: LocalizedStringKey(row.id), value: row.value,
-                                    monospacedDigits: row.numeric)
+        let groups = PhotoInformationFacts.grouped(asset: asset, metadata: document?.metadata,
+                                                   details: details, coordinate: coordinate)
+        ForEach(groups, id: \.group) { section in
+            Section {
+                ForEach(section.rows) { row in
+                    PhotoInformationRow(title: LocalizedStringKey(row.id), value: row.value,
+                                        monospacedDigits: row.numeric)
+                }
+            } header: {
+                Text("photo.info.group.\(section.group.rawValue)")
+                    .font(.title3)
+                    .bold()
+                    .textCase(nil)
             }
-        } header: {
-            Text("photo.info.information")
-                .font(.title3)
-                .bold()
-                .textCase(nil)
         }
         .task(id: document?.sourceURL) {
             details = nil
