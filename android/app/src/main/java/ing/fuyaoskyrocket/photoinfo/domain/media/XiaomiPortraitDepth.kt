@@ -29,7 +29,7 @@ internal object XiaomiPortraitDepth {
         // The depth plane lives in the depthOrientation-rotated space of the vendor capture;
         // aligning it with the stored photo takes the inverse rotation, composed with the
         // photo's own EXIF turn exactly like the vendor Bokeh editor does.
-        val rotation = if(depthDegrees in 0..359) ((originDegrees - depthDegrees) + 720) % 360
+        val rotation = if(depthDegrees in 0..359) ((depthDegrees - originDegrees) + 720) % 360
             else int(decoded, interfaceAt + 52)
         val orientation = when(rotation) { 0->1; 90->6; 180->3; 270->8; else->error("Unknown portrait orientation") }
         require(width in 1..8192 && height in 1..8192 && width.toLong() * height <= MAX_PLANE)

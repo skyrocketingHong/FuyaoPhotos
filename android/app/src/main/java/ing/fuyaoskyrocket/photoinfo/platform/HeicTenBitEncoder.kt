@@ -62,7 +62,9 @@ object HeicTenBitEncoder {
             // Several vendor firmwares refuse a profile-only configuration.
             setInteger(MediaFormat.KEY_LEVEL, level)
             setInteger(MediaFormat.KEY_BIT_RATE, bitrate(bitmap.width, bitmap.height, quality))
-            setInteger(MediaFormat.KEY_FRAME_RATE, 30)
+            // Rate control budgets bits per frame as bitrate/fps; a still is one frame,
+            // so one frame per second hands the whole budget to that frame.
+            setInteger(MediaFormat.KEY_FRAME_RATE, 1)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 0)
             setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT2020)
             setInteger(MediaFormat.KEY_COLOR_TRANSFER,

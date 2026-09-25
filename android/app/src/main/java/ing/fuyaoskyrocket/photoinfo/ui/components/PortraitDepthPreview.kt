@@ -5,7 +5,7 @@ import android.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,14 +44,15 @@ internal fun PortraitDepthPreview(file: File, modifier: Modifier = Modifier) {
             failed = true
         }
     }
-    Box(modifier.fillMaxWidth().heightIn(max = 220.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+    Box(modifier.fillMaxWidth(), contentAlignment = androidx.compose.ui.Alignment.Center) {
         val current = bitmap
         when {
             current != null -> Image(
                 current.asImageBitmap(),
                 contentDescription = stringResource(R.string.portrait_depth_preview),
-                contentScale = ContentScale.FillWidth,
-                modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp)
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxWidth()
+                    .aspectRatio(current.width.toFloat() / current.height)
                     .clip(MaterialTheme.shapes.medium))
             failed -> Text(stringResource(R.string.portrait_depth_unavailable),
                 style = MaterialTheme.typography.labelMedium,

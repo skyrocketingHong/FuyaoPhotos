@@ -51,13 +51,13 @@ class XiaomiSampleTest {
         val part = requireNotNull(envelope.portraitTail)
         assertTrue(part.offset > 0 && part.length > 1_024)
 
-        // XMP declares depthOrientation=90 over an upright-stored capture, so the plane
-        // aligns with the photo only after the inverse 270-degree turn (EXIF orientation 8).
+        // XMP declares depthOrientation=90 over an upright-stored capture; the landscape
+        // sensor plane aligns with the upright photo after a 90-degree turn (EXIF 6).
         assertEquals(90, envelope.portraitDepthDegrees)
         val tail = XiaomiPortraitTail.read(file, part)
         val layout = XiaomiPortraitTail.layout(tail)
         val decoded = XiaomiPortraitDepth.decode(tail, envelope.portraitDepthDegrees, 0)
-        assertEquals(8, decoded.orientation)
+        assertEquals(6, decoded.orientation)
         assertEquals(4096, decoded.sourceWidth)
         assertEquals(3072, decoded.sourceHeight)
         assertEquals(1024, decoded.disparity.width)
