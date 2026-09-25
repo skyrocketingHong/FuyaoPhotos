@@ -69,6 +69,9 @@ fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
                             Text(stringResource(R.string.photo_export_blocked_title),
                                 style = MaterialTheme.typography.titleSmall)
                             Text(exportNotice, style = MaterialTheme.typography.bodySmall)
+                            state.blockDetail?.takeIf { it.isNotBlank() }?.let { detail ->
+                                Text(detail, style = MaterialTheme.typography.labelSmall)
+                            }
                         }
                     }
                 }

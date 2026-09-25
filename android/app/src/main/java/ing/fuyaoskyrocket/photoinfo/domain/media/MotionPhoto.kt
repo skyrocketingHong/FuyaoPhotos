@@ -11,7 +11,8 @@ import org.w3c.dom.Element
 data class MotionVideo(val offset: Long, val length: Long, val timestampUs: Long = -1, val mime: String = "video/mp4")
 data class MediaEnvelope(val jpeg: Boolean, val hdrHint: Boolean = false, val motion: MotionVideo? = null,
     val portraitTail: JpegContainer.Part? = null, val blocked: Boolean = false,
-    val bitDepth: Int = 8, val hdrTransfer: Boolean = false, val hdrTransferCode: Int = 0)
+    val bitDepth: Int = 8, val hdrTransfer: Boolean = false, val hdrTransferCode: Int = 0,
+    val blockReason: String? = null)
 
 /** Only recognized, structurally valid containers may be rewritten. Unknown auxiliary data fails closed. */
 object MotionPhoto {
@@ -80,7 +81,7 @@ object MotionPhoto {
         return try {
             val layout=JpegContainer.inspect(file)
             val packets=JpegContainer.xmp(layout).ifEmpty { listOfNotNull(embeddedXmp) }
-            val hdr=layout.segments.any { s ->
+            var hdr=layout.segments.any { s ->
                 val raw=s.data.toString(Charsets.ISO_8859_1)
                 raw.contains("hdr-gain-map",true) || raw.contains("gainmap",true) || raw.contains("21496")
             }
@@ -133,19 +134,48 @@ object MotionPhoto {
             }
             require(!declared || video!=null)
             val auxiliary=JpegContainer.auxiliary(layout)
-            require(auxiliary.size<=1 && (auxiliary.isEmpty() || hdr))
+            // Writers without a primary-side gain-map directory still declare the map inside the
+            // auxiliary JPEG itself; the MPF offsets are already verified at this point.
+            if(auxiliary.isNotEmpty() && !hdr) hdr=auxiliary.all { declaresGainMap(file,it) }
+            require(auxiliary.size<=1 && (auxiliary.isEmpty() || hdr)) { "Unrecognized auxiliary image data" }
             val end=auxiliary.singleOrNull()?.let { it.offset+it.length } ?: layout.primaryEnd
-            val portraitTail=if(video==null && xiaomiPortrait && end<file.length()) {
-                inspectXiaomiPortraitTail(file,end,requireNotNull(portraitLengths))
+            val trailingEnd=video?.offset ?: file.length()
+            val portraitTail=if(xiaomiPortrait && portraitLengths!=null && end<trailingEnd) {
+                val lengths=requireNotNull(portraitLengths)
+                val candidate=trailingEnd-lengths.first-lengths.second
+                if(candidate>=end) runCatching {
+                    requireGapIsPadding(file,end,candidate)
+                    inspectXiaomiPortraitTail(file,candidate,trailingEnd,lengths)
+                }.getOrNull() else null
             } else null
-            require(end+(if(auxiliary.isEmpty() && video!=null)primaryPadding else 0L)==
-                (portraitTail?.offset ?: video?.offset ?: file.length())) { "Unrecognized trailing photo data" }
+            require(portraitTail!=null || end+(if(auxiliary.isEmpty() && video!=null)primaryPadding else 0L)==
+                trailingEnd) { "Unrecognized trailing photo data" }
             MediaEnvelope(true,hdr,video,portraitTail)
-        } catch(_:Exception) { MediaEnvelope(true,blocked=true) }
+        } catch(failure:Exception) { MediaEnvelope(true,blocked=true,blockReason=failure.message) }
     }
 
-    private fun inspectXiaomiPortraitTail(file:File,offset:Long,lengths:Pair<Long,Long>):JpegContainer.Part {
-        val length=file.length()-offset
+    private fun declaresGainMap(file:File,part:JpegContainer.Part):Boolean {
+        if(part.length<4) return false
+        val window=ByteArray(minOf(part.length,256L*1024).toInt())
+        RandomAccessFile(file,"r").use { input ->
+            input.seek(part.offset);input.readFully(window)
+        }
+        if(window[0]!=0xff.toByte() || window[1]!=0xd8.toByte()) return false
+        val text=window.toString(Charsets.ISO_8859_1)
+        return text.contains("hdr-gain-map",true) || text.contains("hdrgm",true) || text.contains("21496")
+    }
+
+    /** Bytes between the gain map and the portrait tail may only be zero alignment padding. */
+    private fun requireGapIsPadding(file:File,start:Long,end:Long) {
+        if(start>=end) return
+        require(end-start<=4096) { "Unrecognized trailing photo data" }
+        val gap=ByteArray((end-start).toInt())
+        RandomAccessFile(file,"r").use { input -> input.seek(start);input.readFully(gap) }
+        require(gap.all { it==0.toByte() }) { "Unrecognized trailing photo data" }
+    }
+
+    private fun inspectXiaomiPortraitTail(file:File,offset:Long,endExclusive:Long,lengths:Pair<Long,Long>):JpegContainer.Part {
+        val length=endExclusive-offset
         require(length in 1_024L..(64L*1024*1024)) { "Xiaomi portrait tail exceeds limit" }
         require(lengths.first>0 && lengths.second>0 && lengths.first+lengths.second==length)
         return JpegContainer.Part(offset,length).also { part ->

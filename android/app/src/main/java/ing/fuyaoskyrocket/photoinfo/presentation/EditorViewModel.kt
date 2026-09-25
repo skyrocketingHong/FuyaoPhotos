@@ -431,6 +431,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         val media = photo.media
         val oldHdr = media.hdrHint && android.os.Build.VERSION.SDK_INT < 34
         state = state.copy(sourceDevice = photo.info[FieldId.DEVICE], sourceModel = photo.captureTags[androidx.exifinterface.media.ExifInterface.TAG_MODEL].orEmpty(), preservationBlocked = media.blocked || oldHdr,
+            blockDetail = media.blockReason.takeIf { media.blocked },
             jpegRequired = media.hdrHint || media.motion != null || media.portraitTail != null,
             motionPhoto = media.motion != null, hdrPhoto = media.hdrHint,
             mediaMessage = when {

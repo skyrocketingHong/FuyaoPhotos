@@ -276,7 +276,13 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     }
     if (showExportBlocked) AlertDialog(onDismissRequest={ showExportBlocked=false },
         title={ Text(stringResource(R.string.photo_export_blocked_title)) },
-        text={ Text(exportBlockingNotice(state) ?: stringResource(R.string.media_unsupported)) },
+        text={ Column {
+            Text(exportBlockingNotice(state) ?: stringResource(R.string.media_unsupported))
+            state.blockDetail?.takeIf { it.isNotBlank() }?.let { detail ->
+                Spacer(Modifier.height(8.dp))
+                Text(detail, style = MaterialTheme.typography.labelSmall)
+            }
+        } },
         confirmButton={ TextButton(onClick={ showExportBlocked=false }) { Text(stringResource(R.string.close)) } })
     if (showExport) ExportDialog(
         width = state.width, height = state.height, count = state.photos.size, jpegRequired = state.exportRequiresJpeg,
@@ -314,8 +320,7 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
         val supported = if ((Build.VERSION.SDK_INT < 28 && defaults.format == ExportFormat.HEIC) ||
             (Build.VERSION.SDK_INT < 34 && defaults.format == ExportFormat.AVIF) || (hasPortrait && !defaults.applePortrait) ||
             (hasMotion && (!defaults.separateLivePhoto || defaults.format !in setOf(ExportFormat.JPEG,ExportFormat.HEIC))))
-            defaults.copy(format = ExportFormat.JPEG, appleStyle = false) else
-            if (hasMotion && defaults.separateLivePhoto) defaults.copy(appleStyle = false) else defaults
+            defaults.copy(format = ExportFormat.JPEG, appleStyle = false) else defaults
         mutableStateOf((when {
             avifRequired -> supported.copy(format=ExportFormat.AVIF)
             hasPortrait && defaults.applePortrait -> supported.copy(format=ExportFormat.HEIC,separateLivePhoto=hasMotion || supported.separateLivePhoto)
@@ -338,7 +343,7 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
             val compatible=(!hasPortrait || options.format==(if(options.applePortrait)ExportFormat.HEIC else ExportFormat.JPEG)) &&
                 (!hasMotion || options.format==ExportFormat.JPEG || (options.separateLivePhoto && options.format==ExportFormat.HEIC)) &&
                 (!avifRequired || options.format==ExportFormat.AVIF) &&
-                (!options.appleStyle || (options.format==ExportFormat.HEIC && !(options.separateLivePhoto && hasMotion)))
+                (!options.appleStyle || options.format==ExportFormat.HEIC)
             if(!compatible)Text(stringResource(R.string.export_formats_conflict),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
             Button(enabled = !submitting && compatible && ing.fuyaoskyrocket.photoinfo.platform.ImageEncoderSupport.supports(options.format), onClick = {
                 submitting = true

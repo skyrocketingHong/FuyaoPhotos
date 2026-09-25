@@ -28,8 +28,9 @@ object XiaomiPortraitTail {
     data class SegmentRange(val marker: Int, val markerAt: Int, val dataAt: Int, val end: Int)
 
     fun read(file: File, part: JpegContainer.Part): ByteArray {
+        // Motion portraits place the tail before the trailing video, so it may end before EOF.
         require(part.offset >= 0 && part.length in 1..MAX_TAIL &&
-            part.offset + part.length == file.length()) { "Invalid Xiaomi portrait tail range" }
+            part.offset + part.length <= file.length()) { "Invalid Xiaomi portrait tail range" }
         return ByteArray(part.length.toInt()).also { bytes ->
             RandomAccessFile(file, "r").use { input -> input.seek(part.offset); input.readFully(bytes) }
         }

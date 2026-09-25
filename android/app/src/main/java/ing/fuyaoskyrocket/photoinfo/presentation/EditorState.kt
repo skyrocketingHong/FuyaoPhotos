@@ -43,6 +43,7 @@ data class EditorState(
     val locationStatus: LocationStatus = LocationStatus.IDLE,
     val hasPhotoGps: Boolean = false,
     val preservationBlocked: Boolean = false,
+    val blockDetail: String? = null,
     val jpegRequired: Boolean = false,
     val motionPhoto: Boolean = false,
     val hdrPhoto: Boolean = false,

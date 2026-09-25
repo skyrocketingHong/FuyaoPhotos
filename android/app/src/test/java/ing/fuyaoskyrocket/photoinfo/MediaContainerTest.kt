@@ -65,6 +65,66 @@ class MediaContainerTest {
         // The embedded declaration survives as an escaped attribute or element value.
         assertTrue(Regex("rawlength=[\"']?&quot;?${unblurred.size}").containsMatchIn(merged))
     }
+    @Test fun gainMapDeclaredOnlyInsideTheAuxiliaryImageIsAccepted() {
+        // Writers without a primary gain-map directory declare hdrgm in the map JPEG itself.
+        val mapHeader=segment(0xe1,JpegContainer.XMP+
+            """<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:h="http://ns.adobe.com/hdr-gain-map/1.0/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description h:Version="2.0"/></rdf:RDF></x:xmpmeta>""".toByteArray())
+        val map=jpeg(mapHeader)
+        val data=ByteArray(4+8+2+12+4+32)
+        val b=ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN)
+        b.put(byteArrayOf(77,80,70,0)); b.put(byteArrayOf(77,77)); b.putShort(42); b.putInt(8)
+        b.putShort(1); b.putShort(0xb002.toShort()); b.putShort(7); b.putInt(32); b.putInt(26); b.putInt(0)
+        // Size is measured first, the directory entries are patched in, then the file is assembled.
+        val primarySize=jpeg(segment(0xe2,data)).size
+        b.putInt(30+4,primarySize); b.putInt(30+8,0)
+        b.putInt(46+4,map.size); b.putInt(46+8,primarySize-10)
+        val envelope=MotionPhoto.inspect(file(jpeg(segment(0xe2,data))+map),"image/jpeg")
+        assertFalse("reason=${envelope.blockReason}",envelope.blocked)
+        assertTrue(envelope.hdrHint)
+        // An auxiliary JPEG that declares no gain map still fails closed.
+        val plainMap=jpeg()
+        data.fill(0); val b2=ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN)
+        b2.put(byteArrayOf(77,80,70,0)); b2.put(byteArrayOf(77,77)); b2.putShort(42); b2.putInt(8)
+        b2.putShort(1); b2.putShort(0xb002.toShort()); b2.putShort(7); b2.putInt(32); b2.putInt(26); b2.putInt(0)
+        b2.putInt(30+4,primarySize); b2.putInt(30+8,0)
+        b2.putInt(46+4,plainMap.size); b2.putInt(46+8,primarySize-10)
+        val blocked=MotionPhoto.inspect(file(jpeg(segment(0xe2,data))+plainMap),"image/jpeg")
+        assertTrue(blocked.blocked)
+        assertEquals("Unrecognized auxiliary image data",blocked.blockReason)
+    }
+    @Test fun motionXiaomiPortraitKeepsTailBeforeVideo() {
+        val bokeh="http://ns.xiaomi.com/photos/1.0/camera/bokeh"
+        val camera="http://ns.xiaomi.com/photos/1.0/camera/"
+        val container="http://ns.google.com/photos/1.0/container/"
+        val item="http://ns.google.com/photos/1.0/container/item/"
+        val rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+        val cam="http://ns.google.com/photos/1.0/camera/"
+        val unblurred=jpeg()
+        val depth=ByteArray(2048) { it.toByte() }
+        val tail=unblurred+"MCBOKEHSOT".toByteArray(Charsets.US_ASCII)+depth
+        val v=video
+        val xmp=JpegContainer.XMP+"""
+            <x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="$rdf">
+            <rdf:RDF xmlns:bokeh="$bokeh" xmlns:camera="$camera" xmlns:Camera="$cam">
+            <rdf:Description Camera:MotionPhoto="1" Camera:MotionPhotoVersion="1" Camera:MotionPhotoPresentationTimestampUs="77"
+            bokeh:capsInfo="1" bokeh:capsStream="1">
+            <camera:XMPMeta>&lt;d rawlength="${unblurred.size}" depthlength="${tail.size-unblurred.size}"/&gt;</camera:XMPMeta>
+            <Container:Directory xmlns:Container="$container"><rdf:Seq>
+            <rdf:li rdf:parseType="Resource"><Container:Item xmlns:Item="$item" Item:Mime="image/jpeg" Item:Semantic="Primary" Item:Length="0" Item:Padding="0"/></rdf:li>
+            <rdf:li rdf:parseType="Resource"><Container:Item xmlns:Item="$item" Item:Mime="video/mp4" Item:Semantic="MotionPhoto" Item:Length="${v.size}"/></rdf:li>
+            </rdf:Seq></Container:Directory>
+            </rdf:Description></rdf:RDF></x:xmpmeta>
+        """.trimIndent().toByteArray(Charsets.UTF_8)
+        val photo=file(jpeg(segment(0xe1,xmp))+tail+v)
+        val envelope=MotionPhoto.inspect(photo,"image/jpeg")
+        assertFalse(envelope.blocked)
+        val motion=requireNotNull(envelope.motion)
+        assertEquals(v.size.toLong(),motion.length)
+        assertEquals(photo.length()-v.size,motion.offset)
+        val part=requireNotNull(envelope.portraitTail)
+        assertEquals(tail.size.toLong(),part.length)
+        assertEquals(photo.length()-v.size-tail.size,part.offset)
+    }
     @Test fun maliciousXmpCannotResolveExternalEntities() {
         val xml="<!DOCTYPE x [<!ENTITY leak SYSTEM 'file:///etc/passwd'>]><x>&leak;</x>"
         assertTrue(MotionPhoto.inspect(file(jpeg(segment(0xe1,JpegContainer.XMP+xml.toByteArray()))),"image/jpeg").blocked)
