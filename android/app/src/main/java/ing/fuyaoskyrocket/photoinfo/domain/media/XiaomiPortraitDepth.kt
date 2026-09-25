@@ -12,7 +12,7 @@ internal object XiaomiPortraitDepth {
     private const val FORMAT_KEY = "OTEzMTAxMDRNQTFGUkY1SjhHWE1EU1NGWmN6eWQxNgA="
     private const val MAX_PLANE = 16 * 1024 * 1024
 
-    fun decode(bytes: ByteArray): Result {
+    fun decode(bytes: ByteArray, depthDegrees: Int = -1, originDegrees: Int = 0): Result {
         val layout = XiaomiPortraitTail.layout(bytes)
         val trailer = bytes.copyOfRange(layout.secondEnd, bytes.size)
         val end = marker(trailer, "MCBOKEHEOT")
@@ -26,7 +26,11 @@ internal object XiaomiPortraitDepth {
         val height = int(decoded, interfaceAt + 24)
         val sourceWidth = int(decoded, interfaceAt + 28)
         val sourceHeight = int(decoded, interfaceAt + 32)
-        val rotation = int(decoded,interfaceAt + 52)
+        // The depth plane lives in the depthOrientation-rotated space of the vendor capture;
+        // aligning it with the stored photo takes the inverse rotation, composed with the
+        // photo's own EXIF turn exactly like the vendor Bokeh editor does.
+        val rotation = if(depthDegrees in 0..359) ((originDegrees - depthDegrees) + 720) % 360
+            else int(decoded, interfaceAt + 52)
         val orientation = when(rotation) { 0->1; 90->6; 180->3; 270->8; else->error("Unknown portrait orientation") }
         require(width in 1..8192 && height in 1..8192 && width.toLong() * height <= MAX_PLANE)
         require(sourceWidth in 1..32768 && sourceHeight in 1..32768 &&
@@ -36,7 +40,7 @@ internal object XiaomiPortraitDepth {
         require(ranks.any { it != ranks[0] }) { "Portrait depth is empty" }
         // The vendor rank increases toward the background; Apple disparity increases toward the camera.
         val disparity = ByteArray(ranks.size) { (255 - (ranks[it].toInt() and 255)).toByte() }
-        val matteAt = markerOrNull(decoded, "MCBOKEHAIMASK")
+        val matteAt = markerOrNull(decoded, "MCBOKEHAIMASK") ?: markerOrNull(decoded, "MCBOKEHMASK")
         val matte = matteAt?.let {
             val w = int(decoded, it + 16); val h = int(decoded, it + 20)
             require(w in 1..8192 && h in 1..8192 && w.toLong() * h <= MAX_PLANE)

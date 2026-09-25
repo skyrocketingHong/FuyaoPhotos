@@ -12,7 +12,7 @@ data class MotionVideo(val offset: Long, val length: Long, val timestampUs: Long
 data class MediaEnvelope(val jpeg: Boolean, val hdrHint: Boolean = false, val motion: MotionVideo? = null,
     val portraitTail: JpegContainer.Part? = null, val blocked: Boolean = false,
     val bitDepth: Int = 8, val hdrTransfer: Boolean = false, val hdrTransferCode: Int = 0,
-    val blockReason: String? = null)
+    val blockReason: String? = null, val portraitDepthDegrees: Int = -1)
 
 /** Only recognized, structurally valid containers may be rewritten. Unknown auxiliary data fails closed. */
 object MotionPhoto {
@@ -90,6 +90,7 @@ object MotionPhoto {
             var primaryPadding=0L
             var xiaomiPortrait=false
             var portraitLengths:Pair<Long,Long>?=null
+            var portraitDepthDegrees=-1
             for(packet in packets) {
                 val doc=document(packet);val elements=doc.getElementsByTagName("*")
                 fun attr(ns:String,key:String):String?=(0 until elements.length).firstNotNullOfOrNull { value(elements.item(it) as Element,ns,key) }
@@ -102,6 +103,11 @@ object MotionPhoto {
                     val raw=declaredLength("rawlength")
                     val depth=declaredLength("depthlength")
                     if(raw!=null && depth!=null) portraitLengths=raw to depth
+                    // Vendor truth for the depth plane rotation, cross-checked against the
+                    // Bokeh app: the block header does not carry it.
+                    declaredLength("depthOrientation")?.let { degrees ->
+                        if(degrees in 0..359) portraitDepthDegrees=degrees.toInt()
+                    }
                 }
                 val modern=attr(CAMERA,"MotionPhoto")
                 if(modern!=null && modern!="1")continue
@@ -150,7 +156,7 @@ object MotionPhoto {
             } else null
             require(portraitTail!=null || end+(if(auxiliary.isEmpty() && video!=null)primaryPadding else 0L)==
                 trailingEnd) { "Unrecognized trailing photo data" }
-            MediaEnvelope(true,hdr,video,portraitTail)
+            MediaEnvelope(true,hdr,video,portraitTail,portraitDepthDegrees=portraitDepthDegrees)
         } catch(failure:Exception) { MediaEnvelope(true,blocked=true,blockReason=failure.message) }
     }
 

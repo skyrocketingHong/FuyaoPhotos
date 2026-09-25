@@ -51,11 +51,30 @@ class XiaomiSampleTest {
         val part = requireNotNull(envelope.portraitTail)
         assertTrue(part.offset > 0 && part.length > 1_024)
 
+        // XMP declares depthOrientation=90 over an upright-stored capture, so the plane
+        // aligns with the photo only after the inverse 270-degree turn (EXIF orientation 8).
+        assertEquals(90, envelope.portraitDepthDegrees)
         val tail = XiaomiPortraitTail.read(file, part)
         val layout = XiaomiPortraitTail.layout(tail)
-        val decoded = XiaomiPortraitDepth.decode(tail)
-        assertTrue(decoded.sourceWidth > 0 && decoded.sourceHeight > 0)
-        assertTrue(decoded.disparity.width > 0 && decoded.disparity.height > 0)
+        val decoded = XiaomiPortraitDepth.decode(tail, envelope.portraitDepthDegrees, 0)
+        assertEquals(8, decoded.orientation)
+        assertEquals(4096, decoded.sourceWidth)
+        assertEquals(3072, decoded.sourceHeight)
+        assertEquals(1024, decoded.disparity.width)
+        assertEquals(768, decoded.disparity.height)
+        // Focus sits on the subject: after the Apple-style inversion, the subject's
+        // disparity is clearly above the borders.
+        val ranks = decoded.disparity.pixels
+        fun mean(from: Int, until: Int): Int {
+            var total = 0; var count = 0
+            for (at in from until until step 7) { total += ranks[at].toInt() and 255; count++ }
+            return total / count
+        }
+        val plane = decoded.disparity.width * decoded.disparity.height
+        val center = mean(plane / 2 - decoded.disparity.width * 8, plane / 2 + decoded.disparity.width * 8)
+        val border = (mean(0, decoded.disparity.width * 8) +
+            mean(plane - decoded.disparity.width * 8, plane)) / 2
+        assertTrue("center disparity $center should exceed border $border", center > border + 10)
 
         // The export merge and the filtered rewrite must keep the declaration intact.
         val merged = MotionPhoto.xiaomiPortraitXmp(JpegContainer.inspect(file), null)

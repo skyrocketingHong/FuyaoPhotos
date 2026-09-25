@@ -79,16 +79,19 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 stage=R.string.export_stage_depth
                 val part=requireNotNull(media.portraitTail)
                 val tail=XiaomiPortraitTail.read(source.file,part)
-                val decoded=XiaomiPortraitDepth.decode(tail)
                 val length=XiaomiPortraitTail.layout(tail).secondEnd
                 unblurred.outputStream().use { it.write(tail,0,length) }
                 // The extracted capture may still declare the shot's motion directory, which
                 // points past this fragment; the tail layout above already verified it, so only
                 // the pixel geometry needs to match here.
                 val raw=photos.inspect(unblurred)
-                require(raw.width==source.width && raw.height==source.height) {
+                val storedWidth=if(source.orientation in 5..8)source.height else source.width
+                val storedHeight=if(source.orientation in 5..8)source.width else source.height
+                require(raw.width==storedWidth && raw.height==storedHeight) {
                     context.getString(R.string.media_validation_failed)
                 }
+                val decoded=XiaomiPortraitDepth.decode(tail,media.portraitDepthDegrees,
+                    exifDegrees(raw.orientation))
                 val width=if(decoded.orientation in 5..8)raw.height else raw.width
                 val height=if(decoded.orientation in 5..8)raw.width else raw.height
                 require(width==decoded.sourceWidth && height==decoded.sourceHeight) { context.getString(R.string.media_validation_failed) }
@@ -316,6 +319,10 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
     companion object {
         const val DEFAULT_JPEG_QUALITY = 100
         fun filename(format:ExportFormat,motion:Boolean=false)="Fuyao_${SimpleDateFormat("yyyyMMdd_HHmmss_SSS",Locale.ROOT).format(Date())}${if(motion) "_MP" else ""}.${format.extension}"
+        private fun exifDegrees(orientation: Int): Int = when(orientation) {
+            6 -> 90; 8 -> 270; 3 -> 180; else -> 0
+        }
+
         private fun captureAperture(tags: Map<String, String>): Double? {
             val raw = tags["FNumber"] ?: return null
             val parts = raw.split('/')
