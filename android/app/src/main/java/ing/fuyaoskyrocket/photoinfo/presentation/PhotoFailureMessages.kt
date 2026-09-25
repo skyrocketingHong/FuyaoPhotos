@@ -18,9 +18,11 @@ internal object PhotoFailureMessages {
             val cause=failure.cause
             if(cause is android.system.ErrnoException && cause.errno==android.system.OsConstants.ENOSPC)return context.getString(R.string.error_storage_full)
             if(cause is ing.fuyaoskyrocket.photoinfo.domain.layout.CardOverflowException)return context.getString(R.string.error_overflow)
-            // The stage text explains the outcome; the underlying app-authored check names the
-            // exact rule that rejected the file, which is what live portraits have needed.
+            // The stage text explains the outcome; the underlying check names the exact rule
+            // that rejected the file. Exceptions without a message (overflow, some codec
+            // errors) still name their class so device reports stay diagnosable.
             val detail=cause?.message?.trim()?.takeIf { it.isNotEmpty() }
+                ?: cause?.javaClass?.simpleName
             val base=if(detail?.contains("portrait", ignoreCase = true) == true)
                 context.getString(R.string.error_portrait_export) else context.getString(failure.stage)
             return if(detail==null || detail==base) base else base+"\n"+detail

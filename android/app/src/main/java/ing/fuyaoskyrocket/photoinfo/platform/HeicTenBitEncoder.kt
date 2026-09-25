@@ -87,24 +87,22 @@ object HeicTenBitEncoder {
                 codec.inputFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT) else bitmap.height
             val plane = TenBitYuv.encodeP010(readHalfBuffer(bitmap), bitmap.width, bitmap.height,
                 stride, sliceHeight, bitmap.colorSpace?.name.orEmpty(), hdrTransfer)
+            val input = codec.dequeueInputBuffer(10_000_000)
+            check(input >= 0) { "Encoder accepted no input buffer" }
+            val inputBuffer = codec.getInputBuffer(input)!!
+            check(inputBuffer.remaining() >= plane.size) {
+                "Encoder input buffer holds ${inputBuffer.remaining()} of ${plane.size} frame bytes"
+            }
+            inputBuffer.clear()
+            inputBuffer.put(plane)
+            codec.queueInputBuffer(input, 0, plane.size, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+            // ByteBuffer video input demands one complete frame per buffer; a frame that
+            // does not fit is a hard failure and the surface route takes over.
             var track = -1
             var started = false
-            var inputDone = false
             var outputDone = false
             val info = MediaCodec.BufferInfo()
             while (!outputDone) {
-                if (!inputDone) {
-                    val index = codec.dequeueInputBuffer(10_000_000)
-                    if (index >= 0) {
-                        codec.getInputBuffer(index)!!.apply {
-                            clear()
-                            put(plane)
-                        }
-                        codec.queueInputBuffer(index, 0, plane.size, 0,
-                            MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                        inputDone = true
-                    }
-                }
                 val index = codec.dequeueOutputBuffer(info, 10_000_000)
                 when {
                     index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
