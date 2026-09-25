@@ -9,6 +9,7 @@ import androidx.heifwriter.HeifWriter
 import androidx.heifwriter.AvifWriter
 import ing.fuyaoskyrocket.photoinfo.domain.media.HeifImageContainer
 import ing.fuyaoskyrocket.photoinfo.platform.AndroidGainMapMetadata
+import ing.fuyaoskyrocket.photoinfo.platform.HeicTenBitEncoder
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 
@@ -19,12 +20,21 @@ internal object HeicEncoder {
         val gainmap = if (Build.VERSION.SDK_INT >= 34) bitmap.gainmap else null
         val baseFile = File.createTempFile("base-", ".heif", destination.parentFile)
         val gainFile = File.createTempFile("gain-", ".heif", destination.parentFile)
+        // HeifWriter cannot carry the F16 plane into HEVC, so ten-bit HEIC goes through the
+        // MediaCodec + MediaMuxer path, which always encodes into BT.2020 primaries.
+        val tenBit = !avif && bitmap.config == Bitmap.Config.RGBA_F16
         try {
-            if (Build.VERSION.SDK_INT >= 34) bitmap.setGainmap(null)
-            encodePlane(bitmap, baseFile, quality, exif, avif)
+            if (tenBit) {
+                HeicTenBitEncoder.encode(bitmap, baseFile, quality, exif)
+            } else {
+                if (Build.VERSION.SDK_INT >= 34) bitmap.setGainmap(null)
+                encodePlane(bitmap, baseFile, quality, exif, avif)
+            }
             val encodedBase = HeifImageContainer.read(baseFile)
             val space = bitmap.colorSpace
-            val encoding = when {
+            val encoding = if (tenBit) {
+                9 to if (space?.name?.contains("PQ") == true || space?.name?.contains("HLG") == true) 16 else 13
+            } else when {
                 space?.id==ColorSpace.Named.SRGB.ordinal -> 1 to 13
                 space?.id==ColorSpace.Named.BT709.ordinal -> 1 to 1
                 space?.id==ColorSpace.Named.BT2020.ordinal -> 9 to 14
