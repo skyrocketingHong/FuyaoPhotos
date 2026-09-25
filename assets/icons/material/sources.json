@@ -115,6 +115,12 @@
       "symbol": "play_arrow",
       "url": "https://raw.githubusercontent.com/google/material-design-icons/27e9ef1dbeedc13d682fece4a58e1eda4cb0961a/symbols/web/play_arrow/materialsymbolsoutlined/play_arrow_24px.svg",
       "sha256": "56b40dffbc6830b7b506f42e6f6e230189d52924bca018ae8ac8f99c4110cd85"
+    },
+    {
+      "drawable": "ic_map",
+      "symbol": "map",
+      "url": "https://raw.githubusercontent.com/google/material-design-icons/27e9ef1dbeedc13d682fece4a58e1eda4cb0961a/symbols/web/map/materialsymbolsoutlined/map_24px.svg",
+      "sha256": "a49ef8ee004dc4832a4bbe64fce0a054c0b90cb4246422c09cc234278788049b"
     }
   ]
 }
