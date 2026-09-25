@@ -12,52 +12,50 @@ struct CardStyleSlider: View {
     let maximumSymbol: String
     let formattedValue: String
 
-    @ScaledMetric(relativeTo: .headline) private var valueLabelHeight: CGFloat = 26
+    private var atMinimum: Bool {
+        value <= range.lowerBound + (range.upperBound - range.lowerBound) * 0.001
+    }
 
-    init(
-        value: Binding<Double>,
-        in range: ClosedRange<Double>,
-        defaultValue: Double,
-        label: LocalizedStringKey,
-        minimumSymbol: String,
-        maximumSymbol: String,
-        formattedValue: String
-    ) {
-        _value = value
-        self.range = range
-        self.defaultValue = defaultValue
-        self.label = label
-        self.minimumSymbol = minimumSymbol
-        self.maximumSymbol = maximumSymbol
-        self.formattedValue = formattedValue
+    private var atMaximum: Bool {
+        value >= range.upperBound - (range.upperBound - range.lowerBound) * 0.001
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        HStack(spacing: 8) {
+            SliderEndpointIcon(symbol: minimumSymbol, active: atMinimum)
+#if os(iOS)
+            ContinuousReferenceSlider(value: $value, range: range, reference: defaultValue)
+                .accessibilityLabel(Text(label))
+                .accessibilityValue(Text(formattedValue))
+#else
+            Slider(value: $value, in: range) { Text(label) }
+                .accessibilityValue(Text(formattedValue))
+#endif
+            SliderEndpointIcon(symbol: maximumSymbol, active: atMaximum)
             Text(formattedValue)
                 .font(.headline.monospacedDigit())
                 .foregroundStyle(.yellow)
-                .frame(maxWidth: .infinity, minHeight: valueLabelHeight, alignment: .leading)
+                .frame(minWidth: 52, alignment: .trailing)
                 .accessibilityHidden(true)
-
-            HStack(spacing: 8) {
-                Image(systemName: minimumSymbol)
-                    .frame(width: 22, height: 22)
-                    .accessibilityHidden(true)
-#if os(iOS)
-                ContinuousReferenceSlider(value: $value, range: range, reference: defaultValue)
-                    .accessibilityLabel(Text(label))
-                    .accessibilityValue(Text(formattedValue))
-#else
-                Slider(value: $value, in: range) { Text(label) }
-                    .accessibilityValue(Text(formattedValue))
-#endif
-                Image(systemName: maximumSymbol)
-                    .frame(width: 22, height: 22)
-                    .accessibilityHidden(true)
-            }
         }
         .frame(maxWidth: 320, alignment: .leading)
+        .frame(maxHeight: .infinity)
+    }
+}
+
+/// Mirrors the system slider behavior of highlighting a label once the thumb reaches its end.
+private struct SliderEndpointIcon: View {
+    let symbol: String
+    let active: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Image(systemName: symbol)
+            .foregroundStyle(active ? Color.yellow : Color.secondary)
+            .scaleEffect(active ? 1.12 : 1)
+            .frame(width: 22, height: 22)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: active)
+            .accessibilityHidden(true)
     }
 }
 
