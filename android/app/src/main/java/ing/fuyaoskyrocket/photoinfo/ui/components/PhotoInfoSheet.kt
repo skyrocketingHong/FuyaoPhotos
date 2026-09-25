@@ -46,16 +46,19 @@ fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
     val size = details.byteCount?.let { android.text.format.Formatter.formatFileSize(context, it) }
     val subtitle = listOfNotNull(kind, size).joinToString(" · ")
     val maxHeight = (LocalConfiguration.current.screenHeightDp * .9f).dp
+    // Opening directly at full height keeps list drags from fighting the sheet's
+    // half-to-expanded settling, which used to bounce the sheet at the list end.
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     ) {
-        LazyColumn(
-            Modifier.fillMaxWidth().heightIn(max = maxHeight),
-            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 28.dp),
-        ) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.fillMaxWidth().heightIn(max = maxHeight)) {
+            Surface(
+                Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                tonalElevation = 1.dp,
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
                     if (photo != null) {
                         Image(
                             bitmap = photo.asImageBitmap(),
@@ -78,17 +81,21 @@ fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
                             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     }
                 }
-                Spacer(Modifier.height(16.dp))
             }
-            groups.forEach { group ->
-                item {
-                    Text(
-                        stringResource(group.title),
-                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+            LazyColumn(
+                Modifier.fillMaxWidth().weight(1f, fill = false),
+                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 28.dp),
+            ) {
+                groups.forEach { group ->
+                    item {
+                        Text(
+                            stringResource(group.title),
+                            modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    items(group.rows) { row -> DetailValueRow(row) }
                 }
-                items(group.rows) { row -> DetailValueRow(row) }
             }
         }
     }
