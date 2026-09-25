@@ -126,29 +126,45 @@ internal object AppleStyleMetadata {
         return addDict(entries.map { addStr(it.first) to it.second })
     }
 
-    /** Apple MakerNote carrying the style photo identifier (tag 43) and runtime flags (tag 84). */
-    fun stylesNote(identifier: String, includePortrait: Boolean): ByteArray {
-        require(identifier.length == 36)
-        val uuid = identifier.uppercase(java.util.Locale.ROOT).toByteArray(Charsets.US_ASCII) + byteArrayOf(0)
-        val portrait = byteArrayOf(0x00, 0x14, 0x00, 0x09, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02)
-        val tag43 = ByteBuffer.allocate(12).putShort(43).putShort(2).putInt(37).putInt(0)
-        val tag84 = ByteBuffer.allocate(12).putShort(84).putShort(7).putInt(91).putInt(0)
-        val entryCount = (if (includePortrait) 1 else 0) + 2
-        val base = 16 + entryCount * 12 + 4
-        tag43.putInt(8, base)
-        tag84.putInt(8, base + 37)
-        val out = ByteArrayOutputStream()
+    /**
+     * Apple MakerNote assembled from the independent capabilities: the live-photo pairing
+     * identifier (tag 17), the portrait marker (tag 20), and the style photo identifier
+     * (tag 43) with the runtime flag plist (tag 84).
+     */
+    fun appleNote(liveIdentifier: String?, portrait: Boolean, styleIdentifier: String?): ByteArray {
+        require(liveIdentifier != null || portrait || styleIdentifier != null)
+        data class Entry(val tag: Int, val type: Int, val count: Int, val payload: ByteArray?, val inline: Int = 0)
+        val entries=mutableListOf<Entry>()
+        liveIdentifier?.let {
+            require(it.length == 36)
+            entries+=Entry(17, 2, 37, it.uppercase(java.util.Locale.ROOT).toByteArray(Charsets.US_ASCII)+byteArrayOf(0))
+        }
+        if(portrait) entries+=Entry(20, 9, 1, null, 2)
+        styleIdentifier?.let {
+            require(it.length == 36)
+            entries+=Entry(43, 2, 37, it.uppercase(java.util.Locale.ROOT).toByteArray(Charsets.US_ASCII)+byteArrayOf(0))
+            entries+=Entry(84, 7, 91, TAG_84)
+        }
+        entries.sortBy { it.tag }
+        val base=16+entries.size*12+4
+        var at=base
+        val out=ByteArrayOutputStream()
         out.write("Apple iOS\u0000\u0000\u0001".toByteArray(Charsets.US_ASCII))
         out.write(byteArrayOf('M'.code.toByte(), 'M'.code.toByte()))
-        out.write(ByteBuffer.allocate(2).putShort(entryCount.toShort()).array())
-        if (includePortrait) out.write(portrait)
-        out.write(tag43.array())
-        out.write(tag84.array())
+        out.write(byteArrayOf((entries.size shr 8).toByte(), entries.size.toByte()))
+        entries.forEach { entry ->
+            val offset=if(entry.payload!=null) at else 0
+            out.write(ByteBuffer.allocate(12).putShort(entry.tag.toShort()).putShort(entry.type.toShort())
+                .putInt(entry.count).putInt(if(entry.payload!=null) offset else entry.inline).array())
+            if(entry.payload!=null) at+=entry.payload.size
+        }
         out.write(byteArrayOf(0, 0, 0, 0))
-        out.write(uuid)
-        out.write(TAG_84)
+        entries.forEach { entry -> entry.payload?.let(out::write) }
         return out.toByteArray()
     }
+
+    fun stylesNote(identifier: String, includePortrait: Boolean): ByteArray =
+        appleNote(null, includePortrait, identifier)
 
     private val FIELD_3 = byteArrayOf(
         0x01.toByte(), 0x01.toByte(), 0x00.toByte(), 0x00.toByte(), 0x9a.toByte(), 0x00.toByte(), 0x02.toByte(), 0x02.toByte(), 0x2a.toByte(), 0x04.toByte(), 0x04.toByte(), 0x07.toByte(), 0x84.toByte(), 0x0a.toByte(), 0x22.toByte(), 0x0e.toByte(),

@@ -42,11 +42,10 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         val paired = options.separateLivePhoto && media.motion != null
         val convertPortrait = options.applePortrait && media.portraitTail != null
         require(!convertPortrait || format==ExportFormat.HEIC) { context.getString(R.string.portrait_heic_required) }
-        // Live Photo pairing and photographic styles stay mutually exclusive; Apple's editor
-        // fails to load the combination, as observed by the XDRemux reference implementation.
-        val injectStyle = options.appleStyle && format == ExportFormat.HEIC && !paired
+        // HDR, live pairing, portrait conversion and style injection are independent;
+        // each only constrains the format (HDR-capable, pairing-capable, HEIC).
+        val injectStyle = options.appleStyle && format == ExportFormat.HEIC
         require(!options.appleStyle || format==ExportFormat.HEIC) { context.getString(R.string.style_heic_required) }
-        require(!injectStyle || !paired) { context.getString(R.string.style_live_exclusive) }
         val styleIdentifier = if (injectStyle) AppleStyleMetadata.newIdentifier() else null
         // Apple tags portrait output with CustomRendered=9 alongside the depth auxiliary images.
         val selectedTags=ExportMetadata.select(source.captureTags,options) +
@@ -105,11 +104,8 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 JpegContainer.exif(JpegContainer.inspect(metadata))
             } else emptyList()
             val selectedExif=when {
-                identifier!=null -> listOf(ApplePhotoMetadata.withIdentifier(captureExif.singleOrNull(),identifier))
-                convertPortrait && styleIdentifier!=null -> listOf(
-                    ApplePhotoMetadata.withPortraitStyles(captureExif.singleOrNull(),styleIdentifier))
-                convertPortrait -> listOf(ApplePhotoMetadata.withPortrait(captureExif.singleOrNull()))
-                styleIdentifier!=null -> listOf(ApplePhotoMetadata.withStyles(captureExif.singleOrNull(),styleIdentifier))
+                identifier!=null || convertPortrait || styleIdentifier!=null -> listOf(
+                    ApplePhotoMetadata.withAppleNotes(captureExif.singleOrNull(),identifier,convertPortrait,styleIdentifier))
                 else -> captureExif
             }
             if(identifier!=null)AppleLivePhotoMovie.write(videoFile,pairedMovie,identifier,requireNotNull(media.motion).timestampUs)
@@ -150,13 +146,14 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 }
                 JpegContainer.rewrite(encoded,assembled,selectedExif,xmp)
                 // Assemble into private storage, then validate before publishing any output.
-                if(media.motion!=null && !paired) {
-                    java.io.FileOutputStream(assembled,true).use { JpegContainer.copyRange(videoFile,0,media.motion.length,it) }
-                }
+                // The original layout is primary, gain map, portrait tail, then the motion video.
                 media.portraitTail?.let { part ->
                     portraitBytes=java.io.FileOutputStream(assembled,true).use {
                         XiaomiPortraitTail.writeFiltered(source.file,part,it,options)
                     }
+                }
+                if(media.motion!=null && !paired) {
+                    java.io.FileOutputStream(assembled,true).use { JpegContainer.copyRange(videoFile,0,media.motion.length,it) }
                 }
                 val verified=MotionPhoto.inspect(assembled,"image/jpeg")
                 require(!verified.blocked) { context.getString(R.string.media_validation_failed) }

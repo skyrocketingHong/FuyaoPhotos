@@ -322,7 +322,7 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
             (hasMotion && (!defaults.separateLivePhoto || defaults.format !in setOf(ExportFormat.JPEG,ExportFormat.HEIC))))
             defaults.copy(format = ExportFormat.JPEG, appleStyle = false) else defaults
         mutableStateOf((when {
-            avifRequired -> supported.copy(format=ExportFormat.AVIF)
+            avifRequired -> supported.copy(format=ExportFormat.AVIF, appleStyle=false)
             hasPortrait && defaults.applePortrait -> supported.copy(format=ExportFormat.HEIC,separateLivePhoto=hasMotion || supported.separateLivePhoto)
             else -> supported
         }).sanitized(jpegRequired))
