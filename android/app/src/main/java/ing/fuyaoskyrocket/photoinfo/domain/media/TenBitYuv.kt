@@ -66,6 +66,11 @@ internal object TenBitYuv {
         else -> Transfer.SRGB
     }
 
+    fun srgbEotf(value: Float): Float {
+        if (value <= 0f) return 0f
+        return if (value <= 0.04045f) value / 12.92f else ((value + 0.055f) / 1.055f).pow(2.4f)
+    }
+
     fun srgbOetf(value: Float): Float {
         if (value <= 0f) return 0f
         if (value >= 1f) return 1f
@@ -78,14 +83,24 @@ internal object TenBitYuv {
         return ((PQ_C1 + PQ_C2 * scaled) / (1f + PQ_C3 * scaled)).pow(PQ_M2)
     }
 
-    /** Converts one pixel from scene-linear source RGB into full-range BT.2020 YUV. */
-    fun toYuv2020(r: Float, g: Float, b: Float, matrix: FloatArray, transfer: Transfer): FloatArray {
+    /**
+     * F16 storage follows the bitmap colour space's transfer curve: a linear source needs
+     * the OETF applied, an already-encoded sRGB source passes through (SDR) or is
+     * linearised first for HDR targets - never a second OEF on top.
+     */
+    fun toYuv2020(r: Float, g: Float, b: Float, matrix: FloatArray, transfer: Transfer,
+        sourceLinear: Boolean = true): FloatArray {
         fun clamp(value: Float) = min(max(value, 0f), 1.5f)
         val lr = clamp(r); val lg = clamp(g); val lb = clamp(b)
         val r2020 = clamp(matrix[0] * lr + matrix[1] * lg + matrix[2] * lb)
         val g2020 = clamp(matrix[3] * lr + matrix[4] * lg + matrix[5] * lb)
         val b2020 = clamp(matrix[6] * lr + matrix[7] * lg + matrix[8] * lb)
-        val encode = if (transfer == Transfer.PQ) ::pqOetf else ::srgbOetf
+        val encode: (Float) -> Float = when {
+            transfer == Transfer.SRGB && sourceLinear -> ::srgbOetf
+            transfer == Transfer.SRGB -> { v -> v }
+            sourceLinear -> ::pqOetf
+            else -> { v -> pqOetf(srgbEotf(min(v, 1f))) }
+        }
         val ry = encode(r2020); val gy = encode(g2020); val by = encode(b2020)
         val y = KR * ry + (1f - KR - KB) * gy + KB * by
         return floatArrayOf(y, by - y, ry - y)
@@ -96,7 +111,7 @@ internal object TenBitYuv {
      * then interleaved UV at half height. Returns little-endian bytes.
      */
     fun encodeP010(halfs: java.nio.ShortBuffer, width: Int, height: Int, stride: Int, sliceHeight: Int,
-        colorSpaceName: String, hdrTransferAllowed: Boolean = true): ByteArray {
+        colorSpaceName: String, hdrTransferAllowed: Boolean = true, sourceLinear: Boolean = true): ByteArray {
         require(halfs.remaining() >= width * height * 4 && stride >= width && sliceHeight >= height) { "p010 source ${halfs.remaining()} shorts, ${width}x${height} at $stride" }
         val matrix = when (primariesFor(colorSpaceName)) {
             Primaries.BT709 -> BT709_TO_2020
@@ -115,7 +130,7 @@ internal object TenBitYuv {
                 val yuv = toYuv2020(
                     halfToFloat(halfs.get(at).toInt()),
                     halfToFloat(halfs.get(at + 1).toInt()),
-                    halfToFloat(halfs.get(at + 2).toInt()), matrix, transfer)
+                    halfToFloat(halfs.get(at + 2).toInt()), matrix, transfer, sourceLinear)
                 luma[row * stride + column] = quantize10(yuv[0])
             }
         }
@@ -125,7 +140,7 @@ internal object TenBitYuv {
                 val yuv = toYuv2020(
                     halfToFloat(halfs.get(at).toInt()),
                     halfToFloat(halfs.get(at + 1).toInt()),
-                    halfToFloat(halfs.get(at + 2).toInt()), matrix, transfer)
+                    halfToFloat(halfs.get(at + 2).toInt()), matrix, transfer, sourceLinear)
                 chroma[uvRow * stride + uvColumn * 2] = quantize10(yuv[1] + 0.5f)
                 chroma[uvRow * stride + uvColumn * 2 + 1] = quantize10(yuv[2] + 0.5f)
             }

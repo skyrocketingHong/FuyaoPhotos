@@ -93,6 +93,21 @@ class TenBitYuvTest {
         assertTrue(sample(chromaAt) != 0)
     }
 
+    @Test fun encodedSrgbSourcePassesThroughWithoutSecondOetf() {
+        // A gamma-tagged F16 plane already stores sRGB-encoded values; the packer must not
+        // brighten them with a second curve (the ~1.4x wash-out seen on device).
+        val linear = TenBitYuv.toYuv2020(0.2f, 0.2f, 0.2f,
+            floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f), TenBitYuv.Transfer.SRGB, sourceLinear = true)
+        val encoded = TenBitYuv.toYuv2020(0.2f, 0.2f, 0.2f,
+            floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f), TenBitYuv.Transfer.SRGB, sourceLinear = false)
+        assertEquals(TenBitYuv.srgbOetf(0.2f), linear[0], 1e-4f)
+        assertEquals(0.2f, encoded[0], 1e-4f)
+        // HDR targets linearise an encoded source before PQ, not stack curves.
+        val hdr = TenBitYuv.toYuv2020(0.2f, 0.2f, 0.2f,
+            floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f), TenBitYuv.Transfer.PQ, sourceLinear = false)
+        assertEquals(TenBitYuv.pqOetf(TenBitYuv.srgbEotf(0.2f)), hdr[0], 1e-4f)
+    }
+
     @Test fun tightStrideNeverOverflowsTheChromaPlane() {
         // Device encoders report stride == width; the interleaved plane must still fit.
         val width = 4

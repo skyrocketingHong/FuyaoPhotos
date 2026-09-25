@@ -91,7 +91,7 @@ object HeicTenBitEncoder {
                 val sliceHeight = if (codec.inputFormat.containsKey(MediaFormat.KEY_SLICE_HEIGHT))
                     codec.inputFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT) else bitmap.height
                 val plane = TenBitYuv.encodeP010(readHalfBuffer(bitmap), bitmap.width, bitmap.height,
-                    stride, sliceHeight, bitmap.colorSpace?.name.orEmpty(), hdrTransfer)
+                    stride, sliceHeight, bitmap.colorSpace?.name.orEmpty(), hdrTransfer, sourceIsLinear(bitmap))
                 val input = codec.dequeueInputBuffer(10_000_000)
                 check(input >= 0) { "Encoder accepted no input buffer" }
                 val inputBuffer = codec.getInputBuffer(input)!!
@@ -235,6 +235,21 @@ object HeicTenBitEncoder {
             val setter: Method = Surface::class.java.getMethod("setBuffersDataSpace", Int::class.javaPrimitiveType)
             setter.invoke(surface, value)
         }
+    }
+
+    /**
+     * F16 storage follows the bitmap colour space's transfer curve: scRGB-family spaces are
+     * linear, an sRGB/gamma-tagged F16 plane already carries encoded values that must pass
+     * through (or be linearised for HDR targets) instead of receiving a second OETF.
+     */
+    private fun sourceIsLinear(bitmap: Bitmap): Boolean {
+        val space = bitmap.colorSpace ?: return true
+        val name = space.name
+        if (name.contains("linear", true) || name.contains("scRGB", true)) return true
+        val rgb = space as? android.graphics.ColorSpace.Rgb ?: return true
+        // The gamma exponent lives in the transfer parameter field g.
+        val parameters = rgb.transferParameters ?: return true
+        return parameters.g == 1.0
     }
 
     private fun readHalfBuffer(bitmap: Bitmap): java.nio.ShortBuffer {
