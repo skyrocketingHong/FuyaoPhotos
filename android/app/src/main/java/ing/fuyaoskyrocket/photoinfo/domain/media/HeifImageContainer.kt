@@ -64,7 +64,7 @@ internal data class HeifImageContainer(
     }
 
     fun validateEditable() {
-        require(bitDepth in 8..10 && (avif || bitDepth==8)) { "Unsupported image precision" }
+        require(bitDepth in 8..10 && (avif || bitDepth==8)) { "Unsupported image precision (editable: $bitDepth bits, avif=$avif)" }
         val gain = gainMap()
         require(items.count { it.type == "tmap" } <= 1)
         require(items.none { it.type == "mime" }) { "Unsupported attached metadata" }

@@ -14,7 +14,7 @@ internal object HeifGainmaps {
         val container = HeifImageContainer.read(file)
         // The editable-import policy caps HEIC at eight bits; ten-bit exports are this
         // helper's bread and butter, so only the structural invariants apply here.
-        require(container.bitDepth in 8..12) { "Unsupported image precision" }
+        require(container.bitDepth in 8..12) { "Unsupported image precision (gain map attach: ${container.bitDepth} bits, avif=${container.avif})" }
         val (id, metadata) = container.gainMap() ?: return
         val extracted = File.createTempFile("decode-gain-", if (container.avif) ".avif" else ".heic", file.parentFile)
         try {
