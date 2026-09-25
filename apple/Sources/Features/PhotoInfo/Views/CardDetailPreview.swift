@@ -7,6 +7,9 @@ struct CardDetailPreview: View {
     var highlightedField: CardField?
     var highlightedStyle: CardAdjustment?
 
+    /// The crop region always keeps the reference card ratio, so the preview box never jumps between photos.
+    static let referenceAspect: CGFloat = 215.0 / 168.0
+
     @State private var render: CardDetailRender?
     @State private var loading = false
     @State private var error: String?
@@ -15,12 +18,6 @@ struct CardDetailPreview: View {
 
     private var key: CardDetailPreviewKey {
         CardDetailPreviewKey(documentID: document.id, card: document.card, retry: retry)
-    }
-
-    private var selectionID: String {
-        if let highlightedField { return "field-\(highlightedField.rawValue)" }
-        if let highlightedStyle { return "style-\(highlightedStyle.rawValue)" }
-        return "none"
     }
 
     var body: some View {
@@ -36,10 +33,7 @@ struct CardDetailPreview: View {
                         .scaledToFit()
                         .padding(6)
                     CardSelectionHighlight(render: render, field: highlightedField, style: highlightedStyle)
-                        .id(selectionID)
-                        .transition(.opacity)
                 }
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
                 .modifier(ProcessingVeil(active: processing || loading, pulse: loading && !processing))
             } else if let error {
                 VStack(spacing: 6) {
@@ -99,43 +93,59 @@ private struct CardSelectionHighlight: View {
     let render: CardDetailRender
     let field: CardField?
     let style: CardAdjustment?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private struct Box: Equatable {
+        var rect: CGRect
+        var filled = false
+        var strokeWidth: CGFloat = 1
+        var cornerRadius: CGFloat = 3
+    }
+
+    private var boxes: [Box] {
+        guard let field else {
+            guard let style else { return [] }
+            if style == .textScale {
+                return render.textRects.values.flatMap { $0 }.map { Box(rect: $0, filled: true) }
+            }
+            var rect = render.cardRect
+            if style == .rightInset { rect = CGRect(x: rect.maxX - 3, y: rect.minY, width: 3, height: rect.height) }
+            if style == .bottomInset { rect = CGRect(x: rect.minX, y: rect.maxY - 3, width: rect.width, height: 3) }
+            return [Box(rect: rect, strokeWidth: 1.5, cornerRadius: style == .cornerRadius ? 12 : 4)]
+        }
+        return (render.textRects[field] ?? []).map { Box(rect: $0, filled: true, strokeWidth: 1) }
+    }
 
     var body: some View {
         GeometryReader { geometry in
-            Canvas { context, size in
-                let scale = min((size.width - 12) / CGFloat(render.image.width),
-                                (size.height - 12) / CGFloat(render.image.height))
-                guard scale.isFinite, scale > 0 else { return }
-                let origin = CGPoint(x: (size.width - CGFloat(render.image.width) * scale) / 2,
-                                     y: (size.height - CGFloat(render.image.height) * scale) / 2)
-                func scaled(_ rect: CGRect) -> CGRect {
-                    CGRect(x: origin.x + rect.minX * scale, y: origin.y + rect.minY * scale,
-                           width: rect.width * scale, height: rect.height * scale)
-                }
-                if let field {
-                    for rect in render.textRects[field] ?? [] {
-                        let path = Path(roundedRect: scaled(rect).insetBy(dx: -2, dy: -2), cornerRadius: 3)
-                        context.fill(path, with: .color(.yellow.opacity(0.20)))
-                        context.stroke(path, with: .color(.yellow.opacity(0.82)), lineWidth: 1)
-                    }
-                } else if let style {
-                    if style == .textScale {
-                        for rect in render.textRects.values.flatMap({ $0 }) {
-                            context.fill(Path(roundedRect: scaled(rect).insetBy(dx: -2, dy: -2), cornerRadius: 3),
-                                         with: .color(.yellow.opacity(0.15)))
+            let scale = min((geometry.size.width - 12) / CGFloat(render.image.width),
+                            (geometry.size.height - 12) / CGFloat(render.image.height))
+            let origin = CGPoint(x: (geometry.size.width - CGFloat(render.image.width) * scale) / 2,
+                                 y: (geometry.size.height - CGFloat(render.image.height) * scale) / 2)
+            ZStack {
+                ForEach(boxes.indices, id: \.self) { index in
+                    let box = boxes[index]
+                    HighlightBoxShape(cornerRadius: box.cornerRadius)
+                        .fill(.yellow.opacity(box.filled ? 0.20 : 0))
+                        .overlay {
+                            HighlightBoxShape(cornerRadius: box.cornerRadius)
+                                .stroke(.yellow.opacity(box.filled ? 0.82 : 0.88), lineWidth: box.strokeWidth)
                         }
-                    } else {
-                        var rect = scaled(render.cardRect)
-                        if style == .rightInset { rect = CGRect(x: rect.maxX - 3, y: rect.minY, width: 3, height: rect.height) }
-                        if style == .bottomInset { rect = CGRect(x: rect.minX, y: rect.maxY - 3, width: rect.width, height: 3) }
-                        let path = Path(roundedRect: rect, cornerRadius: style == .cornerRadius ? 12 : 4)
-                        context.stroke(path, with: .color(.yellow.opacity(0.88)), lineWidth: 1.5)
-                    }
+                        .frame(width: box.rect.width * scale, height: box.rect.height * scale)
+                        .position(x: origin.x + box.rect.midX * scale, y: origin.y + box.rect.midY * scale)
+                        .animation(reduceMotion ? nil : .snappy(duration: 0.32, extraBounce: 0.08), value: box.rect)
                 }
             }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+private struct HighlightBoxShape: Shape {
+    var cornerRadius: CGFloat
+    func path(in rect: CGRect) -> Path {
+        Path(roundedRect: rect.insetBy(dx: -2, dy: -2), cornerRadius: cornerRadius)
     }
 }
 

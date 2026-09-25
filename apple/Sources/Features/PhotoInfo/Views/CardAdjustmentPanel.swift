@@ -48,125 +48,24 @@ struct CardAdjustmentPanel: View {
     @State private var field: CardField = .author
     @State private var adjustment: CardAdjustment = .scale
     @State private var mode: EditingMode = .information
-    @FocusState private var focusedField: CardField?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private enum EditingMode: Hashable { case information, style }
 
     var body: some View {
-#if os(macOS)
-        macPanel
-#else
-        mobilePanel
-#endif
+        panel
     }
 
-#if os(macOS)
-    private var macPanel: some View {
+    private var panel: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
+            let contentWidth = min(640, geometry.size.width)
+            let selectorWidth = min(200, contentWidth * (dynamicTypeSize.isAccessibilitySize ? 0.32 : 0.4))
+            let detailWidth = max(0, contentWidth - selectorWidth - 16)
+            VStack(spacing: 12) {
                 Picker("card.edit.mode", selection: $mode) {
                     Label("card.information", systemImage: "info.circle").tag(EditingMode.information)
                     Label("card.style", systemImage: "slider.horizontal.3").tag(EditingMode.style)
                 }
                 .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 12)
-
-                Group {
-                    if mode == .information {
-                        EditorItemPicker(items: CardField.allCases, selection: $field) {
-                            $0 == .focalLength ? "card.field.focalLength.short" : LocalizedStringKey($0.titleKey)
-                        }
-                    } else {
-                        EditorItemPicker(items: CardAdjustment.allCases, selection: $adjustment) { $0.title }
-                    }
-                }
-                .id(mode)
-                .frame(height: max(120, min(260, geometry.size.height * 0.38)))
-
-                ScrollView {
-                    macEditor
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(20)
-                }
-                .frame(maxHeight: .infinity)
-            }
-        }
-        .background(Color(nsColor: .controlBackgroundColor))
-        .onChange(of: field) { _, _ in focusedField = nil }
-        .onChange(of: mode) { _, _ in focusedField = nil }
-    }
-
-    @ViewBuilder private var macEditor: some View {
-        if mode == .information {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(LocalizedStringKey(field.titleKey))
-                        .font(.title3.weight(.semibold)).foregroundStyle(.yellow)
-                    Spacer(minLength: 8)
-                    CircularIconButton("card.restore.selected", systemImage: "arrow.counterclockwise") {
-                        document.card[field] = document.defaultCard[field]
-                    }
-                    CircularIconButton("card.restore.all", systemImage: "arrow.counterclockwise.circle") {
-                        var card = document.card
-                        for item in CardField.allCases { card[item] = document.defaultCard[item] }
-                        document.card = card
-                    }
-                }
-                Text(LocalizedStringKey("card.field." + field.rawValue + ".hint"))
-                    .font(.subheadline).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                TextField(LocalizedStringKey(field.titleKey), text: $document.card[field], axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(2...5)
-                    .foregroundStyle(.yellow)
-                    .focused($focusedField, equals: field)
-            }
-        } else {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(adjustment.title)
-                        .font(.title3.weight(.semibold)).foregroundStyle(.yellow)
-                    Spacer(minLength: 8)
-                    CircularIconButton("card.restore.selected", systemImage: "arrow.counterclockwise") {
-                        document.card.style[keyPath: adjustment.keyPath] = PhotoCardStyle()[keyPath: adjustment.keyPath]
-                    }
-                    CircularIconButton("card.restore.all", systemImage: "arrow.counterclockwise.circle") {
-                        document.card.style = PhotoCardStyle()
-                    }
-                }
-                Text(LocalizedStringKey("card.style." + adjustment.rawValue + ".hint"))
-                    .font(.subheadline).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                CardStyleSlider(
-                    value: $document.card.style[dynamicMember: adjustment.keyPath],
-                    in: adjustment.range,
-                    defaultValue: PhotoCardStyle()[keyPath: adjustment.keyPath],
-                    label: adjustment.title,
-                    minimumSymbol: adjustment.symbols.0,
-                    maximumSymbol: adjustment.symbols.1,
-                    formattedValue: adjustment.percentage
-                        ? document.card.style[keyPath: adjustment.keyPath].formatted(.percent.precision(.fractionLength(0)))
-                        : document.card.style[keyPath: adjustment.keyPath].formatted(.number.precision(.fractionLength(0))))
-            }
-        }
-    }
-#endif
-
-#if !os(macOS)
-    private var mobilePanel: some View {
-        VStack(spacing: 12) {
-            Picker("card.edit.mode", selection: $mode) {
-                Label("card.information", systemImage: "info.circle").tag(EditingMode.information)
-                Label("card.style", systemImage: "slider.horizontal.3").tag(EditingMode.style)
-            }
-            .pickerStyle(.segmented)
-            GeometryReader { geometry in
-                let contentWidth = min(640, geometry.size.width)
-                let selectorWidth = min(200, contentWidth * (dynamicTypeSize.isAccessibilitySize ? 0.32 : 0.4))
-                let detailWidth = max(0, contentWidth - selectorWidth - 16)
                 HStack(alignment: .top, spacing: 16) {
                     ZStack {
                         if mode == .information {
@@ -185,40 +84,38 @@ struct CardAdjustmentPanel: View {
                     MobileCardInspector(document: document, field: field, adjustment: adjustment,
                                         information: mode == .information, selectionID: detailID,
                                         textEditingActive: $textEditingActive)
-                        .frame(width: detailWidth, height: geometry.size.height)
+                        .frame(width: detailWidth)
+                        .frame(maxHeight: .infinity)
                 }
                 .frame(width: contentWidth)
                 .frame(maxWidth: .infinity)
-                .background(alignment: .topTrailing) {
-                    PhotoAmbientBackdrop(sourceURL: document.sourceURL)
-                        .frame(width: detailWidth + selectorWidth * 0.18,
-                               height: min(250, geometry.size.height * 0.58))
-                        .mask {
-                            LinearGradient(stops: [
-                                .init(color: .clear, location: 0),
-                                .init(color: .white, location: 0.18),
-                                .init(color: .white, location: 0.82),
-                                .init(color: .clear, location: 1)
-                            ], startPoint: .leading, endPoint: .trailing)
-                        }
-                        .frame(width: contentWidth, height: geometry.size.height, alignment: .topTrailing)
-                        .allowsHitTesting(false)
-                }
             }
-            .frame(maxHeight: .infinity)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
+            .background(alignment: .topTrailing) {
+                PhotoAmbientBackdrop(sourceURL: document.sourceURL)
+                    .frame(width: detailWidth + selectorWidth * 0.18,
+                           height: min(294, geometry.size.height * 0.62))
+                    .mask {
+                        LinearGradient(stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: .white, location: 0.18),
+                            .init(color: .white, location: 0.82),
+                            .init(color: .clear, location: 1)
+                        ], startPoint: .leading, endPoint: .trailing)
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topTrailing)
+                    .allowsHitTesting(false)
+            }
         }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
         .onChange(of: mode) { _, _ in textEditingActive = false }
     }
 
     private var detailID: String {
         mode == .information ? "field-\(field.rawValue)" : "style-\(adjustment.rawValue)"
     }
-#endif
 }
 
-#if !os(macOS)
 private struct MobileCardInspector: View {
     @Bindable var document: CardDocument
     let field: CardField
@@ -239,7 +136,8 @@ private struct MobileCardInspector: View {
                                         max(52, height * (dynamicTypeSize.isAccessibilitySize ? 0.3 : 0.19)))
             let showsDescription = height >= (dynamicTypeSize.isAccessibilitySize ? 270 : 210)
             let showsDetail = height >= (dynamicTypeSize.isAccessibilitySize ? 420 : 280)
-            let previewHeight = min(220, max(64, height - controlHeight - descriptionHeight - buttonHeight - 24))
+            let previewRoom = max(64, height - controlHeight - descriptionHeight - buttonHeight - 24)
+            let previewHeight = min(geometry.size.width / CardDetailPreview.referenceAspect, 220, previewRoom)
 
             VStack(alignment: .leading, spacing: 8) {
                 if showsDetail {
@@ -266,7 +164,7 @@ private struct MobileCardInspector: View {
                     } else {
                         CardStyleSlider(
                             value: $document.card.style[dynamicMember: adjustment.keyPath],
-                            in: adjustment.range,
+                            range: adjustment.range,
                             defaultValue: PhotoCardStyle()[keyPath: adjustment.keyPath],
                             label: adjustment.title,
                             minimumSymbol: adjustment.symbols.0,
@@ -315,10 +213,12 @@ private struct MobileCardInspector: View {
         .onChange(of: document.card[field]) { oldValue, newValue in
             if editingText && oldValue != newValue { textEditingActive = true }
         }
+#if os(iOS)
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
             editingText = false
             textEditingActive = false
         }
+#endif
     }
 
     private func restoreButton(_ title: LocalizedStringKey, symbol: String, height: CGFloat,
@@ -359,20 +259,12 @@ private struct MobileCardInspector: View {
         }
     }
 }
-#endif
 
 private struct EditorItemPicker<Item: Hashable & Identifiable>: View {
     let items: [Item]
     @Binding var selection: Item
     let title: (Item) -> LocalizedStringKey
     var body: some View {
-#if os(macOS)
-        List(items,selection:Binding<Item?>(get:{ selection },set:{ if let value=$0 { selection=value } })) { item in
-            Text(title(item)).tag(item)
-        }
-        .listStyle(.plain).scrollContentBackground(.hidden)
-#else
         CameraItemSelector(items:items,selection:$selection,title:title)
-#endif
     }
 }
