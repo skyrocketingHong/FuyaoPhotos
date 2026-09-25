@@ -84,7 +84,18 @@ internal object HeicEncoder {
                 // platform sniffer.
                 val exifItem = HeifImageContainer.read(destination).items.firstOrNull { it.type == "Exif" }
                 val written = if (exifItem != null) {
-                    ExifInterface(exifItem.payload.inputStream().buffered())
+                    // The stream constructor has no EXIF-only mode; a minimal JPEG wrapper
+                    // takes the battle-tested APP1 path with the payload verbatim.
+                    val app1 = java.io.ByteArrayOutputStream()
+                    app1.write(0xff); app1.write(0xe1)
+                    val size = exifItem.payload.size + 2
+                    app1.write(size shr 8); app1.write(size and 255)
+                    app1.write(exifItem.payload)
+                    val jpeg = java.io.ByteArrayOutputStream()
+                    jpeg.write(0xff); jpeg.write(0xd8)
+                    jpeg.write(app1.toByteArray())
+                    jpeg.write(0xff); jpeg.write(0xd9)
+                    ExifInterface(jpeg.toByteArray().inputStream())
                 } else ExifInterface(destination)
                 check(requiredTags.keys.all { !written.getAttribute(it).isNullOrBlank() }) { "Capture metadata was not preserved" }
             }
