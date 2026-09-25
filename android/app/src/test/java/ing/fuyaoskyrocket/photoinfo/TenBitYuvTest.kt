@@ -93,6 +93,29 @@ class TenBitYuvTest {
         assertTrue(sample(chromaAt) != 0)
     }
 
+    @Test fun tightStrideNeverOverflowsTheChromaPlane() {
+        // Device encoders report stride == width; the interleaved plane must still fit.
+        val width = 4
+        val height = 4
+        fun half(value: Float): Int {
+            val bits = java.lang.Float.floatToRawIntBits(value)
+            val exponent = ((bits shr 23) and 0xff) - 127 + 15
+            val fraction = (bits shr 13) and 0x3ff
+            return (exponent shl 10) or fraction
+        }
+        val halfs = ShortArray(width * height * 4)
+        for (index in halfs.indices step 4) {
+            halfs[index] = half((index % 7) / 8f).toShort()
+            halfs[index + 1] = half((index % 5) / 8f).toShort()
+            halfs[index + 2] = half((index % 3) / 8f).toShort()
+            halfs[index + 3] = half(1f).toShort()
+        }
+        val bytes = TenBitYuv.encodeP010(java.nio.ShortBuffer.wrap(halfs), width, height,
+            stride = width, sliceHeight = height, colorSpaceName = "sRGB", hdrTransferAllowed = false)
+        // Luma plane width*height shorts + chroma width*(height/2) shorts, both tight.
+        assertEquals((width * height + width * height / 2) * 2, bytes.size)
+    }
+
     @Test fun colorSpaceClassificationFallsBackSafely() {
         assertEquals(TenBitYuv.Primaries.BT2020, TenBitYuv.primariesFor("LINEAR_BT2020"))
         assertEquals(TenBitYuv.Primaries.P3, TenBitYuv.primariesFor("Display P3"))

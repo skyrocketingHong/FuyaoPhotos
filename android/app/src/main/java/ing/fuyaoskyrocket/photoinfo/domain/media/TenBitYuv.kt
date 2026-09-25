@@ -107,6 +107,7 @@ internal object TenBitYuv {
         // decoded F16 plane carries a wide-gamut name; only true HDR containers go PQ/HLG.
         val transfer = if (hdrTransferAllowed) transferFor(colorSpaceName) else Transfer.SRGB
         val luma = ShortArray(stride * sliceHeight)
+        // P010 chroma is horizontally subsampled: width/2 interleaved U-V pairs per row.
         val chroma = ShortArray(stride * (sliceHeight / 2))
         for (row in 0 until height) {
             for (column in 0 until width) {
@@ -116,11 +117,17 @@ internal object TenBitYuv {
                     halfToFloat(halfs.get(at + 1).toInt()),
                     halfToFloat(halfs.get(at + 2).toInt()), matrix, transfer)
                 luma[row * stride + column] = quantize10(yuv[0])
-                val uvRow = row / 2
-                if (row and 1 == 0) {
-                    chroma[uvRow * stride + column * 2] = quantize10(yuv[1] + 0.5f)
-                    chroma[uvRow * stride + column * 2 + 1] = quantize10(yuv[2] + 0.5f)
-                }
+            }
+        }
+        for (uvRow in 0 until (height + 1) / 2) {
+            for (uvColumn in 0 until (width + 1) / 2) {
+                val at = (uvRow * 2 * width + uvColumn * 2) * 4
+                val yuv = toYuv2020(
+                    halfToFloat(halfs.get(at).toInt()),
+                    halfToFloat(halfs.get(at + 1).toInt()),
+                    halfToFloat(halfs.get(at + 2).toInt()), matrix, transfer)
+                chroma[uvRow * stride + uvColumn * 2] = quantize10(yuv[1] + 0.5f)
+                chroma[uvRow * stride + uvColumn * 2 + 1] = quantize10(yuv[2] + 0.5f)
             }
         }
         val out = ByteArray((luma.size + chroma.size) * 2)
