@@ -48,7 +48,8 @@ object HeicTenBitEncoder {
         try {
             encodeThroughSurface(bitmap, destination, quality, exif, surface, widePq, wideHlg)
         } catch (failure: Throwable) {
-            val bufferNote = if (p010 == null) "unavailable" else bufferFailure?.javaClass?.simpleName
+            val bufferNote = if (p010 == null) "unavailable"
+                else "${bufferFailure?.javaClass?.simpleName}: ${bufferFailure?.message}"
             throw IllegalStateException(
                 "Ten-bit HEVC failed [p010 ${p010?.name ?: "none"}: $bufferNote] " +
                 "[surface ${surface.name}: ${failure.javaClass.simpleName}: ${failure.message}]", failure)
@@ -155,10 +156,13 @@ object HeicTenBitEncoder {
                 }
                 index >= 0 -> {
                     val buffer = codec.getOutputBuffer(index)!!
-                    if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0 && info.size > 0) {
+                    if (info.size > 0) {
                         val bytes = ByteArray(info.size)
                         buffer.position(info.offset)
                         buffer.get(bytes)
+                        // Qualcomm C2 delivers the VPS/SPS/PPS as flagged codec-config
+                        // buffers instead of csd keys on the output format; both routes
+                        // land in the same Annex-B unit list.
                         units += ing.fuyaoskyrocket.photoinfo.domain.media.HevcConfiguration.splitAnnexB(bytes)
                     }
                     codec.releaseOutputBuffer(index, false)
