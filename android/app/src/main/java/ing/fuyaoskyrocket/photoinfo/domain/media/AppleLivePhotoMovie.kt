@@ -102,8 +102,13 @@ internal object AppleLivePhotoMovie {
             writeShort(0x40); repeat(3) { writeShort(0x8000) }; writeInt(0)
         }))
         val dinf = box("dinf", full("dref", payload = data { writeInt(1); write(full("url ", flags = 1, payload = byteArrayOf())) }))
-        val key = box(one, box("keyd", "mdta$STILL_TIME".toByteArray()), box("dtyp", data { writeInt(0); writeInt(65) }))
-        val mebx = box("mebx", ByteArray(6), byteArrayOf(0, 1), box("keys", key))
+        // Reference layout: keys{count, keyd{mdta+name}, dtyp{reserved, wellKnown=65}},
+        // with sdpd alongside; dtyp 65 marks the still-image-time well-known key.
+        val key = box("keyd", ("mdta$STILL_TIME").toByteArray())
+        val dtyp = box("dtyp", data { writeInt(0); writeInt(65) })
+        val sdpd = box("sdpd", data { writeInt(0) })
+        val mebx = box("mebx", ByteArray(6), byteArrayOf(0, 1),
+            box("keys", data { writeInt(1); write(key); write(dtyp); write(sdpd) }))
         val stbl = box("stbl", full("stsd", payload = data { writeInt(1); write(mebx) }),
             full("stts", payload = data { writeInt(1); writeInt(1); writeInt(1) }),
             full("stsc", payload = data { repeat(4) { writeInt(1) } }),
@@ -136,7 +141,10 @@ internal object AppleLivePhotoMovie {
             writeInt(index); previousKeys.forEach(::write); write(box("mdta", IDENTIFIER.toByteArray()))
         })
         val name = ByteBuffer.allocate(4).putInt(index).array().toString(Charsets.ISO_8859_1)
-        val value = box(name, box("data", data { writeInt(1); writeInt(0); writeBytes(identifier) }))
+        // The reference movie stores the 36-character identifier plus a NUL terminator;
+        // Photos' matcher compares the full payload, so the trailing byte is load-bearing.
+        val value = box(name, box("data", data {
+            writeInt(1); writeInt(0); writeBytes(identifier); writeByte(0) }))
         return box("meta", handler, keys, box("ilst", *(previousValues + listOf(value)).toTypedArray()))
     }
 }

@@ -30,6 +30,13 @@ class AppleLivePhotoTest {
             assertEquals(1, IsoBmff.boxes(result).count { it.type == "moov" })
             assertTrue(result.toString(Charsets.ISO_8859_1).contains(identifier))
             assertTrue(result.toString(Charsets.ISO_8859_1).contains("com.apple.quicktime.still-image-time"))
+            // The identifier payload must end with the NUL the Apple reference carries;
+            // Photos compares the whole data-box payload when pairing HEIC and MOV.
+            val text = result.toString(Charsets.ISO_8859_1)
+            val identifierAt = text.indexOf(identifier)
+            assertTrue(identifierAt > 0)
+            assertTrue("identifier payload: ${text.drop(identifierAt).take(40)}",
+                text.regionMatches(identifierAt + 36, "\u0000", 0, 1))
             assertThrows(IllegalArgumentException::class.java) { AppleLivePhotoMovie.write(source, output, identifier, 3_000_000) }
         } finally { source.delete(); output.delete() }
     }
