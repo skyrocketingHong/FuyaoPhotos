@@ -78,7 +78,14 @@ internal object HeicEncoder {
                 check(result.items.single { it.type == "tmap" }.payload.contentEquals(metadata.strictToneMap()))
             } else base.write(destination)
             if (requiredTags.isNotEmpty()) {
-                val written = ExifInterface(destination)
+                // androidx leans on MediaMetadataRetriever for HEIC, which silently skips the
+                // Exif item on some firmwares; read the item back ourselves and parse the
+                // payload as a standalone EXIF stream so the check tests our writer, not the
+                // platform sniffer.
+                val exifItem = HeifImageContainer.read(destination).items.firstOrNull { it.type == "Exif" }
+                val written = if (exifItem != null) {
+                    ExifInterface(exifItem.payload.inputStream().buffered())
+                } else ExifInterface(destination)
                 check(requiredTags.keys.all { !written.getAttribute(it).isNullOrBlank() }) { "Capture metadata was not preserved" }
             }
         } finally {
