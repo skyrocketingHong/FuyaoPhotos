@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import ing.fuyaoskyrocket.photoinfo.platform.PreviewDynamicRange
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import ing.fuyaoskyrocket.photoinfo.R
@@ -311,7 +312,18 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             text = { Text(message, Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) },
             confirmButton = { TextButton(onClick = vm::clearError) { Text(stringResource(R.string.close)) } },
             dismissButton = state.errorDetail?.let { detail ->
-                { TextButton(onClick = { showErrorDetails = true }) { Text(stringResource(R.string.error_show_details)) } }
+                {
+                    Row {
+                        val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+                        val copied = state.error.orEmpty() + "\n\n" + detail
+                        TextButton(onClick = { clipboard.setText(AnnotatedString(copied)) }) {
+                            Text(stringResource(R.string.error_copy_details))
+                        }
+                        TextButton(onClick = { showErrorDetails = true }) {
+                            Text(stringResource(R.string.error_show_details))
+                        }
+                    }
+                }
             })
     }
     if (showErrorDetails) {

@@ -225,6 +225,15 @@ internal data class HeifImageContainer(
         return copy(items = newItems, properties = props, references = newReferences)
     }
 
+    /** Attaches the capture Exif payload as its own item, referenced from the primary. */
+    fun withExif(exif: ByteArray?): HeifImageContainer {
+        if (exif == null) return this
+        require(exif.size <= 65500)
+        val id = items.maxOf { it.id } + 1
+        return copy(items = items + Item(id, "Exif", byteArrayOf(0), exif, hidden = true),
+            references = references + Reference("cdsc", id, listOf(primary)))
+    }
+
     /** Declares the trailing mpvd motion payload so HEIC exports play as live photos. */
     fun withMotionDirectory(timestampUs: Long, videoMime: String, videoLength: Long): HeifImageContainer {
         require(videoLength in 1..IsoBmff.MAX_BYTES && timestampUs >= -1 &&

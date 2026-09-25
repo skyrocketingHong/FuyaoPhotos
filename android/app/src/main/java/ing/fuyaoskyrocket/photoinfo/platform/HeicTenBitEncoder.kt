@@ -69,127 +69,149 @@ object HeicTenBitEncoder {
             setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_FULL)
         }
 
+    /**
+     * Drains the codec and assembles the HEIF item ourselves: parameter sets become the hvcC
+     * property, slices become the length-prefixed payload and the Exif rides as its own item.
+     * The platform HEIF muxer silently falls back to MP4 on some firmwares, so nothing here
+     * depends on MediaMuxer any more.
+     */
     private fun encodeWithBuffers(bitmap: Bitmap, destination: File, quality: Int, exif: ByteArray?,
         candidate: Candidate, hdrTransfer: Boolean, widePq: Boolean) {
         val format = baseFormat(bitmap, quality, widePq, candidate.level).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUVP010)
         }
-        val codec = MediaCodec.createByCodecName(candidate.name)
-        val muxer = MediaMuxer(destination.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_HEIF)
-        try {
-            codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            codec.start()
-            var stride = if (codec.inputFormat.containsKey(MediaFormat.KEY_STRIDE))
-                codec.inputFormat.getInteger(MediaFormat.KEY_STRIDE) else bitmap.width
-            // Some encoders report the luma stride in bytes even for 16-bit samples.
-            if (stride >= bitmap.width * 2) stride /= 2
-            val sliceHeight = if (codec.inputFormat.containsKey(MediaFormat.KEY_SLICE_HEIGHT))
-                codec.inputFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT) else bitmap.height
-            val plane = TenBitYuv.encodeP010(readHalfBuffer(bitmap), bitmap.width, bitmap.height,
-                stride, sliceHeight, bitmap.colorSpace?.name.orEmpty(), hdrTransfer)
-            val input = codec.dequeueInputBuffer(10_000_000)
-            check(input >= 0) { "Encoder accepted no input buffer" }
-            val inputBuffer = codec.getInputBuffer(input)!!
-            check(inputBuffer.remaining() >= plane.size) {
-                "Encoder input buffer holds ${inputBuffer.remaining()} of ${plane.size} frame bytes"
-            }
-            inputBuffer.clear()
-            inputBuffer.put(plane)
-            codec.queueInputBuffer(input, 0, plane.size, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-            // ByteBuffer video input demands one complete frame per buffer; a frame that
-            // does not fit is a hard failure and the surface route takes over.
-            var track = -1
-            var started = false
-            var outputDone = false
-            val info = MediaCodec.BufferInfo()
-            while (!outputDone) {
-                val index = codec.dequeueOutputBuffer(info, 10_000_000)
-                when {
-                    index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                        check(!started) { "Encoder format changed after the muxer started" }
-                        track = muxer.addTrack(codec.outputFormat)
-                        muxer.start()
-                        started = true
-                        writeExif(muxer, track, exif)
-                    }
-                    index >= 0 -> {
-                        if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0 && started) {
-                            muxer.writeSampleData(track, codec.getOutputBuffer(index)!!, info)
-                        }
-                        codec.releaseOutputBuffer(index, false)
-                        if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
-                    }
+        MediaCodec.createByCodecName(candidate.name).let { codec ->
+            try {
+                codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                codec.start()
+                var stride = if (codec.inputFormat.containsKey(MediaFormat.KEY_STRIDE))
+                    codec.inputFormat.getInteger(MediaFormat.KEY_STRIDE) else bitmap.width
+                if (stride >= bitmap.width * 2) stride /= 2
+                val sliceHeight = if (codec.inputFormat.containsKey(MediaFormat.KEY_SLICE_HEIGHT))
+                    codec.inputFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT) else bitmap.height
+                val plane = TenBitYuv.encodeP010(readHalfBuffer(bitmap), bitmap.width, bitmap.height,
+                    stride, sliceHeight, bitmap.colorSpace?.name.orEmpty(), hdrTransfer)
+                val input = codec.dequeueInputBuffer(10_000_000)
+                check(input >= 0) { "Encoder accepted no input buffer" }
+                val inputBuffer = codec.getInputBuffer(input)!!
+                check(inputBuffer.remaining() >= plane.size) {
+                    "Encoder input buffer holds ${inputBuffer.remaining()} of ${plane.size} frame bytes"
                 }
+                inputBuffer.clear()
+                inputBuffer.put(plane)
+                codec.queueInputBuffer(input, 0, plane.size, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                writeAssembled(readCsdAndSlices(codec), bitmap, exif, destination)
+            } finally {
+                runCatching { codec.stop() }
+                codec.release()
             }
-            check(started) { "Encoder produced no output format" }
-            muxer.stop()
-        } finally {
-            muxer.release()
-            runCatching { codec.stop() }
-            codec.release()
         }
     }
 
-    /**
-     * The camera HDR route: the encoder consumes frames from its input surface, tagged with
-     * a BT.2020 dataspace. setBuffersDataSpace is not public but its signature and the
-     * dataspace values are stable, and this is the one hook that reaches it.
-     */
     private fun encodeThroughSurface(bitmap: Bitmap, destination: File, quality: Int, exif: ByteArray?,
         candidate: Candidate, widePq: Boolean, wideHlg: Boolean) {
         val format = baseFormat(bitmap, quality, widePq, candidate.level)
-        val codec = MediaCodec.createByCodecName(candidate.name)
-        val muxer = MediaMuxer(destination.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_HEIF)
-        try {
-            codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            val surface = codec.createInputSurface()
-            applyDataSpace(surface, widePq, wideHlg)
-            codec.start()
-            val canvas = surface.lockHardwareCanvas()
+        MediaCodec.createByCodecName(candidate.name).let { codec ->
             try {
-                canvas.drawBitmap(bitmap, null, android.graphics.RectF(0f, 0f,
-                    bitmap.width.toFloat(), bitmap.height.toFloat()), null)
-            } finally { surface.unlockCanvasAndPost(canvas) }
-            codec.signalEndOfInputStream()
-            var track = -1
-            var started = false
-            val info = MediaCodec.BufferInfo()
-            while (true) {
-                val index = codec.dequeueOutputBuffer(info, 10_000_000)
-                when {
-                    index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                        check(!started) { "Encoder format changed after the muxer started" }
-                        track = muxer.addTrack(codec.outputFormat)
-                        muxer.start()
-                        started = true
-                        writeExif(muxer, track, exif)
-                    }
-                    index >= 0 -> {
-                        if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0 && started) {
-                            muxer.writeSampleData(track, codec.getOutputBuffer(index)!!, info)
-                        }
-                        codec.releaseOutputBuffer(index, false)
-                        if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
-                    }
-                }
+                codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                val surface = codec.createInputSurface()
+                applyDataSpace(surface, widePq, wideHlg)
+                codec.start()
+                val canvas = surface.lockHardwareCanvas()
+                try {
+                    canvas.drawBitmap(bitmap, null, android.graphics.RectF(0f, 0f,
+                        bitmap.width.toFloat(), bitmap.height.toFloat()), null)
+                } finally { surface.unlockCanvasAndPost(canvas) }
+                codec.signalEndOfInputStream()
+                writeAssembled(readCsdAndSlices(codec), bitmap, exif, destination)
+            } finally {
+                runCatching { codec.stop() }
+                codec.release()
             }
-            check(started) { "Encoder produced no output format" }
-            muxer.stop()
-        } finally {
-            muxer.release()
-            runCatching { codec.stop() }
-            codec.release()
         }
     }
 
-    private fun writeExif(muxer: MediaMuxer, track: Int, exif: ByteArray?) {
-        exif?.let { bytes ->
-            val payload = ByteBuffer.allocateDirect(bytes.size)
-            payload.put(bytes)
-            payload.flip()
-            val info = MediaCodec.BufferInfo()
-            info.set(0, bytes.size, 0, 0)
-            muxer.writeSampleData(track, payload, info)
+    private class CodedStream(val parameterSets: List<Pair<Int, ByteArray>>, val slices: List<Pair<Int, ByteArray>>)
+
+    private fun readCsdAndSlices(codec: MediaCodec): CodedStream {
+        val units = ArrayList<Pair<Int, ByteArray>>()
+        val info = MediaCodec.BufferInfo()
+        var haveFormat = false
+        while (true) {
+            val index = codec.dequeueOutputBuffer(info, 10_000_000)
+            when {
+                index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                    check(!haveFormat) { "Encoder format changed twice" }
+                    haveFormat = true
+                    val format = codec.outputFormat
+                    for (number in 0 until 16) {
+                        val key = "csd-$number"
+                        if (!format.containsKey(key)) break
+                        val buffer = format.getByteBuffer(key)!!
+                        val bytes = ByteArray(buffer.remaining())
+                        buffer.get(bytes)
+                        units += ing.fuyaoskyrocket.photoinfo.domain.media.HevcConfiguration.splitAnnexB(bytes)
+                    }
+                }
+                index >= 0 -> {
+                    val buffer = codec.getOutputBuffer(index)!!
+                    if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0 && info.size > 0) {
+                        val bytes = ByteArray(info.size)
+                        buffer.position(info.offset)
+                        buffer.get(bytes)
+                        units += ing.fuyaoskyrocket.photoinfo.domain.media.HevcConfiguration.splitAnnexB(bytes)
+                    }
+                    codec.releaseOutputBuffer(index, false)
+                    if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
+                }
+            }
+        }
+        check(haveFormat) { "Encoder produced no output format" }
+        val parameters = units.filter { it.first in 32..34 }
+        val slices = units.filter { it.first !in 32..34 }
+        check(parameters.any { it.first == 33 } && parameters.any { it.first == 34 }) {
+            "Encoder stream lacks SPS/PPS: ${parameters.map { it.first }}"
+        }
+        check(slices.isNotEmpty()) { "Encoder produced no coded slice" }
+        return CodedStream(parameters, slices)
+    }
+
+    private fun writeAssembled(stream: CodedStream, bitmap: Bitmap, exif: ByteArray?, destination: File) {
+        val hvcC = ing.fuyaoskyrocket.photoinfo.domain.media.HevcConfiguration.hvcBox(stream.parameterSets)
+        val payload = ing.fuyaoskyrocket.photoinfo.domain.media.HevcConfiguration.lengthPrefixed(stream.slices)
+        val ispe = IsoBmffFullProperty.ispe(bitmap.width, bitmap.height)
+        val pixi = IsoBmffFullProperty.pixi(intArrayOf(10, 10, 10))
+        val item = ing.fuyaoskyrocket.photoinfo.domain.media.HeifImageContainer.Item(
+            1, "hvc1", byteArrayOf(0), payload,
+            listOf(
+                ing.fuyaoskyrocket.photoinfo.domain.media.HeifImageContainer.Property(1, true),
+                ing.fuyaoskyrocket.photoinfo.domain.media.HeifImageContainer.Property(2, false),
+                ing.fuyaoskyrocket.photoinfo.domain.media.HeifImageContainer.Property(3, true)))
+        val container = ing.fuyaoskyrocket.photoinfo.domain.media.HeifImageContainer(
+            false, 1, listOf(item), listOf(ispe, pixi, hvcC), emptyList())
+        container.withExif(exif).write(destination)
+    }
+
+    // Small full-box property builders kept next to their only consumer.
+    private object IsoBmffFullProperty {
+        fun ispe(width: Int, height: Int): ByteArray = box("ispe") {
+            writeInt(width); writeInt(height)
+        }
+        fun pixi(channels: IntArray): ByteArray = box("pixi") {
+            write(channels.size); channels.forEach(::write)
+        }
+        private fun box(type: String, body: java.io.DataOutputStream.() -> Unit): ByteArray {
+            val out = java.io.ByteArrayOutputStream()
+            val stream = java.io.DataOutputStream(out)
+            stream.writeInt(0) // placeholder
+            stream.writeBytes(type)
+            stream.writeInt(0) // full box version and flags
+            stream.body()
+            stream.flush()
+            val bytes = out.toByteArray()
+            bytes[0] = (bytes.size ushr 24).toByte(); bytes[1] = (bytes.size ushr 16).toByte()
+            bytes[2] = (bytes.size ushr 8).toByte(); bytes[3] = bytes.size.toByte()
+            return bytes
         }
     }
 
