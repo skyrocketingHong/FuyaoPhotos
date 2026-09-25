@@ -15,7 +15,7 @@ import java.io.File
 
 internal object HeicEncoder {
     fun encode(bitmap: Bitmap, destination: File, quality: Int, exif: ByteArray?,
-        requiredTags: Map<String, String>, avif: Boolean = false) {
+        requiredTags: Map<String, String>, avif: Boolean = false, hdrTransfer: Boolean = false) {
         require(Build.VERSION.SDK_INT >= if (avif) 34 else 28)
         val gainmap = if (Build.VERSION.SDK_INT >= 34) bitmap.gainmap else null
         val baseFile = File.createTempFile("base-", ".heif", destination.parentFile)
@@ -25,7 +25,7 @@ internal object HeicEncoder {
         val tenBit = !avif && bitmap.config == Bitmap.Config.RGBA_F16
         try {
             if (tenBit) {
-                HeicTenBitEncoder.encode(bitmap, baseFile, quality, exif)
+                HeicTenBitEncoder.encode(bitmap, baseFile, quality, exif, hdrTransfer)
             } else {
                 if (Build.VERSION.SDK_INT >= 34) bitmap.setGainmap(null)
                 encodePlane(bitmap, baseFile, quality, exif, avif)
@@ -33,7 +33,12 @@ internal object HeicEncoder {
             val encodedBase = HeifImageContainer.read(baseFile)
             val space = bitmap.colorSpace
             val encoding = if (tenBit) {
-                9 to if (space?.name?.contains("PQ") == true || space?.name?.contains("HLG") == true) 16 else 13
+                val wide = space?.name?.contains("PQ") == true || space?.name?.contains("HLG") == true
+                9 to when {
+                    !hdrTransfer || !wide -> 13
+                    space?.name?.contains("HLG") == true -> 18
+                    else -> 16
+                }
             } else when {
                 space?.id==ColorSpace.Named.SRGB.ordinal -> 1 to 13
                 space?.id==ColorSpace.Named.BT709.ordinal -> 1 to 1

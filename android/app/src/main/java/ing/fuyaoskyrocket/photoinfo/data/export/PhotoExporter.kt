@@ -64,7 +64,9 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         require(format!=ExportFormat.AVIF || Build.VERSION.SDK_INT>=34) { context.getString(R.string.avif_requires_android14) }
         val runtime=Runtime.getRuntime();val freeHeap=runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory())
         val imageBytes=source.width.toLong()*source.height*(if(media.bitDepth>8 || media.hdrHint)8 else 4)
-        val peak=imageBytes*(if(source.orientation in 2..8)2 else 1)+32L*1024*1024
+        val tenBitPlan=format==ExportFormat.HEIC && Build.VERSION.SDK_INT>=33
+        val peak=imageBytes*(if(source.orientation in 2..8)2 else 1)+
+            (if(tenBitPlan) imageBytes+source.width.toLong()*source.height*3 else 0L)+32L*1024*1024
         val encoded=File.createTempFile("encoded-",".${format.extension}",context.cacheDir)
         val assembled=File.createTempFile("export-",".${format.extension}",context.cacheDir)
         val metadata=File.createTempFile("metadata-",".jpg",context.cacheDir)
@@ -141,7 +143,8 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 if(Build.VERSION.SDK_INT>=34 && hdr)expectedGain=HdrGainmaps.metadata(requireNotNull(bitmap.gainmap) { context.getString(R.string.hdr_not_preserved) })
                 expectedColor=bitmap.colorSpace?.name
                 if(format==ExportFormat.HEIC || format==ExportFormat.AVIF) {
-                    HeicEncoder.encode(bitmap,encoded,jpegQuality,selectedExif.singleOrNull(),selectedTags,format==ExportFormat.AVIF)
+                    HeicEncoder.encode(bitmap,encoded,jpegQuality,selectedExif.singleOrNull(),selectedTags,
+                        format==ExportFormat.AVIF,media.hdrTransfer)
                 } else encoded.outputStream().use { output ->
                     val codec=if(format==ExportFormat.JPEG)Bitmap.CompressFormat.JPEG else Bitmap.CompressFormat.PNG
                     if(!bitmap.compress(codec,jpegQuality.coerceIn(0,100),output))throw IOException("Image encoding failed")
@@ -178,9 +181,10 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                     require(result.length==original.length &&
                         java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
                             .contentEquals(MotionPhoto.digest(assembled,result.offset,result.length))) {
-                        context.getString(R.string.media_validation_failed)
+                        context.getString(R.string.media_validation_failed)+" (tail digest)"
                     }
                 }
+                portraitBytes=null
                 val options=BitmapFactory.Options().apply {
                     var sample=1
                     while(maxOf(source.width,source.height)/sample>1024)sample*=2
@@ -198,12 +202,18 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 if(format==ExportFormat.PNG && selectedTags.isNotEmpty())writeCaptureExif(assembled,source,selectedTags)
                 if(format==ExportFormat.HEIC || format==ExportFormat.AVIF) {
                     val checked=HeifImageContainer.read(assembled)
-                    checked.validateEditable()
-                    require(checked.bitDepth>=media.bitDepth && checked.hdrTransfer==media.hdrTransfer) { context.getString(R.string.media_validation_failed) }
-                    require((checked.gainMap()!=null)==(expectedGain!=null)) { context.getString(R.string.hdr_not_preserved) }
+                    // The editable-import policy caps HEIC at eight bits; our own ten-bit
+                    // output instead proves its shape: bit depth, declared BT.2020 colr and
+                    // the transfer matching the source container.
+                    if(tenBitSource) {
+                        require(checked.bitDepth>=10) { context.getString(R.string.media_validation_failed)+" (bit depth)" }
+                        requireColrBt2020(checked)
+                    } else checked.validateEditable()
+                    require(checked.bitDepth>=media.bitDepth && checked.hdrTransfer==media.hdrTransfer) { context.getString(R.string.media_validation_failed)+" (transfer)" }
+                    require((checked.gainMap()!=null)==(expectedGain!=null)) { context.getString(R.string.hdr_not_preserved)+" (gain map)" }
                     val bounds=BitmapFactory.Options().apply { inJustDecodeBounds=true }
                     BitmapFactory.decodeFile(assembled.absolutePath,bounds)
-                    require(bounds.outWidth==source.width && bounds.outHeight==source.height) { context.getString(R.string.media_validation_failed) }
+                    require(bounds.outWidth==source.width && bounds.outHeight==source.height) { context.getString(R.string.media_validation_failed)+" (dimensions)" }
                     val sample=BitmapFactory.Options().apply {
                         inPreferredConfig=if(media.bitDepth>8)Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888
                         if(Build.VERSION.SDK_INT>=34 && media.hdrTransfer) inPreferredColorSpace=android.graphics.ColorSpace.get(
@@ -215,8 +225,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                     val decoded=BitmapFactory.decodeFile(assembled.absolutePath,sample)
                         ?: throw IOException(context.getString(R.string.media_validation_failed))
                     try {
-                        require(tenBitSource || decoded.colorSpace?.name==expectedColor) { context.getString(R.string.media_validation_failed) }
-                        if(tenBitSource)requireColrBt2020(checked)
+                        require(tenBitSource || decoded.colorSpace?.name==expectedColor) { context.getString(R.string.media_validation_failed)+" (color space)" }
                         if(Build.VERSION.SDK_INT>=34 && expectedGain!=null) {
                             ing.fuyaoskyrocket.photoinfo.platform.HeifGainmaps.attach(assembled,decoded,sample.inSampleSize)
                             require(HdrGainmaps.matches(expectedGain,HdrGainmaps.metadata(requireNotNull(decoded.gainmap)))) {
@@ -327,7 +336,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         } ?: throw IllegalArgumentException(context.getString(R.string.media_validation_failed))
         val primaries=((colr[12].toInt() and 255) shl 8) or (colr[13].toInt() and 255)
         val transfer=((colr[14].toInt() and 255) shl 8) or (colr[15].toInt() and 255)
-        require(primaries==9 && transfer in setOf(13,16)) { context.getString(R.string.media_validation_failed) }
+        require(primaries==9 && transfer in setOf(13,16,18)) { context.getString(R.string.media_validation_failed)+" (colr)" }
     }
 
     companion object {

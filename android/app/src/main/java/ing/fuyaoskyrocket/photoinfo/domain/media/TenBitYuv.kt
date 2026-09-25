@@ -96,14 +96,16 @@ internal object TenBitYuv {
      * then interleaved UV at half height. Returns little-endian bytes.
      */
     fun encodeP010(halfs: java.nio.ShortBuffer, width: Int, height: Int, stride: Int, sliceHeight: Int,
-        colorSpaceName: String): ByteArray {
+        colorSpaceName: String, hdrTransferAllowed: Boolean = true): ByteArray {
         require(halfs.remaining() >= width * height * 4 && stride >= width && sliceHeight >= height)
         val matrix = when (primariesFor(colorSpaceName)) {
             Primaries.BT709 -> BT709_TO_2020
             Primaries.P3 -> P3_TO_2020
             Primaries.BT2020 -> IDENTITY
         }
-        val transfer = transferFor(colorSpaceName)
+        // An SDR-container source (Ultra HDR JPEG) must keep its SDR base curve even when the
+        // decoded F16 plane carries a wide-gamut name; only true HDR containers go PQ/HLG.
+        val transfer = if (hdrTransferAllowed) transferFor(colorSpaceName) else Transfer.SRGB
         val luma = ShortArray(stride * sliceHeight)
         val chroma = ShortArray(stride * (sliceHeight / 2))
         for (row in 0 until height) {

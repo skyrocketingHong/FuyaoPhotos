@@ -17,7 +17,7 @@ import java.nio.ByteOrder
  * the container; the Exif payload rides along as a sample exactly like HeifWriter sends it.
  */
 object HeicTenBitEncoder {
-    fun encode(bitmap: Bitmap, destination: File, quality: Int, exif: ByteArray?) {
+    fun encode(bitmap: Bitmap, destination: File, quality: Int, exif: ByteArray?, hdrTransfer: Boolean) {
         require(bitmap.config == Bitmap.Config.RGBA_F16)
         check(android.os.Build.VERSION.SDK_INT >= 33) { "Ten-bit HEIC encoding needs Android 13 or newer" }
         val codecName = pickEncoder()
@@ -31,7 +31,7 @@ object HeicTenBitEncoder {
             setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT2020)
             setInteger(
                 MediaFormat.KEY_COLOR_TRANSFER,
-                if (TenBitYuv.transferFor(bitmap.colorSpace?.name.orEmpty()) == TenBitYuv.Transfer.PQ)
+                if (hdrTransfer && TenBitYuv.transferFor(bitmap.colorSpace?.name.orEmpty()) == TenBitYuv.Transfer.PQ)
                     MediaFormat.COLOR_TRANSFER_ST2084 else MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
             setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_FULL)
         }
@@ -45,7 +45,7 @@ object HeicTenBitEncoder {
             val sliceHeight = if (codec.inputFormat.containsKey(MediaFormat.KEY_SLICE_HEIGHT))
                 codec.inputFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT) else bitmap.height
             val plane = TenBitYuv.encodeP010(readHalfBuffer(bitmap), bitmap.width, bitmap.height,
-                stride, sliceHeight, bitmap.colorSpace?.name.orEmpty())
+                stride, sliceHeight, bitmap.colorSpace?.name.orEmpty(), hdrTransfer)
             var track = -1
             var started = false
             var inputDone = false
@@ -98,9 +98,9 @@ object HeicTenBitEncoder {
         }
     }
 
-    /** One pixel copy only: the F16 plane is read straight into P010 through this view. */
+    /** One pixel copy only, on the Java heap so the export memory guard sees it and GC reclaims it. */
     private fun readHalfBuffer(bitmap: Bitmap): java.nio.ShortBuffer {
-        val buffer = ByteBuffer.allocateDirect(bitmap.byteCount).order(ByteOrder.nativeOrder())
+        val buffer = ByteBuffer.allocate(bitmap.byteCount).order(ByteOrder.nativeOrder())
         bitmap.copyPixelsToBuffer(buffer)
         return buffer.asShortBuffer()
     }
