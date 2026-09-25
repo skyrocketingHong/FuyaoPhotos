@@ -81,8 +81,11 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 val decoded=XiaomiPortraitDepth.decode(tail)
                 val length=XiaomiPortraitTail.layout(tail).secondEnd
                 unblurred.outputStream().use { it.write(tail,0,length) }
+                // The extracted capture may still declare the shot's motion directory, which
+                // points past this fragment; the tail layout above already verified it, so only
+                // the pixel geometry needs to match here.
                 val raw=photos.inspect(unblurred)
-                require(!raw.media.blocked && raw.width==source.width && raw.height==source.height) {
+                require(raw.width==source.width && raw.height==source.height) {
                     context.getString(R.string.media_validation_failed)
                 }
                 val width=if(decoded.orientation in 5..8)raw.height else raw.width

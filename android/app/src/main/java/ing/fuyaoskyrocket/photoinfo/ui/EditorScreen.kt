@@ -318,12 +318,16 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
     onDismiss: () -> Unit, onExport: (ExportOptions) -> Unit) {
     var options by rememberSaveable(stateSaver=ExportOptionsSaver) {
         val supported = if ((Build.VERSION.SDK_INT < 28 && defaults.format == ExportFormat.HEIC) ||
-            (Build.VERSION.SDK_INT < 34 && defaults.format == ExportFormat.AVIF) || (hasPortrait && !defaults.applePortrait) ||
-            (hasMotion && (!defaults.separateLivePhoto || defaults.format !in setOf(ExportFormat.JPEG,ExportFormat.HEIC))))
+            (Build.VERSION.SDK_INT < 34 && defaults.format == ExportFormat.AVIF) ||
+            (hasPortrait && !defaults.applePortrait && !defaults.appleStyle) ||
+            (hasMotion && (!defaults.separateLivePhoto || defaults.format !in setOf(ExportFormat.JPEG,ExportFormat.HEIC)) && !defaults.appleStyle))
             defaults.copy(format = ExportFormat.JPEG, appleStyle = false) else defaults
         mutableStateOf((when {
             avifRequired -> supported.copy(format=ExportFormat.AVIF, appleStyle=false)
-            hasPortrait && defaults.applePortrait -> supported.copy(format=ExportFormat.HEIC,separateLivePhoto=hasMotion || supported.separateLivePhoto)
+            (hasPortrait && supported.applePortrait) || supported.appleStyle -> supported.copy(format=ExportFormat.HEIC,
+                applePortrait=supported.applePortrait || (supported.appleStyle && hasPortrait),
+                separateLivePhoto=supported.separateLivePhoto ||
+                    ((supported.appleStyle || (hasPortrait && supported.applePortrait)) && hasMotion))
             else -> supported
         }).sanitized(jpegRequired))
     }

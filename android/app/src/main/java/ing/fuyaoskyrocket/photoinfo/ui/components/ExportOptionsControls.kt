@@ -60,7 +60,12 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
             format=if(it)ExportFormat.HEIC else if(hasPortrait)ExportFormat.JPEG else options.format))
     }
     if(!avifRequired && ExportFormat.HEIC in supportedFormats && Build.VERSION.SDK_INT>=28) MetadataSwitch(R.string.apple_style,R.string.apple_style_hint,options.appleStyle) {
-        onChange(options.copy(appleStyle=it, format=if(it)ExportFormat.HEIC else options.format))
+        // HEIC cannot carry the Xiaomi tail or an unpaired motion video, so enabling the style
+        // pulls in the depth conversion and the live pairing when the photo needs them.
+        onChange(options.copy(appleStyle=it,
+            applePortrait=options.applePortrait || (it && hasPortrait),
+            separateLivePhoto=options.separateLivePhoto || (it && hasMotion),
+            format=if(it)ExportFormat.HEIC else options.format))
     }
     if(options.format==ExportFormat.HEIC) Text(stringResource(R.string.heic_sdr_hint),
         style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
