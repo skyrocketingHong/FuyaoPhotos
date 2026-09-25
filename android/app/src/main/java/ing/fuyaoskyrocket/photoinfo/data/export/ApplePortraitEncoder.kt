@@ -9,7 +9,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.media.XiaomiPortraitDepth
 import java.io.File
 
 internal object ApplePortraitEncoder {
-    fun attach(file: File, portrait: XiaomiPortraitDepth.Result, orientation: Int) {
+    fun attach(file: File, portrait: XiaomiPortraitDepth.Result, orientation: Int, aperture: Double? = null) {
         var container = HeifImageContainer.read(file)
         val temp = File.createTempFile("portrait-plane-", ".heic", file.parentFile)
         try {
@@ -19,7 +19,7 @@ internal object ApplePortraitEncoder {
                 finally { pixels.recycle() }
                 container = container.withAuxiliary(HeifImageContainer.read(temp), type, xmp)
             }
-            append(portrait.disparity, ApplePortraitMetadata.DISPARITY, ApplePortraitMetadata.disparityXmp(null))
+            append(portrait.disparity, ApplePortraitMetadata.DISPARITY, ApplePortraitMetadata.disparityXmp(aperture))
             portrait.matte?.let { append(it, ApplePortraitMetadata.MATTE, ApplePortraitMetadata.matteXmp) }
             container.write(file)
             val verified = HeifImageContainer.read(file)

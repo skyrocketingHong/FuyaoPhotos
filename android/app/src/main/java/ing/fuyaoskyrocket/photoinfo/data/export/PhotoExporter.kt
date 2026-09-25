@@ -42,6 +42,9 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         val paired = options.separateLivePhoto && media.motion != null
         val convertPortrait = options.applePortrait && media.portraitTail != null
         require(!convertPortrait || format==ExportFormat.HEIC) { context.getString(R.string.portrait_heic_required) }
+        // Apple tags portrait output with CustomRendered=9 alongside the depth auxiliary images.
+        val selectedTags=ExportMetadata.select(source.captureTags,options) +
+            if(convertPortrait) mapOf("CustomRendered" to "9") else emptyMap()
         require(!paired || (pairDirectory!=null && format in setOf(ExportFormat.JPEG,ExportFormat.HEIC))) {
             context.getString(R.string.live_pair_format)
         }
@@ -63,7 +66,6 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         val pairedMovie=File.createTempFile("paired-", ".mov", context.cacheDir)
         val unblurred=File.createTempFile("unblurred-", ".jpg", context.cacheDir)
         val identifier=if(paired)java.util.UUID.randomUUID().toString().uppercase(Locale.ROOT) else null
-        val selectedTags=ExportMetadata.select(source.captureTags,options)
         var stage=R.string.export_stage_prepare
         try {
             var renderSource=source
@@ -208,7 +210,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             }
             if(portrait!=null) {
                 stage=R.string.export_stage_depth_encode
-                ApplePortraitEncoder.attach(assembled,portrait,portrait.orientation)
+                ApplePortraitEncoder.attach(assembled,portrait,portrait.orientation,captureAperture(source.captureTags))
             }
             currentCoroutineContext().ensureActive()
             stage=R.string.export_stage_publish
@@ -276,6 +278,13 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
     companion object {
         const val DEFAULT_JPEG_QUALITY = 100
         fun filename(format:ExportFormat,motion:Boolean=false)="Fuyao_${SimpleDateFormat("yyyyMMdd_HHmmss_SSS",Locale.ROOT).format(Date())}${if(motion) "_MP" else ""}.${format.extension}"
+        private fun captureAperture(tags: Map<String, String>): Double? {
+            val raw = tags["FNumber"] ?: return null
+            val parts = raw.split('/')
+            val value = if (parts.size == 2) parts[0].toDoubleOrNull()?.div(parts[1].toDoubleOrNull() ?: return null)
+            else raw.toDoubleOrNull()
+            return value?.takeIf { it.isFinite() && it > 0 }
+        }
     }
 }
 
