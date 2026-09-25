@@ -2,6 +2,9 @@ package ing.fuyaoskyrocket.photoinfo.ui.components
 
 import android.graphics.Bitmap
 import android.graphics.RectF
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -10,7 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +70,15 @@ internal fun CardDetailPreview(
         if (bitmap != null && box != null) {
             val image = remember(bitmap) { bitmap.asImageBitmap() }
             val crop = remember(bitmap, box) { cardCrop(bitmap, box) }
+            val selectedRows = highlightRects.filter { it.width() > 0f && it.height() > 0f }
+            val cardBoxRect = remember(box) { RectF(box.left, box.top, box.right, box.bottom) }
+            val targets = when {
+                selectedRows.isNotEmpty() -> selectedRows
+                highlightStyle != null -> listOf(cardBoxRect)
+                else -> emptyList()
+            }
+            val animatedRects = rememberAnimatedRects(targets)
+            val fieldMode = selectedRows.isNotEmpty()
             PendingPhotoEffect(rendering || editingActive, Modifier.fillMaxSize()) {
                 Canvas(Modifier.fillMaxSize()) {
                     if (size.width <= 0f || size.height <= 0f) return@Canvas
@@ -87,18 +103,18 @@ internal fun CardDetailPreview(
                         left + (rect.right - crop.left) * xScale,
                         top + (rect.bottom - crop.top) * yScale,
                     )
-                    val selectedRows = highlightRects.filter { it.width() > 0f && it.height() > 0f }
-                    selectedRows.forEach { row ->
-                        val rect = map(row)
-                        val corner = CornerRadius(3.dp.toPx())
-                        drawRoundRect(accent.copy(alpha = .18f), Offset(rect.left, rect.top),
-                            Size(rect.width(), rect.height()), corner)
-                        drawRoundRect(accent, Offset(rect.left, rect.top),
-                            Size(rect.width(), rect.height()), corner,
-                            style = Stroke(1.5.dp.toPx()))
-                    }
-                    if (highlightStyle != null) {
-                        val rect = map(RectF(box.left, box.top, box.right, box.bottom))
+                    if (fieldMode) {
+                        animatedRects.forEach { row ->
+                            val rect = map(row)
+                            val corner = CornerRadius(3.dp.toPx())
+                            drawRoundRect(accent.copy(alpha = .18f), Offset(rect.left, rect.top),
+                                Size(rect.width(), rect.height()), corner)
+                            drawRoundRect(accent, Offset(rect.left, rect.top),
+                                Size(rect.width(), rect.height()), corner,
+                                style = Stroke(1.5.dp.toPx()))
+                        }
+                    } else if (highlightStyle != null && animatedRects.isNotEmpty()) {
+                        val rect = map(animatedRects.first())
                         val stroke = 2.dp.toPx()
                         when (highlightStyle) {
                             CardPreviewStyleHighlight.CARD -> drawRoundRect(
@@ -122,6 +138,30 @@ internal fun CardDetailPreview(
             )
         }
     }
+}
+
+/** Moves the highlight between selections with an eased, non-linear slide. */
+@Composable
+private fun rememberAnimatedRects(targets: List<RectF>): List<RectF> {
+    val animated = remember { mutableStateOf(targets) }
+    LaunchedEffect(targets) {
+        val from = animated.value
+        if (from == targets) return@LaunchedEffect
+        val progress = Animatable(0f)
+        progress.animateTo(1f, tween(durationMillis = 280, easing = CubicBezierEasing(.2f, 0f, 0f, 1f))) {
+            animated.value = targets.mapIndexed { index, target ->
+                val start = from.getOrNull(index) ?: target
+                RectF(
+                    start.left + (target.left - start.left) * value,
+                    start.top + (target.top - start.top) * value,
+                    start.right + (target.right - start.right) * value,
+                    start.bottom + (target.bottom - start.bottom) * value,
+                )
+            }
+        }
+        animated.value = targets
+    }
+    return animated.value
 }
 
 private fun cardCrop(bitmap: Bitmap, box: CardBox): CardCrop {

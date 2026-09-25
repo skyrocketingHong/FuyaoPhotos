@@ -2,6 +2,8 @@ package ing.fuyaoskyrocket.photoinfo.ui.components
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -113,14 +115,16 @@ private fun EditorInspector(
 ) {
     BoxWithConstraints(modifier) {
         val tight = maxHeight < 200.dp
+        val scrollable = maxHeight < 380.dp
         val controlHeight = if (tight) 64.dp else 76.dp
         val hintHeight = if (maxWidth < 190.dp) 88.dp else 72.dp
-        val showHint = maxHeight >= controlHeight + 48.dp + hintHeight + 16.dp
+        val showHint = maxHeight >= controlHeight + 48.dp + hintHeight + 16.dp || scrollable
         val previewRoom = maxHeight - controlHeight - 48.dp -
             (if (showHint) hintHeight + 20.dp else 12.dp)
-        val showPreview = maxHeight >= 250.dp && previewRoom >= 80.dp &&
+        // The crop keeps the reference card ratio, so a full-width box has a stable height.
+        val previewHeight = minOf(maxWidth / CardPreviewReference.aspect, previewRoom, 220.dp)
+        val showPreview = maxHeight >= 210.dp && previewHeight >= 56.dp &&
             LocalDensity.current.fontScale < 1.5f
-        val previewHeight = minOf(maxWidth * .94f, previewRoom, 240.dp)
         val selection = tab to if (tab == 0) fieldIndex else styleIndex
         val currentField = FieldId.entries[fieldIndex]
         val currentStyle = StyleSetting.entries.getOrNull(styleIndex)
@@ -146,9 +150,9 @@ private fun EditorInspector(
             }
         }
         EditorAmbientBackdrop(state.original,
-            Modifier.align(Alignment.TopCenter).requiredWidth(maxWidth + 24.dp)
+            modifier = Modifier.align(Alignment.TopCenter).requiredWidth(maxWidth + 24.dp)
                 .height(minOf(240.dp, maxHeight * .58f)))
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
             if (showPreview) {
                 CardDetailPreview(
                     bitmap = state.preview,
@@ -178,22 +182,27 @@ private fun EditorInspector(
                 } else {
                     val setting = StyleSetting.entries[selectedIndex]
                     val value = setting.value(state.style)
-                    val reference = setting.value(CardStyle())
                     CardStyleSlider(value, { onStyle(setting.update(state.style, it)) },
-                        setting.minimum..setting.maximum, reference, stringResource(setting.label),
-                        styleValue(setting.percentage, value), styleValue(setting.percentage, reference),
-                        !state.busy, Modifier.fillMaxWidth())
+                        setting.minimum..setting.maximum, setting.value(CardStyle()), stringResource(setting.label),
+                        styleValue(setting.percentage, value), !state.busy, Modifier.fillMaxWidth())
                 }
             }
-            Spacer(Modifier.weight(1f))
+            if (!scrollable) Spacer(Modifier.weight(1f))
             if (showHint) {
                 Spacer(Modifier.height(8.dp))
-                Box(Modifier.fillMaxWidth().height(hintHeight), contentAlignment = Alignment.CenterStart) {
+                Column(Modifier.fillMaxWidth().heightIn(min = hintHeight), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     val hintText = stringResource(hint)
                     Text(hintText, Modifier.semantics { contentDescription = hintText },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 4, overflow = TextOverflow.Ellipsis)
+                    if (tab == 1 && currentStyle != null) {
+                        Text(stringResource(R.string.style_reference, styleValue(currentStyle.percentage,
+                            currentStyle.value(CardStyle()))),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -211,6 +220,11 @@ private fun EditorInspector(
             }
         }
     }
+}
+
+/** Reference card box ratio: the detail crop always keeps it, so the preview never jumps. */
+internal object CardPreviewReference {
+    val aspect = 215f / 168f
 }
 
 @Composable
