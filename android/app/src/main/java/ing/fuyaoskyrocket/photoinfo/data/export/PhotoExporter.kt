@@ -42,6 +42,12 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         val paired = options.separateLivePhoto && media.motion != null
         val convertPortrait = options.applePortrait && media.portraitTail != null
         require(!convertPortrait || format==ExportFormat.HEIC) { context.getString(R.string.portrait_heic_required) }
+        // Live Photo pairing and photographic styles stay mutually exclusive; Apple's editor
+        // fails to load the combination, as observed by the XDRemux reference implementation.
+        val injectStyle = options.appleStyle && format == ExportFormat.HEIC && !paired
+        require(!options.appleStyle || format==ExportFormat.HEIC) { context.getString(R.string.style_heic_required) }
+        require(!injectStyle || !paired) { context.getString(R.string.style_live_exclusive) }
+        val styleIdentifier = if (injectStyle) AppleStyleMetadata.newIdentifier() else null
         // Apple tags portrait output with CustomRendered=9 alongside the depth auxiliary images.
         val selectedTags=ExportMetadata.select(source.captureTags,options) +
             if(convertPortrait) mapOf("CustomRendered" to "9") else emptyMap()
@@ -100,13 +106,17 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             } else emptyList()
             val selectedExif=when {
                 identifier!=null -> listOf(ApplePhotoMetadata.withIdentifier(captureExif.singleOrNull(),identifier))
+                convertPortrait && styleIdentifier!=null -> listOf(
+                    ApplePhotoMetadata.withPortraitStyles(captureExif.singleOrNull(),styleIdentifier))
                 convertPortrait -> listOf(ApplePhotoMetadata.withPortrait(captureExif.singleOrNull()))
+                styleIdentifier!=null -> listOf(ApplePhotoMetadata.withStyles(captureExif.singleOrNull(),styleIdentifier))
                 else -> captureExif
             }
             if(identifier!=null)AppleLivePhotoMovie.write(videoFile,pairedMovie,identifier,requireNotNull(media.motion).timestampUs)
             var expectedGain:FloatArray?=null
             var expectedColor:String?=null
             var portraitBytes:ByteArray?=null
+            var styleAssets:StyleAssets?=null
             stage=R.string.export_stage_decode
             val bitmap=photos.decode(renderSource,preview=false)
             try {
@@ -121,6 +131,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 }
                 stage=R.string.export_stage_encode
                 renderer.drawInPlace(bitmap,info,style,typography,opaqueBackground=format!=ExportFormat.PNG)
+                if(injectStyle)styleAssets=encodeStyleAssets(bitmap)
                 if(Build.VERSION.SDK_INT>=34 && hdr)expectedGain=HdrGainmaps.metadata(requireNotNull(bitmap.gainmap) { context.getString(R.string.hdr_not_preserved) })
                 expectedColor=bitmap.colorSpace?.name
                 if(format==ExportFormat.HEIC || format==ExportFormat.AVIF) {
@@ -212,6 +223,12 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 stage=R.string.export_stage_depth_encode
                 ApplePortraitEncoder.attach(assembled,portrait,portrait.orientation,captureAperture(source.captureTags))
             }
+            if(styleAssets!=null) {
+                stage=R.string.export_stage_style_encode
+                val assets=requireNotNull(styleAssets)
+                HeifImageContainer.read(assembled).withPhotographicStyles(assets.deltaWidth,assets.deltaHeight,
+                    assets.landscape,assets.linear,assets.sky).write(assembled)
+            }
             currentCoroutineContext().ensureActive()
             stage=R.string.export_stage_publish
             if(paired)return publishPair(assembled,pairedMovie,format,requireNotNull(pairDirectory))
@@ -285,6 +302,45 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             else raw.toDoubleOrNull()
             return value?.takeIf { it.isFinite() && it > 0 }
         }
+    }
+
+    private class StyleAssets(val deltaWidth:Int,val deltaHeight:Int,val landscape:Boolean,
+        val linear:HeifImageContainer,val sky:HeifImageContainer)
+
+    /** Encodes the linear thumbnail and sky placeholder the style layer refers to. */
+    private fun encodeStyleAssets(bitmap:Bitmap):StyleAssets {
+        val landscape=bitmap.width>=bitmap.height
+        val maxWidth=if(landscape)2880 else 2560
+        val maxHeight=if(landscape)2560 else 2880
+        val scale=minOf(1.0,minOf(maxWidth.toDouble()/bitmap.width,maxHeight.toDouble()/bitmap.height))
+        fun fitted(value:Int)=(Math.round(value*scale/2.0).toInt().coerceAtLeast(1)*2).coerceAtMost(if(value==bitmap.width)maxWidth else maxHeight)
+        val linearFile=File.createTempFile("style-linear-",".heic",context.cacheDir)
+        val skyFile=File.createTempFile("style-sky-",".heic",context.cacheDir)
+        try {
+            val linear=linearThumbnail(bitmap)
+            val sky=Bitmap.createBitmap(((bitmap.width/2) and -2).coerceAtLeast(2),
+                ((bitmap.height/2) and -2).coerceAtLeast(2),Bitmap.Config.ARGB_8888)
+            try {
+                HeicEncoder.encode(linear,linearFile,100,null,emptyMap())
+                HeicEncoder.encode(sky,skyFile,100,null,emptyMap())
+            } finally { if(linear!==bitmap)linear.recycle();sky.recycle() }
+            return StyleAssets(fitted(bitmap.width),fitted(bitmap.height),landscape,
+                HeifImageContainer.read(linearFile),HeifImageContainer.read(skyFile))
+        } finally { linearFile.delete();skyFile.delete() }
+    }
+
+    private fun linearThumbnail(bitmap:Bitmap):Bitmap {
+        val target=4f/3f
+        val ratio=bitmap.width.toFloat()/bitmap.height
+        val cropWidth=if(ratio>target)(bitmap.height*target).toInt() else bitmap.width
+        val cropHeight=if(ratio>target)bitmap.height else (bitmap.width/target).toInt()
+        val cropped=if(cropWidth==bitmap.width && cropHeight==bitmap.height)bitmap else run {
+            val created=Bitmap.createBitmap(bitmap,(bitmap.width-cropWidth)/2,(bitmap.height-cropHeight)/2,cropWidth,cropHeight)
+            if(created==bitmap)bitmap else created
+        }
+        val scaled=Bitmap.createScaledBitmap(cropped,1024,768,true)
+        if(scaled!==cropped && cropped!==bitmap)cropped.recycle()
+        return scaled
     }
 }
 

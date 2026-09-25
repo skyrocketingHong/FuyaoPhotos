@@ -20,6 +20,12 @@ internal object ApplePhotoMetadata {
         writeShort(0x0014); writeShort(9); writeInt(1); writeInt(2); writeInt(0)
     })
 
+    fun withStyles(exif: ByteArray?, identifier: String): ByteArray =
+        withMakerNote(exif, AppleStyleMetadata.stylesNote(identifier, includePortrait = false))
+
+    fun withPortraitStyles(exif: ByteArray?, identifier: String): ByteArray =
+        withMakerNote(exif, AppleStyleMetadata.stylesNote(identifier, includePortrait = true))
+
     private fun withMakerNote(exif: ByteArray?, note: ByteArray): ByteArray {
         val prefix = "Exif\u0000\u0000".toByteArray()
         val source = if (exif == null) byteArrayOf(0x4d, 0x4d, 0, 42, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0) else {

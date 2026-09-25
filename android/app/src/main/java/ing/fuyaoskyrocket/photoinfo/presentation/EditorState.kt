@@ -65,11 +65,12 @@ data class EditorState(
     val exportRequiresAvif: Boolean = false,
     val separateLivePhoto: Boolean = false,
     val applePortrait: Boolean = false,
+    val appleStyle: Boolean = false,
     val jpegQuality: Int = ing.fuyaoskyrocket.photoinfo.data.export.PhotoExporter.DEFAULT_JPEG_QUALITY,
 ) {
     val exportOptions get() = ing.fuyaoskyrocket.photoinfo.domain.model.ExportOptions(jpegQuality = jpegQuality,
         keepExif = keepCaptureMetadata, keepLocation = keepLocation, keepCaptureTime = keepCaptureTime,
-        separateLivePhoto = separateLivePhoto, applePortrait = applePortrait)
+        separateLivePhoto = separateLivePhoto, applePortrait = applePortrait, appleStyle = appleStyle)
     val canExport get() = photos.isNotEmpty() && !busy && !rendering &&
         (photos.size > 1 || (original != null && previewError == null && !preservationBlocked))
 }

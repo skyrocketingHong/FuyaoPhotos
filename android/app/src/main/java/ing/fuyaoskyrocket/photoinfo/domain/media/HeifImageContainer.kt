@@ -140,6 +140,90 @@ internal data class HeifImageContainer(
                 Reference("cdsc", metadataID, listOf(auxiliaryID)))
     }
 
+    /**
+     * Attaches the Apple photographic style layer: styleMetadata (uri item, cdsc to primary and
+     * the tone map), a fixed identity delta-map grid, and optional encoded linear/sky images.
+     */
+    fun withPhotographicStyles(
+        deltaWidth: Int,
+        deltaHeight: Int,
+        landscape: Boolean,
+        linear: HeifImageContainer?,
+        sky: HeifImageContainer?,
+    ): HeifImageContainer {
+        require(!avif && deltaWidth in 2..65535 && deltaHeight in 2..65535)
+        val toneTargets = listOf(primary) + items.filter { it.type == "tmap" }.map { it.id }
+        val mainProperties = items.single { it.id == primary }.properties
+        fun propertyType(index: Int) = String(properties[index - 1], 4, 4, Charsets.US_ASCII)
+        val colrIndex = mainProperties.firstOrNull { propertyType(it.index) == "colr" }?.index
+        val irotIndex = mainProperties.firstOrNull { propertyType(it.index) == "irot" }?.index
+        var next = items.maxOf { it.id } + 1
+        val props = properties.toMutableList()
+        fun appendProperty(raw: ByteArray): Int { props += raw; return props.size }
+        val newItems = items.toMutableList()
+        val newReferences = references.toMutableList()
+
+        val ispe512 = appendProperty(full("ispe", payload = data { writeInt(512); writeInt(512) }))
+        val deltaHvcc = appendProperty(AppleStyleMetadata.DELTA_HVCC)
+        val tileIds = List(30) { next++ }
+        newItems += tileIds.map { id ->
+            Item(id, "hvc1", byteArrayOf(0), AppleStyleMetadata.DELTA_TILE, properties = buildList {
+                add(Property(ispe512, true))
+                colrIndex?.let { add(Property(it, true)) }
+                add(Property(deltaHvcc, true))
+            }, hidden = true)
+        }
+        val gridID = next++
+        val ispeDelta = appendProperty(full("ispe", payload = data { writeInt(deltaWidth); writeInt(deltaHeight) }))
+        val pixiDelta = appendProperty(full("pixi", payload = data { write(3); write(10); write(10); write(10) }))
+        val auxDelta = appendProperty(full("auxC", payload = (AppleStyleMetadata.DELTA_MAP_URN + "\u0000").toByteArray()))
+        val rows = if (landscape) 5 else 6
+        val columns = if (landscape) 6 else 5
+        newItems += Item(gridID, "grid", byteArrayOf(0), data {
+            writeByte(0); writeByte(0); writeByte(rows - 1); writeByte(columns - 1)
+            writeShort(deltaWidth); writeShort(deltaHeight)
+        }, properties = buildList {
+            colrIndex?.let { add(Property(it, true)) }
+            add(Property(ispeDelta, false))
+            add(Property(pixiDelta, false))
+            add(Property(auxDelta, true))
+            irotIndex?.let { add(Property(it, true)) }
+        }, hidden = true)
+        newReferences += Reference("dimg", gridID, tileIds)
+        newReferences += Reference("auxl", gridID, toneTargets)
+
+        fun attachEncoded(encoded: HeifImageContainer, urn: String, xmp: String?) {
+            require(!encoded.avif)
+            val first = next
+            val ids = encoded.items.mapIndexed { index, item -> item.id to first + index }.toMap()
+            next += encoded.items.size + (if (xmp != null) 1 else 0)
+            val encodedID = ids.getValue(encoded.primary)
+            val auxIndex = appendProperty(full("auxC", payload = (urn + "\u0000").toByteArray()))
+            val propertyBase = props.size
+            props += encoded.properties
+            newItems += encoded.items.map { item -> item.copy(id = ids.getValue(item.id), hidden = true,
+                properties = item.properties.map { it.copy(index = it.index + propertyBase) } +
+                    if (item.id == encoded.primary) listOf(Property(auxIndex, true)) else emptyList()) }
+            newReferences += encoded.references.map { it.copy(from = ids.getValue(it.from), to = it.to.map(ids::getValue)) }
+            newReferences += Reference("auxl", encodedID, toneTargets)
+            if (xmp != null) {
+                val sidecarID = first + encoded.items.size
+                newItems += Item(sidecarID, "mime", "\u0000application/rdf+xml\u0000\u0000".toByteArray(),
+                    xmp.toByteArray(), hidden = true)
+                newReferences += Reference("cdsc", sidecarID, listOf(encodedID))
+            }
+        }
+        linear?.let { attachEncoded(it, AppleStyleMetadata.LINEAR_THUMBNAIL_URN, null) }
+        sky?.let { attachEncoded(it, AppleStyleMetadata.SKY_MATTE_URN, AppleStyleMetadata.skyMatteXmp) }
+
+        val styleID = next++
+        newItems += Item(styleID, "uri ",
+            ("styleMetadata\u0000" + AppleStyleMetadata.STYLES_CONTENT_TYPE + "\u0000").toByteArray(),
+            AppleStyleMetadata.styleMetadata(), hidden = true)
+        newReferences += Reference("cdsc", styleID, toneTargets)
+        return copy(items = newItems, properties = props, references = newReferences)
+    }
+
     fun write(file: File) {
         require(items.size in 1..4096 && items.map { it.id }.distinct().size == items.size)
         require(items.all { it.id in 1..65535 && it.properties.size <= 255 })

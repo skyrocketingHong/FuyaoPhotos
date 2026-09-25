@@ -314,7 +314,8 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
         val supported = if ((Build.VERSION.SDK_INT < 28 && defaults.format == ExportFormat.HEIC) ||
             (Build.VERSION.SDK_INT < 34 && defaults.format == ExportFormat.AVIF) || (hasPortrait && !defaults.applePortrait) ||
             (hasMotion && (!defaults.separateLivePhoto || defaults.format !in setOf(ExportFormat.JPEG,ExportFormat.HEIC))))
-            defaults.copy(format = ExportFormat.JPEG) else defaults
+            defaults.copy(format = ExportFormat.JPEG, appleStyle = false) else
+            if (hasMotion && defaults.separateLivePhoto) defaults.copy(appleStyle = false) else defaults
         mutableStateOf((when {
             avifRequired -> supported.copy(format=ExportFormat.AVIF)
             hasPortrait && defaults.applePortrait -> supported.copy(format=ExportFormat.HEIC,separateLivePhoto=hasMotion || supported.separateLivePhoto)
@@ -336,7 +337,8 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
             val compatible=(!hasPortrait || options.format==(if(options.applePortrait)ExportFormat.HEIC else ExportFormat.JPEG)) &&
                 (!hasMotion || options.format==ExportFormat.JPEG || (options.separateLivePhoto && options.format==ExportFormat.HEIC)) &&
-                (!avifRequired || options.format==ExportFormat.AVIF)
+                (!avifRequired || options.format==ExportFormat.AVIF) &&
+                (!options.appleStyle || (options.format==ExportFormat.HEIC && !(options.separateLivePhoto && hasMotion)))
             if(!compatible)Text(stringResource(R.string.export_formats_conflict),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
             Button(enabled = !submitting && compatible && ing.fuyaoskyrocket.photoinfo.platform.ImageEncoderSupport.supports(options.format), onClick = {
                 submitting = true

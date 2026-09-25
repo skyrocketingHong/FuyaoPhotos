@@ -219,6 +219,10 @@
   <string name="live_pair_hint">将配对的照片和 MOV 保存到文件夹。导入实况照片时需一起传输这两个文件。</string>
   <string name="live_pair_format">请为实况照片选择 JPEG 或 HEIC 格式和目标文件夹。</string>
   <string name="apple_portrait">将小米人像转换为 Apple 景深照片</string>
+  <string name="apple_style">Apple 摄影风格</string>
+  <string name="apple_style_hint">为 HEIC 导出写入身份（标准）摄影风格，Apple 设备会显示风格调节入口。</string>
+  <string name="style_heic_required">摄影风格元数据需要 HEIC 格式。</string>
+  <string name="style_live_exclusive">摄影风格元数据无法与分离式 Live Photo 同时使用。</string>
   <string name="apple_portrait_hint">使用未虚化原片、相对景深和人像蒙版，以 HEIC 保存，供 Apple 设备继续编辑景深。</string>
   <string name="portrait_heic_required">请使用 HEIC 保存 Apple 人像景深。</string>
   <string name="avif_precision_required">请保留 AVIF 格式，以保存这张照片的 10 位色彩和动态范围。</string>
@@ -238,6 +242,7 @@
   <string name="radius_hint">调整信息卡的圆角大小。</string>
   <string name="inset_hint">距照片边缘的距离，随照片尺寸缩放。</string>
   <string name="export_stage_prepare">无法准备导出数据，请重新打开原片后重试。</string>
+  <string name="export_stage_style_encode">无法把摄影风格数据写入 HEIC 文件，原片未修改。</string>
   <string name="export_stage_depth">无法解码或对齐这张照片的景深数据，原片未修改。</string>
   <string name="export_stage_video">无法按当前元数据选项处理视频。</string>
   <string name="export_stage_decode">无法解码原尺寸照片，原片未修改。</string>

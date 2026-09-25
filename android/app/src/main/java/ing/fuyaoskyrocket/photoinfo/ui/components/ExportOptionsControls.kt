@@ -39,6 +39,7 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
                         format in supportedFormats &&
                         (!avifRequired || format==ExportFormat.AVIF) &&
                         (!hasPortrait || format==(if(options.applePortrait)ExportFormat.HEIC else ExportFormat.JPEG)) &&
+                        (!options.appleStyle || format==ExportFormat.HEIC) &&
                         (!hasMotion || format==ExportFormat.JPEG || (options.separateLivePhoto && format==ExportFormat.HEIC)) &&
                         (format != ExportFormat.HEIC || Build.VERSION.SDK_INT >= 28) &&
                         (format != ExportFormat.AVIF || Build.VERSION.SDK_INT >= 34),
@@ -51,12 +52,18 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
     if(showLiveOption) MetadataSwitch(R.string.live_pair,R.string.live_pair_hint,options.separateLivePhoto) {
         onChange(options.copy(separateLivePhoto=it,
             applePortrait=options.applePortrait && (it || !hasMotion),
+            appleStyle=options.appleStyle && !it,
             format=if(hasMotion && (options.format !in setOf(ExportFormat.JPEG,ExportFormat.HEIC) || !it)) ExportFormat.JPEG else options.format))
     }
     if(showPortraitOption && Build.VERSION.SDK_INT>=34 && ExportFormat.HEIC in supportedFormats) MetadataSwitch(R.string.apple_portrait,R.string.apple_portrait_hint,options.applePortrait) {
         onChange(options.copy(applePortrait=it,
             separateLivePhoto=options.separateLivePhoto || (it && hasMotion),
             format=if(it)ExportFormat.HEIC else if(hasPortrait)ExportFormat.JPEG else options.format))
+    }
+    if(ExportFormat.HEIC in supportedFormats && Build.VERSION.SDK_INT>=28) MetadataSwitch(R.string.apple_style,R.string.apple_style_hint,options.appleStyle) {
+        onChange(options.copy(appleStyle=it,
+            separateLivePhoto=options.separateLivePhoto && !it,
+            format=if(it)ExportFormat.HEIC else options.format))
     }
     if(options.format==ExportFormat.HEIC) Text(stringResource(R.string.heic_sdr_hint),
         style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)

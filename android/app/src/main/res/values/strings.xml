@@ -219,6 +219,10 @@
   <string name="live_pair_hint">Save a paired photo and MOV to a folder. Transfer both files together to import as a Live Photo.</string>
   <string name="live_pair_format">Choose JPEG or HEIC and a destination folder for the Live Photo pair.</string>
   <string name="apple_portrait">Convert Xiaomi portrait to Apple depth</string>
+  <string name="apple_style">Apple Photographic Style</string>
+  <string name="apple_style_hint">Tags the HEIC export with an identity (Standard) photographic style so Apple devices show the style controls.</string>
+  <string name="style_heic_required">Photographic style metadata requires HEIC format.</string>
+  <string name="style_live_exclusive">Photographic style metadata cannot be combined with a separated Live Photo.</string>
   <string name="apple_portrait_hint">Use the unblurred image, relative depth and portrait mask. Save as HEIC for depth editing on Apple devices.</string>
   <string name="portrait_heic_required">Choose HEIC to include Apple portrait depth.</string>
   <string name="avif_precision_required">Keep AVIF to preserve this photo’s 10-bit color and dynamic range.</string>
@@ -238,6 +242,7 @@
   <string name="radius_hint">Adjust the rounded corners.</string>
   <string name="inset_hint">Distance from the photo edge, scaled with the photo.</string>
   <string name="export_stage_prepare">The photo could not be prepared for export. Reopen the original and try again.</string>
+  <string name="export_stage_style_encode">The photographic style layer could not be written into the HEIC file. The original is unchanged.</string>
   <string name="export_stage_depth">The portrait depth could not be decoded or aligned. The original is unchanged.</string>
   <string name="export_stage_video">The video could not be prepared with these metadata options.</string>
   <string name="export_stage_decode">The full-resolution photo could not be decoded. The original is unchanged.</string>

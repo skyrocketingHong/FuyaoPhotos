@@ -24,7 +24,8 @@ class SettingsRepository(context: Context) {
             preferences.getBoolean("export.location", false).toString(),
             preferences.getBoolean("export.time", true).toString(),
             preferences.getBoolean("export.livePair", false).toString(),
-            preferences.getBoolean("export.applePortrait", false).toString())),
+            preferences.getBoolean("export.applePortrait", false).toString(),
+            preferences.getBoolean("export.appleStyle", false).toString())),
     )
     private fun readLenses(): List<LensProfile> = runCatching {
         val array = JSONArray(preferences.getString("lenses", "[]"))
@@ -63,6 +64,7 @@ class SettingsRepository(context: Context) {
             putBoolean("export.time", defaults.keepCaptureTime)
             putBoolean("export.livePair", defaults.separateLivePhoto)
             putBoolean("export.applePortrait", defaults.applePortrait)
+            putBoolean("export.appleStyle", defaults.appleStyle)
             putString("lenses", encodeLenses(settings.lenses))
             putString("defaultAuthor", settings.defaultAuthor.trim())
             putBoolean("resolvePhotoLocation", settings.resolvePhotoLocation)
