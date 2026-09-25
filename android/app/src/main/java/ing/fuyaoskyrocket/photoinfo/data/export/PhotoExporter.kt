@@ -337,7 +337,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         } ?: throw IllegalArgumentException(context.getString(R.string.media_validation_failed))
         val primaries=((colr[12].toInt() and 255) shl 8) or (colr[13].toInt() and 255)
         val transfer=((colr[14].toInt() and 255) shl 8) or (colr[15].toInt() and 255)
-        require(primaries==9 && transfer in setOf(13,16,18)) { context.getString(R.string.media_validation_failed)+" (colr)" }
+        require(primaries in setOf(9,12) && transfer in setOf(13,16,18)) { context.getString(R.string.media_validation_failed)+" (colr)" }
     }
 
     companion object {

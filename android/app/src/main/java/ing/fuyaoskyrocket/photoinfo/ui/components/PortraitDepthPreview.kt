@@ -66,7 +66,7 @@ private fun renderDepth(file: File): Bitmap? {
     val tail = XiaomiPortraitTail.read(file, part)
     val decoded = XiaomiPortraitDepth.decode(tail, envelope.portraitDepthDegrees)
     val plane = decoded.disparity
-    val bitmap = Bitmap.createBitmap(plane.width, plane.height, Bitmap.Config.ARGB_8888)
+    val upright = Bitmap.createBitmap(plane.width, plane.height, Bitmap.Config.ARGB_8888)
     val row = IntArray(plane.width)
     for (y in 0 until plane.height) {
         for (x in 0 until plane.width) {
@@ -74,7 +74,23 @@ private fun renderDepth(file: File): Bitmap? {
             val value = plane.pixels[y * plane.width + x].toInt() and 255
             row[x] = Color.rgb(value, value, value)
         }
-        bitmap.setPixels(row, 0, plane.width, 0, y, plane.width, 1)
+        upright.setPixels(row, 0, plane.width, 0, y, plane.width, 1)
     }
-    return bitmap
+    if (decoded.orientation !in 2..8) return upright
+    // The plane lives in sensor orientation; the same EXIF turn the exporter applies
+    // brings it upright, otherwise portrait shots show cropped and mirrored.
+    val matrix = android.graphics.Matrix().apply {
+        when (decoded.orientation) {
+            2 -> setScale(-1f, 1f)
+            3 -> setRotate(180f)
+            4 -> setScale(1f, -1f)
+            5 -> { setRotate(90f); postScale(-1f, 1f) }
+            6 -> setRotate(90f)
+            7 -> { setRotate(90f); postScale(1f, -1f) }
+            else -> setRotate(270f)
+        }
+    }
+    val rotated = Bitmap.createBitmap(upright, 0, 0, upright.width, upright.height, matrix, true)
+    if (rotated !== upright) upright.recycle()
+    return rotated
 }
