@@ -170,7 +170,11 @@ class PhotoRepository(private val context: Context) {
     /** Keep the decoded color space and gainmap. EXIF orientation applies to both base and gainmap. */
     fun decode(source: PhotoSource, preview: Boolean): Bitmap {
         val options = BitmapFactory.Options().apply {
-            inPreferredConfig = if(source.media.bitDepth>8)Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888
+            // Ultra HDR JPEGs decode to F16 at full resolution: HeifWriter rejects the
+            // wide-color 8-bit combination, and the ten-bit MediaCodec path needs the headroom.
+            inPreferredConfig = if(source.media.bitDepth>8 ||
+                (!preview && source.media.hdrHint && Build.VERSION.SDK_INT>=34))
+                Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888
             if(Build.VERSION.SDK_INT>=34 && source.media.hdrTransfer) {
                 inPreferredColorSpace=ColorSpace.get(if(source.media.hdrTransferCode==18)ColorSpace.Named.BT2020_HLG else ColorSpace.Named.BT2020_PQ)
             }

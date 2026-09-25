@@ -334,7 +334,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                     ensureActive()
                     val runtime=Runtime.getRuntime()
                     val available=runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory())
-                    val peak=photo.width.toLong()*photo.height*4*(if(photo.orientation in 2..8)2 else 1)+32L*1024*1024
+                    val peak=photo.width.toLong()*photo.height*(if(photo.media.hdrHint)8 else 4)*
+                        (if(photo.orientation in 2..8)2 else 1)+32L*1024*1024
                     if(peak>available*.8)throw OutOfMemoryError("Original-size preview exceeds available memory")
                     val bitmap=photos.decode(photo,preview=false).also { pending=it }
                     ensureActive()

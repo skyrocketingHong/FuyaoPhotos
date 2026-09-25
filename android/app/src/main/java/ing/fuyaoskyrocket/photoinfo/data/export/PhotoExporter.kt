@@ -63,7 +63,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         require(format!=ExportFormat.HEIC || Build.VERSION.SDK_INT>=28) { context.getString(R.string.heic_requires_android9) }
         require(format!=ExportFormat.AVIF || Build.VERSION.SDK_INT>=34) { context.getString(R.string.avif_requires_android14) }
         val runtime=Runtime.getRuntime();val freeHeap=runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory())
-        val imageBytes=source.width.toLong()*source.height*(if(media.bitDepth>8)8 else 4)
+        val imageBytes=source.width.toLong()*source.height*(if(media.bitDepth>8 || media.hdrHint)8 else 4)
         val peak=imageBytes*(if(source.orientation in 2..8)2 else 1)+32L*1024*1024
         val encoded=File.createTempFile("encoded-",".${format.extension}",context.cacheDir)
         val assembled=File.createTempFile("export-",".${format.extension}",context.cacheDir)
