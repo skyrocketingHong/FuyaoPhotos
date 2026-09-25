@@ -95,9 +95,9 @@ internal object TenBitYuv {
      * Packs an RGBA_F16 plane into P010: Y plane of sliceHeight rows at stride shorts,
      * then interleaved UV at half height. Returns little-endian bytes.
      */
-    fun encodeP010(halfs: ShortArray, width: Int, height: Int, stride: Int, sliceHeight: Int,
+    fun encodeP010(halfs: java.nio.ShortBuffer, width: Int, height: Int, stride: Int, sliceHeight: Int,
         colorSpaceName: String): ByteArray {
-        require(halfs.size >= width * height * 4 && stride >= width && sliceHeight >= height)
+        require(halfs.remaining() >= width * height * 4 && stride >= width && sliceHeight >= height)
         val matrix = when (primariesFor(colorSpaceName)) {
             Primaries.BT709 -> BT709_TO_2020
             Primaries.P3 -> P3_TO_2020
@@ -110,9 +110,9 @@ internal object TenBitYuv {
             for (column in 0 until width) {
                 val at = (row * width + column) * 4
                 val yuv = toYuv2020(
-                    halfToFloat(halfs[at].toInt()),
-                    halfToFloat(halfs[at + 1].toInt()),
-                    halfToFloat(halfs[at + 2].toInt()), matrix, transfer)
+                    halfToFloat(halfs.get(at).toInt()),
+                    halfToFloat(halfs.get(at + 1).toInt()),
+                    halfToFloat(halfs.get(at + 2).toInt()), matrix, transfer)
                 luma[row * stride + column] = quantize10(yuv[0])
                 val uvRow = row / 2
                 if (row and 1 == 0) {

@@ -44,7 +44,7 @@ object HeicTenBitEncoder {
                 codec.inputFormat.getInteger(MediaFormat.KEY_STRIDE) else bitmap.width
             val sliceHeight = if (codec.inputFormat.containsKey(MediaFormat.KEY_SLICE_HEIGHT))
                 codec.inputFormat.getInteger(MediaFormat.KEY_SLICE_HEIGHT) else bitmap.height
-            val plane = TenBitYuv.encodeP010(readHalves(bitmap), bitmap.width, bitmap.height,
+            val plane = TenBitYuv.encodeP010(readHalfBuffer(bitmap), bitmap.width, bitmap.height,
                 stride, sliceHeight, bitmap.colorSpace?.name.orEmpty())
             var track = -1
             var started = false
@@ -98,10 +98,11 @@ object HeicTenBitEncoder {
         }
     }
 
-    private fun readHalves(bitmap: Bitmap): ShortArray {
-        val buffer = ByteBuffer.allocate(bitmap.width * bitmap.height * 2 * 4).order(ByteOrder.nativeOrder())
+    /** One pixel copy only: the F16 plane is read straight into P010 through this view. */
+    private fun readHalfBuffer(bitmap: Bitmap): java.nio.ShortBuffer {
+        val buffer = ByteBuffer.allocateDirect(bitmap.byteCount).order(ByteOrder.nativeOrder())
         bitmap.copyPixelsToBuffer(buffer)
-        return ShortArray(bitmap.width * bitmap.height * 4).also { buffer.asShortBuffer().get(it) }
+        return buffer.asShortBuffer()
     }
 
     /** Bits per pixel scales with quality; at 100 the single frame lands near visually lossless. */

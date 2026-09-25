@@ -81,7 +81,7 @@ class TenBitYuvTest {
         val values = floatArrayOf(0.1f, 0.1f, 0.1f, 1f, 0.4f, 0.4f, 0.4f, 1f,
             0.8f, 0.8f, 0.8f, 1f, 0.6f, 0.6f, 0.6f, 1f)
         values.forEachIndexed { index, value -> halfs[index] = half(value).toShort() }
-        val bytes = TenBitYuv.encodeP010(halfs, 2, 2, stride = 4, sliceHeight = 2, colorSpaceName = "LINEAR_sRGB")
+        val bytes = TenBitYuv.encodeP010(java.nio.ShortBuffer.wrap(halfs), 2, 2, stride = 4, sliceHeight = 2, colorSpaceName = "LINEAR_sRGB")
         // Stride 4 shorts -> 8 bytes per row; two luma rows, then one chroma row.
         assertEquals((4 * 2 + 4) * 2, bytes.size)
         fun sample(at: Int) = ((bytes[at + 1].toInt() and 0xff) shl 8 or (bytes[at].toInt() and 0xff))

@@ -118,6 +118,9 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             if(identifier!=null)AppleLivePhotoMovie.write(videoFile,pairedMovie,identifier,requireNotNull(media.motion).timestampUs)
             var expectedGain:FloatArray?=null
             var expectedColor:String?=null
+            // A linear F16 source has no color-space name twin in a re-encoded HEIC/AVIF;
+            // its output is verified against the declared BT.2020 colr instead.
+            var tenBitSource=false
             var portraitBytes:ByteArray?=null
             var styleAssets:StyleAssets?=null
             stage=R.string.export_stage_decode
@@ -212,7 +215,8 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                     val decoded=BitmapFactory.decodeFile(assembled.absolutePath,sample)
                         ?: throw IOException(context.getString(R.string.media_validation_failed))
                     try {
-                        require(decoded.colorSpace?.name==expectedColor) { context.getString(R.string.media_validation_failed) }
+                        require(tenBitSource || decoded.colorSpace?.name==expectedColor) { context.getString(R.string.media_validation_failed) }
+                        if(tenBitSource)requireColrBt2020(checked)
                         if(Build.VERSION.SDK_INT>=34 && expectedGain!=null) {
                             ing.fuyaoskyrocket.photoinfo.platform.HeifGainmaps.attach(assembled,decoded,sample.inSampleSize)
                             require(HdrGainmaps.matches(expectedGain,HdrGainmaps.metadata(requireNotNull(decoded.gainmap)))) {
@@ -316,6 +320,16 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             runCatching { if(gallery)resolver.delete(uri,null,null) else DocumentsContract.deleteDocument(resolver,uri) };throw failure
         }
     }
+    /** Ten-bit HEIC carries scene data in a BT.2020 colr the re-decode cannot name-match. */
+    private fun requireColrBt2020(container: HeifImageContainer) {
+        val colr=container.properties.firstOrNull {
+            it.size>=19 && String(it,4,4,Charsets.US_ASCII)=="colr" && String(it,8,4,Charsets.US_ASCII)=="nclx"
+        } ?: throw IllegalArgumentException(context.getString(R.string.media_validation_failed))
+        val primaries=((colr[12].toInt() and 255) shl 8) or (colr[13].toInt() and 255)
+        val transfer=((colr[14].toInt() and 255) shl 8) or (colr[15].toInt() and 255)
+        require(primaries==9 && transfer in setOf(13,16)) { context.getString(R.string.media_validation_failed) }
+    }
+
     companion object {
         const val DEFAULT_JPEG_QUALITY = 100
         fun filename(format:ExportFormat,motion:Boolean=false)="Fuyao_${SimpleDateFormat("yyyyMMdd_HHmmss_SSS",Locale.ROOT).format(Date())}${if(motion) "_MP" else ""}.${format.extension}"
