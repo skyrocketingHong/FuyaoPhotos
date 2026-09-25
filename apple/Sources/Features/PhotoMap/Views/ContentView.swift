@@ -76,7 +76,6 @@ struct PhotoMapScreen: View {
             MapContainerView(session: session, scope: mapScope)
 #if !os(macOS)
                 .toolbarVisibility(.hidden, for: .navigationBar)
-                .scrollEdgeEffectHidden(true, for: .top)
                 .overlay(alignment: .topTrailing) {
                     VStack(alignment: .trailing, spacing: 16) {
                         mapStyleMenu
