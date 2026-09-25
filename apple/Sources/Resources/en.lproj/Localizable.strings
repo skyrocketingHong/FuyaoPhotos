@@ -282,3 +282,7 @@
 "card.restore.current" = "Reset Item";
 "card.restore.all" = "Reset All";
 "card.field.focalLength.short" = "Focal Length";
+
+"settings.card.appearance" = "Editor Appearance";
+"settings.appearance.darkroom" = "Darkroom";
+"settings.appearance.system" = "Follow System";

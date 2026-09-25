@@ -3,6 +3,8 @@ import MapKit
 
 struct ContentView: View {
     @State private var workspace = PhotoWorkspace()
+    @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.darkroom.rawValue
+    private var darkroomCards: Bool { cardAppearance != CardAppearance.system.rawValue }
     var body: some View {
         TabView(selection: $workspace.selectedTab) {
             Tab("tab.map", systemImage: "map", value: PhotoWorkspace.Tab.map) {
@@ -16,9 +18,9 @@ struct ContentView: View {
                 PhotoCardScreen(session: workspace.cards)
 #if !os(macOS)
                     .toolbarBackground(.visible, for: .tabBar)
-                    .toolbarColorScheme(.dark, for: .tabBar)
+                    .toolbarColorScheme(darkroomCards ? .dark : nil, for: .tabBar)
 #endif
-                    .modifier(TabContentEntrance(active: workspace.selectedTab == .cards, darkroom: true))
+                    .modifier(TabContentEntrance(active: workspace.selectedTab == .cards, darkroom: darkroomCards))
             }
 #if !os(macOS)
             if #available(iOS 27, *) {

@@ -282,3 +282,7 @@
 "card.restore.current" = "恢复当前";
 "card.restore.all" = "全部恢复";
 "card.field.focalLength.short" = "焦距";
+
+"settings.card.appearance" = "编辑器外观";
+"settings.appearance.darkroom" = "暗房";
+"settings.appearance.system" = "跟随系统";

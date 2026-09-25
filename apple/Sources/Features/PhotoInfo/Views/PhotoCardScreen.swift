@@ -4,6 +4,8 @@ import PhotosUI
 struct PhotoCardScreen: View {
     @Bindable var session: CardSession
     @Environment(PhotoWorkspace.self) private var workspace
+    @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.darkroom.rawValue
+    private var forcedDarkroom: Bool { cardAppearance != CardAppearance.system.rawValue }
     @State private var showingPicker = false
     @State private var showingSave = false
     @State private var saveDetent = PresentationDetent.medium
@@ -32,131 +34,166 @@ struct PhotoCardScreen: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if session.current != nil {
-                    CardCanvas(session: session,
-                        replaceConfirmation: $showingReplace,
-                        closeConfirmation: $showingClose,
-                        open: choosePhotos,
-                        save: presentSaveOptions,
-                        close: { if session.hasChanges { showingClose = true } else { session.clear() } },
-                        confirmReplace: replacePhotos,
-                        confirmClose: { session.clear() })
-                }
-                else {
-                    ContentUnavailableView {
-                        Label("card.empty.title", systemImage: "photo.badge.plus")
-                    } description: { Text("card.empty.description") }
-                    actions: {
-                        Button("card.open", action: choosePhotos)
-                            .buttonStyle(.borderedProminent)
-                            .keyboardShortcut("o")
-                    }
-                }
-            }
-#if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-            .scrollEdgeEffectHidden(true, for: .top)
-            .toolbarVisibility(.hidden, for: .navigationBar)
-            .toolbarColorScheme(.dark,for:.navigationBar)
-#endif
-            .toolbar {
-                if let document = session.current {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("card.open", systemImage: "photo.badge.plus", action: choosePhotosFromToolbar)
-                            .labelStyle(.iconOnly).buttonBorderShape(.circle)
-                            .keyboardShortcut("o")
-                            .confirmationDialog(replaceTitle, isPresented: $showingToolbarReplace, titleVisibility: .visible) {
-                                Button("card.replace", role: .destructive, action: replacePhotos)
-                                Button("card.cancel", role: .cancel) { replacementIDs = nil }
-                            }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(saveActionTitle, systemImage: "checkmark", action: presentSaveOptions)
-                            .labelStyle(.iconOnly).buttonBorderShape(.circle)
-                            .keyboardShortcut("s")
-                    }
-                    ToolbarItem(placement: .secondaryAction) {
-                        Menu("card.more", systemImage: "ellipsis") {
-                            Button("card.style.reset", systemImage: "arrow.counterclockwise") {
-                                document.card.style = PhotoCardStyle()
-                            }
-                            if let url = document.exportURL, !document.isLive {
-                                ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
-                            }
-                            Button(closeActionTitle, systemImage: "xmark") {
-                                if session.hasChanges { showingToolbarClose = true } else { session.clear() }
-                            }
-                        }
-                        .labelStyle(.iconOnly).buttonBorderShape(.circle)
-                        .confirmationDialog(closeTitle, isPresented: $showingToolbarClose, titleVisibility: .visible) {
-                            Button(closeActionTitle, role: .destructive) { session.clear() }
-                        }
-                    }
-                }
-            }
-            .disabled(session.busy)
-            .overlay {
-                if session.busy {
-                    ProgressView(value: Double(session.progress), total: Double(max(1, session.total))) {
-                        Text("card.processing \(session.progress) \(session.total)")
-                    }
-                    .padding().frame(maxWidth: 300)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                }
-            }
+            editorContent
+                .toolbar { editorToolbar }
+                .disabled(session.busy)
+                .overlay { busyOverlay }
         }
         .background(Color.black.ignoresSafeArea())
-        .environment(\.colorScheme,.dark)
+        .transformEnvironment(\.colorScheme) { scheme in
+            if forcedDarkroom { scheme = .dark }
+        }
         .tint(.yellow)
-        .sheet(isPresented: $showingPicker) {
-            NativePhotoPicker { results in
-                showingPicker = false
-                Task { await session.open(results) }
-            }
-#if os(macOS)
-            .frame(minWidth: 680, idealWidth: 820, minHeight: 520, idealHeight: 620)
-            .presentationSizing(.fitted)
-#endif
-        }
-        .sheet(isPresented: $showingSave) {
-            CardSaveSheet(photoCount: session.documents.count,
-                canUpdate: session.canUpdateOriginals,
-                hasHDR: session.documents.contains { $0.metadata.hdr || $0.metadata.hasPortraitData },
-                hasLive: session.documents.contains { $0.isLive }) { options in Task { await session.save(options: options) } }
-#if !os(macOS)
-                .presentationDetents([.medium, .large], selection: $saveDetent)
-                .presentationContentInteraction(.scrolls)
-#endif
-        }
+        .sheet(isPresented: $showingPicker) { pickerSheet }
+        .sheet(isPresented: $showingSave) { saveSheet }
         .confirmationDialog(replaceTitle, isPresented: $showingExternalReplace, titleVisibility: .visible) {
             Button("card.replace", role: .destructive, action: replacePhotos)
             Button("card.cancel", role: .cancel) { replacementIDs = nil }
         }
-        .alert("card.error.title", isPresented: Binding(get: { session.errorMessage != nil }, set: { if !$0 { session.dismissError() } })) {
-            Button("done") { session.dismissError() }
-        } message: { Text(session.errorMessage ?? "") }
-        .alert("card.save.complete", isPresented: Binding(get: { session.savedCount != nil && session.errorMessage == nil }, set: { if !$0 { session.savedCount = nil } })) {
-            Button("photo.open.library") {
-                Task {
-                    if !(await PhotosApplication.open()) { session.errorMessage = String.localized("photo.open.failed") }
-                }
-            }
-            Button("done", role: .cancel) { session.savedCount = nil }
-        } message: {
-            if session.documents.count > 1, let count = session.savedCount {
-                if count == 1 { Text("card.saved.one") }
-                else { Text("card.saved \(count)") }
-            }
-        }
-        .sensoryFeedback(.success, trigger: session.savedCount) { _, count in count != nil }
-        .onChange(of: workspace.pendingAssetIDs) { _, _ in handlePendingImport() }
-        .onChange(of: session.busy) { _, busy in if !busy { handlePendingImport() } }
-        .onChange(of: CardPreferences.shared.resolveLocation) { _, enabled in
+        .modifier(SessionAlerts(session: session))
+        .sensoryFeedback(.success, trigger: session.savedCount) { (_: Int?, newValue: Int?) in newValue != nil }
+        .onChange(of: workspace.pendingAssetIDs) { (_: [String]?, _: [String]?) in handlePendingImport() }
+        .onChange(of: session.busy) { (_: Bool, busy: Bool) in if !busy { handlePendingImport() } }
+        .onChange(of: CardPreferences.shared.resolveLocation) { (_: Bool, enabled: Bool) in
             if !enabled { session.cancelLocationLookup() }
         }
         .onAppear(perform: handlePendingImport)
+    }
+
+    private struct SessionAlerts: ViewModifier {
+        let session: CardSession
+        private var errorShown: Binding<Bool> {
+            Binding(get: { session.errorMessage != nil }, set: { if !$0 { session.dismissError() } })
+        }
+        private var savedShown: Binding<Bool> {
+            Binding(get: { session.savedCount != nil && session.errorMessage == nil },
+                    set: { if !$0 { session.savedCount = nil } })
+        }
+        func body(content: Content) -> some View {
+            content
+                .alert("card.error.title", isPresented: errorShown) {
+                    Button("done") { session.dismissError() }
+                } message: { Text(session.errorMessage ?? "") }
+                .alert("card.save.complete", isPresented: savedShown) {
+                    Button("photo.open.library") {
+                        Task {
+                            if !(await PhotosApplication.open()) { session.errorMessage = String.localized("photo.open.failed") }
+                        }
+                    }
+                    Button("done", role: .cancel) { session.savedCount = nil }
+                } message: {
+                    if session.documents.count > 1, let count = session.savedCount {
+                        if count == 1 { Text("card.saved.one") }
+                        else { Text("card.saved \(count)") }
+                    }
+                }
+        }
+    }
+
+    private var editorContent: some View {
+        Group {
+            if session.current != nil {
+                CardCanvas(session: session,
+                    replaceConfirmation: $showingReplace,
+                    closeConfirmation: $showingClose,
+                    open: choosePhotos,
+                    save: presentSaveOptions,
+                    close: closeSessionIfSafe,
+                    confirmReplace: replacePhotos,
+                    confirmClose: { session.clear() })
+            }
+            else {
+                ContentUnavailableView {
+                    Label("card.empty.title", systemImage: "photo.badge.plus")
+                } description: { Text("card.empty.description") }
+                actions: {
+                    Button("card.open", action: choosePhotos)
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut("o")
+                }
+            }
+        }
+#if !os(macOS)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+        .scrollEdgeEffectHidden(true, for: .top)
+        .toolbarVisibility(.hidden, for: .navigationBar)
+        .toolbarColorScheme(forcedDarkroom ? .dark : nil, for: .navigationBar)
+#endif
+    }
+
+    @ToolbarContentBuilder private var editorToolbar: some ToolbarContent {
+        if let document = session.current {
+            ToolbarItem(placement: .primaryAction) {
+                Button("card.open", systemImage: "photo.badge.plus", action: choosePhotosFromToolbar)
+                    .labelStyle(.iconOnly).buttonBorderShape(.circle)
+                    .keyboardShortcut("o")
+                    .confirmationDialog(replaceTitle, isPresented: $showingToolbarReplace, titleVisibility: .visible) {
+                        Button("card.replace", role: .destructive, action: replacePhotos)
+                        Button("card.cancel", role: .cancel) { replacementIDs = nil }
+                    }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button(saveActionTitle, systemImage: "checkmark", action: presentSaveOptions)
+                    .labelStyle(.iconOnly).buttonBorderShape(.circle)
+                    .keyboardShortcut("s")
+            }
+            ToolbarItem(placement: .secondaryAction) {
+                Menu("card.more", systemImage: "ellipsis") {
+                    Button("card.style.reset", systemImage: "arrow.counterclockwise") {
+                        document.card.style = PhotoCardStyle()
+                    }
+                    if let url = document.exportURL, !document.isLive {
+                        ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
+                    }
+                    Button(closeActionTitle, systemImage: "xmark") {
+                        if session.hasChanges { showingToolbarClose = true } else { session.clear() }
+                    }
+                }
+                .labelStyle(.iconOnly).buttonBorderShape(.circle)
+                .confirmationDialog(closeTitle, isPresented: $showingToolbarClose, titleVisibility: .visible) {
+                    Button(closeActionTitle, role: .destructive) { session.clear() }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var busyOverlay: some View {
+        if session.busy {
+            ProgressView(value: Double(session.progress), total: Double(max(1, session.total))) {
+                Text("card.processing \(session.progress) \(session.total)")
+            }
+            .padding().frame(maxWidth: 300)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        }
+    }
+
+    private func closeSessionIfSafe() {
+        if session.hasChanges { showingClose = true } else { session.clear() }
+    }
+
+    private var pickerSheet: some View {
+        NativePhotoPicker { results in
+            showingPicker = false
+            Task { await session.open(results) }
+        }
+#if os(macOS)
+        .frame(minWidth: 680, idealWidth: 820, minHeight: 520, idealHeight: 620)
+        .presentationSizing(.fitted)
+#endif
+    }
+
+    private var saveSheet: some View {
+        CardSaveSheet(photoCount: session.documents.count,
+            canUpdate: session.canUpdateOriginals,
+            hasHDR: session.documents.contains { $0.metadata.hdr || $0.metadata.hasPortraitData },
+            hasLive: session.documents.contains { $0.isLive }) { options in
+                Task { await session.save(options: options) }
+            }
+#if !os(macOS)
+            .presentationDetents([.medium, .large], selection: $saveDetent)
+            .presentationContentInteraction(.scrolls)
+#endif
     }
 
     private func choosePhotos() {

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @State private var card = CardPreferences.shared
+    @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.darkroom.rawValue
     @AppStorage("defaultDisplayMode") private var defaultMode = MapDisplayMode.photo.rawValue
     @AppStorage("customStartYear") private var startYear = 0
     @AppStorage("defaultSelectedYear") private var selectedYear = 0
@@ -44,6 +45,10 @@ struct SettingsView: View {
 
     @ViewBuilder private var cardSettings: some View {
         Section("card.information") {
+            Picker("settings.card.appearance", selection: $cardAppearance) {
+                Text("settings.appearance.darkroom").tag(CardAppearance.darkroom.rawValue)
+                Text("settings.appearance.system").tag(CardAppearance.system.rawValue)
+            }
             TextField("card.defaultAuthor", text: $card.author)
             Toggle("card.resolveLocation", isOn: $card.resolveLocation)
             Text("card.resolveLocation.description").font(.caption).foregroundStyle(.secondary)
