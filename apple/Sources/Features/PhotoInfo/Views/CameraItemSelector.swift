@@ -12,7 +12,6 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
     var body: some View {
         let motionIsReduced = reduceMotion
         return GeometryReader { geometry in
-            let edgeHeight = max(0, min(56, (geometry.size.height-rowHeight)/2-6))
             ZStack {
                 Color.clear
                     .frame(maxWidth: .infinity)
@@ -51,19 +50,13 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                 .scrollPosition(id:$position,anchor:.center)
                 .scrollIndicators(.hidden)
                 .scrollDismissesKeyboard(.immediately)
-                .overlay {
-                    VStack(spacing: 0) {
-                        ProgressiveBackdropEdge(edge: .top, material: .thinMaterial,
-                                                reducedTransparencyColor: .black.opacity(0.85))
-                            .frame(height: edgeHeight)
-                            .environment(\.colorScheme, .dark)
-                        Spacer(minLength: 0)
-                        ProgressiveBackdropEdge(edge: .bottom, material: .thinMaterial,
-                                                reducedTransparencyColor: .black.opacity(0.85))
-                            .frame(height: edgeHeight)
-                            .environment(\.colorScheme, .dark)
-                    }
-                    .allowsHitTesting(false)
+                .mask {
+                    LinearGradient(stops:[
+                        .init(color:.clear,location:0),
+                        .init(color:.white,location:0.13),
+                        .init(color:.white,location:0.87),
+                        .init(color:.clear,location:1)
+                    ],startPoint:.top,endPoint:.bottom)
                 }
                 .onScrollPhaseChange { _,phase in
                     guard phase == .idle,let position,

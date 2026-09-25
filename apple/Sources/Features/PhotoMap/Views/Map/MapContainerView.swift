@@ -12,9 +12,6 @@ struct MapContainerView: View {
         ZStack {
             if session.phase == .ready {
                 MapCanvas(session: session, scope: scope)
-                ProgressiveBackdropEdges(top: 96, bottom: 176, sides: 36)
-                    .environment(\.colorScheme, .dark)
-                    .ignoresSafeArea()
                 MapStatusOverlay(session: session)
             } else {
                 MapLoadingState(session: session)
