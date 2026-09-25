@@ -351,7 +351,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     }
 
     fun export(format: ExportFormat, destination: Uri? = null, directory: Uri? = null) {
-        if (drafts.isEmpty() || state.busy || (destination != null && drafts.size != 1)) return
+        if (drafts.isEmpty() || state.busy || state.loadingPhoto || (destination != null && drafts.size != 1)) return
         renderJob?.cancel(); cancelLocation(); persist()
         val snapshot = drafts.toList()
         val settings = state.settings
@@ -364,6 +364,11 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         workJob = viewModelScope.launch {
             try {
                 renderJob?.join()
+                // The exporter re-decodes every photo from its draft, so the session's own
+                // full-size bitmap only competes for memory during the batch; release it
+                // (the small preview stays for the UI) and re-decode once the batch ends.
+                state = state.copy(original = null)
+                System.gc()
                 val result = runBatch(snapshot, { errorMessage(it, PhotoOperation.SAVE) }, { progress -> state = state.copy(exportCompleted = progress.completed) }) { index, draft ->
                     var info = draft.info
                     if (settings.resolvePhotoLocation && !draft.locationEdited && info[FieldId.LOCATION].isBlank() && draft.source.coordinates != null) {
@@ -405,6 +410,31 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                 persist(); renderPreview()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) { state = state.copy(busy = false, exporting = false, error = errorMessage(failure, PhotoOperation.SAVE)) }
+            finally { reloadOriginalAfterExport() }
+        }
+    }
+
+    /** Brings back the released full-size bitmap so further edits keep rendering. */
+    private fun reloadOriginalAfterExport() {
+        if (state.closing || state.original != null || drafts.isEmpty()) return
+        workJob = viewModelScope.launch {
+            val draft = drafts.getOrNull(state.photoIndex) ?: return@launch
+            state = state.copy(loadingPhoto = true, previewError = null)
+            var pending: Bitmap? = null
+            try {
+                val bitmap = withContext(Dispatchers.IO) { photos.decode(draft.source, preview = true).also { pending = it } }
+                if (state.closing || drafts.getOrNull(state.photoIndex)?.source?.file != draft.source.file) {
+                    bitmap.recycle(); return@launch
+                }
+                state = state.copy(original = bitmap, preview = bitmap, loadingPhoto = false)
+                pending = null
+                renderPreview()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                state = state.copy(loadingPhoto = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW))
+            } catch (failure: OutOfMemoryError) {
+                state = state.copy(loadingPhoto = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW))
+            } finally { pending?.recycle() }
         }
     }
 
