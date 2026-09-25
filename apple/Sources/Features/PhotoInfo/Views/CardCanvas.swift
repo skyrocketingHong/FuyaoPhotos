@@ -17,28 +17,6 @@ struct CardCanvas: View {
         GeometryReader { geometry in
             if let document = session.current {
                 Group {
-#if os(macOS)
-                if geometry.size.width >= 760 {
-                    HSplitView {
-                        macPreview(document: document)
-                            .frame(minWidth: 400)
-                        CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
-                            .frame(minWidth: 300, idealWidth: 340, maxWidth: 420)
-                    }
-                } else {
-                    VStack(spacing: 0) {
-                        CardFilmstrip(session: session, preview: preview,
-                                      processing: textEditingActive || preview.isRendering)
-                            .frame(height: max(160, min(geometry.size.height * 0.43, 320)))
-                            .padding(.horizontal, 20)
-                            .padding(.top, 16)
-                        actionStrip(document: document)
-                        CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
-                            .frame(maxHeight: .infinity)
-                    }
-                    .background(Color(white: 0.06))
-                }
-#else
                 let wide = geometry.size.width >= 800 ||
                     (geometry.size.width >= 700 && geometry.size.width > geometry.size.height * 1.2)
                 let sidebarWidth = min(460, max(310, geometry.size.width * 0.44))
@@ -82,7 +60,6 @@ struct CardCanvas: View {
                     }
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: photoHeight)
                 }
-#endif
                 }
                 .onChange(of:session.selectedID) { _,_ in
                     preview.playing=false; preview.original=false; textEditingActive=false
@@ -98,21 +75,6 @@ struct CardCanvas: View {
                         confirmReplace: confirmReplace, confirmClose: confirmClose,
                         saved: session.savedCount != nil && session.errorMessage == nil)
     }
-
-#if os(macOS)
-    private func macPreview(document: CardDocument) -> some View {
-        VStack(spacing: 0) {
-            CardFilmstrip(session: session, preview: preview,
-                          processing: textEditingActive || preview.isRendering)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-            actionStrip(document: document)
-                .padding(.bottom, 12)
-        }
-        .background(Color(white: 0.06))
-    }
-#endif
 }
 
 private struct CardActionStrip: View {
@@ -129,38 +91,24 @@ private struct CardActionStrip: View {
     let confirmClose: () -> Void
     let saved: Bool
     var body: some View {
-        Group {
-#if os(macOS)
-        HStack(spacing: 14) {
-            CardMediaControls(document: document, controls: preview)
-        }
-        .labelStyle(.iconOnly)
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .controlSize(.regular)
-        .padding(.horizontal, 18)
-        .padding(.vertical, 10)
-#else
         GeometryReader { geometry in
             let visible = visibleTools(for: geometry.size.width)
             HStack(spacing: 0) {
                 ForEach(visible, id: \.self) { tool in
                     control(for: tool, width: geometry.size.width)
-                        .frame(width: 64, height: 64)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 64)
                 }
             }
-            .frame(width: CGFloat(visible.count) * 64, height: 64)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .frame(maxWidth: .infinity)
+            .frame(maxHeight: .infinity, alignment: .center)
         }
         .frame(height: 64)
-#endif
-        }
         .sheet(isPresented: $showingPhotoInfo) {
             PhotoInformationSheet(document: document)
         }
     }
 
-#if !os(macOS)
     private enum Tool: Hashable {
         case live, hdr, compare, full, open, info, save, more
     }
@@ -310,7 +258,6 @@ private struct CardActionStrip: View {
             EmptyView()
         }
     }
-#endif
 }
 
 private struct CardFilmstrip: View {
@@ -359,13 +306,10 @@ private struct CardFilmstrip: View {
                     .font(.caption.monospacedDigit())
                     .padding(.horizontal, 10).padding(.vertical, 5)
                     .background(.thinMaterial, in: .capsule)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, 8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, 8)
             }
         }
-#if os(macOS)
-        .background(Color(white:0.06))
-#endif
     }
     private var selectedIndex:Int { session.documents.firstIndex { $0.id==session.selectedID } ?? 0 }
     private func move(_ amount:Int) {
