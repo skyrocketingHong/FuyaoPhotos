@@ -224,6 +224,27 @@ internal data class HeifImageContainer(
         return copy(items = newItems, properties = props, references = newReferences)
     }
 
+    /** Declares the trailing mpvd motion payload so HEIC exports play as live photos. */
+    fun withMotionDirectory(timestampUs: Long, videoMime: String, videoLength: Long): HeifImageContainer {
+        require(videoLength in 1..IsoBmff.MAX_BYTES && timestampUs >= -1 &&
+            videoMime in setOf("video/mp4", "video/quicktime"))
+        val id = items.maxOf { it.id } + 1
+        val directory = """
+            <x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+            <rdf:RDF><rdf:Description rdf:about="" xmlns:Camera="http://ns.google.com/photos/1.0/camera/"
+            xmlns:Container="http://ns.google.com/photos/1.0/container/" xmlns:Item="http://ns.google.com/photos/1.0/container/item/"
+            Camera:MotionPhoto="1" Camera:MotionPhotoVersion="1" Camera:MotionPhotoPresentationTimestampUs="$timestampUs">
+            <Container:Directory><rdf:Seq>
+            <rdf:li rdf:parseType="Resource"><Container:Item Item:Mime="image/heic" Item:Semantic="Primary" Item:Length="0" Item:Padding="8"/></rdf:li>
+            <rdf:li rdf:parseType="Resource"><Container:Item Item:Mime="$videoMime" Item:Semantic="MotionPhoto" Item:Length="$videoLength"/></rdf:li>
+            </rdf:Seq></Container:Directory>
+            </rdf:Description></rdf:RDF></x:xmpmeta>
+        """.trimIndent()
+        return copy(items = items + Item(id, "mime", "\u0000application/rdf+xml\u0000\u0000".toByteArray(),
+            directory.toByteArray(Charsets.UTF_8), hidden = true),
+            references = references + Reference("cdsc", id, listOf(primary)))
+    }
+
     fun write(file: File) {
         require(items.size in 1..4096 && items.map { it.id }.distinct().size == items.size)
         require(items.all { it.id in 1..65535 && it.properties.size <= 255 })

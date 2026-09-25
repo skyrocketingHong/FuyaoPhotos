@@ -38,7 +38,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         require(ing.fuyaoskyrocket.photoinfo.platform.ImageEncoderSupport.supports(format)) {
             context.getString(R.string.image_encoder_unavailable)
         }
-        require(media.bitDepth<=8 || format==ExportFormat.AVIF) { context.getString(R.string.avif_precision_required) }
+        require(media.bitDepth<=8 || format in setOf(ExportFormat.AVIF,ExportFormat.HEIC)) { context.getString(R.string.avif_precision_required) }
         val paired = options.separateLivePhoto && media.motion != null
         val convertPortrait = options.applePortrait && media.portraitTail != null
         require(!convertPortrait || format==ExportFormat.HEIC) { context.getString(R.string.portrait_heic_required) }
@@ -55,10 +55,11 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         }
         require(!media.blocked) { context.getString(R.string.media_unsupported) }
         require(!media.hdrHint || Build.VERSION.SDK_INT>=34) { context.getString(R.string.hdr_requires_android14) }
-        require(format==ExportFormat.JPEG || ((media.motion==null || paired) && (media.portraitTail==null || convertPortrait) &&
-            (!media.hdrHint || format!=ExportFormat.PNG))) {
-            context.getString(R.string.preservation_requires_jpeg)
-        }
+        // Capabilities constrain only the container: motion lives in JPEG or HEIC, the Xiaomi
+        // portrait tail only in JPEG (HEIC converts it instead), and 10-bit needs HEIC or AVIF.
+        require(media.motion==null || format in setOf(ExportFormat.JPEG,ExportFormat.HEIC)) { context.getString(R.string.live_pair_format) }
+        require(media.portraitTail==null || convertPortrait || format==ExportFormat.JPEG) { context.getString(R.string.preservation_requires_jpeg) }
+        require(!media.hdrHint || format!=ExportFormat.PNG) { context.getString(R.string.preservation_requires_jpeg) }
         require(format!=ExportFormat.HEIC || Build.VERSION.SDK_INT>=28) { context.getString(R.string.heic_requires_android9) }
         require(format!=ExportFormat.AVIF || Build.VERSION.SDK_INT>=34) { context.getString(R.string.avif_requires_android14) }
         val runtime=Runtime.getRuntime();val freeHeap=runtime.maxMemory()-(runtime.totalMemory()-runtime.freeMemory())
@@ -223,11 +224,31 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 stage=R.string.export_stage_depth_encode
                 ApplePortraitEncoder.attach(assembled,portrait,portrait.orientation,captureAperture(source.captureTags))
             }
-            if(styleAssets!=null) {
+            // Both layers edit the container in one pass: the uri style item cannot be re-read
+            // by the strict container reader, and the motion box must stay the last top-level box.
+            val embedMotion=media.motion!=null && !paired && format==ExportFormat.HEIC
+            if(styleAssets!=null || embedMotion) {
                 stage=R.string.export_stage_style_encode
-                val assets=requireNotNull(styleAssets)
-                HeifImageContainer.read(assembled).withPhotographicStyles(assets.deltaWidth,assets.deltaHeight,
-                    assets.landscape,assets.linear,assets.sky).write(assembled)
+                var container=HeifImageContainer.read(assembled)
+                styleAssets?.let { assets ->
+                    container=container.withPhotographicStyles(assets.deltaWidth,assets.deltaHeight,
+                        assets.landscape,assets.linear,assets.sky)
+                }
+                if(embedMotion) {
+                    stage=R.string.export_stage_video
+                    val motion=requireNotNull(media.motion)
+                    require(motion.length<=Int.MAX_VALUE-8)
+                    container=container.withMotionDirectory(motion.timestampUs,motion.mime,motion.length)
+                }
+                container.write(assembled)
+                if(embedMotion) {
+                    val motion=requireNotNull(media.motion)
+                    java.io.FileOutputStream(assembled,true).use { output ->
+                        output.write(IsoBmff.data { writeInt(8+motion.length.toInt()); writeBytes("mpvd") })
+                        JpegContainer.copyRange(videoFile,0,motion.length,output)
+                    }
+                    MotionPhoto.validateVideo(assembled,assembled.length()-motion.length,motion.length)
+                }
             }
             currentCoroutineContext().ensureActive()
             stage=R.string.export_stage_publish

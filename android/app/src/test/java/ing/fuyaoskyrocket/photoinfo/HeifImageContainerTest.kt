@@ -27,6 +27,34 @@ class HeifImageContainerTest {
         } finally { file.delete() }
     }
     private fun fixture(name: String) = requireNotNull(javaClass.getResourceAsStream("/media/$name.heic")).use { it.readBytes() }
+
+    @Test fun motionDirectoryEmbedsTheTrailingVideoPayload() {
+        val base = HeifImageContainer.read(fixture("base"))
+        val video = IsoBmff.box("ftyp","isom0000".toByteArray())+IsoBmff.box("moov",byteArrayOf())+
+            IsoBmff.box("mdat",ByteArray(100) { it.toByte() })
+        val file = File.createTempFile("heif-motion", ".heic")
+        try {
+            val withDirectory = base.withMotionDirectory(4321, "video/mp4", video.size.toLong())
+            // The full reader rejects trailing motion payloads on purpose, so capture first.
+            val xmpItem = withDirectory.items
+                .single { it.type == "mime" && it.payload.decodeToString().contains("MotionPhoto") }
+            withDirectory.write(file)
+            java.io.FileOutputStream(file, true).use { output ->
+                output.write(IsoBmff.data { writeInt(8 + video.size); writeBytes("mpvd") })
+                output.write(video)
+            }
+            val graph = HeifGraph.inspect(file)
+            val payload = requireNotNull(graph.motionPayload)
+            assertEquals(file.length() - video.size, payload.offset)
+            assertEquals(video.size.toLong(), payload.length)
+            assertEquals(8L, payload.headerBytes)
+            val motion = MotionPhoto.inspectHeif(file, xmpItem.payload.decodeToString(), payload)
+            assertEquals(4321L, motion.timestampUs)
+            assertEquals(payload.offset, motion.offset)
+            assertEquals(payload.length, motion.length)
+            assertEquals("video/mp4", motion.mime)
+        } finally { file.delete() }
+    }
     private val metadata = IsoGainMapMetadata.fromRatios(FloatArray(3) { 1f }, floatArrayOf(4f, 8f, 16f),
         floatArrayOf(2f, 1f, .5f), FloatArray(3) { .01f }, FloatArray(3) { .02f }, 1f, 4f)
 

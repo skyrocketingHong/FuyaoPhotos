@@ -224,7 +224,7 @@
   <string name="style_heic_required">Photographic style metadata requires HEIC format.</string>
   <string name="apple_portrait_hint">Use the unblurred image, relative depth and portrait mask. Save as HEIC for depth editing on Apple devices.</string>
   <string name="portrait_heic_required">Choose HEIC to include Apple portrait depth.</string>
-  <string name="avif_precision_required">Keep AVIF to preserve this photo’s 10-bit color and dynamic range.</string>
+  <string name="avif_precision_required">Choose AVIF or HEIC to preserve this photo’s 10-bit color and dynamic range.</string>
   <string name="image_encoder_unavailable">This device has no encoder for the selected format. Choose another supported format.</string>
   <string name="export_formats_conflict">These photos need different output formats. Save the 10-bit AVIF photos separately from Motion Photos and portraits.</string>
   <string name="card_device_hint">Camera or phone product name. Blank fields stay hidden.</string>

@@ -40,9 +40,10 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
                         (!avifRequired || format==ExportFormat.AVIF) &&
                         (!hasPortrait || format==(if(options.applePortrait)ExportFormat.HEIC else ExportFormat.JPEG)) &&
                         (!options.appleStyle || format==ExportFormat.HEIC) &&
-                        (!hasMotion || format==ExportFormat.JPEG || (options.separateLivePhoto && format==ExportFormat.HEIC)) &&
+                        (!hasMotion || format==ExportFormat.JPEG || format==ExportFormat.HEIC) &&
                         (format != ExportFormat.HEIC || Build.VERSION.SDK_INT >= 28) &&
-                        (format != ExportFormat.AVIF || Build.VERSION.SDK_INT >= 34),
+                        (format != ExportFormat.AVIF || Build.VERSION.SDK_INT >= 34) &&
+                        (!avifRequired || format==ExportFormat.AVIF || format==ExportFormat.HEIC),
                     onClick = { onChange(options.copy(format = format)); expanded = false })
             }
         }
@@ -50,21 +51,17 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
     if(options.format !in supportedFormats) Text(stringResource(R.string.image_encoder_unavailable),
         style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
     if(showLiveOption) MetadataSwitch(R.string.live_pair,R.string.live_pair_hint,options.separateLivePhoto) {
-        onChange(options.copy(separateLivePhoto=it,
-            applePortrait=options.applePortrait && (it || !hasMotion),
-            format=if(hasMotion && (options.format !in setOf(ExportFormat.JPEG,ExportFormat.HEIC) || !it)) ExportFormat.JPEG else options.format))
+        onChange(options.copy(separateLivePhoto=it))
     }
     if(showPortraitOption && Build.VERSION.SDK_INT>=34 && ExportFormat.HEIC in supportedFormats) MetadataSwitch(R.string.apple_portrait,R.string.apple_portrait_hint,options.applePortrait) {
         onChange(options.copy(applePortrait=it,
-            separateLivePhoto=options.separateLivePhoto || (it && hasMotion),
             format=if(it)ExportFormat.HEIC else if(hasPortrait)ExportFormat.JPEG else options.format))
     }
-    if(!avifRequired && ExportFormat.HEIC in supportedFormats && Build.VERSION.SDK_INT>=28) MetadataSwitch(R.string.apple_style,R.string.apple_style_hint,options.appleStyle) {
-        // HEIC cannot carry the Xiaomi tail or an unpaired motion video, so enabling the style
-        // pulls in the depth conversion and the live pairing when the photo needs them.
+    if(ExportFormat.HEIC in supportedFormats && Build.VERSION.SDK_INT>=28) MetadataSwitch(R.string.apple_style,R.string.apple_style_hint,options.appleStyle) {
+        // HEIC cannot carry the Xiaomi tail, so enabling the style pulls in the depth
+        // conversion when the photo has one; motion stays embedded either way.
         onChange(options.copy(appleStyle=it,
             applePortrait=options.applePortrait || (it && hasPortrait),
-            separateLivePhoto=options.separateLivePhoto || (it && hasMotion),
             format=if(it)ExportFormat.HEIC else options.format))
     }
     if(options.format==ExportFormat.HEIC) Text(stringResource(R.string.heic_sdr_hint),
