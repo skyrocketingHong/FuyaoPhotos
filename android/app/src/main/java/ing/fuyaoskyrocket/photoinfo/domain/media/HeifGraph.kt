@@ -71,10 +71,15 @@ object HeifGraph {
         }
         val auxiliary = children.firstOrNull { it.type == "iprp" }?.let { auxiliaryTypes(source, it) } ?: emptyList()
         val hasAux = auxiliary.any { it == "urn:iso:std:iso:ts:21496:-1" }
-        val styles = items.any { it.type.contains("style", true) || it.contentType?.contains("styleMetadata", true) == true }
+        // Apple ships the styles declaration as a uri item named "metadata" with the
+        // photo:metadata:styles content type, and portrait depth as HEVC disparity auxiliaries.
+        val styles = items.any {
+            it.type.contains("style", true) || it.contentType?.contains("styleMetadata", true) == true ||
+                it.contentType?.contains("photo:metadata:styles", true) == true
+        }
         val portrait = items.any {
             it.type.contains("depth", true) || it.contentType?.contains("portrait", true) == true
-        }
+        } || auxiliary.any { it == "urn:mpeg:hevc:2015:auxid:2" || it.contains("portraiteffectsmatte") }
         val xmpItems = items.count { it.type == "mime" && it.contentType in setOf("application/rdf+xml", "application/xmp+xml") }
         val unsupportedItems = auxiliary.isNotEmpty() || xmpItems > 1 ||
             children.firstOrNull { it.type == "iprp" }?.let { hasUnknownProperties(source, it) } == true || items.any { item ->
@@ -116,7 +121,7 @@ object HeifGraph {
             source.readUnsignedShort()
             if (source.filePointer + 4 > entry.end) throw IOException("HEIF item type is truncated")
             val type = fourCc(source)
-            val content = if (type == "mime") {
+            val content = if (type == "mime" || type == "uri ") {
                 val value = bytes(source, source.filePointer, minOf(entry.end - source.filePointer, 256))
                 val nameEnd = value.indexOf(0)
                 if (nameEnd < 0) throw IOException("HEIF MIME item name is unterminated")

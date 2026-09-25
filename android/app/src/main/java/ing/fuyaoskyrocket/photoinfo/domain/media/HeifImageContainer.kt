@@ -218,7 +218,8 @@ internal data class HeifImageContainer(
 
         val styleID = next++
         newItems += Item(styleID, "uri ",
-            ("styleMetadata\u0000" + AppleStyleMetadata.STYLES_CONTENT_TYPE + "\u0000").toByteArray(),
+            // Apple's own files name this item "metadata" and identify it by content type.
+            ("metadata\u0000" + AppleStyleMetadata.STYLES_CONTENT_TYPE + "\u0000").toByteArray(),
             AppleStyleMetadata.styleMetadata(), hidden = true)
         newReferences += Reference("cdsc", styleID, toneTargets)
         return copy(items = newItems, properties = props, references = newReferences)

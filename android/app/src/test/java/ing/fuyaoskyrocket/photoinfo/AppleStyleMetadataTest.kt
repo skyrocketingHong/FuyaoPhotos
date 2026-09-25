@@ -116,7 +116,7 @@ class AppleStyleMetadataTest {
         val styled = base.withPhotographicStyles(2880, 2470, true, null, null)
         val style = styled.items.single { it.type == "uri " }
         val declaration = String(style.infoSuffix, Charsets.ISO_8859_1)
-        assertTrue(declaration.startsWith("styleMetadata\u0000tag:apple.com,2023:photo:metadata:styles\u0000"))
+        assertTrue(declaration.startsWith("metadata\u0000tag:apple.com,2023:photo:metadata:styles\u0000"))
         assertTrue(style.payload.size > 51840)
         assertTrue(style.hidden)
         assertEquals(listOf(base.primary), styled.references.single { it.type == "cdsc" && it.from == style.id }.to)
@@ -147,7 +147,6 @@ class AppleStyleMetadataTest {
             val text = String(bytes, Charsets.ISO_8859_1)
             assertTrue(text.contains("tag:apple.com,2023:photo:metadata:styles"))
             assertTrue(text.contains("bplist00"))
-            assertTrue(text.contains("styleMetadata"))
             assertTrue(bytes.size > styled.items.sumOf { it.payload.size } + 8)
         } finally { file.delete() }
     }
