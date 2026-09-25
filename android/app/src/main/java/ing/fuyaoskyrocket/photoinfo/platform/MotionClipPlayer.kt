@@ -53,14 +53,6 @@ class MotionClipPlayer(
     }
     private fun finish() { release();onFinished() }
     private fun fail() { release();onError() }
-    fun playbackProgress(): Float? {
-        val media=player ?: return null
-        if(released || !prepared)return null
-        return try {
-            val duration=media.duration.takeIf { it>0 } ?: return null
-            (media.currentPosition.toFloat()/duration).coerceIn(0f,1f)
-        } catch (_: IllegalStateException) { null }
-    }
     fun release() {
         if(released)return
         released=true

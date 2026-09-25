@@ -20,34 +20,25 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import ing.fuyaoskyrocket.photoinfo.platform.MotionClipPlayer
 import ing.fuyaoskyrocket.photoinfo.platform.MotionClipSource
 import ing.fuyaoskyrocket.photoinfo.R
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 
 @Composable
 fun MotionPhotoPreview(source: MotionClipSource, modifier: Modifier = Modifier,
-    onProgress: (Float?) -> Unit = {}, onFinished: () -> Unit, onError: () -> Unit) {
+    onFinished: () -> Unit, onError: () -> Unit) {
     val context=LocalContext.current
     val owner=LocalLifecycleOwner.current
     val finished by rememberUpdatedState(onFinished)
     val failed by rememberUpdatedState(onError)
-    val progressChanged by rememberUpdatedState(onProgress)
     var ratio by remember(source) { mutableFloatStateOf(4f/3f) }
     var loading by remember(source) { mutableStateOf(true) }
     val player=remember(source) { MotionClipPlayer(context,
         onSize={ width,height -> ratio=width.toFloat()/height },onReady={ loading=false },
-        onFinished={ progressChanged(null);finished() },onError={ progressChanged(null);failed() }) }
-    LaunchedEffect(player, loading) {
-        if(!loading)while(isActive) {
-            progressChanged(player.playbackProgress())
-            delay(100)
-        }
-    }
+        onFinished={ finished() },onError={ failed() }) }
     DisposableEffect(player,owner) {
         val observer=LifecycleEventObserver { _,event ->
             if(event==Lifecycle.Event.ON_PAUSE || event==Lifecycle.Event.ON_STOP) { player.release();finished() }
         }
         owner.lifecycle.addObserver(observer)
-        onDispose { owner.lifecycle.removeObserver(observer);player.release();progressChanged(null) }
+        onDispose { owner.lifecycle.removeObserver(observer);player.release() }
     }
     BoxWithConstraints(modifier.background(Color.Black),contentAlignment=Alignment.Center) {
         val width=minOf(maxWidth,maxHeight*ratio)

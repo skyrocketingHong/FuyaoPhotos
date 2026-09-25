@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -30,10 +31,8 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
     val photoId=state.photos.getOrNull(state.photoIndex)?.id
     var playing by remember(photoId) { mutableStateOf(false) }
     var playbackError by remember(photoId) { mutableStateOf(false) }
-    var motionProgress by remember(photoId) { mutableStateOf<Float?>(null) }
     var showingInfo by remember(photoId) { mutableStateOf(false) }
     LaunchedEffect(state.busy,state.rendering,motion) { if(state.busy || state.rendering || motion==null)playing=false }
-    LaunchedEffect(playing) { if(!playing)motionProgress=null }
     val focus=LocalFocusManager.current
     val keyboard=LocalSoftwareKeyboardController.current
     val selectedIndex by rememberUpdatedState(state.photoIndex)
@@ -44,12 +43,14 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
     val updating=state.rendering || editingText
     BoxWithConstraints(modifier.then(if(bottomSafe)Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier)) {
     val showPhoto=maxHeight>52.dp
+    val justifiedControls=maxWidth>=336.dp
     LaunchedEffect(showPhoto) { if(!showPhoto)playing=false }
     Column(Modifier.fillMaxSize()) {
         if(showPhoto) {
-        Surface(Modifier.fillMaxWidth().weight(1f).padding(horizontal=8.dp,vertical=4.dp),
-            color=MaterialTheme.colorScheme.surfaceContainerLow,tonalElevation=1.dp,shadowElevation=3.dp) {
-            key(state.sessionId) {
+        Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal=8.dp,vertical=4.dp)) {
+            EditorAmbientBackdrop(state.original, featherEdges=false, Modifier.matchParentSize())
+            Surface(Modifier.matchParentSize(),
+                color=Color.Transparent,shadowElevation=3.dp) {
                 val pager=rememberPagerState(initialPage=state.photoIndex) { state.photos.size }
                 LaunchedEffect(pager.isScrollInProgress) { if(pager.isScrollInProgress)playing=false }
                 LaunchedEffect(pager) {
@@ -66,9 +67,9 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                     }
                 },userScrollEnabled=(!state.busy || state.loadingPhoto) && !state.closing) { page ->
                     if(page==state.photoIndex)PendingPhotoEffect(updating,Modifier.fillMaxSize()) {
-                        PhotoPreview(if(original)state.original else state.preview,Modifier.fillMaxSize())
+                        PhotoPreview(if(original)state.original else state.preview,Modifier.fillMaxSize(),
+                            backgroundColor=Color.Transparent)
                         if(playing && motion!=null)MotionPhotoPreview(motion,Modifier.fillMaxSize(),
-                            onProgress={ motionProgress=it },
                             onFinished={ playing=false },onError={ playing=false;playbackError=true })
                     } else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
                         Icon(painterResource(R.drawable.ic_photo_info),stringResource(R.string.loading_photo),
@@ -98,10 +99,11 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
             }
         }
         Surface(color=MaterialTheme.colorScheme.surfaceContainer) {
-            Row(Modifier.fillMaxWidth().height(52.dp).horizontalScroll(rememberScrollState()),verticalAlignment=Alignment.CenterVertically) {
+            // Justified, evenly spaced controls; only genuinely narrow windows keep the scroll fallback.
+            val mediaActions: @Composable RowScope.() -> Unit = {
                 if(state.motionPhoto)PreviewMediaButton(if(playing)R.drawable.ic_stop else R.drawable.ic_motion,
                     stringResource(if(playing)R.string.stop_motion else R.string.play_motion),playing,{ playing=!playing },
-                    enabled=motion!=null && !state.busy && !state.rendering,progress=motionProgress)
+                    enabled=motion!=null && !state.busy && !state.rendering)
                 if(showHdr)PreviewMediaButton(R.drawable.ic_hdr,
                     stringResource(if(!hdrAvailable)R.string.hdr_unavailable else if(hdrEnabled)R.string.disable_hdr else R.string.enable_hdr),
                     hdrEnabled && hdrAvailable,{ playing=false;onHdr() },enabled=hdrAvailable)
@@ -112,6 +114,10 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                     FuyaoIconButton(R.drawable.ic_info,stringResource(R.string.photo_details),{ showingInfo=true })
                 }
             }
+            if(justifiedControls) Row(Modifier.fillMaxWidth().height(52.dp),verticalAlignment=Alignment.CenterVertically,
+                horizontalArrangement=Arrangement.SpaceBetween,content=mediaActions)
+            else Row(Modifier.fillMaxWidth().height(52.dp).horizontalScroll(rememberScrollState()),
+                verticalAlignment=Alignment.CenterVertically,content=mediaActions)
         }
     }
     }
