@@ -49,7 +49,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     private var locationJob: Job? = null
     private var renderJob: Job? = null
     private var workJob: Job? = null
-    private val initialSettings = settingsRepository.read()
+    private val initialSettings = settingsRepository.read().also {
+        ing.fuyaoskyrocket.photoinfo.platform.HevcEncoders.preferred = it.hevcEncoder }
     var state by mutableStateOf(EditorState(style = readStyle(), fontName = fonts.displayName,
         hasCustomFont = fonts.hasCustomFont, keepCaptureMetadata = saved["keepMetadata"] ?: initialSettings.exportDefaults.keepExif,
         settings = initialSettings, jpegQuality = saved["jpegQuality"] ?: initialSettings.exportDefaults.jpegQuality,
@@ -240,7 +241,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
     fun saveSettings(settings: EditorSettings) {
         if (state.busy || !settings.validFocal || settings.defaultAuthor.length > 512) return
         settingsRepository.save(settings)
-        state = state.copy(settings = settingsRepository.read())
+        state = state.copy(settings = settingsRepository.read().also {
+            ing.fuyaoskyrocket.photoinfo.platform.HevcEncoders.preferred = it.hevcEncoder })
         if (!settings.resolvePhotoLocation) { cancelLocation(); state = state.copy(locationStatus = LocationStatus.DISABLED) }
         else if (state.info[FieldId.LOCATION].isBlank() && !locationEdited) resolveLocation()
     }

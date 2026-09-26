@@ -93,6 +93,14 @@ val privateSigning = listOf("storeFile", "storePassword", "keyAlias", "keyPasswo
 android {
     namespace = "ing.fuyaoskyrocket.photoinfo"
     compileSdk = 37
+    // Vendored x265 still encoder; 32-bit ABIs build a stub and fall back to the
+    // platform encoder at runtime.
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
     defaultConfig {
         applicationId = "ing.fuyaoskyrocket.photoinfo"
         minSdk = 26

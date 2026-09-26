@@ -46,3 +46,6 @@ agents.md
 !/assets/readme/apple-keynote-night-sky.png
 !/assets/readme/apple-keynote-stairs.png
 !/assets/readme/sample-hong-kong.jpg
+# Native build intermediates for the vendored x265 encoder.
+android/app/.cxx/
+android/app/.externalNativeBuild/

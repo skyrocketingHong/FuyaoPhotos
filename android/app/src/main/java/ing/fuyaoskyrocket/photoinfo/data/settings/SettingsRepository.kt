@@ -17,6 +17,9 @@ class SettingsRepository(context: Context) {
         resolvePhotoLocation = preferences.getBoolean("resolvePhotoLocation", true),
         fallbackMainFocal = preferences.getString("fallbackMainFocal", "").orEmpty(),
         lenses = readLenses(),
+        hevcEncoder = if (preferences.getString("export.hevcEncoder", "x265") == "platform")
+            ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.PLATFORM
+        else ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265,
         exportDefaults = ExportOptions.restore(listOf(
             preferences.getString("export.format", "JPEG").orEmpty(),
             preferences.getInt("export.quality", 100).toString(),
@@ -68,6 +71,7 @@ class SettingsRepository(context: Context) {
             putBoolean("export.appleStyle", defaults.appleStyle)
             putBoolean("export.appleStyle3", defaults.appleStyle3)
             putString("lenses", encodeLenses(settings.lenses))
+            putString("export.hevcEncoder", if (settings.hevcEncoder == ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.PLATFORM) "platform" else "x265")
             putString("defaultAuthor", settings.defaultAuthor.trim())
             putBoolean("resolvePhotoLocation", settings.resolvePhotoLocation)
             putString("fallbackMainFocal", settings.fallbackMainFocal.trim())

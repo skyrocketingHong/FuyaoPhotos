@@ -223,6 +223,9 @@
   <string name="apple_portrait">将小米人像转换为 Apple 景深照片</string>
   <string name="apple_style">Apple 摄影风格</string>
   <string name="apple_style_hint">为 HEIC 导出写入身份（标准）摄影风格，Apple 设备会显示风格调节入口。</string>
+  <string name="hevc_encoder">x265 HEVC 编码器</string>
+  <string name="hevc_encoder_hint">使用内建 x265 编码 HEIC 导出，输出与设备无关；关闭时使用系统编码器。</string>
+  <string name="hevc_encoder_unavailable">当前设备构建不包含内建 x265，将使用系统编码器。</string>
   <string name="apple_style3">摄影风格 3（质感与颗粒）</string>
   <string name="apple_style3_hint">写入质感风格元数据与分区蒙版，在 Apple 照片中解锁质感 / 胶片颗粒 / 光晕调节；会自动附带普通摄影风格。</string>
   <string name="style_heic_required">摄影风格元数据需要 HEIC 格式。</string>

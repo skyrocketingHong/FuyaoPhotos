@@ -29,10 +29,12 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
     var geocode by rememberSaveable { mutableStateOf(settings.resolvePhotoLocation) }
     var mainFocal by rememberSaveable { mutableStateOf(settings.fallbackMainFocal) }
     var exportDefaults by rememberSaveable(stateSaver=ExportOptionsSaver) { mutableStateOf(settings.exportDefaults) }
-    val draft=EditorSettings(author,geocode,mainFocal,settings.lenses,exportDefaults)
+    var hevcEncoder by rememberSaveable { mutableStateOf(settings.hevcEncoder) }
+    val draft=EditorSettings(author,geocode,mainFocal,settings.lenses,exportDefaults,hevcEncoder)
     val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
         listOf(settings.defaultAuthor, settings.resolvePhotoLocation.toString(), settings.fallbackMainFocal),
-        listOf(author, geocode.toString(), mainFocal), setOf(2)) || exportDefaults != settings.exportDefaults
+        listOf(author, geocode.toString(), mainFocal), setOf(2)) || exportDefaults != settings.exportDefaults ||
+        hevcEncoder != settings.hevcEncoder
     val requestBack = rememberConfirmedBack(onBack, hasChanges = changed, enabled = !showAbout)
     FuyaoScaffold(stringResource(R.string.settings),onBack=requestBack,actions={
         TextButton(onClick={ onSave(draft,false) },enabled=draft.validFocal) { Text(stringResource(R.string.save_settings)) }
@@ -44,6 +46,20 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
             HorizontalDivider()
             SectionHeading(stringResource(R.string.export_defaults),stringResource(R.string.export_defaults_hint))
             ExportOptionsControls(exportDefaults,{ exportDefaults=it })
+            val x265Available=ing.fuyaoskyrocket.photoinfo.platform.HevcEncoders.x265Available
+            val encoderLabel=stringResource(R.string.hevc_encoder)
+            Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(
+                    value=hevcEncoder==ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265,
+                    enabled=x265Available,role=Role.Switch,
+                    onValueChange={ hevcEncoder=if(it) ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265
+                        else ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.PLATFORM }),
+                verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
+                Text(encoderLabel,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
+                Switch(hevcEncoder==ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265,
+                    onCheckedChange=null,enabled=x265Available)
+            }
+            Text(stringResource(if(x265Available)R.string.hevc_encoder_hint else R.string.hevc_encoder_unavailable),
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider()
             SectionHeading(stringResource(R.string.section_metadata))
             val locationLabel=stringResource(R.string.resolve_location)

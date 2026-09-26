@@ -29,6 +29,16 @@ object HeicTenBitEncoder {
         val widePq = hdrTransfer && TenBitYuv.transferFor(bitmap.colorSpace?.name.orEmpty()) == TenBitYuv.Transfer.PQ
         val wideHlg = hdrTransfer && TenBitYuv.transferFor(bitmap.colorSpace?.name.orEmpty()) != TenBitYuv.Transfer.PQ &&
             bitmap.colorSpace?.name?.contains("HLG") == true
+        var x265Failure: Throwable? = null
+        if (HevcEncoders.active() == HevcEncoderKind.X265) {
+            try {
+                encodeWithX265(bitmap, destination, quality, exif, hdrTransfer)
+                return
+            } catch (failure: Throwable) {
+                if (failure is OutOfMemoryError) throw failure
+                x265Failure = failure
+            }
+        }
         val candidates = pickEncoders()
         if (candidates.isEmpty()) error("This device exposes no HEVC Main10 encoder for ten-bit HEIC")
         var bufferFailure: Throwable? = null
@@ -50,10 +60,56 @@ object HeicTenBitEncoder {
         } catch (failure: Throwable) {
             val bufferNote = if (p010 == null) "unavailable"
                 else "${bufferFailure?.javaClass?.simpleName}: ${bufferFailure?.message}"
+            val x265Note = if (x265Failure == null) "" else
+                " [x265: ${x265Failure.javaClass.simpleName}: ${x265Failure.message}]"
             throw IllegalStateException(
-                "Ten-bit HEVC failed [p010 ${p010?.name ?: "none"}: $bufferNote] " +
+                "Ten-bit HEVC failed$x265Note [p010 ${p010?.name ?: "none"}: $bufferNote] " +
                 "[surface ${surface.name}: ${failure.javaClass.simpleName}: ${failure.message}]", failure)
         }
+    }
+
+    /**
+     * Vendored x265 route: the same P010 packing the platform buffer route feeds
+     * (identity matrices, source curve, 16-bit left-aligned samples at a tight
+     * layout) goes to the native encoder; the Annex-B output is split into the
+     * parameter sets and slice the container assembler expects.
+     */
+    private fun encodeWithX265(bitmap: Bitmap, destination: File, quality: Int, exif: ByteArray?, hdrTransfer: Boolean) {
+        val width = bitmap.width
+        val height = bitmap.height
+        val plane = TenBitYuv.encodeP010(readHalfBuffer(bitmap), width, height, width, height,
+            bitmap.colorSpace?.name.orEmpty(), hdrTransfer, sourceIsLinear(bitmap))
+        val space = bitmap.colorSpace
+        val wide = hdrTransfer && (space?.name?.contains("PQ") == true || space?.name?.contains("HLG") == true)
+        val primaries = if (space?.name?.contains("P3") == true) 12 else 9
+        val transfer = when {
+            !hdrTransfer || !wide -> 13
+            space?.name?.contains("HLG") == true -> 18
+            else -> 16
+        }
+        val stream = HevcX265.nativeEncodeColor10(width, height, plane, crfFor(quality), primaries, transfer, 9)
+        writeAssembled(streamFromAnnexB(stream), bitmap, exif, destination)
+    }
+
+    /** Maps the save-panel quality onto x265's constant-rate-factor scale. */
+    private fun crfFor(quality: Int): Int = when (quality.coerceIn(0, 100)) {
+        in 95..100 -> 14
+        in 85..94 -> 16
+        in 70..84 -> 18
+        in 50..69 -> 20
+        else -> 22
+    }
+
+    private fun streamFromAnnexB(stream: ByteArray): CodedStream {
+        val units = ing.fuyaoskyrocket.photoinfo.domain.media.HevcConfiguration.splitAnnexB(stream)
+            .distinctBy { it.second.toList() }
+        val parameters = units.filter { it.first in 32..34 }
+        val slices = units.filter { it.first !in 32..34 }
+        check(parameters.any { it.first == 33 } && parameters.any { it.first == 34 }) {
+            "x265 stream lacks SPS/PPS: units=${units.map { it.first }}"
+        }
+        check(slices.isNotEmpty()) { "x265 produced no coded slice" }
+        return CodedStream(parameters, slices)
     }
 
     private fun baseFormat(bitmap: Bitmap, quality: Int, widePq: Boolean, level: Int): MediaFormat =

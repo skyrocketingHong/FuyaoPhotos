@@ -223,6 +223,9 @@
   <string name="apple_portrait">Convert Xiaomi portrait to Apple depth</string>
   <string name="apple_style">Apple Photographic Style</string>
   <string name="apple_style_hint">Tags the HEIC export with an identity (Standard) photographic style so Apple devices show the style controls.</string>
+  <string name="hevc_encoder">x265 HEVC encoder</string>
+  <string name="hevc_encoder_hint">Encode HEVC exports with the bundled x265 encoder for device-independent output; the system encoder is used when this is off.</string>
+  <string name="hevc_encoder_unavailable">The bundled x265 encoder is not part of this device build; the system encoder is used.</string>
   <string name="apple_style3">Photographic Style 3 (texture and grain)</string>
   <string name="apple_style3_hint">Adds the texture-style metadata and part mattes that unlock the texture / film grain / glow controls in Apple Photos; automatically includes the plain photographic style.</string>
   <string name="style_heic_required">Photographic style metadata requires HEIC format.</string>

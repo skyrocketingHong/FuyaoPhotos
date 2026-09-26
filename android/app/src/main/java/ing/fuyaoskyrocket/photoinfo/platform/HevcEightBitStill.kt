@@ -28,6 +28,20 @@ object HevcEightBitStill {
             "mono frame geometry $width×$height"
         }
         require(luma.size == width * height) { "mono plane size ${luma.size} for ${width}x$height" }
+        if (HevcEncoders.active() == HevcEncoderKind.X265) {
+            val units = HevcConfiguration.splitAnnexB(HevcX265.nativeEncodeMono(width, height, luma))
+                .distinctBy { it.second.toList() }
+            val parameters = units.filter { it.first in 32..34 }
+            val slices = units.filter { it.first !in 32..34 }
+            check(parameters.any { it.first == 33 } && parameters.any { it.first == 34 }) {
+                "x265 mono stream lacks SPS/PPS: units=${units.map { it.first }}"
+            }
+            check(slices.isNotEmpty()) { "x265 mono encoder produced no coded slice" }
+            // Apple's own depth and matte items declare monochrome in the record regardless
+            // of the coded 4:2:0 layout; the reference converter does the same.
+            return Encoded(HevcConfiguration.hvcBox(parameters, bitDepthMinus8 = 0, chromaFormatIdc = 0),
+                HevcConfiguration.lengthPrefixed(slices))
+        }
         val candidate = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
             .filter { it.isEncoder && !it.name.startsWith("OMX.") }
             .mapNotNull { info ->

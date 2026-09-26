@@ -59,3 +59,14 @@ The upstream source is MIT licensed; its license is retained at
 third_party/XDRemux-Flutter/LICENSE. The application uses its own Kotlin and Swift
 implementations rather than bundling upstream Flutter or Rust binaries.
 https://github.com/BeetMan/XDRemux-Flutter
+
+Vendored x265
+--------------
+The Android app embeds the x265 video encoder (source vendored under
+android/app/src/main/cpp/x265, upstream: multicoreware x265, X265_BUILD 216).
+x265 is free software licensed under the GNU General Public License version 2
+or, at your option, any later version (see COPYING in the vendored tree). The
+combined work remains distributable under this project's AGPL-3.0-only license
+because GPL-2.0-or-later is one-way compatible with AGPL-3.0. Binaries carry
+the x265 static library; the complete corresponding source lives in this
+repository.
