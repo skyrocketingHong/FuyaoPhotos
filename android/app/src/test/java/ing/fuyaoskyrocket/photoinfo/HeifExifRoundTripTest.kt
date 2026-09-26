@@ -7,8 +7,9 @@ import org.junit.Test
 
 class HeifExifRoundTripTest {
     @Test fun exifItemSurvivesTheAssembledContainer() {
-        // The self-assembled container keeps a standalone-readable Exif item: our reader finds
-        // the item and its payload stays a valid APP1 block with the Exif prefix intact.
+        // The self-assembled container keeps a standalone-readable Exif item: the payload
+        // is an ISO/IEC 14496-12 exif_data_block (4-byte TIFF header offset, then APP1),
+        // the layout Apple's writer uses and exiftool's size check expects.
         val tiny = File.createTempFile("exif-tiny-", ".jpg")
         val assembled = File.createTempFile("exif-heif-", ".heic")
         try {
@@ -23,9 +24,14 @@ class HeifExifRoundTripTest {
 
             val read = HeifImageContainer.read(assembled)
             val stored = read.items.firstOrNull { it.type == "Exif" } ?: error("Exif item missing after round trip")
+            assertEquals(6, ((stored.payload[0].toInt() and 255) shl 24) or
+                ((stored.payload[1].toInt() and 255) shl 16) or
+                ((stored.payload[2].toInt() and 255) shl 8) or
+                (stored.payload[3].toInt() and 255))
             assertEquals("Exif\u0000\u0000".toByteArray(Charsets.ISO_8859_1).toList(),
-                stored.payload.copyOfRange(0, 6).toList())
-            assertArrayEquals(exifBytes, stored.payload)
+                stored.payload.copyOfRange(4, 10).toList())
+            assertArrayEquals(exifBytes, HeifImageContainer.exifApp1(stored))
+            assertArrayEquals(exifBytes, HeifImageContainer.exifApp1(stored.copy(payload = exifBytes)))
         } finally { tiny.delete(); assembled.delete() }
     }
 

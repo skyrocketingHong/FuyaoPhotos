@@ -229,8 +229,13 @@ internal data class HeifImageContainer(
     fun withExif(exif: ByteArray?): HeifImageContainer {
         if (exif == null) return this
         require(exif.size <= 65500)
+        // ISO/IEC 14496-12 exif_data_block: a big-endian offset of the TIFF header inside
+        // the payload, then the APP1 body. Apple's writer keeps the "Exif\0\0" marker, so
+        // the header sits six bytes after the offset field; readers that expect the block
+        // (and exiftool's size check) reject a bare APP1 payload.
+        val block = byteArrayOf(0, 0, 0, 6) + exif
         val id = items.maxOf { it.id } + 1
-        return copy(items = items + Item(id, "Exif", byteArrayOf(0), exif, hidden = true),
+        return copy(items = items + Item(id, "Exif", byteArrayOf(0), block, hidden = true),
             references = references + Reference("cdsc", id, listOf(primary)))
     }
 
@@ -311,6 +316,20 @@ internal data class HeifImageContainer(
     }
 
     companion object {
+        private val EXIF_MARKER = "Exif\u0000\u0000".toByteArray(Charsets.ISO_8859_1)
+
+        /** Returns the APP1 payload ("Exif\0\0" + TIFF) stored in an Exif item's data block. */
+        fun exifApp1(item: Item): ByteArray {
+            val payload = item.payload
+            fun hasMarker(at: Int) = payload.size >= at + EXIF_MARKER.size &&
+                EXIF_MARKER.indices.all { payload[at + it] == EXIF_MARKER[it] }
+            // exif_data_block starts with a 4-byte TIFF header offset; tolerate legacy
+            // writers that stored the APP1 payload directly.
+            val prefixed = payload.size > 4 && hasMarker(4)
+            if (!prefixed && !hasMarker(0)) error("Exif item carries no APP1 payload")
+            return if (prefixed) payload.copyOfRange(4, payload.size) else payload
+        }
+
         fun read(file: File): HeifImageContainer {
             require(file.length() in 16..IsoBmff.MAX_BYTES.toLong())
             return read(file.readBytes())

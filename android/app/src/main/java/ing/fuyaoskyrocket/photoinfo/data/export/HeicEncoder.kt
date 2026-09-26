@@ -87,11 +87,12 @@ internal object HeicEncoder {
                 val written = if (exifItem != null) {
                     // The stream constructor has no EXIF-only mode; a minimal JPEG wrapper
                     // takes the battle-tested APP1 path with the payload verbatim.
+                    val body = HeifImageContainer.exifApp1(exifItem)
                     val app1 = java.io.ByteArrayOutputStream()
                     app1.write(0xff); app1.write(0xe1)
-                    val size = exifItem.payload.size + 2
+                    val size = body.size + 2
                     app1.write(size shr 8); app1.write(size and 255)
-                    app1.write(exifItem.payload)
+                    app1.write(body)
                     val jpeg = java.io.ByteArrayOutputStream()
                     jpeg.write(0xff); jpeg.write(0xd8)
                     jpeg.write(app1.toByteArray())
