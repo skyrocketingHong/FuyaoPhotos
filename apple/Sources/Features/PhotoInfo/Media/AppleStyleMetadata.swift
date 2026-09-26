@@ -144,6 +144,25 @@ nonisolated enum AppleStyleMetadata {
         return try withMakerNote(exif, note: note)
     }
 
+    /// Tag numbers present in the file's Apple MakerNote (empty when the note is absent
+    /// or unreadable); used by the metadata report to surface pairing and style tags.
+    static func makerNoteTags(exif app1: Data?) -> [Int] {
+        guard let note = try? existingMakerNote(app1), let entries = parsedAppleEntries(note) else { return [] }
+        return entries.map(\.tag)
+    }
+
+    /// Unwraps an Exif item payload into the APP1 body ("Exif\0\0" + TIFF), tolerating
+    /// legacy writers that stored the payload without the exif_data_block offset.
+    static func exifApp1Payload(_ payload: [UInt8]) -> Data? {
+        let marker = Array("Exif\0\0".utf8)
+        func hasMarker(_ at: Int) -> Bool {
+            payload.count >= at + marker.count && Array(payload[at..<at + marker.count]) == marker
+        }
+        if payload.count > 4 && hasMarker(4) { return Data(payload[4...]) }
+        if hasMarker(0) { return Data(payload) }
+        return nil
+    }
+
     private static func assembleNote(entries: [AppleMakerNoteEntry]) -> [UInt8] {
         let sorted = entries.sorted { $0.tag < $1.tag }
         var at = 16 + sorted.count * 12 + 4

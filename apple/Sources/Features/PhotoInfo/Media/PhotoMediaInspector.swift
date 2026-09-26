@@ -20,6 +20,15 @@ nonisolated struct PhotoMediaInspection: Sendable {
     let height: Int
 }
 
+nonisolated struct PhotoJPEGScan: Sendable {
+    let mpf: Bool
+    let isoGainMapSegment: Bool
+    let xmp: String
+    let primaryEnd: Int
+    let fileSize: Int
+    var trailingBytes: Int { fileSize - primaryEnd }
+}
+
 nonisolated enum PhotoMediaInspectionError: Error {
     case invalidImage
     case oversizedImage
@@ -62,6 +71,26 @@ nonisolated enum PhotoMediaInspector {
     }
 
     private static func inspectJPEG(_ url: URL) throws -> PhotoMediaKind {
+        let scan = try scanJPEG(url)
+        let packet = scan.xmp
+        let mpf = scan.mpf
+        let hdr = packet.range(of: "hdr-gain-map", options: .caseInsensitive) != nil ||
+            packet.range(of: "hdrgm:", options: .caseInsensitive) != nil ||
+            scan.isoGainMapSegment
+        let motion = packet.contains("http://ns.google.com/photos/1.0/camera/") &&
+            (packet.contains("MotionPhoto") || packet.contains("MicroVideo"))
+        let portrait = packet.contains("http://ns.xiaomi.com/photos/1.0/camera/bokeh") &&
+            packet.contains("rawlength") && packet.contains("depthlength")
+        if portrait && hdr && mpf && scan.primaryEnd < scan.fileSize { return .xiaomiPortraitJPEG }
+        if motion && scan.primaryEnd < scan.fileSize { return hdr ? .hdrMotionJPEG : .motionJPEG }
+        if hdr && mpf && scan.primaryEnd < scan.fileSize { return .ultraHDRJPEG }
+        if !hdr && !motion && !portrait && !mpf && scan.primaryEnd == scan.fileSize { return .stillJPEG }
+        return .unsupported
+    }
+
+    /// JPEG marker walk shared by the kind classifier and the metadata report: collects
+    /// the MPF marker, every XMP packet and the end of the primary image.
+    nonisolated static func scanJPEG(_ url: URL) throws -> PhotoJPEGScan {
         let data = try Data(contentsOf: url, options: .mappedIfSafe)
         return try data.withUnsafeBytes { (bytes: UnsafeRawBufferPointer) in
             guard bytes.count >= 4, bytes[0] == 0xff, bytes[1] == 0xd8 else {
@@ -70,8 +99,10 @@ nonisolated enum PhotoMediaInspector {
             var cursor = 2
             var metadataBytes = 0
             var mpf = false
+            var isoGainMapSegment = false
             var xmp = Data()
             let prefix = Data("http://ns.adobe.com/xap/1.0/\0".utf8)
+            let isoPrefix = Data("urn:iso:std:iso:ts:21496".utf8)
             while cursor + 4 <= bytes.count && cursor <= 4 * 1024 * 1024 {
                 guard bytes[cursor] == 0xff else { throw PhotoMediaInspectionError.malformedJPEG }
                 while cursor < bytes.count && bytes[cursor] == 0xff { cursor += 1 }
@@ -94,6 +125,10 @@ nonisolated enum PhotoMediaInspector {
                    bytes[payloadStart + 2] == 0x46, bytes[payloadStart + 3] == 0 {
                     mpf = true
                 }
+                if marker == 0xe2, payloadEnd - payloadStart >= isoPrefix.count,
+                   isoPrefix.indices.allSatisfy({ bytes[payloadStart + $0] == isoPrefix[$0] }) {
+                    isoGainMapSegment = true
+                }
                 if marker == 0xe1, payloadEnd - payloadStart >= prefix.count,
                    prefix.indices.allSatisfy({ bytes[payloadStart + $0] == prefix[$0] }) {
                     let packetStart = payloadStart + prefix.count
@@ -109,17 +144,8 @@ nonisolated enum PhotoMediaInspector {
             guard let packet = String(data: xmp, encoding: .utf8) else {
                 throw PhotoMediaInspectionError.malformedJPEG
             }
-            let hdr = packet.range(of: "hdr-gain-map", options: .caseInsensitive) != nil ||
-                packet.range(of: "hdrgm:", options: .caseInsensitive) != nil
-            let motion = packet.contains("http://ns.google.com/photos/1.0/camera/") &&
-                (packet.contains("MotionPhoto") || packet.contains("MicroVideo"))
-            let portrait = packet.contains("http://ns.xiaomi.com/photos/1.0/camera/bokeh") &&
-                packet.contains("rawlength") && packet.contains("depthlength")
-            if portrait && hdr && mpf && primaryEnd < bytes.count { return .xiaomiPortraitJPEG }
-            if motion && primaryEnd < bytes.count { return hdr ? .hdrMotionJPEG : .motionJPEG }
-            if hdr && mpf && primaryEnd < bytes.count { return .ultraHDRJPEG }
-            if !hdr && !motion && !portrait && !mpf && primaryEnd == bytes.count { return .stillJPEG }
-            return .unsupported
+            return PhotoJPEGScan(mpf: mpf, isoGainMapSegment: isoGainMapSegment, xmp: packet,
+                                 primaryEnd: primaryEnd, fileSize: bytes.count)
         }
     }
 

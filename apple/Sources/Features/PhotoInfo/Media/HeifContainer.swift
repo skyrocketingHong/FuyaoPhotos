@@ -375,6 +375,17 @@ nonisolated struct HeifContainer {
     var tmapIDs: [UInt32] { items.filter { $0.type == "tmap" }.map(\.id) }
     var toneTargets: [UInt32] { [primary] + tmapIDs }
 
+    /// Byte length of a trailing mpvd motion box, when present (Google motion in HEIC).
+    var embeddedMotionLength: Int? {
+        topLevel.first { $0.type == "mpvd" }.map { $0.end - $0.payload }
+    }
+
+    /// ISO 21496-1 gain-map payload carried by the tone map item, when present.
+    func isoGainMapPayload() -> [UInt8]? {
+        guard let tone = items.first(where: { $0.type == "tmap" }) else { return nil }
+        return try? payload(of: tone.id)
+    }
+
     /// Content types carried by `uri `/`mime` items sit in the infe tail after the name: name\0type\0.
     func contentType(of item: Item) -> String? {
         let bytes = item.infoSuffix
