@@ -173,8 +173,10 @@ object HeicTenBitEncoder {
             }
         }
         check(haveFormat) { "Encoder produced no output format" }
-        val parameters = units.filter { it.first in 32..34 }
-        val slices = units.filter { it.first !in 32..34 }
+        // Csd keys and codec-config buffers can carry the same VPS/SPS/PPS twice; keep one copy.
+        val distinct = units.distinctBy { it.second.toList() }
+        val parameters = distinct.filter { it.first in 32..34 }
+        val slices = distinct.filter { it.first !in 32..34 }
         check(parameters.any { it.first == 33 } && parameters.any { it.first == 34 }) {
             "Encoder stream lacks SPS/PPS: units=${units.map { it.first }}, first=${units.firstOrNull()?.second
                 ?.take(8)?.joinToString(" ") { (it.toInt() and 255).toString(16) }}"
@@ -268,15 +270,17 @@ object HeicTenBitEncoder {
         return (width.toLong() * height * bitsPerPixel.toLong()).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
     }
 
-    /** P010-capable encoders first, then any Main10 encoder, each with a reported level. */
+    /** P010-capable encoders first, then any Main10 encoder, each with its highest reported level. */
     private fun pickEncoders(): List<Candidate> = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
         .filter { it.isEncoder && !it.name.startsWith("OMX.") }
         .mapNotNull { info ->
             runCatching {
                 val capability = info.getCapabilitiesForType("video/hevc")
+                // Profile-level tables list ascending levels; taking the first starves the
+                // single frame to the level-1 bitrate ceiling (visible as blocky noise).
                 val level = capability.profileLevels
-                    .firstOrNull { it.profile == MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10 }
-                    ?.level ?: return@runCatching null
+                    .filter { it.profile == MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10 }
+                    .maxOfOrNull { it.level } ?: return@runCatching null
                 Candidate(info.name, level,
                     capability.colorFormats.contains(MediaCodecInfo.CodecCapabilities.COLOR_FormatYUVP010))
             }.getOrNull()
