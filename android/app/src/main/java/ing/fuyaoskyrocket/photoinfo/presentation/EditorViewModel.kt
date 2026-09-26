@@ -57,7 +57,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         keepCaptureTime = saved["keepCaptureTime"] ?: initialSettings.exportDefaults.keepCaptureTime,
         separateLivePhoto = saved["separateLivePhoto"] ?: initialSettings.exportDefaults.separateLivePhoto,
         applePortrait = saved["applePortrait"] ?: initialSettings.exportDefaults.applePortrait,
-        appleStyle = saved["appleStyle"] ?: initialSettings.exportDefaults.appleStyle)); private set
+        appleStyle = saved["appleStyle"] ?: initialSettings.exportDefaults.appleStyle,
+        appleStyle3 = saved["appleStyle3"] ?: initialSettings.exportDefaults.appleStyle3)); private set
 
     var sharedPhotos by mutableStateOf(saved.get<ArrayList<String>>("sharedPhotos")?.map(Uri::parse)); private set
     fun receiveSharedPhotos(uris: List<Uri>) {
@@ -291,10 +292,10 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         saved["jpegQuality"]=value.jpegQuality; saved["keepMetadata"]=value.keepExif
         saved["keepLocation"]=value.keepLocation; saved["keepCaptureTime"]=value.keepCaptureTime
         saved["separateLivePhoto"]=value.separateLivePhoto; saved["applePortrait"]=value.applePortrait
-        saved["appleStyle"]=value.appleStyle
+        saved["appleStyle"]=value.appleStyle; saved["appleStyle3"]=value.appleStyle3
         state=state.copy(jpegQuality=value.jpegQuality,keepCaptureMetadata=value.keepExif,
             keepLocation=value.keepLocation,keepCaptureTime=value.keepCaptureTime,separateLivePhoto=value.separateLivePhoto,
-            applePortrait=value.applePortrait,appleStyle=value.appleStyle)
+            applePortrait=value.applePortrait,appleStyle=value.appleStyle,appleStyle3=value.appleStyle3)
         refreshChanges()
     }
     fun reportExternalError(message: Int, title: Int = R.string.error_import_title) { state=state.copy(errorTitle=title,error=app.getString(message)) }

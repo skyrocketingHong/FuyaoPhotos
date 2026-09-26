@@ -61,9 +61,18 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
         // HEIC cannot carry the Xiaomi tail, so enabling the style pulls in the depth
         // conversion when the photo has one; motion stays embedded either way.
         onChange(options.copy(appleStyle=it,
+            appleStyle3=it && options.appleStyle3,
             applePortrait=options.applePortrait || (it && hasPortrait),
             format=if(it)ExportFormat.HEIC else options.format))
     }
+    if(options.appleStyle && ExportFormat.HEIC in supportedFormats && Build.VERSION.SDK_INT>=28)
+        MetadataSwitch(R.string.apple_style3,R.string.apple_style3_hint,options.appleStyle3) {
+            // The native contract requires the 2023 styles item to coexist with
+            // texture styles, so enabling it pulls the plain style along.
+            onChange(options.copy(appleStyle3=it, appleStyle=it || options.appleStyle,
+                applePortrait=options.applePortrait || (it && hasPortrait),
+                format=if(it)ExportFormat.HEIC else options.format))
+        }
     if(options.format==ExportFormat.HEIC) Text(stringResource(R.string.heic_sdr_hint),
         style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     if(options.format==ExportFormat.HEIC && hasMotion && !options.separateLivePhoto) Text(stringResource(R.string.heic_motion_hint),

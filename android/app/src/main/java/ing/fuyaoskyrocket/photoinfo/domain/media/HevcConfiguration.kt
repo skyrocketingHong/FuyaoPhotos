@@ -35,14 +35,16 @@ internal object HevcConfiguration {
     /**
      * Builds the HEVCDecoderConfigurationRecord hvcC box from VPS/SPS/PPS NALs. The profile
      * tier and level bytes copy straight out of the SPS, which is valid for single-layer
-     * Main10 streams without sub-layer extensions.
+     * streams without sub-layer extensions; [bitDepthMinus8] covers 8-bit aux planes
+     * alongside the ten-bit base images.
      */
-    fun hvcBox(parameterSets: List<Pair<Int, ByteArray>>): ByteArray {
+    fun hvcBox(parameterSets: List<Pair<Int, ByteArray>>, bitDepthMinus8: Int = 2): ByteArray {
         val sps = parameterSets.first { it.first == 33 }.second
         // Two NAL header bytes precede the sequence payload; byte 2 carries the sub-layer
         // flags and bytes 3..15 hold the profile tier level copied into the record.
         require(sps.size >= 15) { "sps too short for hvcC" }
         require(((sps[2].toInt() shr 1) and 7) == 0) { "sps sub-layer extensions unsupported" }
+        require(bitDepthMinus8 in 0..4) { "hvcC bit depth" }
         val record = java.io.ByteArrayOutputStream()
         fun u16(value: Int) { record.write(value shr 8); record.write(value) }
         fun u32(value: Int) {
@@ -57,8 +59,8 @@ internal object HevcConfiguration {
         u16(0xF000) // min_spatial_segmentation_idc with reserved bits
         record.write(0xFC) // parallelismType with reserved bits
         record.write(0xFD) // chromaFormat 4:2:0 with reserved bits
-        record.write(0xFA) // bitDepthLumaMinus8 = 2 with reserved bits
-        record.write(0xFA) // bitDepthChromaMinus8 = 2 with reserved bits
+        record.write(0xF8 or bitDepthMinus8) // bitDepthLumaMinus8 with reserved bits
+        record.write(0xF8 or bitDepthMinus8) // bitDepthChromaMinus8 with reserved bits
         u16(0) // avgFrameRate
         record.write(0x0B) // one temporal layer, four-byte NAL lengths
         val arrays = parameterSets.groupBy({ it.first }, { it.second })

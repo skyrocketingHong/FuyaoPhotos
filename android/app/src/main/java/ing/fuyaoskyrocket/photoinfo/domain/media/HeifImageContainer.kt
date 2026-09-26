@@ -225,6 +225,47 @@ internal data class HeifImageContainer(
         return copy(items = newItems, properties = props, references = newReferences)
     }
 
+    /**
+     * Attaches the Photographic Styles 3 layer: the texture_styles uri item and twelve
+     * part mattes that share one black 768×576 HEVC frame, exactly like native iPhone
+     * captures (auxl to the primary and the tone map, payload inside mdat). Must run in
+     * the same container pass as [withPhotographicStyles] — the native contract keeps
+     * the 2023 styles item alongside this one.
+     */
+    fun withTextureStyles(textureInfo: ByteArray, matteHvcC: ByteArray, mattePayload: ByteArray): HeifImageContainer {
+        require(!avif && mattePayload.isNotEmpty())
+        val toneTargets = listOf(primary) + items.filter { it.type == "tmap" }.map { it.id }
+        var next = items.maxOf { it.id } + 1
+        val props = properties.toMutableList()
+        fun appendProperty(raw: ByteArray): Int { props += raw; return props.size }
+        val newItems = items.toMutableList()
+        val newReferences = references.toMutableList()
+
+        val ispe = appendProperty(full("ispe", payload = data {
+            writeInt(AppleTextureStyles.MATTE_WIDTH); writeInt(AppleTextureStyles.MATTE_HEIGHT)
+        }))
+        val pixi = appendProperty(full("pixi", payload = data { write(1); write(8) }))
+        val hvcc = appendProperty(matteHvcC)
+        val matteIds = AppleTextureStyles.SEMANTIC_MATTE_URNS.map { urn ->
+            val id = next++
+            val auxC = appendProperty(full("auxC", payload = (urn + "\u0000").toByteArray()))
+            newItems += Item(id, "hvc1", byteArrayOf(0), mattePayload, properties = listOf(
+                Property(ispe, false), Property(pixi, false), Property(auxC, true), Property(hvcc, true)),
+                hidden = true)
+            newReferences += Reference("auxl", id, toneTargets)
+            id
+        }
+        // The uri item binds by content type and name like Apple's own writer; cdsc targets
+        // the composed primary + tone map, mirroring the styles item.
+        val textureID = next++
+        newItems += Item(textureID, "uri ",
+            ("metadata\u0000" + AppleTextureStyles.TEXTURE_STYLES_CONTENT_TYPE + "\u0000").toByteArray(),
+            textureInfo, hidden = true)
+        newReferences += Reference("cdsc", textureID, toneTargets)
+        require(matteIds.size == 12)
+        return copy(items = newItems, properties = props, references = newReferences)
+    }
+
     /** Attaches the capture Exif payload as its own item, referenced from the primary. */
     fun withExif(exif: ByteArray?): HeifImageContainer {
         if (exif == null) return this
