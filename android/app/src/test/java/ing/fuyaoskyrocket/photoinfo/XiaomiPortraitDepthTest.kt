@@ -58,7 +58,7 @@ class XiaomiPortraitDepthTest {
             val base=File(root,"xiaomi-base.heic")
             if(plane.exists() && matte.exists() && base.exists()) {
                 HeifImageContainer.read(base)
-                    .withAuxiliary(HeifImageContainer.read(plane),ApplePortraitMetadata.DISPARITY,ApplePortraitMetadata.disparityXmp(null))
+                    .withAuxiliary(HeifImageContainer.read(plane),ApplePortraitMetadata.DISPARITY,ApplePortraitMetadata.disparityXmp(null, ApplePortraitMetadata.Calibration(3072, 4096, 1536, 2048, 23.0, 8.7, 0.0)))
                     .withAuxiliary(HeifImageContainer.read(matte),ApplePortraitMetadata.MATTE,ApplePortraitMetadata.matteXmp)
                     .write(File(root,"xiaomi-apple-portrait.heic"))
             }

@@ -16,6 +16,9 @@ internal object AppleStyleMetadata {
     const val SKY_MATTE_VERSION = 65536
     private const val STYLE_BLOCKS = 864
 
+    /** AF Measured Depth donor value from the device-verified reference (millimetres). */
+    private const val AF_DEPTH_DONOR_MM = 54
+
     /** Runtime flag bplist carried in Apple MakerNote tag 84, golden sample bytes. */
     val TAG_84 = byteArrayOf(
         0x62, 0x70, 0x6c, 0x69, 0x73, 0x74, 0x30, 0x30, 0xd8.toByte(), 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -139,7 +142,14 @@ internal object AppleStyleMetadata {
             require(it.length == 36)
             entries+=Entry(17, 2, 37, it.uppercase(java.util.Locale.ROOT).toByteArray(Charsets.US_ASCII)+byteArrayOf(0))
         }
-        if(portrait) entries+=Entry(20, 9, 1, null, 2)
+        if(portrait) {
+            // The device-verified portrait note carries the maker-note version and an AF
+            // depth record; the donor millimetre value is accepted by Photos as-is because
+            // the tag marks portrait capability rather than a per-shot measurement here.
+            entries+=Entry(1, 9, 1, null, 17)
+            entries+=Entry(20, 9, 1, null, 2)
+            entries+=Entry(56, 9, 1, null, AF_DEPTH_DONOR_MM)
+        }
         styleIdentifier?.let {
             require(it.length == 36)
             entries+=Entry(43, 2, 37, it.uppercase(java.util.Locale.ROOT).toByteArray(Charsets.US_ASCII)+byteArrayOf(0))
@@ -483,7 +493,7 @@ internal object AppleStyleMetadata {
         0x01.toByte(), 0x06.toByte(), 0x00.toByte(), 0x80.toByte(), 0xa2.toByte(), 0x00.toByte(), 0x01.toByte(), 0x00.toByte(), 0x08.toByte(), 0x44.toByte(), 0x01.toByte(), 0xc0.toByte(), 0x61.toByte(), 0x61.toByte(), 0x82.toByte(), 0x99.toByte(),
         0x20.toByte(),
     )
-    private class BplistWriter {
+    internal class BplistWriter {
         private sealed interface Object
         private data class Bool(val value: Boolean) : Object
         private data class IntValue(val value: Long) : Object

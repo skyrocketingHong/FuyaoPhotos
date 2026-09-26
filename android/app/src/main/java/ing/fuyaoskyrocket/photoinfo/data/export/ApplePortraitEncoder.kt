@@ -9,7 +9,8 @@ import ing.fuyaoskyrocket.photoinfo.domain.media.XiaomiPortraitDepth
 import java.io.File
 
 internal object ApplePortraitEncoder {
-    fun attach(file: File, portrait: XiaomiPortraitDepth.Result, orientation: Int, aperture: Double? = null) {
+    fun attach(file: File, portrait: XiaomiPortraitDepth.Result, orientation: Int, aperture: Double? = null,
+        calibration: ApplePortraitMetadata.Calibration = ApplePortraitMetadata.Calibration(0, 0, 0, 0, null, null, 0.0)) {
         var container = HeifImageContainer.read(file)
         val temp = File.createTempFile("portrait-plane-", ".heic", file.parentFile)
         try {
@@ -19,7 +20,14 @@ internal object ApplePortraitEncoder {
                 finally { pixels.recycle() }
                 container = container.withAuxiliary(HeifImageContainer.read(temp), type, xmp)
             }
-            append(portrait.disparity, ApplePortraitMetadata.DISPARITY, ApplePortraitMetadata.disparityXmp(aperture))
+            // The disparity sidecar describes the oriented aux plane itself, so the
+            // calibration reference dimensions come from the turned bitmap.
+            val orientedDisparity = oriented(portrait.disparity, orientation)
+            val disparityCalibration = calibration.copy(auxWidth = orientedDisparity.width, auxHeight = orientedDisparity.height)
+            try { HeicEncoder.encode(orientedDisparity, temp, 100, null, emptyMap()) }
+            finally { orientedDisparity.recycle() }
+            container = container.withAuxiliary(HeifImageContainer.read(temp), ApplePortraitMetadata.DISPARITY,
+                ApplePortraitMetadata.disparityXmp(aperture, disparityCalibration))
             portrait.matte?.let { append(it, ApplePortraitMetadata.MATTE, ApplePortraitMetadata.matteXmp) }
             container.write(file)
             val verified = HeifImageContainer.read(file)

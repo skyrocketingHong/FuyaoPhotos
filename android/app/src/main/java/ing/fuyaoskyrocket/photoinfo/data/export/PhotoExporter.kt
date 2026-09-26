@@ -46,6 +46,9 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         // each only constrains the format (HDR-capable, pairing-capable, HEIC).
         val injectStyle = options.appleStyle && format == ExportFormat.HEIC
         require(!options.appleStyle || format==ExportFormat.HEIC) { context.getString(R.string.style_heic_required) }
+        // The native texture-styles contract keeps the 2023 styles item alongside it.
+        val injectStyle3 = options.appleStyle3 && format == ExportFormat.HEIC
+        require(!injectStyle3 || injectStyle) { context.getString(R.string.style_heic_required) }
         val styleIdentifier = if (injectStyle) AppleStyleMetadata.newIdentifier() else null
         // Apple tags portrait output with CustomRendered=9 alongside the depth auxiliary images.
         val selectedTags=ExportMetadata.select(source.captureTags,options) +
@@ -239,7 +242,13 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             }
             if(portrait!=null) {
                 stage=R.string.export_stage_depth_encode
-                ApplePortraitEncoder.attach(assembled,portrait,portrait.orientation,captureAperture(source.captureTags))
+                ApplePortraitEncoder.attach(assembled,portrait,portrait.orientation,captureAperture(source.captureTags),
+                    ApplePortraitMetadata.Calibration(
+                        mainWidth=renderSource.width,mainHeight=renderSource.height,auxWidth=0,auxHeight=0,
+                        focalLength35mm=captureRational(source.captureTags,"FocalLengthIn35mmFormat"),
+                        focalLengthMm=captureRational(source.captureTags,"FocalLength"),
+                        headroomStops=expectedGain?.let { gain -> maxOf(gain[3],gain[4],gain[5]) }
+                            ?.takeIf { it>1 }?.let { kotlin.math.ln(it)/kotlin.math.ln(2.0) } ?: 0.0))
             }
             // Both layers edit the container in one pass: the uri style item cannot be re-read
             // by the strict container reader, and the motion box must stay the last top-level box.
@@ -250,6 +259,15 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 styleAssets?.let { assets ->
                     container=container.withPhotographicStyles(assets.deltaWidth,assets.deltaHeight,
                         assets.landscape,assets.linear,assets.sky)
+                }
+                if(injectStyle3) {
+                    // One shared black frame backs all twelve part mattes; the seed is a
+                    // reproducible value from the source identity, not a measurement.
+                    val matte=ing.fuyaoskyrocket.photoinfo.platform.HevcEightBitStill.encodeBlack(
+                        AppleTextureStyles.MATTE_WIDTH,AppleTextureStyles.MATTE_HEIGHT)
+                    container=container.withTextureStyles(
+                        AppleTextureStyles.textureInfoPayload(AppleTextureStyles.grainSeedFor(source.file.name)),
+                        matte.hvcC,matte.payload)
                 }
                 if(embedMotion) {
                     stage=R.string.export_stage_video
@@ -347,8 +365,10 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             6 -> 90; 8 -> 270; 3 -> 180; else -> 0
         }
 
-        private fun captureAperture(tags: Map<String, String>): Double? {
-            val raw = tags["FNumber"] ?: return null
+        private fun captureAperture(tags: Map<String, String>): Double? = captureRational(tags,"FNumber")
+
+        private fun captureRational(tags: Map<String, String>, key: String): Double? {
+            val raw = tags[key] ?: return null
             val parts = raw.split('/')
             val value = if (parts.size == 2) parts[0].toDoubleOrNull()?.div(parts[1].toDoubleOrNull() ?: return null)
             else raw.toDoubleOrNull()

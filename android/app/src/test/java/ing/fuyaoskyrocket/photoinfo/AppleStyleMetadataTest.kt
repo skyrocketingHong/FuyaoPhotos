@@ -95,18 +95,25 @@ class AppleStyleMetadataTest {
         assertArrayEquals(AppleStyleMetadata.TAG_84, note.copyOfRange(81, 81 + 91))
 
         val combined = AppleStyleMetadata.stylesNote(identifier, includePortrait = true)
-        assertEquals(16 + 3 * 12 + 4 + 37 + 91, combined.size)
-        assertEquals(3, u16At(combined, 14))
-        assertEquals(0x14, u16At(combined, 16))
-        assertEquals(43, u16At(combined, 28))
+        assertEquals(16 + 5 * 12 + 4 + 37 + 91, combined.size)
+        assertEquals(5, u16At(combined, 14))
+        // The portrait set carries the maker-note version, the capture type and the AF
+        // depth record alongside the style identifier entries.
+        assertEquals(1, u16At(combined, 16))
+        assertEquals(0x14, u16At(combined, 28))
+        assertEquals(43, u16At(combined, 40))
+        assertEquals(0x38, u16At(combined, 52))
+        assertEquals(84, u16At(combined, 64))
 
         val all = AppleStyleMetadata.appleNote("00112233-4455-6677-8899-aabbccddeeff", true, identifier)
-        assertEquals(16 + 4 * 12 + 4 + 37 + 37 + 91, all.size)
-        assertEquals(4, u16At(all, 14))
-        assertEquals(17, u16At(all, 16))
-        assertEquals(0x14, u16At(all, 28))
-        assertEquals(43, u16At(all, 40))
-        assertEquals(84, u16At(all, 52))
+        assertEquals(16 + 6 * 12 + 4 + 37 + 37 + 91, all.size)
+        assertEquals(6, u16At(all, 14))
+        assertEquals(1, u16At(all, 16))
+        assertEquals(17, u16At(all, 28))
+        assertEquals(0x14, u16At(all, 40))
+        assertEquals(43, u16At(all, 52))
+        assertEquals(0x38, u16At(all, 64))
+        assertEquals(84, u16At(all, 76))
     }
 
     private fun u16At(bytes: ByteArray, at: Int) = ((bytes[at].toInt() and 255) shl 8) or (bytes[at + 1].toInt() and 255)

@@ -78,7 +78,7 @@ class HeifImageContainerTest {
             System.getenv("FUYAO_FORMAT_ORACLE_DIR")?.let { directory ->
                 file.copyTo(File(directory, "kotlin-hdr.heic"), overwrite = true)
                 actual.standalone(actual.gainMap()!!.first).write(File(directory, "kotlin-gain.heic"))
-                base.withAuxiliary(gain, ApplePortraitMetadata.DISPARITY, ApplePortraitMetadata.disparityXmp(2.8))
+                base.withAuxiliary(gain, ApplePortraitMetadata.DISPARITY, ApplePortraitMetadata.disparityXmp(2.8, ApplePortraitMetadata.Calibration(4096, 3072, 2048, 1536, 24.0, 9.0, 0.0)))
                     .write(File(directory, "kotlin-portrait.heic"))
             }
         } finally { file.delete() }
