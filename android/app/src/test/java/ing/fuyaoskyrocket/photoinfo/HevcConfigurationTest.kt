@@ -39,31 +39,31 @@ class HevcConfigurationTest {
         assertEquals("hvcC", String(box, 4, 4, Charsets.US_ASCII))
         assertEquals(1, box[8].toInt())
         assertEquals(1, box[9].toInt()) // profile idc copied from SPS
-        // The record keeps only the top 24 compatibility bits: SPS bytes 4..6, so the
-        // 0x60 lands at 11; the constraints start at 13 with SPS byte 10 (0x90) at 15.
+        // The record keeps the SPS's full twelve profile tier level bytes (the platform
+        // parser anchors on this layout): box[9+i] copies SPS payload byte i, so 0x60
+        // lands at 11 and 0x90 at 16.
         assertEquals(0x60, box[11].toInt() and 255)
-        assertEquals(0, box[12].toInt() and 255)
-        assertEquals(0x90, box[15].toInt() and 255)
+        assertEquals(0x90, box[16].toInt() and 255)
         // Level zero in the SPS falls back to 3.0 instead of the reserved zero.
-        assertEquals(0x5A, box[19].toInt() and 255)
-        assertEquals(0xF0, box[20].toInt() and 255)
-        assertEquals(0xFC, box[22].toInt() and 255)
+        assertEquals(0x5A, box[20].toInt() and 255)
+        assertEquals(0xF0, box[21].toInt() and 255)
+        assertEquals(0xFC, box[23].toInt() and 255)
         // Default record declares 4:2:0 at ten bit.
-        assertEquals(0xFD, box[23].toInt() and 255)
-        assertEquals(0xFA, box[24].toInt() and 255)
+        assertEquals(0xFD, box[24].toInt() and 255)
         assertEquals(0xFA, box[25].toInt() and 255)
-        assertEquals(0x0B, box[28].toInt() and 255)
+        assertEquals(0xFA, box[26].toInt() and 255)
+        assertEquals(0x0B, box[29].toInt() and 255)
         // three arrays: VPS, SPS, PPS
-        assertEquals(3, box[29].toInt())
+        assertEquals(3, box[30].toInt())
 
         // Mono aux planes declare chroma format zero and eight-bit depth like Apple's
         // own depth and matte items.
         val mono = HevcConfiguration.hvcBox(listOf(33 to sps, 34 to pps), bitDepthMinus8 = 0, chromaFormatIdc = 0)
-        assertEquals(0xFC, mono[23].toInt() and 255)
-        assertEquals(0xF8, mono[24].toInt() and 255)
+        assertEquals(0xFC, mono[24].toInt() and 255)
+        assertEquals(0xF8, mono[25].toInt() and 255)
         // A real level from the SPS passes through untouched.
         val leveled = HevcConfiguration.hvcBox(listOf(33 to sps.copyOf().also { it[14] = 0x3C }, 34 to pps))
-        assertEquals(0x3C, leveled[19].toInt() and 255)
+        assertEquals(0x3C, leveled[20].toInt() and 255)
         val slice = nal(19, 30)
         val lengthPrefixed = HevcConfiguration.lengthPrefixed(listOf(19 to slice))
         assertEquals(slice.size + 4, lengthPrefixed.size)

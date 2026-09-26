@@ -58,15 +58,14 @@ internal object HevcConfiguration {
         u32(0) // placeholder for box size, patched below
         record.write("hvcC".toByteArray(Charsets.US_ASCII))
         record.write(1) // configurationVersion
-        // The record's profile tier level keeps the SPS's 48-bit constraints and level but
-        // only the TOP 24 compatibility bits - Apple's writer sizes the field that way and
-        // a 32-bit copy shifts every following field one byte past its spec offset.
-        record.write(sps[3].toInt() and 255)
-        for (index in 4..6) record.write(sps[index].toInt() and 255)
-        for (index in 8..13) record.write(sps[index].toInt() and 255)
+        // Keep the SPS's full 12-byte profile tier level. The 2017 spec text sizes the
+        // compatibility field at 24 bits, but every writer the platform round-trips with
+        // (Android MediaMuxer, the reference converter) copies all four bytes - a 24-bit
+        // copy shifts the fields the platform parser anchors on and BitmapFactory stops
+        // reporting the image size.
         val level = sps[14].toInt() and 255
-        // Vendor encoders emit level_idc 0 when unconstrained; level zero is reserved.
-        record.write(if (level == 0) LEVEL_FALLBACK else level)
+        for (index in 3 until 15) record.write(
+            if (index == 14 && level == 0) LEVEL_FALLBACK else sps[index].toInt() and 255)
         u16(0xF000) // min_spatial_segmentation_idc with reserved bits
         record.write(0xFC) // parallelismType with reserved bits
         record.write(0xFC or chromaFormatIdc) // chromaFormat with reserved bits
