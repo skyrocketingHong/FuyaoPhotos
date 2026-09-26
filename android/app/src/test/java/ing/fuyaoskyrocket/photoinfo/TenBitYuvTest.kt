@@ -139,4 +139,39 @@ class TenBitYuvTest {
         assertEquals(TenBitYuv.Transfer.PQ, TenBitYuv.transferFor("BT2020_HLG"))
         assertEquals(TenBitYuv.Transfer.SRGB, TenBitYuv.transferFor("LINEAR_sRGB"))
     }
+
+    @Test fun chromaExcursionIsHalvedToTheFullRangeConvention() {
+        // Decoders rebuild B-Y as 2*(U-512)/1023: writing the raw difference doubles every
+        // colour offset and rotates warm pixels toward yellow (the on-device tint bug).
+        fun half(value: Float): Int {
+            if (value == 0f) return 0
+            val bits = java.lang.Float.floatToRawIntBits(value)
+            val exponent = ((bits shr 23) and 0xff) - 127 + 15
+            val fraction = (bits shr 13) and 0x3ff
+            return (exponent shl 10) or fraction
+        }
+        fun plane(red: Float, green: Float, blue: Float): ByteArray {
+            val halfs = ShortArray(2 * 2 * 4)
+            for (pixel in 0 until 4) {
+                halfs[pixel * 4] = half(red).toShort()
+                halfs[pixel * 4 + 1] = half(green).toShort()
+                halfs[pixel * 4 + 2] = half(blue).toShort()
+                halfs[pixel * 4 + 3] = half(1f).toShort()
+            }
+            return TenBitYuv.encodeP010(java.nio.ShortBuffer.wrap(halfs), 2, 2, stride = 2,
+                sliceHeight = 2, colorSpaceName = "sRGB", hdrTransferAllowed = false,
+                sourceLinear = false)
+        }
+        fun chroma(bytes: ByteArray, index: Int) =
+            (((bytes[8 + index * 2 + 1].toInt() and 0xff) shl 8 or
+                (bytes[8 + index * 2].toInt() and 0xff)) and 0xffff) shr 6
+        val blue = plane(0f, 0f, 1f)
+        // Y = KB = 0.0593; U = 0.5 + (1-KB)/(2(1-KB)) = 1.0 (full swing), V = 0.5 - 0.0593/1.4746.
+        assertEquals(1023, chroma(blue, 0))
+        assertEquals(470, chroma(blue, 1))
+        val red = plane(1f, 0f, 0f)
+        // Y = KR = 0.2627; V = 0.5 + (1-KR)/(2(1-KR)) = 1.0 (full swing), U = 0.5 - 0.2627/1.8814.
+        assertEquals(369, chroma(red, 0))
+        assertEquals(1023, chroma(red, 1))
+    }
 }

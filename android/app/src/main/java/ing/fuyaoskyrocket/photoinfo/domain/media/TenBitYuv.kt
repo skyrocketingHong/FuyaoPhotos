@@ -26,6 +26,10 @@ internal object TenBitYuv {
     // BT.2020 full-range YUV; KR 0.2627, KB 0.0593.
     private const val KR = 0.2627f
     private const val KB = 0.0593f
+    // Full-range chroma scales by 1/(2(1-K)) so saturated primaries reach full swing
+    // (the JPEG convention every decoder inverts, e.g. R = Y + 1.4746*(Cr-512)/1023).
+    private const val U_SCALE = 1f / (2f * (1f - KB))
+    private const val V_SCALE = 1f / (2f * (1f - KR))
 
     // PQ (ST 2084) constants; the Android F16 convention keeps 1.0 near 203-nit reference
     // white, so linear values are lifted onto the PQ absolute scale first.
@@ -125,6 +129,10 @@ internal object TenBitYuv {
         val luma = ShortArray(stride * sliceHeight)
         // P010 chroma is horizontally subsampled: width/2 interleaved U-V pairs per row.
         val chroma = ShortArray(stride * (sliceHeight / 2))
+        // The two planes share one conversion pass: every pixel's chroma is kept so the
+        // subsampled plane averages its 2x2 block instead of dropping three of four samples.
+        val planeU = FloatArray(width * height)
+        val planeV = FloatArray(width * height)
         for (row in 0 until height) {
             for (column in 0 until width) {
                 val at = (row * width + column) * 4
@@ -133,17 +141,27 @@ internal object TenBitYuv {
                     halfToFloat(halfs.get(at + 1).toInt()),
                     halfToFloat(halfs.get(at + 2).toInt()), matrix, transfer, sourceLinear)
                 luma[row * stride + column] = quantize10(yuv[0])
+                planeU[row * width + column] = yuv[1]
+                planeV[row * width + column] = yuv[2]
             }
         }
         for (uvRow in 0 until (height + 1) / 2) {
             for (uvColumn in 0 until (width + 1) / 2) {
-                val at = (uvRow * 2 * width + uvColumn * 2) * 4
-                val yuv = toYuv2020(
-                    halfToFloat(halfs.get(at).toInt()),
-                    halfToFloat(halfs.get(at + 1).toInt()),
-                    halfToFloat(halfs.get(at + 2).toInt()), matrix, transfer, sourceLinear)
-                chroma[uvRow * stride + uvColumn * 2] = quantize10(yuv[1] + 0.5f)
-                chroma[uvRow * stride + uvColumn * 2 + 1] = quantize10(yuv[2] + 0.5f)
+                val at = uvRow * 2 * width + uvColumn * 2
+                val lastRow = minOf(uvRow * 2 + 1, height - 1)
+                val lastColumn = minOf(uvColumn * 2 + 1, width - 1)
+                fun average(plane: FloatArray): Float {
+                    var sum = plane[at]
+                    sum += plane[lastRow * width + uvColumn * 2]
+                    sum += plane[uvRow * 2 * width + lastColumn]
+                    sum += plane[lastRow * width + lastColumn]
+                    return sum * 0.25f
+                }
+                // Full-range chroma follows the JPEG convention: scaled by 1/(2(1-K)) and
+                // centred on mid code; writing the raw B-Y difference doubles every colour
+                // offset and rotates warm pixels toward yellow.
+                chroma[uvRow * stride + uvColumn * 2] = quantize10(average(planeU) * U_SCALE + 0.5f)
+                chroma[uvRow * stride + uvColumn * 2 + 1] = quantize10(average(planeV) * V_SCALE + 0.5f)
             }
         }
         val out = ByteArray((luma.size + chroma.size) * 2)
