@@ -5,6 +5,8 @@ package ing.fuyaoskyrocket.photoinfo.domain.media
  * and the coded slices become the length-prefixed item payload, independent of any muxer.
  */
 internal object HevcConfiguration {
+    /** Level 3.0, the value Apple's aux items and the reference converter use. */
+    private const val LEVEL_FALLBACK = 0x5A
     private class Nal(val type: Int, val payload: ByteArray)
 
     /** Splits an Annex-B byte stream (00 00 01 / 00 00 00 01 start codes) into NAL units. */
@@ -36,15 +38,18 @@ internal object HevcConfiguration {
      * Builds the HEVCDecoderConfigurationRecord hvcC box from VPS/SPS/PPS NALs. The profile
      * tier and level bytes copy straight out of the SPS, which is valid for single-layer
      * streams without sub-layer extensions; [bitDepthMinus8] covers 8-bit aux planes
-     * alongside the ten-bit base images.
+     * alongside the ten-bit base images, [chromaFormatIdc] declares mono (0) aux planes
+     * like Apple's own depth and matte items.
      */
-    fun hvcBox(parameterSets: List<Pair<Int, ByteArray>>, bitDepthMinus8: Int = 2): ByteArray {
+    fun hvcBox(parameterSets: List<Pair<Int, ByteArray>>, bitDepthMinus8: Int = 2,
+        chromaFormatIdc: Int = 1): ByteArray {
         val sps = parameterSets.first { it.first == 33 }.second
         // Two NAL header bytes precede the sequence payload; byte 2 carries the sub-layer
         // flags and bytes 3..15 hold the profile tier level copied into the record.
         require(sps.size >= 15) { "sps too short for hvcC" }
         require(((sps[2].toInt() shr 1) and 7) == 0) { "sps sub-layer extensions unsupported" }
         require(bitDepthMinus8 in 0..4) { "hvcC bit depth" }
+        require(chromaFormatIdc in 0..3) { "hvcC chroma format" }
         val record = java.io.ByteArrayOutputStream()
         fun u16(value: Int) { record.write(value shr 8); record.write(value) }
         fun u32(value: Int) {
@@ -53,12 +58,18 @@ internal object HevcConfiguration {
         u32(0) // placeholder for box size, patched below
         record.write("hvcC".toByteArray(Charsets.US_ASCII))
         record.write(1) // configurationVersion
-        // general_profile_space/tier/idc, compatibility, constraints and level: SPS payload
-        // byte 0 holds vps id/sub-layer flags, the next twelve are the profile tier level.
-        for (index in 3 until 15) record.write(sps[index].toInt() and 255)
+        // The record's profile tier level keeps the SPS's 48-bit constraints and level but
+        // only the TOP 24 compatibility bits - Apple's writer sizes the field that way and
+        // a 32-bit copy shifts every following field one byte past its spec offset.
+        record.write(sps[3].toInt() and 255)
+        for (index in 4..6) record.write(sps[index].toInt() and 255)
+        for (index in 8..13) record.write(sps[index].toInt() and 255)
+        val level = sps[14].toInt() and 255
+        // Vendor encoders emit level_idc 0 when unconstrained; level zero is reserved.
+        record.write(if (level == 0) LEVEL_FALLBACK else level)
         u16(0xF000) // min_spatial_segmentation_idc with reserved bits
         record.write(0xFC) // parallelismType with reserved bits
-        record.write(0xFD) // chromaFormat 4:2:0 with reserved bits
+        record.write(0xFC or chromaFormatIdc) // chromaFormat with reserved bits
         record.write(0xF8 or bitDepthMinus8) // bitDepthLumaMinus8 with reserved bits
         record.write(0xF8 or bitDepthMinus8) // bitDepthChromaMinus8 with reserved bits
         u16(0) // avgFrameRate

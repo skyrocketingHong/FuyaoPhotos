@@ -8,10 +8,11 @@ import ing.fuyaoskyrocket.photoinfo.domain.media.HevcConfiguration
 import java.nio.ByteBuffer
 
 /**
- * Single-frame 8-bit HEVC still for the Photographic Styles 3 part mattes. HeifWriter tiles
- * small planes on several firmwares, while the native matte contract is one plain hvc1 item
- * per part — so the black frame goes through a byte-buffer encoder session directly and
- * comes back as an hvcC property plus a length-prefixed payload, never through a muxer.
+ * Single-frame 8-bit HEVC still for mono auxiliary images - the Photographic Styles 3 part
+ * mattes and the depth planes. HeifWriter tiles small planes on several firmwares, while
+ * the native aux contract is one plain hvc1 item, so the frame goes through a byte-buffer
+ * encoder session directly and comes back as an hvcC property plus a length-prefixed
+ * payload, never through a muxer.
  */
 object HevcEightBitStill {
     class Encoded(val hvcC: ByteArray, val payload: ByteArray)
@@ -19,10 +20,14 @@ object HevcEightBitStill {
     private const val SEMI_PLANAR = MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar
     private const val PLANAR = MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar
 
-    fun encodeBlack(width: Int, height: Int): Encoded {
+    fun encodeBlack(width: Int, height: Int): Encoded = encodeMono(width, height, ByteArray(width * height))
+
+    /** Encodes one full-range mono luma plane; chroma carries neutral 128 for 4:2:0 layouts. */
+    fun encodeMono(width: Int, height: Int, luma: ByteArray): Encoded {
         require(width in 2..4096 && height in 2..4096 && width % 2 == 0 && height % 2 == 0) {
-            "matte frame geometry $width×$height"
+            "mono frame geometry $width×$height"
         }
+        require(luma.size == width * height) { "mono plane size ${luma.size} for ${width}x$height" }
         val candidate = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos
             .filter { it.isEncoder && !it.name.startsWith("OMX.") }
             .mapNotNull { info ->
@@ -55,7 +60,7 @@ object HevcEightBitStill {
             try {
                 codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
                 codec.start()
-                val frame = blackFrame(width, height, colorFormat)
+                val frame = monoFrame(width, height, luma, colorFormat)
                 val frameSize = frame.remaining()
                 val input = codec.dequeueInputBuffer(10_000_000)
                 check(input >= 0) { "Matte encoder accepted no input buffer" }
@@ -78,22 +83,22 @@ object HevcEightBitStill {
             "Matte encoder stream lacks SPS/PPS: units=${units.map { it.first }}"
         }
         check(slices.isNotEmpty()) { "Matte encoder produced no coded slice" }
-        return Encoded(HevcConfiguration.hvcBox(parameters, bitDepthMinus8 = 0),
+        // Apple's own depth and matte items declare monochrome in the record regardless
+        // of the coded 4:2:0 layout; the reference converter does the same.
+        return Encoded(HevcConfiguration.hvcBox(parameters, bitDepthMinus8 = 0, chromaFormatIdc = 0),
             HevcConfiguration.lengthPrefixed(slices))
     }
 
-    /** Full-range black 4:2:0 frame: zero luma, neutral chroma, in either planar layout. */
-    private fun blackFrame(width: Int, height: Int, colorFormat: Int): ByteBuffer {
-        val luma = width * height
-        val chroma = luma / 2
-        val size = luma + chroma
-        val frame = ByteBuffer.allocate(size)
+    /** Full-range mono 4:2:0 frame: the luma plane plus neutral chroma, in either layout. */
+    private fun monoFrame(width: Int, height: Int, luma: ByteArray, colorFormat: Int): ByteBuffer {
+        val lumaSize = width * height
+        val chroma = lumaSize / 2
+        val frame = ByteBuffer.allocate(lumaSize + chroma)
+        frame.put(luma)
         if (colorFormat == PLANAR) {
-            frame.put(ByteArray(luma))
             frame.put(ByteArray(chroma / 2))
             repeat(chroma / 2) { frame.put(128.toByte()) }
         } else {
-            frame.put(ByteArray(luma))
             repeat(chroma / 2) { frame.put(0.toByte()); frame.put(128.toByte()) }
         }
         frame.rewind()

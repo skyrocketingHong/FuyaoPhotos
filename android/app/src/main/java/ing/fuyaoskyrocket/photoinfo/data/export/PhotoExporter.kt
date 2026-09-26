@@ -245,7 +245,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 ApplePortraitEncoder.attach(assembled,portrait,portrait.orientation,captureAperture(source.captureTags),
                     ApplePortraitMetadata.Calibration(
                         mainWidth=renderSource.width,mainHeight=renderSource.height,auxWidth=0,auxHeight=0,
-                        focalLength35mm=captureRational(source.captureTags,"FocalLengthIn35mmFormat"),
+                        focalLength35mm=captureRational(source.captureTags,"FocalLengthIn35mmFilm"),
                         focalLengthMm=captureRational(source.captureTags,"FocalLength"),
                         headroomStops=expectedGain?.let { gain -> maxOf(gain[3],gain[4],gain[5]) }
                             ?.takeIf { it>1 }?.let { kotlin.math.ln(it)/kotlin.math.ln(2.0) } ?: 0.0))
@@ -387,18 +387,24 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         val scale=minOf(1.0,minOf(maxWidth.toDouble()/bitmap.width,maxHeight.toDouble()/bitmap.height))
         fun fitted(value:Int)=(Math.round(value*scale/2.0).toInt().coerceAtLeast(1)*2).coerceAtMost(if(value==bitmap.width)maxWidth else maxHeight)
         val linearFile=File.createTempFile("style-linear-",".heic",context.cacheDir)
-        val skyFile=File.createTempFile("style-sky-",".heic",context.cacheDir)
         try {
             val linear=linearThumbnail(bitmap)
-            val sky=Bitmap.createBitmap(((bitmap.width/2) and -2).coerceAtLeast(2),
-                ((bitmap.height/2) and -2).coerceAtLeast(2),Bitmap.Config.ARGB_8888)
-            try {
-                HeicEncoder.encode(linear,linearFile,100,null,emptyMap())
-                HeicEncoder.encode(sky,skyFile,100,null,emptyMap())
-            } finally { if(linear!==bitmap)linear.recycle();sky.recycle() }
+            try { HeicEncoder.encode(linear,linearFile,100,null,emptyMap()) }
+            finally { if(linear!==bitmap)linear.recycle() }
+            // The sky placeholder is a black mono frame; encoding it as one plain item
+            // matches the native single-item aux shape instead of a tiled grid.
+            val skyWidth=((bitmap.width/2) and -2).coerceAtLeast(2)
+            val skyHeight=((bitmap.height/2) and -2).coerceAtLeast(2)
+            val sky=ing.fuyaoskyrocket.photoinfo.platform.HevcEightBitStill.encodeBlack(skyWidth,skyHeight)
+            val skyItem=HeifImageContainer.Item(1,"hvc1",byteArrayOf(0),sky.payload,listOf(
+                HeifImageContainer.Property(1,true),HeifImageContainer.Property(2,false),
+                HeifImageContainer.Property(3,true)))
+            val skyContainer=HeifImageContainer(false,1,listOf(skyItem),listOf(
+                IsoBmff.full("ispe", payload = IsoBmff.data { writeInt(skyWidth);writeInt(skyHeight) }),
+                IsoBmff.full("pixi", payload = IsoBmff.data { write(1);write(8) }),sky.hvcC),emptyList())
             return StyleAssets(fitted(bitmap.width),fitted(bitmap.height),landscape,
-                HeifImageContainer.read(linearFile),HeifImageContainer.read(skyFile))
-        } finally { linearFile.delete();skyFile.delete() }
+                HeifImageContainer.read(linearFile),skyContainer)
+        } finally { linearFile.delete() }
     }
 
     private fun linearThumbnail(bitmap:Bitmap):Bitmap {
