@@ -1,7 +1,7 @@
 import SwiftUI
 
 @MainActor @Observable final class PhotoWorkspace {
-    enum Tab: Hashable { case map, cards, settings }
+    enum Tab: Hashable { case map, cards, metadata, settings }
     var selectedTab: Tab = .map
     var pendingAssetIDs: [String]?
     let cards = CardSession()

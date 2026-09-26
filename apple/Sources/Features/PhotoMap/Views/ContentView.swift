@@ -22,6 +22,13 @@ struct ContentView: View {
 #endif
                     .modifier(TabContentEntrance(active: workspace.selectedTab == .cards, darkroom: darkroomCards))
             }
+            Tab("tab.metadata", systemImage: "info.circle", value: PhotoWorkspace.Tab.metadata) {
+                MetadataScreen(session: workspace.cards)
+#if !os(macOS)
+                    .toolbarBackground(.visible, for: .tabBar)
+#endif
+                    .modifier(TabContentEntrance(active: workspace.selectedTab == .metadata))
+            }
 #if !os(macOS)
             if #available(iOS 27, *) {
                 Tab("settings.title", systemImage: "gearshape", value: PhotoWorkspace.Tab.settings, role: .prominent) {

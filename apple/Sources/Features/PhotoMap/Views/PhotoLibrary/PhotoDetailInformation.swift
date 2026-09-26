@@ -7,6 +7,7 @@ struct PhotoDetailInformation: View {
     let document: CardDocument?
     let coordinate: CLLocationCoordinate2D?
     @State private var details: PhotoTechnicalDetails?
+    @State private var report: MediaMetadataReport?
 
     var body: some View {
         let groups = PhotoInformationFacts.grouped(asset: asset, metadata: document?.metadata,
@@ -24,12 +25,20 @@ struct PhotoDetailInformation: View {
                     .textCase(nil)
             }
         }
+        MediaMetadataReportSection(report: report, prominentHeaders: true)
         .task(id: document?.sourceURL) {
             details = nil
+            report = nil
             guard let url = document?.sourceURL else { return }
             let loaded = await PhotoTechnicalDetailsReader.shared.read(url)
             guard !Task.isCancelled else { return }
             details = loaded
+            let isLive = asset?.mediaSubtypes.contains(.photoLive) ?? document?.isLive ?? false
+            let loadedReport = await Task.detached(priority: .userInitiated) {
+                MediaMetadataReportReader.read(url: url, isLivePhoto: isLive)
+            }.value
+            guard !Task.isCancelled else { return }
+            report = loadedReport
         }
     }
 }
