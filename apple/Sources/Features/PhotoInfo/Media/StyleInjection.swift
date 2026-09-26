@@ -235,7 +235,7 @@ nonisolated enum StyleInjection {
     /// captured tags (notably the tag 17 Live Photo pairing id).
     private static func applyStyleMakerNote(_ container: inout HeifContainer, styleIdentifier: String) throws {
         if let exifItem = container.items.first(where: { $0.type == "Exif" }) {
-            let app1 = exifAPP1((try? container.payload(of: exifItem.id)) ?? [])
+            let app1 = AppleStyleMetadata.exifApp1Payload((try? container.payload(of: exifItem.id)) ?? [])
             let merged = try AppleStyleMetadata.appleNoteWithStyle(exif: app1, styleIdentifier: styleIdentifier)
             try container.rehomeItemPayload(id: exifItem.id, newPayload: [0, 0, 0, 6] + Array(merged))
         } else {
@@ -244,16 +244,6 @@ nonisolated enum StyleInjection {
                                              payload: [0, 0, 0, 6] + Array(built), properties: [])
             container.addReference(type: "cdsc", from: id, to: [container.primary])
         }
-    }
-
-    private static func exifAPP1(_ payload: [UInt8]) -> Data? {
-        let marker = Array("Exif\0\0".utf8)
-        func hasMarker(_ at: Int) -> Bool {
-            payload.count >= at + marker.count && Array(payload[at..<at + marker.count]) == marker
-        }
-        if payload.count > 4 && hasMarker(4) { return Data(payload[4...]) }
-        if hasMarker(0) { return Data(payload) }
-        return nil
     }
 
     private static func propertyHasType(_ raw: [UInt8], _ type: String) -> Bool {
