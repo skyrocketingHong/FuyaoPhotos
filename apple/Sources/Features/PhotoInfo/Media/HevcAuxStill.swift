@@ -163,9 +163,15 @@ nonisolated enum HevcAuxStill {
         guard let refCon, let sampleBuffer else { return }
         var units: [[UInt8]] = []
         if let format = CMSampleBufferGetFormatDescription(sampleBuffer) {
+            // Query the set count first; probing past the end makes CoreMedia log a
+            // kCMFormatDescriptionBridgeError on every encoded frame.
+            var total = 0
             var nalHeaderLength: Int32 = 0
-            var index = 0
-            while true {
+            guard CMVideoFormatDescriptionGetHEVCParameterSetAtIndex(
+                format, parameterSetIndex: 0, parameterSetPointerOut: nil,
+                parameterSetSizeOut: nil, parameterSetCountOut: &total,
+                nalUnitHeaderLengthOut: &nalHeaderLength) == noErr, total > 0 else { return }
+            for index in 0..<total {
                 var pointer: UnsafePointer<UInt8>?
                 var size = 0
                 var count = 0
@@ -173,9 +179,8 @@ nonisolated enum HevcAuxStill {
                     format, parameterSetIndex: index, parameterSetPointerOut: &pointer,
                     parameterSetSizeOut: &size, parameterSetCountOut: &count,
                     nalUnitHeaderLengthOut: &nalHeaderLength)
-                guard status == noErr, let pointer else { break }
+                guard status == noErr, let pointer else { continue }
                 units.append(Array(UnsafeBufferPointer(start: pointer, count: size)))
-                index += 1
             }
         }
         if let block = CMSampleBufferGetDataBuffer(sampleBuffer) {

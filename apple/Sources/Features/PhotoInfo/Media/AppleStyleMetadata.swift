@@ -196,10 +196,13 @@ nonisolated enum AppleStyleMetadata {
             let type = Int(bytes[at + 2]) << 8 | Int(bytes[at + 3])
             let entryCount = Int(u32BE(bytes, at + 4))
             let value = u32BE(bytes, at + 8)
-            guard let unit = tiffTypeSize(type), entryCount > 0, entryCount <= 1 << 20 else { return nil }
+            // Native Apple notes carry exotic entries (extended types, empty offsets);
+            // skipping one malformed entry preserves the captured tags around it instead
+            // of discarding the whole note and with it the Live pairing id.
+            guard let unit = tiffTypeSize(type), entryCount > 0, entryCount <= 1 << 20 else { continue }
             let size = unit * entryCount
             if size > 4 {
-                guard value > 0, Int(value) + size <= bytes.count else { return nil }
+                guard value > 0, Int(value) + size <= bytes.count else { continue }
                 entries.append(AppleMakerNoteEntry(tag: tag, type: type, count: entryCount,
                                                    payload: Array(bytes[Int(value)..<Int(value) + size])))
             } else {
@@ -215,6 +218,9 @@ nonisolated enum AppleStyleMetadata {
         case 3, 8: return 2
         case 4, 9, 11: return 4
         case 5, 10, 12: return 8
+        // TIFF technical-note extensions Apple notes use: IFD, LONG8, SLONG8, IFD8.
+        case 13, 18: return 4
+        case 16, 17: return 8
         default: return nil
         }
     }
