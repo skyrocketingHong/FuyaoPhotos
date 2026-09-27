@@ -318,8 +318,10 @@ nonisolated struct HeifContainer {
             } else if size == 0 {
                 size = to - at
             }
-            guard size >= headerSize, at + size <= to else { throw MediaContainerError.invalid("box size \(size)") }
             let type = String(decoding: bytes[(at + 4)..<(at + 8)], as: UTF8.self)
+            guard size >= headerSize, at + size <= to else {
+                throw MediaContainerError.invalid("box size \(size) at \(at) (type \(type))")
+            }
             result.append(RawBox(type: type, start: at, payload: at + headerSize, end: at + size))
             at += size
         }

@@ -19,19 +19,6 @@ nonisolated enum HevcAuxStill {
         var properties: [[UInt8]]
     }
 
-    /// Black frame whose hvcC declares monochrome like Apple's own matte items, though
-    /// the coded stream stays 4:2:0 with neutral chroma; the Android port verified that
-    /// this declaration combination passes the Photos matte gate.
-    static func blackFrame(width: Int, height: Int) throws -> EncodedStill {
-        guard width >= 2, width <= 4096, height >= 2, height <= 4096, width % 2 == 0, height % 2 == 0 else {
-            throw HevcAuxStillError.encodingFailed("black frame size \(width)x\(height)")
-        }
-        let context = try bitmapContext(width: width, height: height)
-        context.setFillColor(CGColor(gray: 0, alpha: 1))
-        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
-        return try encodedFrame(in: context, width: width, height: height, monochrome: true)
-    }
-
     /// 4:3 center crop of the source's SDR rendition, scaled to 1024x768, matching the
     /// Android linear thumbnail. The SDR tone map keeps HDR sources from dragging their
     /// gain map into an aux image that must stay tone-map free.
@@ -255,7 +242,7 @@ nonisolated enum HevcAuxStill {
     /// Ports the Android HevcConfiguration.hvcBox layout: the 12-byte profile_tier_level
     /// is copied verbatim from the SPS (a shorter compatibility copy breaks platform
     /// parsers), and parameter sets are stored in first-seen order.
-    private static func hvcCBox(_ parameterSets: [(type: UInt8, nals: [[UInt8]])],
+    static func hvcCBox(_ parameterSets: [(type: UInt8, nals: [[UInt8]])],
                                 chromaFormatIdc: UInt8) throws -> [UInt8] {
         guard let sps = parameterSets.first(where: { $0.type == 33 })?.nals.first, sps.count >= 15 else {
             throw HevcAuxStillError.encodingFailed("sps missing")

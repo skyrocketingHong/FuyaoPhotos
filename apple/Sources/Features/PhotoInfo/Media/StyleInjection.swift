@@ -74,19 +74,22 @@ nonisolated enum StyleInjection {
             let even = max(1, Int((Double(value) * scale / 2.0).rounded())) * 2
             return min(even, value == dimensions.width ? maxWidth : maxHeight)
         }
-        let skyWidth = max(2, (dimensions.width / 2) & ~1)
-        let skyHeight = max(2, (dimensions.height / 2) & ~1)
-
-        let matte: HevcAuxStill.EncodedStill?
+        // Every black placeholder uses the golden monochrome frame: VideoToolbox cannot
+        // encode true 4:0:0, and a 4:2:0 Main stream behind a monochrome hvcC
+        // declaration crashes the Photos style editor (device report) even though
+        // ImageIO decodes it. The golden frame is Rext monochrome end to end.
+        let blackPlaceholder = HevcAuxStill.EncodedStill(
+            payload: AppleStyleGolden.textureMattePayload,
+            properties: [HeifContainer.ispeBox(AppleTextureStyles.matteWidth, AppleTextureStyles.matteHeight),
+                         HeifContainer.pixiBox(channels: [8]),
+                         AppleStyleGolden.textureMatteHvcc])
+        let matte: HevcAuxStill.EncodedStill? = applyTexture ? blackPlaceholder : nil
         do {
-            matte = applyTexture ? try HevcAuxStill.blackFrame(width: AppleTextureStyles.matteWidth,
-                                                               height: AppleTextureStyles.matteHeight) : nil
             if applyPhotographic {
                 let linear = try HevcAuxStill.linearThumbnail(source: source)
-                let sky = try HevcAuxStill.blackFrame(width: skyWidth, height: skyHeight)
                 applyPhotographicStyles(&container, deltaWidth: fitted(dimensions.width),
                                         deltaHeight: fitted(dimensions.height),
-                                        landscape: landscape, linear: linear, sky: sky)
+                                        landscape: landscape, linear: linear, sky: blackPlaceholder)
             }
         } catch let error as HevcAuxStillError {
             throw StyleInjectionError.encodingFailed("\(error)")

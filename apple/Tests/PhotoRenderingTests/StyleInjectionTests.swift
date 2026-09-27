@@ -56,8 +56,14 @@ struct StyleInjectionTests {
         try writeSDRHEIC(to: source, width: 384, height: 512, hdr: false)
         let output = folder.appendingPathComponent("styled3.heic")
 
-        try StyleInjection.inject(source: source, kind: .stillHEIC, hdr: false, addPhotographic: true,
-                                  addTexture: true, grainSeedName: "IMG_1234.jpg", destination: output)
+        do {
+            try StyleInjection.inject(source: source, kind: .stillHEIC, hdr: false, addPhotographic: true,
+                                      addTexture: true, grainSeedName: "IMG_1234.jpg", destination: output)
+        } catch {
+            if FileManager.default.fileExists(atPath: output.path) {
+                    }
+            throw error
+        }
 
         let container = try HeifContainer.load(fileURL: output)
         #expect(container.stylesCoverage.texture)
@@ -172,18 +178,22 @@ struct StyleInjectionTests {
         }
     }
 
-    @Test func blackFramesDeclareMonochrome() throws {
-        let frame = try HevcAuxStill.blackFrame(width: 768, height: 576)
-        let hvcC = try #require(frame.properties.first {
-            $0.count >= 8 && String(decoding: $0[4..<8], as: UTF8.self) == "hvcC"
-        })
-        #expect(hvcC[24] & 3 == 0)
-        #expect(hvcC[25] & 7 == 0)
-        let ispe = try #require(frame.properties.first {
-            $0.count >= 8 && String(decoding: $0[4..<8], as: UTF8.self) == "ispe"
-        })
-        #expect(readU32(ispe, 12) == 768)
-        #expect(readU32(ispe, 16) == 576)
+    @Test func goldenMatteDeclaresTrueMonochrome() throws {
+        // The texture placeholders ship as Rext-monochrome golden bytes: a 4:2:0 Main
+        // stream behind a monochrome declaration crashed the Photos style editor.
+        let hvcC = AppleStyleGolden.textureMatteHvcc
+        #expect(hvcC.count == 113)
+        #expect(hvcC[8] == 1) // configurationVersion
+        #expect(hvcC[9] & 0x1f == 4) // general_profile_idc = 4 (Rext, mono capable)
+        #expect(hvcC[20] == 0x5a) // general_level_idc
+        #expect(hvcC[24] & 3 == 0) // chroma_format_idc = monochrome
+        #expect(hvcC[25] & 7 == 0) // 8-bit
+        // The payload is one length-prefixed IDR slice; its own SPS must agree.
+        let sliceLength = Int(AppleStyleGolden.textureMattePayload[0]) << 24
+            | Int(AppleStyleGolden.textureMattePayload[1]) << 16
+            | Int(AppleStyleGolden.textureMattePayload[2]) << 8 | Int(AppleStyleGolden.textureMattePayload[3])
+        #expect(sliceLength == 108)
+        #expect(AppleStyleGolden.textureMattePayload.count == 4 + sliceLength)
         let linear = try HevcAuxStill.linearThumbnail(source: makeColorJPEG())
         let linearHvcc = try #require(linear.properties.first {
             $0.count >= 8 && String(decoding: $0[4..<8], as: UTF8.self) == "hvcC"
