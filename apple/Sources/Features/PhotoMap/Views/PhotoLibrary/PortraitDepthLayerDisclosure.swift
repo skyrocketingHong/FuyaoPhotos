@@ -28,7 +28,7 @@ struct PortraitDepthLayerDisclosure: View {
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: .infinity, maxHeight: 320)
-                        .background(.black, in: RoundedRectangle(cornerRadius: 8))
+                        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 8))
                         .accessibilityLabel(Text("photo.depth.layer"))
                         .listRowSeparator(.hidden)
                     Text("photo.depth.visualization")

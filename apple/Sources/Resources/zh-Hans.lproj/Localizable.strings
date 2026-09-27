@@ -121,7 +121,7 @@
 "settings.category.map.description" = "选择照片地图的默认展示方式与年份筛选。";
 "settings.category.about.description" = "查看应用版本与其他信息。";
 "settings.editor.header" = "编辑器";
-"settings.editor.footer" = "暗房外观会以深色背景展示照片编辑工具。";
+"settings.editor.footer" = "照片背景随所选外观渐变融合。“跟随系统”会自动适配浅色和深色模式。";
 "settings.appearance.hint" = "选择暗房外观，或跟随系统外观。";
 "settings.photo.header" = "照片信息";
 "settings.author.hint" = "照片未记录拍摄者时使用此默认值；修改单张照片不会改变默认值。";

@@ -2,13 +2,12 @@ package ing.fuyaoskyrocket.photoinfo.ui.components
 
 import android.view.SurfaceHolder
 import android.view.SurfaceView
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -40,7 +39,7 @@ fun MotionPhotoPreview(source: MotionClipSource, modifier: Modifier = Modifier,
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer);player.release() }
     }
-    BoxWithConstraints(modifier.background(Color.Black),contentAlignment=Alignment.Center) {
+    BoxWithConstraints(modifier,contentAlignment=Alignment.Center) {
         val width=minOf(maxWidth,maxHeight*ratio)
         AndroidView(factory={ ctx -> SurfaceView(ctx).apply {
             holder.addCallback(object: SurfaceHolder.Callback {
@@ -50,6 +49,6 @@ fun MotionPhotoPreview(source: MotionClipSource, modifier: Modifier = Modifier,
             })
         } },modifier=Modifier.width(width).height(width/ratio),onReset=null,onRelease={ player.release() })
         if(loading)Icon(painterResource(R.drawable.ic_motion),stringResource(R.string.loading_motion),
-            Modifier.size(24.dp),tint=Color.White)
+            Modifier.size(24.dp),tint=MaterialTheme.colorScheme.onSurface)
     }
 }

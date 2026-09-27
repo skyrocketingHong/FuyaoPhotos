@@ -3,7 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var card = CardPreferences.shared
-    @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.darkroom.rawValue
+    @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
     @AppStorage("defaultDisplayMode") private var defaultMode = MapDisplayMode.photo.rawValue
     @AppStorage("customStartYear") private var startYear = 0
     @AppStorage("defaultSelectedYear") private var selectedYear = 0

@@ -10,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -87,20 +86,19 @@ fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThum
                     }
                 }
             }
-            if (display != PhotoInfoDisplay.FACTS) item { Surface(
-                Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                tonalElevation = 1.dp,
-            ) {
+            if (display != PhotoInfoDisplay.FACTS) item { Box(Modifier.fillMaxWidth()) {
+                if (showThumbnail) PhotoAmbientBackdrop(photo, modifier = Modifier.matchParentSize())
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
                     if (showThumbnail && photo != null) {
                         Image(
                             bitmap = photo.asImageBitmap(),
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.original_preview),
                             contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 192.dp)
-                                .clip(MaterialTheme.shapes.medium),
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
                         )
+                    }
+                    state.photos.getOrNull(state.photoIndex)?.path?.takeIf { showThumbnail && state.portraitDepth && it.isNotEmpty() }?.let { path ->
+                        PortraitDepthPreview(file = java.io.File(path), modifier = Modifier.fillMaxWidth())
                     }
                     Text(name, style = MaterialTheme.typography.titleLarge)
                     if (subtitle.isNotEmpty()) Text(
@@ -108,9 +106,6 @@ fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThum
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    state.photos.getOrNull(state.photoIndex)?.path?.takeIf { showThumbnail && state.portraitDepth && it.isNotEmpty() }?.let { path ->
-                        PortraitDepthPreview(file = java.io.File(path), modifier = Modifier.fillMaxWidth())
-                    }
                     if (state.hdrPhoto || state.motionPhoto) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (state.hdrPhoto) Text(stringResource(R.string.media_hdr),
                             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)

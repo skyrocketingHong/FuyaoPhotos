@@ -27,7 +27,9 @@ struct CardLivePhotoPreview: View {
                         .symbolEffect(.pulse, isActive: !reduceMotion)
                     Text("loading.photos").font(.footnote)
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
+                .padding(12)
+                .background(.regularMaterial, in: .rect(cornerRadius: 12))
             }
         }
         .task {
@@ -82,7 +84,7 @@ private struct LivePhotoSurface: UIViewRepresentable {
     let finished: () -> Void
     func makeCoordinator() -> LivePlaybackDelegate { LivePlaybackDelegate(finished: finished) }
     func makeUIView(context: Context) -> PHLivePhotoView {
-        let view = PHLivePhotoView(); view.contentMode = .scaleAspectFit; view.delegate = context.coordinator; return view
+        let view = PHLivePhotoView(); view.backgroundColor = .clear; view.contentMode = .scaleAspectFit; view.delegate = context.coordinator; return view
     }
     func updateUIView(_ view: PHLivePhotoView, context: Context) {
         context.coordinator.finished = finished

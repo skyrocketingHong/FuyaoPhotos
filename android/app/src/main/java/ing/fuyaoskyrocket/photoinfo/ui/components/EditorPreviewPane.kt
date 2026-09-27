@@ -45,10 +45,10 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
     val showPhoto=maxHeight>52.dp
     val justifiedControls=maxWidth>=336.dp
     LaunchedEffect(showPhoto) { if(!showPhoto)playing=false }
+    PhotoAmbientBackdrop(state.original, featherEdges=false, modifier=Modifier.matchParentSize())
     Column(Modifier.fillMaxSize()) {
         if(showPhoto) {
         Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal=8.dp,vertical=4.dp)) {
-            EditorAmbientBackdrop(state.original, featherEdges=false, Modifier.matchParentSize())
             Surface(Modifier.matchParentSize(),
                 color=Color.Transparent,shadowElevation=3.dp) {
                 val pager=rememberPagerState(initialPage=state.photoIndex) { state.photos.size }
@@ -68,7 +68,7 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                 },userScrollEnabled=(!state.busy || state.loadingPhoto) && !state.closing) { page ->
                     if(page==state.photoIndex)PendingPhotoEffect(updating,Modifier.fillMaxSize()) {
                         PhotoPreview(if(original)state.original else state.preview,Modifier.fillMaxSize(),
-                            backgroundColor=Color.Transparent)
+                            showsBackdrop=false,original=original)
                         if(playing && motion!=null)MotionPhotoPreview(motion,Modifier.fillMaxSize(),
                             onFinished={ playing=false },onError={ playing=false;playbackError=true })
                     } else Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
@@ -98,7 +98,7 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
             }
             }
         }
-        Surface(color=MaterialTheme.colorScheme.surfaceContainer) {
+        Surface(color=Color.Transparent) {
             // Justified, evenly spaced controls; only genuinely narrow windows keep the scroll fallback.
             val mediaActions: @Composable RowScope.() -> Unit = {
                 if(state.motionPhoto)PreviewMediaButton(if(playing)R.drawable.ic_stop else R.drawable.ic_motion,

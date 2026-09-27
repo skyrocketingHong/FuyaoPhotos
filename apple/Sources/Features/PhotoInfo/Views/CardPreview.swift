@@ -31,6 +31,7 @@ struct CardPreview: View {
 struct CardPreviewSurface: View {
     let document: CardDocument
     @Bindable var controls: CardPreviewState
+    var showsBackdrop = true
     var body: some View {
         ZStack {
             CardPreviewImage(document: document, hdr: controls.hdr, fullResolution: false,
@@ -41,6 +42,9 @@ struct CardPreviewSurface: View {
                 }
             }
         }
+            .background {
+                if showsBackdrop { PhotoAmbientBackdrop(sourceURL: document.sourceURL) }
+            }
             .sheet(isPresented: $controls.fullScreen) {
                 CardFullPreview(document: document, hdr: controls.hdr, original: controls.original)
             }
@@ -118,7 +122,7 @@ private struct CardPreviewImage: View {
 
     var body: some View {
         ZStack {
-            Color.black
+            Color.clear
             if let image {
                 HDRImageView(image: image, enabled: effectiveHDR)
             }
@@ -129,9 +133,14 @@ private struct CardPreviewImage: View {
                         .symbolEffect(.pulse, isActive: !reduceMotion)
                     Text("card.preview.loading").font(.footnote)
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
+                .padding(12)
+                .background(.regularMaterial, in: .rect(cornerRadius: 12))
             }
-            if let error { Text(error).padding().foregroundStyle(.white).background(.black.opacity(0.8)) }
+            if let error {
+                Text(error).padding().foregroundStyle(.primary)
+                    .background(.regularMaterial, in: .rect(cornerRadius: 12))
+            }
         }
         .accessibilityLabel(Text("card.preview"))
         .task(id: PreviewKey(id: document.id, card: document.card, hdr: hdr, full: fullResolution, original: original)) {
@@ -185,7 +194,7 @@ private struct CardFullPreview: View {
                     previewContent
                 }
             }
-            .background(.black)
+            .background(PhotoPreviewTheme.surface)
             .onGeometryChange(for: Bool.self) { $0.size.width >= 800 } action: { isWide = $0 }
             .navigationTitle("card.preview")
             .toolbar {
@@ -243,7 +252,12 @@ private struct CardFullPreview: View {
 #endif
     }
 
-    @ViewBuilder private var previewContent: some View {
+    private var previewContent: some View {
+        zoomableContent
+            .background { PhotoAmbientBackdrop(sourceURL: document.sourceURL) }
+    }
+
+    @ViewBuilder private var zoomableContent: some View {
 #if os(macOS)
         GeometryReader { geometry in
             ScrollView([.horizontal, .vertical]) {
@@ -299,8 +313,9 @@ private final class CardZoomController: UIViewController, UIScrollViewDelegate {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
-        scrollView.backgroundColor = .black
+        view.backgroundColor = .clear
+        scrollView.backgroundColor = .clear
+        previewController.view.backgroundColor = .clear
         scrollView.minimumZoomScale = 1
         scrollView.maximumZoomScale = 8
         scrollView.bouncesZoom = true

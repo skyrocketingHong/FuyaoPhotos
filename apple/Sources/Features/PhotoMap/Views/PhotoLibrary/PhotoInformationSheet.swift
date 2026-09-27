@@ -17,7 +17,7 @@ struct PhotoInformationSheet: View {
         NavigationStack {
             List {
                 Section {
-                    CardPreviewSurface(document: document, controls: preview)
+                    CardPreviewSurface(document: document, controls: preview, showsBackdrop: false)
                         .aspectRatio(CGFloat(document.metadata.width) / CGFloat(document.metadata.height), contentMode: .fit)
                         .frame(maxWidth: .infinity, maxHeight: 320)
                         .padding(.horizontal, 16)
@@ -45,6 +45,11 @@ struct PhotoInformationSheet: View {
                 PhotoDetailInformation(asset: asset, document: document, coordinate: nil)
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(alignment: .top) {
+                PhotoAmbientBackdrop(sourceURL: document.sourceURL)
+                    .frame(height: 440)
+            }
             .navigationTitle("photo.detail.title")
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -56,8 +61,7 @@ struct PhotoInformationSheet: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
-        .background(Color.black.ignoresSafeArea())
+        .background(PhotoPreviewTheme.surface.ignoresSafeArea())
         .task(id: document.sourceURL) {
             depthLayer = nil
             let result = await PortraitDepthLayerReader.readAsync(document.sourceURL)

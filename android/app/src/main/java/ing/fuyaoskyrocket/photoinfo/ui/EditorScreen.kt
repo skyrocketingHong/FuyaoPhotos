@@ -212,7 +212,6 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             vm.clearNotice(notice.id)
         }
     }
-    ing.fuyaoskyrocket.photoinfo.ui.theme.EditorDarkroomTheme(currentEntry?.destination?.route in listOf(null,PhotoPage.EDITOR.name,PhotoPage.PREVIEW.name)) {
     val currentPage = PhotoPage.entries.firstOrNull { it.name == currentEntry?.destination?.route }
     BoxWithConstraints {
     val useRail = maxWidth >= 840.dp && androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.4f
@@ -439,7 +438,6 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                     style = MaterialTheme.typography.bodySmall)
             },
             confirmButton = { TextButton(onClick = { showErrorDetails = false }) { Text(stringResource(R.string.close)) } })
-    }
     }
 }
 

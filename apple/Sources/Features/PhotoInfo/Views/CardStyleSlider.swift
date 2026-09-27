@@ -34,7 +34,7 @@ struct CardStyleSlider: View {
             SliderEndpointIcon(symbol: maximumSymbol, active: atMaximum)
             Text(formattedValue)
                 .font(.headline.monospacedDigit())
-                .foregroundStyle(.yellow)
+                .foregroundStyle(.tint)
                 .frame(minWidth: 52, alignment: .trailing)
                 .accessibilityHidden(true)
         }
@@ -51,7 +51,7 @@ private struct SliderEndpointIcon: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .foregroundStyle(active ? Color.yellow : Color.secondary)
+            .foregroundStyle(active ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
             .scaleEffect(active ? 1.12 : 1)
             .frame(width: 22, height: 22)
             .animation(reduceMotion ? nil : .snappy(duration: 0.22), value: active)

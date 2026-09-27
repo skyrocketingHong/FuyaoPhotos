@@ -6,6 +6,7 @@
   <string name="save_options">Save options</string>
   <string name="empty_hint">Add an information card to your photos. Select up to %1$d photos; swipe to edit each one, then save all.</string>
   <string name="preview_content">Photo and information card preview</string>
+  <string name="original_preview">Original photo preview</string>
   <string name="card_preview_updating">Updating preview</string>
   <string name="reset_zoom">Fit</string>
   <string name="close">Close</string>

@@ -61,7 +61,6 @@ struct PhotoDetailContent: View {
                     preview
                         .aspectRatio(4 / 3, contentMode: .fit)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(.black)
 
                     HStack(alignment: .center, spacing: 12) {
                         if let document {
@@ -97,6 +96,7 @@ struct PhotoDetailContent: View {
                     .aspectRatio(4 / 3, contentMode: .fit)
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 if let document {
                     PhotoInformationHeading(name: document.originalName,
                                             fileExtension: document.sourceURL.pathExtension,

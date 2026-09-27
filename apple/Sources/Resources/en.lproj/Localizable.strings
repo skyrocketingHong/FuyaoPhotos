@@ -121,7 +121,7 @@
 "settings.category.map.description" = "Choose the map's default display and year filters.";
 "settings.category.about.description" = "View the app version and other information.";
 "settings.editor.header" = "Editor";
-"settings.editor.footer" = "The darkroom appearance keeps the editor's photo tools on a dark surface.";
+"settings.editor.footer" = "Photo backgrounds blend into the selected appearance. Follow System adapts to light and dark mode.";
 "settings.appearance.hint" = "Choose a dark editor or follow the system appearance.";
 "settings.photo.header" = "Photo Details";
 "settings.author.hint" = "Used for photos without a photographer in their metadata. Editing one photo does not change this default.";

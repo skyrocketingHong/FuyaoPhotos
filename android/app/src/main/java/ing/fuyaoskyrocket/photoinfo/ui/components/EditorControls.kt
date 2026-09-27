@@ -67,7 +67,7 @@ fun EditorControls(
     val styleLabels = StyleSetting.entries.map { stringResource(it.label) } + stringResource(R.string.font)
     Column(modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
         horizontalAlignment = Alignment.CenterHorizontally) {
-        PrimaryTabRow(selectedTabIndex = tab, divider = {}) {
+        PrimaryTabRow(selectedTabIndex = tab, containerColor = androidx.compose.ui.graphics.Color.Transparent, divider = {}) {
             listOf(R.string.tab_info, R.string.tab_style).forEachIndexed { index, title ->
                 Tab(selected = tab == index, onClick = { focus.clearFocus(); setEditingActive(false); tab = index },
                     text = { Text(stringResource(title)) })
@@ -149,7 +149,7 @@ private fun EditorInspector(
                 onStyle(CardStyle())
             }
         }
-        EditorAmbientBackdrop(state.original,
+        PhotoAmbientBackdrop(state.original,
             modifier = Modifier.align(Alignment.TopCenter).requiredWidth(maxWidth + 24.dp)
                 .height(minOf(240.dp, maxHeight * .58f)))
         Column(Modifier.fillMaxSize().then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {

@@ -14,7 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -54,9 +55,11 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlin.math.roundToInt
 
 @Composable
-fun PhotoPreview(bitmap:Bitmap?,modifier:Modifier=Modifier,backgroundColor:Color=Color(0xFF111315)) {
-    Box(modifier.background(backgroundColor),contentAlignment=Alignment.Center) {
-        bitmap?.let { Image(it.asImageBitmap(),stringResource(R.string.preview_content),Modifier.fillMaxSize(),contentScale=ContentScale.Fit,alignment=Alignment.TopCenter) }
+fun PhotoPreview(bitmap:Bitmap?,modifier:Modifier=Modifier,showsBackdrop:Boolean=true,original:Boolean=false) {
+    Box(modifier,contentAlignment=Alignment.Center) {
+        if (showsBackdrop) PhotoAmbientBackdrop(bitmap, modifier=Modifier.matchParentSize())
+        bitmap?.let { Image(it.asImageBitmap(),stringResource(if (original) R.string.original_preview else R.string.preview_content),
+            Modifier.fillMaxSize(),contentScale=ContentScale.Fit,alignment=Alignment.Center) }
     }
 }
 
@@ -127,12 +130,13 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
     LaunchedEffect(viewport, displayed) { offset = bounded(offset, scale) }
     val window = activity?.window
     val view = LocalView.current
-    DisposableEffect(window, view) {
+    val lightBars = MaterialTheme.colorScheme.surface.luminance() > .5f
+    DisposableEffect(window, view, lightBars) {
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
         val lightStatus = controller?.isAppearanceLightStatusBars ?: false
         val lightNavigation = controller?.isAppearanceLightNavigationBars ?: false
-        controller?.isAppearanceLightStatusBars = false
-        controller?.isAppearanceLightNavigationBars = false
+        controller?.isAppearanceLightStatusBars = lightBars
+        controller?.isAppearanceLightNavigationBars = lightBars
         onDispose {
             controller?.isAppearanceLightStatusBars = lightStatus
             controller?.isAppearanceLightNavigationBars = lightNavigation
@@ -140,7 +144,7 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
     }
     val zoomDescription = stringResource(R.string.zoom_value, (scale * 100).roundToInt())
     val previewCanvas: @Composable (Modifier) -> Unit = { modifier ->
-        Box(modifier.background(Color.Black).onSizeChanged { viewport=it }
+        Box(modifier.clipToBounds().onSizeChanged { viewport=it }
             .pointerInput(photoId) {
                 detectTransformGestures { centroid,pan,zoom,_ ->
                     if(playing)return@detectTransformGestures
@@ -151,6 +155,7 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
                     scale=next;offset=bounded(anchored,next)
                 }
             }.pointerInput(photoId) { detectTapGestures(onDoubleTap={ if(!playing)moveTo(1f) }) }) {
+            PhotoAmbientBackdrop(bitmap, modifier=Modifier.matchParentSize())
             Image(displayed.asImageBitmap(),stringResource(R.string.preview_content),Modifier.fillMaxSize()
                 .semantics { stateDescription=zoomDescription }
                 .graphicsLayer { scaleX=scale;scaleY=scale;translationX=offset.x;translationY=offset.y },contentScale=ContentScale.Fit)
@@ -160,7 +165,7 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
     }
     val toolbar: @Composable (Boolean) -> Unit = { wide ->
             Surface(Modifier.fillMaxWidth(),
-                color=Color.Black.copy(alpha=.72f),contentColor=Color.White) {
+                color=MaterialTheme.colorScheme.surface.copy(alpha=.92f),contentColor=MaterialTheme.colorScheme.onSurface) {
                 Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)).heightIn(min=48.dp).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically) {
                     FuyaoIconButton(R.drawable.ic_close,stringResource(R.string.close),onDismiss)
                     if (wide) Spacer(Modifier.weight(1f))
@@ -179,7 +184,7 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
     }
     val zoomControls: @Composable () -> Unit = {
             Surface(
-                color=Color.Black.copy(alpha=.72f),contentColor=Color.White,shape=MaterialTheme.shapes.large) {
+                color=MaterialTheme.colorScheme.surface.copy(alpha=.92f),contentColor=MaterialTheme.colorScheme.onSurface,shape=MaterialTheme.shapes.large) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
                     FuyaoIconButton(R.drawable.ic_minus,stringResource(R.string.zoom_out),{ moveTo(scale/1.5f) },enabled=!playing && scale>1f)
                     FuyaoIconButton(R.drawable.ic_fit,stringResource(R.string.reset_zoom),{ moveTo(1f) },enabled=!playing)
@@ -188,7 +193,7 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
             }
     }
     val statusPanel: @Composable (Modifier) -> Unit = { modifier ->
-        Surface(modifier, color=Color(0xFF191B1E), contentColor=Color.White) {
+        Surface(modifier, color=MaterialTheme.colorScheme.surfaceContainerLow, contentColor=MaterialTheme.colorScheme.onSurface) {
             Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
                 Text(if(loading) stringResource(R.string.full_preview_loading)
                     else stringResource(R.string.preview_quality,zoomDescription,
@@ -209,7 +214,7 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
     }
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)
+    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)
         .onGloballyPositioned { bounds = it.boundsInWindow() }) {
         val hinge = fold?.bounds
         val vertical = fold?.orientation == FoldingFeature.Orientation.VERTICAL && hinge != null &&

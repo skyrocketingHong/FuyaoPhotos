@@ -6,7 +6,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 
@@ -17,8 +16,8 @@ fun PreviewMediaButton(icon: Int, label: String, checked: Boolean, onClick: () -
     TooltipBox(positionProvider=TooltipDefaults.rememberTooltipPositionProvider(positioning=TooltipAnchorPosition.Above),
         tooltip={ PlainTooltip { Text(label) } },state=rememberTooltipState()) {
         IconToggleButton(checked=checked,onCheckedChange={ onClick() },enabled=enabled,modifier=Modifier.size(48.dp),
-            colors=IconButtonDefaults.iconToggleButtonColors(contentColor=Color.White,checkedContentColor=MaterialTheme.colorScheme.primary,
-                disabledContentColor=Color.White.copy(alpha=.38f))) {
+            colors=IconButtonDefaults.iconToggleButtonColors(contentColor=MaterialTheme.colorScheme.onSurface,
+                checkedContentColor=MaterialTheme.colorScheme.primary)) {
             Box(contentAlignment=Alignment.Center) {
                 Icon(painterResource(icon),label,Modifier.size(24.dp))
             }

@@ -31,7 +31,7 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                             } label: {
                                 Text(title(item))
                                     .font(.body.weight(.semibold))
-                                    .foregroundStyle(position == slot ? Color.yellow : Color.white.opacity(0.8))
+                                    .foregroundStyle(position == slot ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                                     .multilineTextAlignment(.center)
                                     .frame(maxWidth:.infinity).frame(height:rowHeight)
                                     .contentShape(Rectangle())

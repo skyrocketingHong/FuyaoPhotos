@@ -6,7 +6,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -60,7 +59,6 @@ internal fun CardDetailPreview(
     val accent = MaterialTheme.colorScheme.primary
     Box(
         modifier.clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .semantics {
                 contentDescription = errorMessage ?: label
                 if (rendering || editingActive) stateDescription = updating

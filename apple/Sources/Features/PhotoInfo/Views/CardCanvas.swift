@@ -32,7 +32,7 @@ struct CardCanvas: View {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background {
-                            PhotoAmbientBackdrop(sourceURL: document.sourceURL)
+                            PhotoAmbientBackdrop(sourceURL: document.sourceURL, featherEdges: false)
                                 .id(document.id)
                                 .ignoresSafeArea(edges: .top)
                         }
@@ -54,7 +54,7 @@ struct CardCanvas: View {
                     }
                     .padding(.top, 4)
                     .background {
-                        PhotoAmbientBackdrop(sourceURL: document.sourceURL)
+                        PhotoAmbientBackdrop(sourceURL: document.sourceURL, featherEdges: false)
                             .id(document.id)
                             .ignoresSafeArea(edges: .top)
                     }
@@ -268,7 +268,7 @@ private struct CardFilmstrip: View {
         ZStack {
 #if os(macOS)
             if let document=session.current {
-                CardPreviewSurface(document:document,controls:preview).id(document.id)
+                CardPreviewSurface(document:document,controls:preview,showsBackdrop:false).id(document.id)
                     .modifier(ProcessingVeil(active: processing, pulse: preview.isRendering))
                     .aspectRatio(CGFloat(document.metadata.width)/CGFloat(document.metadata.height),contentMode:.fit)
                     .frame(maxWidth:.infinity,maxHeight:.infinity)
@@ -279,10 +279,10 @@ private struct CardFilmstrip: View {
                 ForEach(session.documents) { document in
                     Group {
                         if document.id==session.selectedID {
-                            CardPreviewSurface(document:document,controls:preview)
+                            CardPreviewSurface(document:document,controls:preview,showsBackdrop:false)
                         } else if abs((session.documents.firstIndex { $0.id==document.id } ?? 0)-selectedIndex)<=1 {
                             CardNeighborPreview(document:document,hdr:preview.hdr)
-                        } else { Color.black }
+                        } else { Color.clear }
                     }
                     .aspectRatio(CGFloat(document.metadata.width)/CGFloat(document.metadata.height),contentMode:.fit)
                     .frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)

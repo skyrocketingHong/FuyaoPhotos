@@ -4,8 +4,9 @@ import PhotosUI
 struct PhotoCardScreen: View {
     @Bindable var session: CardSession
     @Environment(PhotoWorkspace.self) private var workspace
-    @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.darkroom.rawValue
-    private var forcedDarkroom: Bool { cardAppearance != CardAppearance.system.rawValue }
+    @Environment(\.colorScheme) private var colorScheme
+    @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
+    private var forcedDarkroom: Bool { cardAppearance == CardAppearance.darkroom.rawValue }
     @State private var showingPicker = false
     @State private var showingSave = false
     @State private var saveDetent = PresentationDetent.medium
@@ -39,11 +40,11 @@ struct PhotoCardScreen: View {
                 .disabled(session.busy)
                 .overlay { busyOverlay }
         }
-        .background(Color.black.ignoresSafeArea())
+        .background(PhotoPreviewTheme.surface.ignoresSafeArea())
         .transformEnvironment(\.colorScheme) { scheme in
             if forcedDarkroom { scheme = .dark }
         }
-        .tint(.yellow)
+        .tint(PhotoPreviewTheme.accent(in: forcedDarkroom ? .dark : colorScheme))
         .sheet(isPresented: $showingPicker) { pickerSheet }
         .sheet(isPresented: $showingSave) { saveSheet }
         .confirmationDialog(replaceTitle, isPresented: $showingExternalReplace, titleVisibility: .visible) {

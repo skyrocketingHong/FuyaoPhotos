@@ -3,8 +3,9 @@ import MapKit
 
 struct ContentView: View {
     @State private var workspace = PhotoWorkspace()
-    @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.darkroom.rawValue
-    private var darkroomCards: Bool { cardAppearance != CardAppearance.system.rawValue }
+    @Environment(\.colorScheme) private var colorScheme
+    @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
+    private var darkroomCards: Bool { cardAppearance == CardAppearance.darkroom.rawValue }
     var body: some View {
         TabView(selection: $workspace.selectedTab) {
             Tab("tab.map", systemImage: "map", value: PhotoWorkspace.Tab.map) {
@@ -20,7 +21,7 @@ struct ContentView: View {
                     .toolbarBackground(.visible, for: .tabBar)
                     .toolbarColorScheme(darkroomCards ? .dark : nil, for: .tabBar)
 #endif
-                    .modifier(TabContentEntrance(active: workspace.selectedTab == .cards, darkroom: darkroomCards))
+                    .modifier(TabContentEntrance(active: workspace.selectedTab == .cards))
             }
             Tab("tab.metadata", systemImage: "info.circle", value: PhotoWorkspace.Tab.metadata) {
                 MetadataScreen(session: workspace.cards)
@@ -42,7 +43,7 @@ struct ContentView: View {
 #endif
         }
         .tabViewStyle(.tabBarOnly)
-        .tint(workspace.selectedTab == .cards ? .yellow : .accentColor)
+        .tint(workspace.selectedTab == .cards ? PhotoPreviewTheme.accent(in: darkroomCards ? .dark : colorScheme) : .accentColor)
 #if os(macOS)
         .frame(minWidth: 760, minHeight: 560)
 #endif
@@ -54,11 +55,9 @@ private struct TabContentEntrance: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var visible = false
     let active: Bool
-    var darkroom = false
 
     func body(content: Content) -> some View {
         ZStack {
-            if darkroom { Color.black.ignoresSafeArea() }
             content.opacity(visible ? 1 : 0)
         }
         .onChange(of: active, initial: true) { _, isActive in
