@@ -41,3 +41,17 @@ struct HDRImageView: UIViewRepresentable {
     }
 }
 #endif
+
+/// Whether the current display can raise EDR headroom right now. iOS clamps EDR in
+/// Low Power Mode and on SDR displays; feeding extended-linear pixels to a clamped
+/// display clips them to white, which reads as an overexposed image with no brightness
+/// boost, so callers fall back to a tone-mapped SDR render instead.
+@MainActor enum DisplayEDRCapability {
+    static var available: Bool {
+#if os(macOS)
+        return (NSScreen.main?.maximumPotentialExtendedDynamicRangeColorComponentValue ?? 1) > 1
+#else
+        return UIScreen.main.currentEDRHeadroom > 1
+#endif
+    }
+}
