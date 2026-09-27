@@ -3,6 +3,8 @@ package ing.fuyaoskyrocket.photoinfo.ui
 import android.Manifest
 import android.net.Uri
 import android.content.pm.PackageManager
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.painterResource
 import android.content.Intent
@@ -57,8 +59,38 @@ import ing.fuyaoskyrocket.photoinfo.presentation.EditorViewModel
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorControls
 import ing.fuyaoskyrocket.photoinfo.ui.components.exportBlockingNotice
 import ing.fuyaoskyrocket.photoinfo.ui.components.FullScreenPreview
+import ing.fuyaoskyrocket.photoinfo.ui.map.PhotoMapScreen
 
-private enum class PhotoPage { EDITOR, SETTINGS, LENSES, LENS_EDIT, PREVIEW }
+private enum class PhotoPage { MAP, EDITOR, METADATA, SETTINGS, LENSES, LENS_EDIT, PREVIEW }
+
+private data class PhotoTab(val page: PhotoPage, @StringRes val label: Int, @DrawableRes val icon: Int)
+private val topLevelTabs = listOf(
+    PhotoTab(PhotoPage.MAP, R.string.photo_map_title, R.drawable.ic_map),
+    PhotoTab(PhotoPage.EDITOR, R.string.photo_cards_title, R.drawable.ic_photo_add),
+    PhotoTab(PhotoPage.METADATA, R.string.photo_metadata_title, R.drawable.ic_info),
+    PhotoTab(PhotoPage.SETTINGS, R.string.settings, R.drawable.ic_settings),
+)
+private val topLevelPages = topLevelTabs.map(PhotoTab::page)
+
+@Composable
+private fun PhotoBottomBar(selected: PhotoPage, enabled: Boolean, onSelect: (PhotoPage) -> Unit) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        topLevelTabs.forEach { tab ->
+            NavigationBarItem(
+                selected = selected == tab.page,
+                onClick = { onSelect(tab.page) },
+                enabled = enabled,
+                icon = { Icon(painterResource(tab.icon), contentDescription = null, Modifier.size(24.dp)) },
+                label = { Text(stringResource(tab.label)) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primary,
+                ),
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +110,9 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     var showPhotoMenu by remember { mutableStateOf(false) }
     val navigation = rememberNavController()
     val currentEntry by navigation.currentBackStackEntryAsState()
+    var settingsDirty by remember { mutableStateOf(false) }
+    var pendingTab by remember { mutableStateOf<PhotoPage?>(null) }
+    var settingsLenses by rememberSaveable(stateSaver = ProfilesSaver) { mutableStateOf(state.settings.lenses) }
     fun atPage(page: PhotoPage) = navigation.currentBackStackEntry?.let {
         it.destination.route == page.name && it.lifecycle.currentState == Lifecycle.State.RESUMED
     } == true
@@ -85,7 +120,23 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         if (atPage(from)) navigation.navigate(to.name) { launchSingleTop = true }
     }
     fun returnFrom(page: PhotoPage) { if (atPage(page)) navigation.popBackStack() }
-    var settingsLenses by rememberSaveable(stateSaver = ProfilesSaver) { mutableStateOf(state.settings.lenses) }
+    fun navigateToTab(page: PhotoPage) {
+        val leavingSettings = currentEntry?.destination?.route == PhotoPage.SETTINGS.name
+        navigation.navigate(page.name) {
+            popUpTo(PhotoPage.EDITOR.name) { saveState = !leavingSettings }
+            launchSingleTop = true
+            restoreState = page != PhotoPage.SETTINGS
+        }
+    }
+    fun selectTab(page: PhotoPage) {
+        if (page !in topLevelPages || state.busy || currentEntry?.lifecycle?.currentState != Lifecycle.State.RESUMED ||
+            currentEntry?.destination?.route == page.name) return
+        if (currentEntry?.destination?.route == PhotoPage.SETTINGS.name && settingsDirty) pendingTab = page
+        else {
+            if (page == PhotoPage.SETTINGS) settingsLenses = state.settings.lenses
+            navigateToTab(page)
+        }
+    }
     var editingLens by rememberSaveable { mutableStateOf<List<String>?>(null) }
     var editedLens by rememberSaveable { mutableStateOf<List<String>?>(null) }
     var pendingPhotos by rememberSaveable { mutableStateOf<List<String>?>(null) }
@@ -142,10 +193,21 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         }
     }
     ing.fuyaoskyrocket.photoinfo.ui.theme.EditorDarkroomTheme(currentEntry?.destination?.route in listOf(null,PhotoPage.EDITOR.name,PhotoPage.PREVIEW.name)) {
+    val currentPage = PhotoPage.entries.firstOrNull { it.name == currentEntry?.destination?.route }
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = {
+            if (currentPage in topLevelPages) PhotoBottomBar(currentPage ?: PhotoPage.EDITOR, !state.busy, ::selectTab)
+        },
+    ) { outerPadding ->
+    Box(Modifier.fillMaxSize().padding(outerPadding).consumeWindowInsets(outerPadding)) {
     NavHost(
         navController = navigation,
         startDestination = PhotoPage.EDITOR.name,
     ) {
+        composable(PhotoPage.MAP.name) {
+            PhotoMapScreen(onOpenMetadata = { selectTab(PhotoPage.METADATA) })
+        }
         composable(PhotoPage.EDITOR.name) {
             val rootBackEnabled = (state.photos.isNotEmpty() || state.importing) && !state.closing &&
                 !showExport && !showPhotoMenu && replacementPhotos == null && state.error == null
@@ -169,12 +231,6 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 val exportNotice=exportBlockingNotice(state)
                 FuyaoAppBarAction(R.drawable.ic_export,if(state.photos.size>1) stringResource(R.string.batch_export,state.photos.size) else stringResource(R.string.export),{
                     if(exportNotice!=null)showExportBlocked=true else showExport=true
-                },enabled=!state.busy)
-                FuyaoAppBarAction(R.drawable.ic_settings,stringResource(R.string.settings),{
-                    if(atPage(PhotoPage.EDITOR)) {
-                        settingsLenses=state.settings.lenses
-                        openPage(PhotoPage.EDITOR,PhotoPage.SETTINGS)
-                    }
                 },enabled=!state.busy)
             }
             FuyaoScaffold(title=stringResource(R.string.editor_title),showTopBar=state.photos.isEmpty(),actions=editorActions,
@@ -225,14 +281,20 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 }
             }
         }
+        composable(PhotoPage.METADATA.name) {
+            PhotoMetadataScreen(state, onOpenCards = { selectTab(PhotoPage.EDITOR) },
+                onSelectPhoto = vm::selectPhoto)
+        }
         composable(PhotoPage.SETTINGS.name) {
             SettingsScreen(state.settings.copy(lenses = settingsLenses), state.photos.isNotEmpty(),
                 onManageLenses = { editedLens = null; openPage(PhotoPage.SETTINGS, PhotoPage.LENSES) },
                 onBack = { returnFrom(PhotoPage.SETTINGS) },
+                onDirtyChanged = { settingsDirty = it },
                 onSave = { settings, apply ->
                     if (!vm.state.busy && atPage(PhotoPage.SETTINGS)) {
                         vm.saveSettings(settings)
                         if (apply) vm.applyDefaultAuthor()
+                        settingsDirty = false
                         navigation.popBackStack(PhotoPage.EDITOR.name, false)
                     }
                 })
@@ -264,6 +326,21 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 showHdr=state.hdrPhoto || hasGainmap,hdrEnabled=hdrEnabled,hdrAvailable=hdrAvailable,onHdr={ hdrEnabled=!hdrEnabled }) { returnFrom(PhotoPage.PREVIEW) }
             else LaunchedEffect(state.busy) { if (!state.busy) returnFrom(PhotoPage.PREVIEW) }
         }
+    }
+    }
+    }
+    pendingTab?.let { page ->
+        AlertDialog(onDismissRequest = { pendingTab = null },
+            title = { Text(stringResource(R.string.discard_title)) },
+            text = { Text(stringResource(R.string.settings_leave_message)) },
+            confirmButton = { TextButton(onClick = {
+                pendingTab = null
+                settingsDirty = false
+                navigateToTab(page)
+            }) { Text(stringResource(R.string.discard_changes)) } },
+            dismissButton = { TextButton(onClick = { pendingTab = null }) {
+                Text(stringResource(R.string.continue_editing))
+            } })
     }
     replacementPhotos?.let { selected ->
         AlertDialog(onDismissRequest = { replacementPhotos = null },

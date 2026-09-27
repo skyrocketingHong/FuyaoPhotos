@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,14 +19,9 @@ import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoScaffold
 
-/**
- * Reserved destination for the PhotoMap module planned in docs/FUYAO_PHOTOS_ROADMAP_ZH.md.
- * The screen stays out of the editor NavHost until the map integration lands, so no
- * navigation entry points here yet.
- */
 @Composable
-fun PhotoMapScreen(modifier: Modifier = Modifier) {
-    FuyaoScaffold(title = stringResource(R.string.photo_map_title), showTopBar = true) { padding ->
+fun PhotoMapScreen(modifier: Modifier = Modifier, onOpenMetadata: () -> Unit) {
+    FuyaoScaffold(title = stringResource(R.string.photo_map_title), modifier = modifier, showTopBar = true) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
             Column(
                 Modifier.padding(32.dp),
@@ -44,6 +40,9 @@ fun PhotoMapScreen(modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                TextButton(onClick = onOpenMetadata) {
+                    Text(stringResource(R.string.photo_metadata_title))
+                }
             }
         }
     }

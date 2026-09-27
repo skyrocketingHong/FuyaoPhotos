@@ -32,12 +32,27 @@ import kotlin.math.abs
 import kotlin.math.roundToLong
 
 private data class DetailRow(@StringRes val label: Int, val value: String)
-private data class DetailGroup(@StringRes val title: Int, val rows: List<DetailRow>)
+private data class DetailGroup(@StringRes val title: Int, val rows: List<DetailRow>,
+    @StringRes val description: Int? = null)
 
 /** Displays only metadata retained from the imported original, not edited card text. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
+    if (state.photoDetails == null) return
+    val maxHeight = (LocalConfiguration.current.screenHeightDp * .9f).dp
+    // Opening directly at full height keeps list drags from fighting the sheet's
+    // half-to-expanded settling, which used to bounce the sheet at the list end.
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        PhotoInfoContent(state, Modifier.fillMaxWidth().heightIn(max = maxHeight))
+    }
+}
+
+@Composable
+fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThumbnail: Boolean = true) {
     val details = state.photoDetails ?: return
     val context = LocalContext.current
     val groups = detailGroups(context, details)
@@ -46,15 +61,8 @@ fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
     val kind = details.mimeType?.let { imageKind(context, it) }
     val size = details.byteCount?.let { android.text.format.Formatter.formatFileSize(context, it) }
     val subtitle = listOfNotNull(kind, size).joinToString(" · ")
-    val maxHeight = (LocalConfiguration.current.screenHeightDp * .9f).dp
     val exportNotice = exportBlockingNotice(state)
-    // Opening directly at full height keeps list drags from fighting the sheet's
-    // half-to-expanded settling, which used to bounce the sheet at the list end.
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) {
-        Column(Modifier.fillMaxWidth().heightIn(max = maxHeight)) {
+    Column(modifier) {
             if (exportNotice != null) {
                 Surface(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -82,7 +90,7 @@ fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
                 tonalElevation = 1.dp,
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
-                    if (photo != null) {
+                    if (showThumbnail && photo != null) {
                         Image(
                             bitmap = photo.asImageBitmap(),
                             contentDescription = null,
@@ -114,16 +122,18 @@ fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
             ) {
                 groups.forEach { group ->
                     item {
-                        Text(
-                            stringResource(group.title),
-                            modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                        Column(Modifier.padding(top = 16.dp, bottom = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(group.title), style = MaterialTheme.typography.titleMedium)
+                            group.description?.let {
+                                Text(stringResource(it), style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
                     items(group.rows) { row -> DetailValueRow(row) }
                 }
             }
-        }
     }
 }
 
@@ -246,13 +256,12 @@ private fun detailGroups(context: Context, details: PhotoDetails): List<DetailGr
             DetailRow(row.label, row.text ?: row.value?.let(context::getString).orEmpty())
         })
     }.orEmpty()
-    return listOf(
-        DetailGroup(R.string.photo_info_file, file),
-        DetailGroup(R.string.photo_info_camera, camera),
-        DetailGroup(R.string.photo_info_capture, capture),
-        DetailGroup(R.string.photo_info_location, location),
-    ) + report
-        .filter { it.rows.isNotEmpty() }
+    return (listOf(
+        DetailGroup(R.string.photo_info_file, file, R.string.photo_info_file_description),
+        DetailGroup(R.string.photo_info_camera, camera, R.string.photo_info_camera_description),
+        DetailGroup(R.string.photo_info_capture, capture, R.string.photo_info_capture_description),
+        DetailGroup(R.string.photo_info_location, location, R.string.photo_info_location_description),
+    ) + report).filter { it.rows.isNotEmpty() }
 }
 
 private fun imageKind(context: Context, mime: String): String {
