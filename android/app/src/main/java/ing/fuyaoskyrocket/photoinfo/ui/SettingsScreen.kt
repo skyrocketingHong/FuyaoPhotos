@@ -17,6 +17,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
+import ing.fuyaoskyrocket.photoinfo.domain.model.WorkspaceSettings
+import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoSharing
+import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature
+import ing.fuyaoskyrocket.photoinfo.domain.model.StartPage
 import ing.fuyaoskyrocket.photoinfo.ui.components.AboutContent
 import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsControls
 import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsSaver
@@ -24,6 +28,7 @@ import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 
 private enum class SettingsCategory(@StringRes val label: Int, @DrawableRes val icon: Int) {
+    WORKSPACE(R.string.workspace_header, R.drawable.ic_settings),
     CARDS(R.string.photo_cards_title, R.drawable.ic_photo_add),
     EXPORT(R.string.export_defaults, R.drawable.ic_export),
     METADATA(R.string.section_metadata, R.drawable.ic_info),
@@ -39,13 +44,17 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     var mainFocal by rememberSaveable { mutableStateOf(settings.fallbackMainFocal) }
     var exportDefaults by rememberSaveable(stateSaver=ExportOptionsSaver) { mutableStateOf(settings.exportDefaults) }
     var hevcEncoder by rememberSaveable { mutableStateOf(settings.hevcEncoder) }
-    var sharesCards by rememberSaveable { mutableStateOf(settings.metadataSharesCards) }
+    var startPage by rememberSaveable { mutableStateOf(settings.workspace.startPage) }
+    var sharing by rememberSaveable { mutableStateOf(settings.workspace.sharing) }
+    var sharedNames by rememberSaveable { mutableStateOf(settings.workspace.sharedFeatures.map { it.name }) }
+    val workspace = WorkspaceSettings(startPage, sharing, sharedNames.mapNotNull { name -> PhotoFeature.entries.firstOrNull { it.name == name } }.toSet())
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.CARDS) }
-    val draft=EditorSettings(author,geocode,mainFocal,settings.lenses,exportDefaults,hevcEncoder,sharesCards)
+    val draft=settings.copy(defaultAuthor=author, resolvePhotoLocation=geocode, fallbackMainFocal=mainFocal,
+        exportDefaults=exportDefaults.photoSave(), hevcEncoder=hevcEncoder, workspace=workspace)
     val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
         listOf(settings.defaultAuthor, settings.resolvePhotoLocation.toString(), settings.fallbackMainFocal),
         listOf(author, geocode.toString(), mainFocal), setOf(2)) || exportDefaults != settings.exportDefaults ||
-        hevcEncoder != settings.hevcEncoder || sharesCards != settings.metadataSharesCards
+        hevcEncoder != settings.hevcEncoder || workspace != settings.workspace
     SideEffect { onDirtyChanged(changed) }
     rememberConfirmedBack(onBack, hasChanges = changed)
 
@@ -55,6 +64,30 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
 
     @Composable fun categoryContent(category: SettingsCategory) {
         when(category) {
+            SettingsCategory.WORKSPACE -> SettingsSection(stringResource(R.string.workspace_header), stringResource(R.string.workspace_sharing_hint)) {
+                SettingsChoice(stringResource(R.string.workspace_startup), startPage,
+                    StartPage.entries.associateWith { stringResource(when(it) {
+                        StartPage.MAP -> R.string.photo_map_title; StartPage.EDITOR -> R.string.photo_cards_title
+                        StartPage.METADATA -> R.string.photo_metadata_title; StartPage.COLORS -> R.string.colors_title
+                    }) }) { startPage = it }
+                SettingsChoice(stringResource(R.string.workspace_sharing), sharing,
+                    PhotoSharing.entries.associateWith { stringResource(when(it) {
+                        PhotoSharing.ALL -> R.string.workspace_sharing_all; PhotoSharing.INDEPENDENT -> R.string.workspace_sharing_none
+                        PhotoSharing.PARTIAL -> R.string.workspace_sharing_partial
+                    }) }) { sharing = it }
+                if (sharing == PhotoSharing.PARTIAL) PhotoFeature.entries.forEach { feature ->
+                    val selected = feature.name in sharedNames
+                    Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(selected, role=Role.Checkbox,
+                        onValueChange={ enabled -> sharedNames = if (enabled) (sharedNames + feature.name).distinct() else sharedNames - feature.name }),
+                        verticalAlignment=Alignment.CenterVertically) {
+                        Text(stringResource(when(feature) {
+                            PhotoFeature.CARDS -> R.string.photo_cards_title; PhotoFeature.METADATA -> R.string.photo_metadata_title
+                            PhotoFeature.COLORS -> R.string.colors_title
+                        }), Modifier.weight(1f))
+                        Checkbox(selected, onCheckedChange=null)
+                    }
+                }
+            }
             SettingsCategory.CARDS -> SettingsSection(stringResource(R.string.photo_cards_title),
                 stringResource(R.string.settings_cards_description)) {
                 OutlinedTextField(author,{ if(it.length<=512)author=it },Modifier.fillMaxWidth(),
@@ -85,13 +118,6 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
             }
             SettingsCategory.METADATA -> SettingsSection(stringResource(R.string.section_metadata),
                 stringResource(R.string.settings_metadata_description)) {
-                Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=sharesCards,role=Role.Switch,
-                    onValueChange={ sharesCards=it }),verticalAlignment=Alignment.CenterVertically) {
-                    Text(stringResource(R.string.metadata_shares_cards),Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
-                    Switch(sharesCards,onCheckedChange=null)
-                }
-                Text(stringResource(R.string.metadata_shares_cards_hint),style=MaterialTheme.typography.bodySmall,
-                    color=MaterialTheme.colorScheme.onSurfaceVariant)
                 val locationLabel=stringResource(R.string.resolve_location)
                 Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=geocode,role=Role.Switch,
                     onValueChange={ geocode=it }),verticalAlignment=Alignment.CenterVertically) {
@@ -154,6 +180,21 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                     categoryContent(selectedCategory)
                 }
             })
+    }
+}
+
+@Composable
+private fun <T> SettingsChoice(title: String, selected: T, options: Map<T, String>, onSelect: (T) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f))
+        Box {
+            TextButton({ expanded = true }) { Text(options[selected].orEmpty()) }
+            DropdownMenu(expanded, { expanded = false }) {
+                options.forEach { (value, label) -> DropdownMenuItem(text={ Text(label) },
+                    onClick={ onSelect(value); expanded = false }) }
+            }
+        }
     }
 }
 

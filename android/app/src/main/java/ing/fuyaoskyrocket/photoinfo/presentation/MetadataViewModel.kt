@@ -30,8 +30,9 @@ data class MetadataPhotos(
     val error: String? = null,
 )
 
-class MetadataViewModel(application: Application, private val saved: SavedStateHandle) : AndroidViewModel(application) {
-    private val repository = PhotoRepository(application, PhotoSessionKind.METADATA)
+open class MetadataViewModel(application: Application, private val saved: SavedStateHandle, kind: PhotoSessionKind) : AndroidViewModel(application) {
+    constructor(application: Application, saved: SavedStateHandle) : this(application, saved, PhotoSessionKind.METADATA)
+    private val repository = PhotoRepository(application, kind)
     private var sources = emptyList<PhotoSource>()
     private var work: Job? = null
     var state by mutableStateOf(MetadataPhotos()); private set
@@ -113,14 +114,14 @@ class MetadataViewModel(application: Application, private val saved: SavedStateH
     fun clearError() { state = state.copy(error = null) }
 
     private fun publish() {
-        state = state.copy(photos = sources.map { PhotoPageItem(it.file.name, it.width, it.height, it.file.absolutePath) })
+        state = state.copy(photos = sources.map { PhotoPageItem(it.file.name, it.width, it.height, it.file.absolutePath, it.media.bitDepth) })
     }
 
     private suspend fun load(index: Int) {
         val photo = sources[index]
         val motion = photo.media.motion?.let { MotionClipSource(photo.file, it.offset, it.length) }
         val original = OriginalPhoto(photo.file.name, photo.file, null, photo.details,
-            photo.media.hdrHint, photo.media.portraitTail != null, motion)
+            photo.media.hdrHint, photo.media.portraitTail != null, motion, photo.media.bitDepth)
         saved["metadata.index"] = index
         state = state.copy(photoIndex = index, current = original, busy = true)
         var pending: Bitmap? = null

@@ -9,6 +9,26 @@ import org.junit.Test
 import org.junit.Assert.*
 
 class MediaContainerTest {
+    @Test fun appleMotionOutputHasReadableDirectoryOffsetsAndVideo() {
+        val path = System.getenv("FUYAO_APPLE_MOTION")
+        org.junit.Assume.assumeTrue(path != null)
+        val source = File(requireNotNull(path))
+        val layout = JpegContainer.inspect(source)
+        val xml = JpegContainer.xmp(layout).single()
+        val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+        val root = factory.newDocumentBuilder().parse(xml.byteInputStream())
+        val items = root.getElementsByTagNameNS("http://ns.google.com/photos/1.0/container/", "Item")
+        val values = (0 until items.length).map { items.item(it) as org.w3c.dom.Element }
+        val itemNS = "http://ns.google.com/photos/1.0/container/item/"
+        val video = values.single { it.getAttributeNS(itemNS, "Semantic") == "MotionPhoto" }
+        assertEquals("video/mp4", video.getAttributeNS(itemNS, "Mime"))
+        val length = video.getAttributeNS(itemNS, "Length").toLong()
+        val offset = source.length() - length
+        MotionPhoto.validateVideo(source, offset, length)
+        val auxiliary = JpegContainer.auxiliary(layout)
+        assertTrue(auxiliary.isNotEmpty())
+        assertEquals(offset, auxiliary.maxOf { it.offset + it.length })
+    }
     private fun file(bytes:ByteArray)=File.createTempFile("media-",".jpg").apply { writeBytes(bytes);deleteOnExit() }
     private fun segment(marker:Int,data:ByteArray)=byteArrayOf(-1,marker.toByte(),((data.size+2) ushr 8).toByte(),(data.size+2).toByte())+data
     private fun jpeg(header:ByteArray=byteArrayOf())=byteArrayOf(-1,-40)+header+byteArrayOf(-1,-38,0,2,15,-1,0,23,-1,-48,42,-1,-39)

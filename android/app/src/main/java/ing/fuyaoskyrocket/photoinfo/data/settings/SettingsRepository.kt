@@ -8,6 +8,10 @@ import ing.fuyaoskyrocket.photoinfo.data.camera.LocalCameraDevice
 import androidx.core.content.edit
 import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
 import ing.fuyaoskyrocket.photoinfo.domain.model.ExportOptions
+import ing.fuyaoskyrocket.photoinfo.domain.model.WorkspaceSettings
+import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoSharing
+import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature
+import ing.fuyaoskyrocket.photoinfo.domain.model.StartPage
 
 class SettingsRepository(context: Context) {
     private val preferences = context.getSharedPreferences("editor", Context.MODE_PRIVATE)
@@ -18,6 +22,12 @@ class SettingsRepository(context: Context) {
         fallbackMainFocal = preferences.getString("fallbackMainFocal", "").orEmpty(),
         lenses = readLenses(),
         metadataSharesCards = preferences.getBoolean("metadata.sharesCards", false),
+        workspace = WorkspaceSettings(
+            startPage = StartPage.entries.firstOrNull { it.name == preferences.getString("workspace.startup", null) } ?: StartPage.EDITOR,
+            sharing = PhotoSharing.entries.firstOrNull { it.name == preferences.getString("workspace.sharing", null) }
+                ?: if (preferences.getBoolean("metadata.sharesCards", false)) PhotoSharing.PARTIAL else PhotoSharing.INDEPENDENT,
+            sharedFeatures = preferences.getStringSet("workspace.sharedTabs", setOf("CARDS", "METADATA")).orEmpty()
+                .mapNotNull { raw -> PhotoFeature.entries.firstOrNull { it.name == raw } }.toSet()),
         hevcEncoder = if (preferences.getString("export.hevcEncoder", "x265") == "platform")
             ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.PLATFORM
         else ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265,
@@ -62,6 +72,9 @@ class SettingsRepository(context: Context) {
         require(settings.lenses.size <= 64 && settings.lenses.all { it.valid() })
         val defaults = settings.exportDefaults.sanitized()
         preferences.edit {
+            putString("workspace.startup", settings.workspace.startPage.name)
+            putString("workspace.sharing", settings.workspace.sharing.name)
+            putStringSet("workspace.sharedTabs", settings.workspace.sharedFeatures.map { it.name }.toSet())
             putString("export.format", defaults.format.name)
             putInt("export.quality", defaults.jpegQuality)
             putBoolean("export.exif", defaults.keepExif)

@@ -167,7 +167,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
 
     private fun publishCollection() {
         state = state.copy(photos = drafts.map {
-            PhotoPageItem(it.source.file.name, it.source.width, it.source.height, it.source.file.absolutePath) },
+            PhotoPageItem(it.source.file.name, it.source.width, it.source.height, it.source.file.absolutePath, it.source.media.bitDepth) },
             photoIndex = 0, sessionId = state.sessionId + 1,
             exportHasMotion = drafts.any { it.source.media.motion != null },
             exportHasPortrait = drafts.any { it.source.media.portraitTail != null },
@@ -360,7 +360,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         val snapshot = drafts.toList()
         val settings = state.settings
         val typography = fonts.typography
-        val options = state.exportOptions.copy(format=format)
+        val options = state.exportOptions.photoSave().copy(format=format)
         val keepMetadata = options.keepExif
         val jpegQuality = state.jpegQuality
         val fontKey = fonts.selectionKey

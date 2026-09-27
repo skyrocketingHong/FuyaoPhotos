@@ -3,7 +3,7 @@ package ing.fuyaoskyrocket.photoinfo.domain.session
 import java.io.File
 import java.util.UUID
 
-enum class PhotoSessionKind(val directoryName: String) { CARDS("drafts"), METADATA("metadata-drafts") }
+enum class PhotoSessionKind(val directoryName: String) { CARDS("drafts"), METADATA("metadata-drafts"), COLORS("color-drafts") }
 
 class PhotoDraftStorage(filesDirectory: File, kind: PhotoSessionKind) {
     private val directory = File(filesDirectory, kind.directoryName).apply { mkdirs() }

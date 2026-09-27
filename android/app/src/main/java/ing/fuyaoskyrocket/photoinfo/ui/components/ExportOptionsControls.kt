@@ -25,7 +25,7 @@ val ExportOptionsSaver = listSaver<ExportOptions, String>(save={ it.fields() }, 
 @OptIn(ExperimentalMaterial3Api::class)
 fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> Unit, jpegRequired: Boolean = false,
     hasMotion: Boolean = false, hasPortrait: Boolean = false, showLiveOption: Boolean = true, showPortraitOption: Boolean = true,
-    avifRequired: Boolean = false) {
+    avifRequired: Boolean = false, editMetadata: Boolean = false) {
     var expanded by remember { mutableStateOf(false) }
     val supportedFormats=remember { ExportFormat.entries.filter(ImageEncoderSupport::supports) }
     ExposedDropdownMenuBox(expanded, { expanded = it }) {
@@ -37,7 +37,7 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
                 DropdownMenuItem(text = { Text(format.name) },
                     enabled = (!jpegRequired || format != ExportFormat.PNG) &&
                         format in supportedFormats &&
-                        (!avifRequired || format==ExportFormat.AVIF) &&
+                        (!avifRequired || format in setOf(ExportFormat.AVIF, ExportFormat.HEIC)) &&
                         (!hasPortrait || format==(if(options.applePortrait)ExportFormat.HEIC else ExportFormat.JPEG)) &&
                         (!options.appleStyle || format==ExportFormat.HEIC) &&
                         (!hasMotion || format==ExportFormat.JPEG || format==ExportFormat.HEIC) &&
@@ -53,11 +53,11 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
     if(showLiveOption) MetadataSwitch(R.string.live_pair,R.string.live_pair_hint,options.separateLivePhoto) {
         onChange(options.copy(separateLivePhoto=it))
     }
-    if(showPortraitOption && Build.VERSION.SDK_INT>=34 && ExportFormat.HEIC in supportedFormats) MetadataSwitch(R.string.apple_portrait,R.string.apple_portrait_hint,options.applePortrait) {
+    if(editMetadata && showPortraitOption && Build.VERSION.SDK_INT>=34 && ExportFormat.HEIC in supportedFormats) MetadataSwitch(R.string.apple_portrait,R.string.apple_portrait_hint,options.applePortrait) {
         onChange(options.copy(applePortrait=it,
             format=if(it)ExportFormat.HEIC else if(hasPortrait)ExportFormat.JPEG else options.format))
     }
-    if(ExportFormat.HEIC in supportedFormats && Build.VERSION.SDK_INT>=28) MetadataSwitch(R.string.apple_style,R.string.apple_style_hint,options.appleStyle) {
+    if(editMetadata && ExportFormat.HEIC in supportedFormats && Build.VERSION.SDK_INT>=28) MetadataSwitch(R.string.apple_style,R.string.apple_style_hint,options.appleStyle) {
         // HEIC cannot carry the Xiaomi tail, so enabling the style pulls in the depth
         // conversion when the photo has one; motion stays embedded either way.
         onChange(options.copy(appleStyle=it,
@@ -65,7 +65,7 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
             applePortrait=options.applePortrait || (it && hasPortrait),
             format=if(it)ExportFormat.HEIC else options.format))
     }
-    if(options.appleStyle && ExportFormat.HEIC in supportedFormats && Build.VERSION.SDK_INT>=28)
+    if(editMetadata && options.appleStyle && ExportFormat.HEIC in supportedFormats && Build.VERSION.SDK_INT>=28)
         MetadataSwitch(R.string.apple_style3,R.string.apple_style3_hint,options.appleStyle3) {
             // The native contract requires the 2023 styles item to coexist with
             // texture styles, so enabling it pulls the plain style along.
@@ -86,9 +86,11 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
         Slider(options.jpegQuality.toFloat(),{ onChange(options.copy(jpegQuality=it.roundToInt())) },
             valueRange=0f..100f,steps=99,modifier=Modifier.fillMaxWidth().semantics { contentDescription=label })
     }
-    MetadataSwitch(R.string.keep_metadata,R.string.keep_metadata_hint,options.keepExif) { onChange(options.copy(keepExif=it)) }
-    MetadataSwitch(R.string.keep_location,R.string.keep_location_hint,options.keepLocation) { onChange(options.copy(keepLocation=it)) }
-    MetadataSwitch(R.string.keep_capture_time,R.string.keep_capture_time_hint,options.keepCaptureTime) { onChange(options.copy(keepCaptureTime=it)) }
+    if (editMetadata) {
+        MetadataSwitch(R.string.keep_metadata,R.string.keep_metadata_hint,options.keepExif) { onChange(options.copy(keepExif=it)) }
+        MetadataSwitch(R.string.keep_location,R.string.keep_location_hint,options.keepLocation) { onChange(options.copy(keepLocation=it)) }
+        MetadataSwitch(R.string.keep_capture_time,R.string.keep_capture_time_hint,options.keepCaptureTime) { onChange(options.copy(keepCaptureTime=it)) }
+    }
 }
 
 @Composable

@@ -2,7 +2,9 @@ package ing.fuyaoskyrocket.photoinfo.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -14,13 +16,17 @@ import ing.fuyaoskyrocket.photoinfo.presentation.PhotoPageItem
 import ing.fuyaoskyrocket.photoinfo.ui.components.OriginalPreviewState
 import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoInfoContent
 import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoInfoDisplay
+import ing.fuyaoskyrocket.photoinfo.ui.components.MetadataEditPanel
+import ing.fuyaoskyrocket.photoinfo.presentation.MetadataEditViewModel
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex: Int,
     busy: Boolean, sharesCards: Boolean, controls: OriginalPreviewState, hdrAvailable: Boolean,
-    onSelectPhoto: (Int) -> Unit, onGallery: () -> Unit, onFiles: () -> Unit) {
+    onSelectPhoto: (Int) -> Unit, onGallery: () -> Unit, onFiles: () -> Unit,
+    edit: MetadataEditViewModel = viewModel()) {
+    var editing by rememberSaveable { mutableStateOf(false) }
     val overview: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.content)) {
             FuyaoPageIntro(stringResource(R.string.photo_metadata_title),
@@ -28,6 +34,12 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilledTonalButton(onClick = onGallery, enabled = !busy) { Text(stringResource(R.string.from_gallery)) }
                     OutlinedButton(onClick = onFiles, enabled = !busy) { Text(stringResource(R.string.from_file)) }
+                }
+            }
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf(R.string.metadata_mode_view, R.string.metadata_mode_edit).forEachIndexed { index, title ->
+                    SegmentedButton(selected = editing == (index == 1), onClick = { editing = index == 1 },
+                        shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(stringResource(title)) }
                 }
             }
             if (photos.size > 1) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -44,7 +56,11 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
     }
     FuyaoScaffold("", showTopBar = false) { padding ->
         val summary: @Composable (Modifier, PhotoInfoDisplay) -> Unit = { modifier, display ->
-            if (photo != null) PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
+            if (photo != null && editing) FuyaoPageColumn(modifier) {
+                overview()
+                MetadataEditPanel(photo, edit)
+            }
+            else if (photo != null) PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
                 display = display, header = overview)
             else FuyaoPageColumn(modifier) {
                 overview()
@@ -59,7 +75,9 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
             single = { summary(it, PhotoInfoDisplay.ALL) },
             leading = { summary(it, PhotoInfoDisplay.SUMMARY) },
             trailing = { modifier ->
-                if (photo != null) PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
+                if (photo != null && editing) PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
+                    display = PhotoInfoDisplay.SUMMARY)
+                else if (photo != null) PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
                     display = PhotoInfoDisplay.FACTS)
             })
     }

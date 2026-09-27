@@ -58,7 +58,7 @@
   <string name="photo_metadata_open_cards">Open Photo Cards</string>
   <string name="settings_overview_description">Choose defaults for photo cards, saved files, metadata and lens recognition.</string>
   <string name="settings_cards_description">Set the photographer used when an imported photo has no creator.</string>
-  <string name="settings_metadata_description">Choose the photo source for Metadata and how photo locations are displayed.</string>
+  <string name="settings_metadata_description">Choose how photo locations are displayed.</string>
   <string name="settings_leave_message">Discard your unsaved settings changes and switch tabs?</string>
   <string name="discard_changes">Discard changes</string>
   <string name="back">Back</string>
@@ -380,4 +380,21 @@
   <string name="media_report_value_googlemotion">Google Motion Photo</string>
   <string name="media_report_value_styles2023">Included (2023 Standard)</string>
   <string name="media_report_value_styles2026">Included (2026 Texture and Grain)</string>
+  <string name="metadata_mode_view">View</string>
+  <string name="metadata_mode_edit">Edit</string>
+  <string name="metadata_edit_description">Write metadata changes to a new photo. The original stays available.</string>
+  <string name="metadata_save_copy">Save edited copy</string>
+  <string name="workspace_header">Pages and photos</string>
+  <string name="workspace_startup">Open app on</string>
+  <string name="workspace_sharing">Photo sharing</string>
+  <string name="workspace_sharing_all">Share all</string>
+  <string name="workspace_sharing_none">Keep separate</string>
+  <string name="workspace_sharing_partial">Choose pages</string>
+  <string name="workspace_sharing_hint">Shared pages open the same photos and follow the selected photo. Choose at least two pages for partial sharing. Other pages keep their own photos.</string>
+  <string name="colors_title">Colors</string>
+  <string name="colors_description">Sample photo pixels and compare color spaces, CSS colors and RAL references.</string>
+  <string name="colors_camera">Camera</string>
+  <string name="colors_camera_failed">Camera unavailable. Allow camera access or choose a photo from your library.</string>
+  <string name="about_features">Create information cards, inspect and edit metadata, and sample colors across color spaces. Photo Map is not yet available on Android.</string>
+  <string name="about_colors_credit">Color tools come from FuyaoColorPicker. The original Color Picker reference materials retain their GPL-3.0-only license.</string>
 </resources>

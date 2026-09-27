@@ -58,7 +58,7 @@
   <string name="photo_metadata_open_cards">打开照片卡片</string>
   <string name="settings_overview_description">管理照片卡片、保存文件、元数据和镜头识别的默认选项。</string>
   <string name="settings_cards_description">设置原片未记录摄影者时使用的默认署名。</string>
-  <string name="settings_metadata_description">设置元数据页的照片来源与照片地点显示。</string>
+  <string name="settings_metadata_description">设置照片地点的显示方式。</string>
   <string name="settings_leave_message">要放弃尚未保存的设置并切换标签页吗？</string>
   <string name="discard_changes">放弃修改</string>
   <string name="back">返回</string>
@@ -380,4 +380,21 @@
   <string name="media_report_value_googlemotion">Google Motion Photo</string>
   <string name="media_report_value_styles2023">已包含（2023 Standard）</string>
   <string name="media_report_value_styles2026">已包含（2026 纹理与颗粒）</string>
+  <string name="metadata_mode_view">查看</string>
+  <string name="metadata_mode_edit">修改</string>
+  <string name="metadata_edit_description">将元数据修改写入照片副本，原片保留。</string>
+  <string name="metadata_save_copy">保存修改后的副本</string>
+  <string name="workspace_header">页面与照片</string>
+  <string name="workspace_startup">启动后打开</string>
+  <string name="workspace_sharing">照片共享</string>
+  <string name="workspace_sharing_all">全部共享</string>
+  <string name="workspace_sharing_none">全部独立</string>
+  <string name="workspace_sharing_partial">部分共享</string>
+  <string name="workspace_sharing_hint">共享页面使用同一组选中的照片，并同步当前照片。部分共享请选择至少两个页面，其余页面独立保留照片。</string>
+  <string name="colors_title">色彩</string>
+  <string name="colors_description">选取照片像素，查看色彩空间换算、CSS 颜色与 RAL 参考色。</string>
+  <string name="colors_camera">拍照</string>
+  <string name="colors_camera_failed">无法打开相机。请允许相机访问，或从相册选择照片。</string>
+  <string name="about_features">制作信息卡片，查看和修改元数据，跨色彩空间取色。Android 版暂未开放照片地图。</string>
+  <string name="about_colors_credit">取色功能迁移自 FuyaoColorPicker。原 Color Picker 参考材料保留 GPL-3.0-only 许可。</string>
 </resources>

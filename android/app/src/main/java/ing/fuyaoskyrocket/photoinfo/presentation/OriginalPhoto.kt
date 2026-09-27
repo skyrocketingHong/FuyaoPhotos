@@ -13,10 +13,11 @@ data class OriginalPhoto(
     val hdr: Boolean,
     val hasDepth: Boolean,
     val motion: MotionClipSource?,
+    val bitDepth: Int = 8,
 )
 
 fun EditorState.originalPhoto(motion: MotionClipSource?): OriginalPhoto? {
     val selected = photos.getOrNull(photoIndex) ?: return null
     val details = photoDetails ?: return null
-    return OriginalPhoto(selected.id, File(selected.path), original, details, hdrPhoto, portraitDepth, motion)
+    return OriginalPhoto(selected.id, File(selected.path), original, details, hdrPhoto, portraitDepth, motion, selected.bitDepth)
 }

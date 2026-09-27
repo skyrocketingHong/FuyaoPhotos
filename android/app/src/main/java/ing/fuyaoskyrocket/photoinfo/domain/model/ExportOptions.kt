@@ -12,6 +12,8 @@ data class ExportOptions(
     val appleStyle: Boolean = false,
     val appleStyle3: Boolean = false,
 ) {
+    fun photoSave() = copy(keepExif = true, keepLocation = true, keepCaptureTime = true,
+        applePortrait = false, appleStyle = false, appleStyle3 = false)
     fun sanitized(jpegRequired: Boolean = false) = copy(
         format = if (jpegRequired && format == ExportFormat.PNG) ExportFormat.JPEG else format,
         jpegQuality = jpegQuality.coerceIn(0, 100),
