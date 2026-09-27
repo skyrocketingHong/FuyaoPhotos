@@ -353,3 +353,11 @@
 "metadata.report.value.heicmotion" = "HEIC Embedded Motion (Google)";
 "metadata.report.value.styles2023" = "Included (2023 Standard)";
 "metadata.report.value.styles2026" = "Included (2026 Texture and Grain)";
+
+"metadata.settings.header" = "Metadata";
+"metadata.sharesCards" = "Share Photos with Cards";
+"metadata.sharesCards.footer" = "The metadata page shows the cards page's photos instead of its own.";
+"metadata.open.cards" = "Open in Metadata";
+"metadata.open.map" = "Show on Map";
+"metadata.section.openIn" = "Open In";
+"metadata.section.openIn.footer" = "The photo opens in that page's own session; library photos appear there automatically.";

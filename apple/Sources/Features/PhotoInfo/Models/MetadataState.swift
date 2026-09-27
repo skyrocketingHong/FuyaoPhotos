@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import Observation
 
 /// Per-photo metadata modification state for the metadata tab. The report and the
@@ -122,3 +123,81 @@ import Observation
         }
     }
 }
+
+
+/// What the metadata page needs from a photo session: the cards session (shared
+/// mode) and the metadata session (independent mode) both provide this.
+@MainActor protocol MetadataPhotoSourcing: AnyObject, Observable {
+    var documents: [CardDocument] { get }
+    var selectedID: UUID? { get set }
+    var current: CardDocument? { get }
+    var busy: Bool { get }
+    func open(_ results: [PHPickerResult]) async
+    func openAssets(_ identifiers: [String]) async
+}
+
+extension CardSession: MetadataPhotoSourcing {}
+extension MetadataSession: MetadataPhotoSourcing {}
+
+/// The metadata tab's own photo session: independent from the cards session unless
+/// sharing is enabled in Settings. Loading reuses the cards import pipeline.
+@MainActor @Observable final class MetadataSession {
+    static let selectionLimit = CardSession.selectionLimit
+    var documents: [CardDocument] = []
+    var selectedID: UUID?
+    var busy = false
+    var errorMessage: String?
+    var current: CardDocument? { documents.first { $0.id == selectedID } }
+
+    func open(_ results: [PHPickerResult]) async { await open(results.map(MetadataImportSource.picker)) }
+
+    func openAssets(_ identifiers: [String]) async { await open(identifiers.map(MetadataImportSource.asset)) }
+
+    private func open(_ items: [MetadataImportSource]) async {
+        guard !busy, !items.isEmpty else { return }
+        busy = true
+        defer { busy = false }
+        var imported: [CardDocument] = []
+        var failures = 0
+        for item in items.prefix(Self.selectionLimit) {
+            do {
+                try Task.checkCancellation()
+                let folder = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("FuyaoMetadata-\(UUID().uuidString)", isDirectory: true)
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                do {
+                    let resources: PhotoSourceResources
+                    switch item {
+                    case .picker(let result): resources = try await PhotoSourceLoader.load(result, into: folder)
+                    case .asset(let identifier):
+                        guard let asset = CardPhotoLibrary.asset(identifier) else { throw CardError.permission }
+                        resources = try await PhotoSourceLoader.load(asset, into: folder)
+                    }
+                    let metadata = try await CardImageProcessor.shared.read(resources.image, author: CardPreferences.shared.author)
+                    imported.append(CardDocument(resources: resources, metadata: metadata))
+                } catch {
+                    try? FileManager.default.removeItem(at: folder)
+                    throw error
+                }
+            } catch is CancellationError { break }
+            catch { failures += 1 }
+        }
+        if !imported.isEmpty {
+            documents = imported
+            selectedID = imported.first?.id
+        }
+        if failures > 0 { errorMessage = String(format: String.localized("card.import.failed"), failures) }
+    }
+
+    func clear() {
+        for document in documents { try? FileManager.default.removeItem(at: document.sourceURL.deletingLastPathComponent()) }
+        documents = []
+        selectedID = nil
+    }
+}
+
+private enum MetadataImportSource {
+    case picker(PHPickerResult)
+    case asset(String)
+}
+

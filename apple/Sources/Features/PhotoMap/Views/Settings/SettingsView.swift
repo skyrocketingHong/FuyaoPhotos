@@ -53,6 +53,13 @@ struct SettingsView: View {
             Toggle("card.resolveLocation", isOn: $card.resolveLocation)
             Text("card.resolveLocation.description").font(.caption).foregroundStyle(.secondary)
         }
+        Section {
+            Toggle("metadata.sharesCards", isOn: $card.metadataSharesCards)
+        } header: {
+            Text("metadata.settings.header")
+        } footer: {
+            Text("metadata.sharesCards.footer")
+        }
         Section("card.save.destination") {
             Toggle("card.save.update", isOn: $card.saveOptions.updateOriginal)
         }

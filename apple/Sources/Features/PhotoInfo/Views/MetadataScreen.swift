@@ -2,13 +2,14 @@ import SwiftUI
 import PhotosUI
 
 /// The metadata tab: one page per photo showing the technical metadata report and the
-/// photographic styles injection with its own save actions. Photo management stays in
-/// the cards tab; this page only reads the shared session's current photo.
+/// photographic styles injection with its own save actions. It holds its own photo
+/// session by default; Settings can make it share the cards session's photos.
 struct MetadataScreen: View {
     @Bindable var session: CardSession
+    @Environment(PhotoWorkspace.self) private var workspace
+    @AppStorage("metadata.sharesCards") private var sharesCards = false
     @State private var state = MetadataState()
     @State private var showingPicker = false
-    @State private var showingSave = false
 
     private var errorShown: Binding<Bool> {
         Binding(get: { state.errorMessage != nil }, set: { if !$0 { state.errorMessage = nil } })
@@ -18,42 +19,18 @@ struct MetadataScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let document = session.current {
-                    content(document)
-                        .disabled(state.busy)
-                        .overlay { if state.busy { busyOverlay } }
-                } else {
-                    ContentUnavailableView {
-                        Label("metadata.empty.title", systemImage: "info.circle")
-                    } description: {
-                        Text("metadata.empty.description")
-                    } actions: {
-                        Button("card.open", action: { showingPicker = true })
-                            .buttonStyle(.borderedProminent)
-                    }
-                }
-            }
-            .navigationTitle("tab.metadata")
-#if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-#endif
-            .toolbar {
-                if session.current != nil {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("metadata.save", systemImage: "checkmark") { showingSave = true }
-                            .labelStyle(.iconOnly)
-                            .buttonBorderShape(.circle)
-                            .disabled(state.busy || session.current.map { !state.hasPendingAdd($0) } ?? true)
-                            .accessibilityLabel(Text("metadata.save"))
-                    }
-                }
+        Group {
+            if sharesCards {
+                metadataBody(sourcing: session)
+            } else {
+                metadataBody(sourcing: workspace.metadataSession)
             }
         }
-        .task(id: session.current?.id) { state.refresh(document: session.current) }
+        .task(id: handoffKey) { state.refresh(document: activeSession.current) }
+        .onChange(of: sharesCards) { _, _ in state.refresh(document: activeSession.current) }
+        .onChange(of: workspace.pendingMetadataAssetIDs) { _, _ in handlePendingHandoff() }
+        .onAppear(perform: handlePendingHandoff)
         .sheet(isPresented: $showingPicker) { pickerSheet }
-        .sheet(isPresented: $showingSave) { saveSheet }
         .alert("metadata.error.title", isPresented: errorShown) {
             Button("done", role: .cancel) { }
         } message: { Text(state.errorMessage ?? "") }
@@ -63,12 +40,78 @@ struct MetadataScreen: View {
         .sensoryFeedback(.success, trigger: state.saved)
     }
 
-    private func content(_ document: CardDocument) -> some View {
+    private var handoffKey: UUID? { activeSession.current?.id }
+
+    private var activeSession: any MetadataPhotoSourcing { sharesCards ? session : workspace.metadataSession }
+
+    private func metadataBody(sourcing: some MetadataPhotoSourcing) -> some View {
+        return Group {
+            if let document = sourcing.current {
+                MetadataContent(document: document, sourcing: sourcing, state: state,
+                                openInCards: { openInCards(document) },
+                                showOnMap: { workspace.selectedTab = .map })
+                    .disabled(state.busy)
+                    .overlay { if state.busy { busyOverlay } }
+            } else {
+                ContentUnavailableView {
+                    Label("metadata.empty.title", systemImage: "info.circle")
+                } description: {
+                    Text("metadata.empty.description")
+                } actions: {
+                    Button("card.open", action: { showingPicker = true })
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+    }
+
+    private var busyOverlay: some View {
+        ProgressView()
+            .padding()
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var pickerSheet: some View {
+        NativePhotoPicker { results in
+            showingPicker = false
+            Task { await activeSession.open(results) }
+        }
+#if os(macOS)
+        .frame(minWidth: 680, idealWidth: 820, minHeight: 520, idealHeight: 620)
+        .presentationSizing(.fitted)
+#endif
+    }
+
+    private func handlePendingHandoff() {
+        guard !activeSession.busy, let ids = workspace.pendingMetadataAssetIDs else { return }
+        workspace.pendingMetadataAssetIDs = nil
+        Task { await activeSession.openAssets(ids) }
+    }
+
+    /// Sends the photo to the cards tab: a library photo is loaded into the cards
+    /// session there; a picker-only import (no asset identifier) stays disabled.
+    private func openInCards(_ document: CardDocument) {
+        guard let identifier = document.assetIdentifier else { return }
+        workspace.editPhotos([identifier])
+    }
+}
+
+/// Body of the metadata page: the report, the styles section, and cross-tab handoffs.
+private struct MetadataContent<Sourcing: MetadataPhotoSourcing>: View {
+    let document: CardDocument
+    var sourcing: Sourcing
+    @Bindable var state: MetadataState
+    let openInCards: () -> Void
+    let showOnMap: () -> Void
+    @State private var showingSave = false
+
+    var body: some View {
         Form {
-            if session.documents.count > 1 {
+            if sourcing.documents.count > 1 {
                 Section {
-                    Picker("metadata.photo.name", selection: $session.selectedID) {
-                        ForEach(session.documents) { item in
+                    let session = sourcing
+                    Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
+                        ForEach(sourcing.documents) { item in
                             Text(item.originalName).tag(Optional(item.id))
                         }
                     }
@@ -76,8 +119,35 @@ struct MetadataScreen: View {
             }
             MediaMetadataReportSection(report: state.report)
             stylesSection(document)
+            Section {
+                Button("metadata.open.cards", systemImage: "photo.badge.plus") { openInCards() }
+                    .disabled(document.assetIdentifier == nil)
+                if document.location != nil {
+                    Button("metadata.open.map", systemImage: "map") { showOnMap() }
+                }
+            } header: {
+                Text("metadata.section.openIn")
+            } footer: {
+                Text("metadata.section.openIn.footer")
+            }
         }
         .formStyle(.grouped)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("metadata.save", systemImage: "checkmark") { showingSave = true }
+                    .labelStyle(.iconOnly)
+                    .disabled(state.busy || !state.hasPendingAdd(document))
+                    .accessibilityLabel(Text("metadata.save"))
+            }
+        }
+        .sheet(isPresented: $showingSave) {
+            MetadataSaveSheet(document: document) { updateOriginal in
+                Task { await state.save(document: document, updateOriginal: updateOriginal) }
+            }
+#if !os(macOS)
+            .presentationDetents([.medium, .large])
+#endif
+        }
     }
 
     private func stylesSection(_ document: CardDocument) -> some View {
@@ -120,33 +190,6 @@ struct MetadataScreen: View {
             }
         }
     }
-
-    private var busyOverlay: some View {
-        ProgressView()
-            .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-    }
-
-    private var pickerSheet: some View {
-        NativePhotoPicker { results in
-            showingPicker = false
-            Task { await session.open(results) }
-        }
-#if os(macOS)
-        .frame(minWidth: 680, idealWidth: 820, minHeight: 520, idealHeight: 620)
-        .presentationSizing(.fitted)
-#endif
-    }
-
-    private var saveSheet: some View {
-        MetadataSaveSheet(document: session.current) { updateOriginal in
-            guard let document = session.current else { return }
-            Task { await state.save(document: document, updateOriginal: updateOriginal) }
-        }
-#if !os(macOS)
-        .presentationDetents([.medium, .large])
-#endif
-    }
 }
 
 struct MetadataSaveSheet: View {
@@ -180,8 +223,6 @@ struct MetadataSaveSheet: View {
                         Text("metadata.save.update.description")
                     } else if document?.isLive == true {
                         Text("metadata.save.update.unavailable.live")
-                    } else if document?.assetIdentifier == nil {
-                        Text("metadata.save.copy.description")
                     } else {
                         Text("metadata.save.copy.description")
                     }

@@ -74,6 +74,10 @@ nonisolated struct CardSaveOptions: Codable, Equatable, Sendable {
     var resolveLocation: Bool = UserDefaults.standard.bool(forKey: "card.resolveLocation") {
         didSet { UserDefaults.standard.set(resolveLocation, forKey: "card.resolveLocation") }
     }
+    /// Whether the metadata tab shows the cards session's photos instead of its own.
+    var metadataSharesCards: Bool = UserDefaults.standard.bool(forKey: "metadata.sharesCards") {
+        didSet { UserDefaults.standard.set(metadataSharesCards, forKey: "metadata.sharesCards") }
+    }
     var saveOptions: CardSaveOptions = {
         guard let data = UserDefaults.standard.data(forKey: "card.saveOptions"),
               let options = try? JSONDecoder().decode(CardSaveOptions.self, from: data) else { return CardSaveOptions() }

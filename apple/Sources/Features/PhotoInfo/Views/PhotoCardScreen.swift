@@ -140,6 +140,10 @@ struct PhotoCardScreen: View {
             }
             ToolbarItem(placement: .secondaryAction) {
                 Menu("card.more", systemImage: "ellipsis") {
+                    Button("metadata.open.cards", systemImage: "info.circle") {
+                        openInMetadata(document)
+                    }
+                    .disabled(document.assetIdentifier == nil)
                     Button("card.style.reset", systemImage: "arrow.counterclockwise") {
                         document.card.style = PhotoCardStyle()
                     }
@@ -166,6 +170,11 @@ struct PhotoCardScreen: View {
             .padding().frame(maxWidth: 300)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         }
+    }
+
+    private func openInMetadata(_ document: CardDocument) {
+        guard let identifier = document.assetIdentifier else { return }
+        workspace.openInMetadata([identifier])
     }
 
     private func closeSessionIfSafe() {

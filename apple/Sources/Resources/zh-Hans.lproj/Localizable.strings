@@ -353,3 +353,11 @@
 "metadata.report.value.heicmotion" = "HEIC 内嵌动态（Google）";
 "metadata.report.value.styles2023" = "已包含（2023 Standard）";
 "metadata.report.value.styles2026" = "已包含（2026 纹理与颗粒）";
+
+"metadata.settings.header" = "元数据";
+"metadata.sharesCards" = "与信息卡片共享照片";
+"metadata.sharesCards.footer" = "元数据页显示信息卡片页的照片，而不是自己的照片。";
+"metadata.open.cards" = "在元数据中打开";
+"metadata.open.map" = "在地图上查看";
+"metadata.section.openIn" = "打开到";
+"metadata.section.openIn.footer" = "照片会在对应页面自己的会话中打开；图库照片会自动出现在地图上。";
