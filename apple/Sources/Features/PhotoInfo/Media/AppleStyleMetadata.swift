@@ -449,11 +449,11 @@ nonisolated struct BplistWriter {
     }
 }
 
-private func bigEndianBytes(_ value: UInt64) -> [UInt8] {
+nonisolated private func bigEndianBytes(_ value: UInt64) -> [UInt8] {
     withUnsafeBytes(of: value.bigEndian) { Array($0) }
 }
 
-private func appendBE(_ value: UInt32, into out: inout [UInt8]) {
+nonisolated private func appendBE(_ value: UInt32, into out: inout [UInt8]) {
     out.append(UInt8((value >> 24) & 0xff))
     out.append(UInt8((value >> 16) & 0xff))
     out.append(UInt8((value >> 8) & 0xff))
