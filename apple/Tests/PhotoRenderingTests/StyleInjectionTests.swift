@@ -11,12 +11,12 @@ struct StyleInjectionTests {
         try writeSDRHEIC(to: source, width: 512, height: 384, hdr: false)
         let output = folder.appendingPathComponent("styled.heic")
 
-        try StyleInjection.inject(source: source, kind: .stillHEIC, hdr: false, textureStyles: false,
-                                  grainSeedName: "IMG_8565.HEIC", destination: output)
+        try StyleInjection.inject(source: source, kind: .stillHEIC, hdr: false, addPhotographic: true,
+                                  addTexture: false, grainSeedName: "IMG_8565.HEIC", destination: output)
 
         let container = try HeifContainer.load(fileURL: output)
-        let presence = container.stylesPresence
-        #expect(presence.styles && !presence.texture)
+        let coverage = container.stylesCoverage
+        #expect(coverage.photographic && !coverage.texture)
         let styleItem = try #require(container.items.first { $0.type == "uri " })
         #expect(String(decoding: styleItem.infoSuffix, as: UTF8.self).hasPrefix("metadata\0tag:apple.com,2023:photo:metadata:styles\0"))
         #expect(try container.payload(of: styleItem.id).count > 51840)
@@ -56,11 +56,11 @@ struct StyleInjectionTests {
         try writeSDRHEIC(to: source, width: 384, height: 512, hdr: false)
         let output = folder.appendingPathComponent("styled3.heic")
 
-        try StyleInjection.inject(source: source, kind: .stillHEIC, hdr: false, textureStyles: true,
-                                  grainSeedName: "IMG_1234.jpg", destination: output)
+        try StyleInjection.inject(source: source, kind: .stillHEIC, hdr: false, addPhotographic: true,
+                                  addTexture: true, grainSeedName: "IMG_1234.jpg", destination: output)
 
         let container = try HeifContainer.load(fileURL: output)
-        #expect(container.stylesPresence.texture)
+        #expect(container.stylesCoverage.texture)
         #expect(container.items.filter { $0.type == "uri " }.count == 2)
         let texture = try #require(container.items.first {
             $0.type == "uri " && contains(Array($0.infoSuffix), Array(AppleTextureStyles.textureStylesContentType.utf8))
@@ -94,8 +94,8 @@ struct StyleInjectionTests {
         #expect(!container.tmapIDs.isEmpty)
 
         let output = folder.appendingPathComponent("hdr-styled.heic")
-        try StyleInjection.inject(source: source, kind: .heicWithAuxiliaryData, hdr: true, textureStyles: false,
-                                  grainSeedName: "IMG_1.jpg", destination: output)
+        try StyleInjection.inject(source: source, kind: .heicWithAuxiliaryData, hdr: true, addPhotographic: true,
+                                  addTexture: false, grainSeedName: "IMG_1.jpg", destination: output)
         let styled = try HeifContainer.load(fileURL: output)
         let toneTargets = [styled.primary] + styled.tmapIDs
         let grid = try #require(styled.items.first { styled.auxCURN(of: $0.id) == AppleStyleMetadata.deltaMapURN })
@@ -104,9 +104,41 @@ struct StyleInjectionTests {
         #expect(styled.references.first { $0.type == "cdsc" && $0.from == styleItem.id }?.to == toneTargets)
 
         do {
-            try StyleInjection.inject(source: output, kind: .heicWithAuxiliaryData, hdr: true, textureStyles: false,
-                                      grainSeedName: "IMG_1.jpg", destination: folder.appendingPathComponent("again.heic"))
+            try StyleInjection.inject(source: output, kind: .heicWithAuxiliaryData, hdr: true, addPhotographic: true,
+                                      addTexture: false, grainSeedName: "IMG_1.jpg", destination: folder.appendingPathComponent("again.heic"))
             Issue.record("injection should refuse a styled file")
+        } catch let error as StyleInjectionError {
+            guard case .alreadyStyled = error else { Issue.record("\(error)"); return }
+        }
+    }
+
+    @Test func photographicOnlySourceGainsTheTextureLayer() throws {
+        let folder = try temporaryFolder()
+        let source = folder.appendingPathComponent("source.heic")
+        try writeSDRHEIC(to: source, width: 256, height: 192, hdr: false)
+        let standard = folder.appendingPathComponent("standard.heic")
+        try StyleInjection.inject(source: source, kind: .stillHEIC, hdr: false, addPhotographic: true,
+                                  addTexture: false, grainSeedName: "IMG_1.jpg", destination: standard)
+        var coverage = StyleInjection.stylesCoverage(in: standard)
+        #expect(coverage.photographic && !coverage.texture)
+
+        let output = folder.appendingPathComponent("textured.heic")
+        try StyleInjection.inject(source: standard, kind: .heicWithAuxiliaryData, hdr: false, addPhotographic: false,
+                                  addTexture: true, grainSeedName: "IMG_2.jpg", destination: output)
+        coverage = StyleInjection.stylesCoverage(in: output)
+        #expect(coverage.photographic && coverage.texture)
+        let container = try HeifContainer.load(fileURL: output)
+        #expect(container.items.filter { $0.type == "uri " }.count == 2)
+        let mattes = AppleTextureStyles.semanticMatteURNS.filter { urn in
+            container.items.contains { container.auxCURN(of: $0.id) == urn }
+        }
+        #expect(mattes.count == 12)
+        try verifyDecodable(output, width: 256, height: 192)
+
+        do {
+            try StyleInjection.inject(source: output, kind: .heicWithAuxiliaryData, hdr: false, addPhotographic: false,
+                                      addTexture: true, grainSeedName: "IMG_2.jpg", destination: folder.appendingPathComponent("again.heic"))
+            Issue.record("texture injection should refuse a textured file")
         } catch let error as StyleInjectionError {
             guard case .alreadyStyled = error else { Issue.record("\(error)"); return }
         }
@@ -119,11 +151,11 @@ struct StyleInjectionTests {
         try CIContext().writeJPEGRepresentation(of: base, to: source, colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!)
         let output = folder.appendingPathComponent("converted.heic")
 
-        try StyleInjection.inject(source: source, kind: .stillJPEG, hdr: false, textureStyles: false,
-                                  grainSeedName: "IMG_2.jpg", destination: output)
+        try StyleInjection.inject(source: source, kind: .stillJPEG, hdr: false, addPhotographic: true,
+                                  addTexture: false, grainSeedName: "IMG_2.jpg", destination: output)
         try verifyDecodable(output, width: 300, height: 400)
         let container = try HeifContainer.load(fileURL: output)
-        #expect(container.stylesPresence.styles)
+        #expect(container.stylesCoverage.photographic)
         // EXIF-free source still produces an Exif item carrying the style MakerNote.
         #expect(container.items.contains { $0.type == "Exif" })
     }
@@ -132,7 +164,8 @@ struct StyleInjectionTests {
         let folder = try temporaryFolder()
         do {
             try StyleInjection.inject(source: folder.appendingPathComponent("missing.jpg"), kind: .motionJPEG, hdr: false,
-                                      textureStyles: false, grainSeedName: "x", destination: folder.appendingPathComponent("out.heic"))
+                                      addPhotographic: true, addTexture: false, grainSeedName: "x",
+                                      destination: folder.appendingPathComponent("out.heic"))
             Issue.record("motion source should be refused")
         } catch let error as StyleInjectionError {
             guard case .unsupportedSource = error else { Issue.record("\(error)"); return }

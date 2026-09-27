@@ -404,23 +404,23 @@ nonisolated struct HeifContainer {
         return false
     }
 
-    /// Ports the Android HeifGraph detection: any style-bearing uri item (2023 styles,
-    /// 2026 texture styles, or the legacy styleMetadata spelling) marks the file as styled.
-    var stylesPresence: (styles: Bool, texture: Bool) {
-        var styles = false
+    /// Ports the Android HeifGraph detection and splits it per style generation so a
+    /// photo carrying only the 2023 Standard stack can still gain the 2026 texture
+    /// layer (and the other way round).
+    var stylesCoverage: (photographic: Bool, texture: Bool) {
+        var photographic = false
         var texture = false
         for item in items {
             if item.type.localizedCaseInsensitiveContains("style") ||
                 containsASCII(item.infoSuffix, "styleMetadata") ||
                 containsASCII(item.infoSuffix, "photo:metadata:styles") {
-                styles = true
+                photographic = true
             }
             if containsASCII(item.infoSuffix, AppleTextureStyles.textureStylesContentType) {
                 texture = true
-                styles = true
             }
         }
-        return (styles, texture)
+        return (photographic, texture)
     }
 
     // MARK: Mutation

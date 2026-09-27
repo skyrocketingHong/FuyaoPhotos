@@ -45,7 +45,7 @@ struct MetadataScreen: View {
                         Button("metadata.save", systemImage: "checkmark") { showingSave = true }
                             .labelStyle(.iconOnly)
                             .buttonBorderShape(.circle)
-                            .disabled(state.busy || !state.injectStandard || session.current.map { !state.canInject($0) } ?? true)
+                            .disabled(state.busy || session.current.map { !state.hasPendingAdd($0) } ?? true)
                             .accessibilityLabel(Text("metadata.save"))
                     }
                 }
@@ -82,28 +82,41 @@ struct MetadataScreen: View {
 
     private func stylesSection(_ document: CardDocument) -> some View {
         Section {
-            if state.stylesPresent(document) {
-                LabeledContent("metadata.styles.status") {
-                    Text("metadata.styles.value.present")
-                }
-            } else if state.canInject(document) {
-                Toggle("metadata.styles.standard", isOn: $state.injectStandard)
-                Toggle("metadata.styles.texture", isOn: $state.includeTexture)
-                    .disabled(!state.injectStandard)
-            } else {
+            if !state.supportsInjection(document) {
                 LabeledContent("metadata.styles.status") {
                     Text("metadata.styles.value.unavailable")
+                }
+            } else if state.report == nil {
+                HStack(spacing: 12) {
+                    ProgressView()
+                    Text("metadata.report.loading")
+                }
+            } else {
+                if state.canAddPhotographic(document) {
+                    Toggle("metadata.styles.standard", isOn: $state.injectStandard)
+                } else {
+                    LabeledContent("metadata.styles.standard") {
+                        Text("metadata.styles.value.present")
+                    }
+                }
+                if state.canAddTexture(document) {
+                    let standardPresent = state.coverage(document).photographic
+                        || (state.injectStandard && state.canAddPhotographic(document))
+                    Toggle("metadata.styles.texture", isOn: $state.includeTexture)
+                        .disabled(!standardPresent)
+                } else {
+                    LabeledContent("metadata.styles.texture") {
+                        Text("metadata.styles.value.present")
+                    }
                 }
             }
         } header: {
             Text("metadata.styles.header")
         } footer: {
-            if state.stylesPresent(document) {
-                Text("metadata.styles.present.footer")
-            } else if state.canInject(document) {
-                Text("metadata.styles.footer")
-            } else {
+            if !state.supportsInjection(document) {
                 Text(state.unavailableReason(document))
+            } else {
+                Text("metadata.styles.footer")
             }
         }
     }

@@ -2,8 +2,9 @@ import SwiftUI
 import Observation
 
 /// Per-photo metadata modification state for the metadata tab. The report and the
-/// styles check are derived from the working copy's original bytes; successful saves
-/// mark the document so an already-injected photo is never injected twice in-session.
+/// styles coverage are derived from the working copy's original bytes; successful saves
+/// mark the document per style generation so an already-injected layer is never
+/// injected twice in-session.
 @MainActor @Observable final class MetadataState {
     var injectStandard = true
     var includeTexture = false
@@ -13,18 +14,34 @@ import Observation
     private(set) var report: MediaMetadataReport?
 
     private var requestedID: UUID?
-    private var fileHasStyles = false
-    private var fileHasStylesID: UUID?
-    private var injectedDocuments = Set<UUID>()
+    private var fileCoverage: (photographic: Bool, texture: Bool) = (photographic: false, texture: false)
+    private var fileCoverageID: UUID?
+    private var injectedPhotographic = Set<UUID>()
+    private var injectedTexture = Set<UUID>()
 
     private static let supportedKinds: [PhotoMediaKind] = [.stillHEIC, .heicWithAuxiliaryData, .stillJPEG, .ultraHDRJPEG, .stillPNG]
 
-    func stylesPresent(_ document: CardDocument) -> Bool {
-        (fileHasStylesID == document.id && fileHasStyles) || injectedDocuments.contains(document.id)
+    func supportsInjection(_ document: CardDocument) -> Bool {
+        Self.supportedKinds.contains(document.metadata.kind)
     }
 
-    func canInject(_ document: CardDocument) -> Bool {
-        Self.supportedKinds.contains(document.metadata.kind) && !stylesPresent(document)
+    func coverage(_ document: CardDocument) -> (photographic: Bool, texture: Bool) {
+        let file = fileCoverageID == document.id ? fileCoverage : (photographic: false, texture: false)
+        return (file.photographic || injectedPhotographic.contains(document.id),
+                file.texture || injectedTexture.contains(document.id))
+    }
+
+    func canAddPhotographic(_ document: CardDocument) -> Bool {
+        supportsInjection(document) && !coverage(document).photographic
+    }
+
+    func canAddTexture(_ document: CardDocument) -> Bool {
+        supportsInjection(document) && !coverage(document).texture
+    }
+
+    /// True when the save would write at least one missing styles layer.
+    func hasPendingAdd(_ document: CardDocument) -> Bool {
+        (canAddPhotographic(document) && injectStandard) || (canAddTexture(document) && includeTexture)
     }
 
     func unavailableReason(_ document: CardDocument) -> LocalizedStringKey {
@@ -40,8 +57,8 @@ import Observation
         includeTexture = false
         guard let document else {
             report = nil
-            fileHasStyles = false
-            fileHasStylesID = nil
+            fileCoverage = (photographic: false, texture: false)
+            fileCoverageID = nil
             return
         }
         let id = document.id
@@ -50,17 +67,20 @@ import Observation
         Task {
             let loaded = await Task.detached(priority: .userInitiated) {
                 (report: MediaMetadataReportReader.read(url: url, isLivePhoto: live),
-                 styles: StyleInjection.stylesPresent(in: url))
+                 coverage: StyleInjection.stylesCoverage(in: url))
             }.value
             guard !Task.isCancelled, id == requestedID else { return }
             report = loaded.report
-            fileHasStyles = loaded.styles
-            fileHasStylesID = id
+            fileCoverage = loaded.coverage
+            fileCoverageID = id
         }
     }
 
     func save(document: CardDocument, updateOriginal: Bool) async {
-        guard !busy, canInject(document), injectStandard else { return }
+        guard !busy, supportsInjection(document) else { return }
+        let addPhotographic = canAddPhotographic(document) && injectStandard
+        let addTexture = canAddTexture(document) && includeTexture
+        guard addPhotographic || addTexture else { return }
         busy = true
         defer { busy = false }
         let output = document.sourceURL.deletingLastPathComponent()
@@ -68,17 +88,19 @@ import Observation
         let source = document.sourceURL
         let kind = document.metadata.kind
         let hdr = document.metadata.hdr
-        let texture = includeTexture
         let name = document.originalName
         do {
             try await Task.detached(priority: .userInitiated) {
                 try StyleInjection.inject(source: source, kind: kind, hdr: hdr,
-                                          textureStyles: texture, grainSeedName: name, destination: output)
+                                          addPhotographic: addPhotographic, addTexture: addTexture,
+                                          grainSeedName: name, destination: output)
             }.value
             try await MetadataPhotoLibrary.save(photo: output, document: document,
-                                                updateOriginal: updateOriginal, textureStyles: texture)
+                                                updateOriginal: updateOriginal,
+                                                textureStyles: addTexture)
             try? FileManager.default.removeItem(at: output)
-            injectedDocuments.insert(document.id)
+            if addPhotographic { injectedPhotographic.insert(document.id) }
+            if addTexture { injectedTexture.insert(document.id) }
             saved = true
             refresh(document: document)
         } catch {

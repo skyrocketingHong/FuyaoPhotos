@@ -321,8 +321,7 @@
 "metadata.styles.value.unavailable" = "Unavailable";
 "metadata.styles.standard" = "Add Photographic Styles (Standard)";
 "metadata.styles.texture" = "Add Texture Styles (Texture and Grain)";
-"metadata.styles.footer" = "Saving writes the Apple Photographic Styles metadata into the original photo without re-encoding its pixels. The output is HEIC; a Live Photo keeps its pairing when saved as a new copy.";
-"metadata.styles.present.footer" = "This photo already carries photographic styles metadata, so no new styles are added.";
+"metadata.styles.footer" = "Saving writes the selected Apple Photographic Styles layers into the original photo without re-encoding its pixels. The texture styles require the Standard layer. The output is HEIC; a Live Photo keeps its pairing when saved as a new copy.";
 
 "metadata.report.section.container" = "Container";
 "metadata.report.section.color" = "Color";

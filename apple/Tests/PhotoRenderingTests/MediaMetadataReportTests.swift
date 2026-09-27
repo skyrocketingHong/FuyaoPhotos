@@ -23,8 +23,8 @@ struct MediaMetadataReportTests {
     @Test func injectedStylesShowInTheReport() throws {
         let source = try makeHEIC(width: 256, height: 192, hdr: false)
         let output = source.deletingLastPathComponent().appendingPathComponent("styled.heic")
-        try StyleInjection.inject(source: source, kind: .stillHEIC, hdr: false, textureStyles: true,
-                                  grainSeedName: "IMG_8565.HEIC", destination: output)
+        try StyleInjection.inject(source: source, kind: .stillHEIC, hdr: false, addPhotographic: true,
+                                  addTexture: true, grainSeedName: "IMG_8565.HEIC", destination: output)
         let report = MediaMetadataReportReader.read(url: output, isLivePhoto: false)
         #expect(row(report, "metadata.report.section.styles", "metadata.report.stylesStandard")?.valueKey
             == MediaMetadataReport.ValueKeys.styles2023)

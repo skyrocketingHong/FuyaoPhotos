@@ -12,15 +12,17 @@ nonisolated enum StyleInjectionError: Error {
 
 /// Injects the Apple Photographic Styles 2/3 layer into a HEIC container. HEIC sources
 /// are surgically extended without re-encoding a single payload; raster sources are
-/// converted to HEIC first (keeping the gain map for HDR inputs).
+/// converted to HEIC first (keeping the gain map for HDR inputs). The two style
+/// generations are independent: a photo with only the 2023 Standard stack can still
+/// gain the 2026 texture layer, and the other way round.
 nonisolated enum StyleInjection {
-    static func stylesPresent(in url: URL) -> Bool {
-        guard let container = try? HeifContainer.load(fileURL: url) else { return false }
-        return container.stylesPresence.styles
+    static func stylesCoverage(in url: URL) -> (photographic: Bool, texture: Bool) {
+        guard let container = try? HeifContainer.load(fileURL: url) else { return (false, false) }
+        return container.stylesCoverage
     }
 
-    static func inject(source: URL, kind: PhotoMediaKind, hdr: Bool, textureStyles: Bool,
-                       grainSeedName: String, destination: URL) throws {
+    static func inject(source: URL, kind: PhotoMediaKind, hdr: Bool, addPhotographic: Bool,
+                       addTexture: Bool, grainSeedName: String, destination: URL) throws {
         let convertible: [PhotoMediaKind] = [.stillJPEG, .ultraHDRJPEG, .stillPNG]
         let direct: [PhotoMediaKind] = [.stillHEIC, .heicWithAuxiliaryData]
         guard direct.contains(kind) || convertible.contains(kind) else {
@@ -31,6 +33,9 @@ nonisolated enum StyleInjection {
                 throw StyleInjectionError.unsupportedSource("xiaomi depth structure needs the android converter")
             }
             throw StyleInjectionError.unsupportedSource("source format \(kind)")
+        }
+        guard addPhotographic || addTexture else {
+            throw StyleInjectionError.encodingFailed("no styles layer requested")
         }
 
         var base = source
@@ -53,7 +58,12 @@ nonisolated enum StyleInjection {
         guard !container.compatibleBrands.contains("avif"), container.majorBrand != "avif" else {
             throw StyleInjectionError.unsupportedSource("avif container")
         }
-        if container.stylesPresence.styles { throw StyleInjectionError.alreadyStyled }
+        let coverage = container.stylesCoverage
+        if addPhotographic && coverage.photographic { throw StyleInjectionError.alreadyStyled }
+        if addTexture && coverage.texture { throw StyleInjectionError.alreadyStyled }
+        // The native 2026 contract keeps the 2023 styles item alongside the texture layer.
+        let applyPhotographic = addPhotographic || (addTexture && !coverage.photographic)
+        let applyTexture = addTexture
 
         let dimensions = try primaryDimensions(container)
         let landscape = dimensions.width >= dimensions.height
@@ -67,21 +77,21 @@ nonisolated enum StyleInjection {
         let skyWidth = max(2, (dimensions.width / 2) & ~1)
         let skyHeight = max(2, (dimensions.height / 2) & ~1)
 
-        let linear: HevcAuxStill.EncodedStill
-        let sky: HevcAuxStill.EncodedStill
         let matte: HevcAuxStill.EncodedStill?
         do {
-            linear = try HevcAuxStill.linearThumbnail(source: source)
-            sky = try HevcAuxStill.blackFrame(width: skyWidth, height: skyHeight)
-            matte = textureStyles ? try HevcAuxStill.blackFrame(width: AppleTextureStyles.matteWidth,
-                                                                height: AppleTextureStyles.matteHeight) : nil
+            matte = applyTexture ? try HevcAuxStill.blackFrame(width: AppleTextureStyles.matteWidth,
+                                                               height: AppleTextureStyles.matteHeight) : nil
+            if applyPhotographic {
+                let linear = try HevcAuxStill.linearThumbnail(source: source)
+                let sky = try HevcAuxStill.blackFrame(width: skyWidth, height: skyHeight)
+                applyPhotographicStyles(&container, deltaWidth: fitted(dimensions.width),
+                                        deltaHeight: fitted(dimensions.height),
+                                        landscape: landscape, linear: linear, sky: sky)
+            }
         } catch let error as HevcAuxStillError {
             throw StyleInjectionError.encodingFailed("\(error)")
         }
-
-        applyPhotographicStyles(&container, deltaWidth: fitted(dimensions.width), deltaHeight: fitted(dimensions.height),
-                                landscape: landscape, linear: linear, sky: sky)
-        if textureStyles, let matte {
+        if applyTexture, let matte {
             applyTextureStyles(&container, textureInfo: AppleTextureStyles.textureInfoPayload(
                 grainSeed: AppleTextureStyles.grainSeedFor(grainSeedName)), matte: matte)
         }
@@ -92,8 +102,8 @@ nonisolated enum StyleInjection {
         } catch let error as MediaContainerError {
             throw StyleInjectionError.encodingFailed("container write: \(error)")
         }
-        try verify(destination: destination, textureStyles: textureStyles,
-                   width: dimensions.width, height: dimensions.height)
+        try verify(destination: destination, before: coverage, appliedPhotographic: applyPhotographic,
+                   appliedTexture: applyTexture, width: dimensions.width, height: dimensions.height)
     }
 
     /// Faithful JPEG/PNG to HEIC conversion for the injection base: the gain map rides
@@ -250,24 +260,30 @@ nonisolated enum StyleInjection {
         raw.count >= 8 && String(decoding: raw[4..<8], as: UTF8.self) == type
     }
 
-    private static func verify(destination: URL, textureStyles: Bool, width: Int, height: Int) throws {
+    private static func verify(destination: URL, before: (photographic: Bool, texture: Bool),
+                               appliedPhotographic: Bool, appliedTexture: Bool,
+                               width: Int, height: Int) throws {
         let reloaded: HeifContainer
         do {
             reloaded = try HeifContainer.load(fileURL: destination)
         } catch let error as MediaContainerError {
             throw StyleInjectionError.encodingFailed("verify parse: \(error)")
         }
-        let presence = reloaded.stylesPresence
-        guard presence.styles else { throw StyleInjectionError.encodingFailed("styles item missing after write") }
-        guard presence.texture == textureStyles else {
+        let coverage = reloaded.stylesCoverage
+        guard coverage.photographic == (before.photographic || appliedPhotographic) else {
+            throw StyleInjectionError.encodingFailed("styles item missing after write")
+        }
+        guard coverage.texture == (before.texture || appliedTexture) else {
             throw StyleInjectionError.encodingFailed("texture item missing after write")
         }
-        guard let grid = reloaded.items.first(where: { reloaded.auxCURN(of: $0.id) == AppleStyleMetadata.deltaMapURN }),
-              reloaded.references.first(where: { $0.type == "dimg" && $0.from == grid.id })?.to.count == 30,
-              reloaded.references.first(where: { $0.type == "auxl" && $0.from == grid.id })?.to == reloaded.toneTargets else {
-            throw StyleInjectionError.encodingFailed("delta map layer incomplete")
+        if appliedPhotographic {
+            guard let grid = reloaded.items.first(where: { reloaded.auxCURN(of: $0.id) == AppleStyleMetadata.deltaMapURN }),
+                  reloaded.references.first(where: { $0.type == "dimg" && $0.from == grid.id })?.to.count == 30,
+                  reloaded.references.first(where: { $0.type == "auxl" && $0.from == grid.id })?.to == reloaded.toneTargets else {
+                throw StyleInjectionError.encodingFailed("delta map layer incomplete")
+            }
         }
-        if textureStyles {
+        if appliedTexture {
             let mattes = AppleTextureStyles.semanticMatteURNS.filter { urn in
                 reloaded.items.contains { reloaded.auxCURN(of: $0.id) == urn }
             }

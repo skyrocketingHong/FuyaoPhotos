@@ -163,12 +163,12 @@ nonisolated enum MediaMetadataReportReader {
 
     private static func styleRows(_ context: Context) -> [MediaMetadataReport.Row] {
         guard let container = context.container else { return [] }
-        let presence = container.stylesPresence
+        let coverage = container.stylesCoverage
         return [
             .keyed("metadata.report.stylesStandard",
-                   presence.styles ? MediaMetadataReport.ValueKeys.styles2023 : MediaMetadataReport.ValueKeys.none),
+                   coverage.photographic ? MediaMetadataReport.ValueKeys.styles2023 : MediaMetadataReport.ValueKeys.none),
             .keyed("metadata.report.stylesTexture",
-                   presence.texture ? MediaMetadataReport.ValueKeys.styles2026 : MediaMetadataReport.ValueKeys.none),
+                   coverage.texture ? MediaMetadataReport.ValueKeys.styles2026 : MediaMetadataReport.ValueKeys.none),
         ]
     }
 

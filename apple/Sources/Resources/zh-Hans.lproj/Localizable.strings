@@ -321,8 +321,7 @@
 "metadata.styles.value.unavailable" = "不可用";
 "metadata.styles.standard" = "添加摄影风格（Standard）";
 "metadata.styles.texture" = "添加质感风格（纹理与颗粒）";
-"metadata.styles.footer" = "保存时将 Apple 摄影风格元数据写入原照片，像素不重新编码。输出为 HEIC；另存为新照片时 Live Photo 配对保持不变。";
-"metadata.styles.present.footer" = "此照片已包含影像风格元数据，不会重复添加。";
+"metadata.styles.footer" = "保存时将所选 Apple 摄影风格层写入原照片，像素不重新编码。质感风格依赖摄影风格（Standard）层。输出为 HEIC；另存为新照片时 Live Photo 配对保持不变。";
 
 "metadata.report.section.container" = "容器";
 "metadata.report.section.color" = "色彩";
