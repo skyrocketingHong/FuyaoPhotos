@@ -9,6 +9,7 @@ if [[ "$SDK_VERSION" != 27.* ]]; then
     exit 2
 fi
 python3 scripts/check-localizations.py
+python3 scripts/test-build-number.py
 swift test --package-path Packages/PhotoMapCore -c release
 swift test --package-path .
 bash scripts/test-cards.sh
@@ -17,7 +18,9 @@ printf 'Building Fuyao Photos %s (%s, build %s) for macOS and iOS Simulator.\n' 
     "$MARKETING_VERSION" "$BUILD_TRAIN" "$BUILD_NUMBER"
 xcodebuild -project FuyaoPhotos.xcodeproj -scheme FuyaoPhotos -configuration Release \
     -destination 'generic/platform=macOS' -derivedDataPath .build/macos CODE_SIGNING_ALLOWED=NO \
+    FUYAO_RESERVED_BUILD_NUMBER="$BUILD_NUMBER" \
     CURRENT_PROJECT_VERSION="$BUILD_NUMBER" FUYAO_BUILD_TRAIN="$BUILD_TRAIN" MARKETING_VERSION="$MARKETING_VERSION" build
 xcodebuild -project FuyaoPhotos.xcodeproj -scheme FuyaoPhotos -configuration Release \
     -destination 'generic/platform=iOS Simulator' -derivedDataPath .build/ios CODE_SIGNING_ALLOWED=NO \
+    FUYAO_RESERVED_BUILD_NUMBER="$BUILD_NUMBER" \
     CURRENT_PROJECT_VERSION="$BUILD_NUMBER" FUYAO_BUILD_TRAIN="$BUILD_TRAIN" MARKETING_VERSION="$MARKETING_VERSION" build

@@ -2,6 +2,7 @@
 import argparse
 import fcntl
 import os
+import plistlib
 import re
 import tempfile
 from pathlib import Path
@@ -55,18 +56,61 @@ def write_counter(number: int) -> None:
             os.unlink(temporary)
 
 
+def write_info_plist(path: Path, template: dict, number: int, train: str, marketing: str, binary: bool) -> None:
+    template.update(CFBundleVersion=str(number), FuyaoBuildTrain=train, CFBundleShortVersionString=marketing)
+    permissions = path.stat().st_mode & 0o777
+    descriptor, temporary = tempfile.mkstemp(prefix="numbered-info.", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as output:
+            os.fchmod(output.fileno(), permissions)
+            plistlib.dump(template, output, fmt=plistlib.FMT_BINARY if binary else plistlib.FMT_XML)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Reserve one local Apple app build number.")
-    parser.add_argument("--peek", action="store_true", help="Show the next number without reserving it.")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--peek", action="store_true", help="Show the next number without reserving it.")
+    mode.add_argument("--info-plist", type=Path, help="Stamp the processed app Info.plist before Xcode signs the bundle.")
+    parser.add_argument("--receipt", type=Path, help="Write the build phase's derived output receipt.")
     args = parser.parse_args()
+    if args.receipt and not args.info_plist:
+        parser.error("--receipt requires --info-plist")
 
     baseline, marketing, prefix = read_project_version()
+    template = None
+    binary = False
+    if args.info_plist:
+        data = args.info_plist.read_bytes()
+        template = plistlib.loads(data)
+        binary = data.startswith(b"bplist00")
+        if not isinstance(template, dict):
+            raise ValueError("The processed app Info.plist must contain a dictionary")
     LOCK.parent.mkdir(parents=True, exist_ok=True)
     with LOCK.open("a+") as lock:
+        # ASVS 15.4.1/15.4.2: validate and reserve under the same cross-process lock.
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        number = read_counter(baseline) + 1
-        if not args.peek:
-            write_counter(number)
+        current = read_counter(baseline)
+        reserved = os.environ.get("FUYAO_RESERVED_BUILD_NUMBER", "").strip() if args.info_plist else ""
+        if reserved:
+            if not reserved.isascii() or not reserved.isdecimal() or not baseline < int(reserved) <= current:
+                raise ValueError("FUYAO_RESERVED_BUILD_NUMBER must be a number already issued by this counter")
+            number = int(reserved)
+        elif args.info_plist and (os.environ.get("ACTION") == "indexbuild" or os.environ.get("XCODE_RUNNING_FOR_PREVIEWS") == "1"):
+            number = current
+        else:
+            number = current + 1
+            if not args.peek:
+                write_counter(number)
+        if args.info_plist:
+            # Xcode supplies all platform/permission keys; only stamp versions before CodeSign.
+            write_info_plist(args.info_plist, template, number, f"{prefix}{number}", marketing, binary)
+        if args.receipt:
+            args.receipt.parent.mkdir(parents=True, exist_ok=True)
+            args.receipt.write_text(f"{number} {prefix}{number} {marketing}\n", encoding="ascii")
         print(number, f"{prefix}{number}", marketing)
 
 

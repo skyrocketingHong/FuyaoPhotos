@@ -11,8 +11,8 @@ with matching CFBundleVersion and FuyaoBuildTrain values. Use this wrapper for
 one-platform command-line builds. For the standard macOS + iOS pair, use
 apple/scripts/build.sh so both outputs share one number.
 
-The Xcode Build menu bypasses this wrapper and retains the project's fallback
-version. Use this script from Terminal when a new numbered build is required.
+Direct Xcode builds reserve a number in the app target's build phase. This
+wrapper reserves it up front and passes it through without a second increment.
 USAGE
     exit 0
 fi
@@ -21,7 +21,7 @@ BUILD_ACTION=false
 for ARGUMENT in "$@"; do
     case "$ARGUMENT" in
         build|archive) BUILD_ACTION=true ;;
-        CURRENT_PROJECT_VERSION=*|FUYAO_BUILD_TRAIN=*|MARKETING_VERSION=*)
+        CURRENT_PROJECT_VERSION=*|FUYAO_BUILD_TRAIN=*|MARKETING_VERSION=*|FUYAO_RESERVED_BUILD_NUMBER=*)
             printf 'Version build settings are supplied by this wrapper: %s\n' "$ARGUMENT" >&2
             exit 2
             ;;
@@ -42,5 +42,5 @@ fi
 read -r BUILD_NUMBER BUILD_TRAIN MARKETING_VERSION < <(python3 scripts/reserve-build-number.py)
 printf 'Building Fuyao Photos %s (%s, build %s).\n' \
     "$MARKETING_VERSION" "$BUILD_TRAIN" "$BUILD_NUMBER"
-xcodebuild "$@" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+xcodebuild "$@" FUYAO_RESERVED_BUILD_NUMBER="$BUILD_NUMBER" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
     FUYAO_BUILD_TRAIN="$BUILD_TRAIN" MARKETING_VERSION="$MARKETING_VERSION"

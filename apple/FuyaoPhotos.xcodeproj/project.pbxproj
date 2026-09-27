@@ -73,6 +73,7 @@
 				C710B3D02F03979D0064CDF4 /* Sources */,
 				C710B3D12F03979D0064CDF4 /* Frameworks */,
 				C710B3D22F03979D0064CDF4 /* Resources */,
+				FBE700000000000000000001 /* Reserve Apple build number */,
 			);
 			buildRules = (
 			);
@@ -136,6 +137,29 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		FBE700000000000000000001 /* Reserve Apple build number */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(PROJECT_DIR)/scripts/reserve-build-number.py",
+				"$(PROJECT_DIR)/Sources/App/Info.plist",
+				"$(PROJECT_FILE_PATH)/project.pbxproj",
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Reserve Apple build number";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/BuildNumber.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\n/usr/bin/env python3 \"${PROJECT_DIR}/scripts/reserve-build-number.py\" --info-plist \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" --receipt \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		C710B3D02F03979D0064CDF4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -173,6 +197,7 @@
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				FUYAO_BUILD_TRAIN = 1B23;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Sources/App/Info.plist;
@@ -245,6 +270,7 @@
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				FUYAO_BUILD_TRAIN = 1B23;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Sources/App/Info.plist;
