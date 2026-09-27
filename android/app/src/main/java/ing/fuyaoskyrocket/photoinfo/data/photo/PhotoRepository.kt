@@ -25,17 +25,18 @@ import ing.fuyaoskyrocket.photoinfo.domain.media.MotionPhoto
 import ing.fuyaoskyrocket.photoinfo.data.settings.SettingsRepository
 import java.io.File
 import java.io.IOException
-import java.util.UUID
+import ing.fuyaoskyrocket.photoinfo.domain.session.PhotoDraftStorage
+import ing.fuyaoskyrocket.photoinfo.domain.session.PhotoSessionKind
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
 /** Only selected photographs are copied; ACCESS_MEDIA_LOCATION never reads the device's current location. */
-class PhotoRepository(private val context: Context) {
+class PhotoRepository(private val context: Context, kind: PhotoSessionKind = PhotoSessionKind.CARDS) {
     private val resolver = context.contentResolver
-    private val directory = File(context.filesDir, "drafts").apply { mkdirs() }
+    private val storage = PhotoDraftStorage(context.filesDir, kind)
 
     suspend fun import(uri: Uri): PhotoSource {
-        val file = File(directory, "${UUID.randomUUID()}.photo")
+        val file = storage.newFile()
         try {
             openPhoto(uri)?.use { input ->
                 file.outputStream().use { output ->
@@ -82,9 +83,7 @@ class PhotoRepository(private val context: Context) {
     }.getOrNull()
 
     fun restore(path: String): PhotoSource {
-        val file = File(path).canonicalFile
-        require(file.parentFile == directory.canonicalFile && file.isFile) { "Draft is unavailable" }
-        return inspect(file)
+        return inspect(storage.restoreFile(path))
     }
 
     fun removeOtherDrafts(keep: File) {
@@ -92,8 +91,7 @@ class PhotoRepository(private val context: Context) {
     }
 
     fun removeOtherDrafts(keep: Collection<File>) {
-        val retained = keep.toSet()
-        directory.listFiles()?.filter { it.isFile && it.extension == "photo" && it !in retained }?.forEach { it.delete() }
+        storage.removeOthers(keep)
     }
 
     internal fun inspect(file: File): PhotoSource {

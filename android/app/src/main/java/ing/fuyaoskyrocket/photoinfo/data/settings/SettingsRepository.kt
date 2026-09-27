@@ -17,6 +17,7 @@ class SettingsRepository(context: Context) {
         resolvePhotoLocation = preferences.getBoolean("resolvePhotoLocation", true),
         fallbackMainFocal = preferences.getString("fallbackMainFocal", "").orEmpty(),
         lenses = readLenses(),
+        metadataSharesCards = preferences.getBoolean("metadata.sharesCards", false),
         hevcEncoder = if (preferences.getString("export.hevcEncoder", "x265") == "platform")
             ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.PLATFORM
         else ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265,
@@ -75,6 +76,7 @@ class SettingsRepository(context: Context) {
             putString("defaultAuthor", settings.defaultAuthor.trim())
             putBoolean("resolvePhotoLocation", settings.resolvePhotoLocation)
             putString("fallbackMainFocal", settings.fallbackMainFocal.trim())
+            putBoolean("metadata.sharesCards", settings.metadataSharesCards)
             remove("author")
         }
     }
