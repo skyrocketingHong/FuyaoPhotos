@@ -285,7 +285,7 @@ private struct CardFilmstrip: View {
                         } else { Color.black }
                     }
                     .aspectRatio(CGFloat(document.metadata.width)/CGFloat(document.metadata.height),contentMode:.fit)
-                    .frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.top)
+                    .frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)
                     .tag(Optional(document.id))
                 }
             }

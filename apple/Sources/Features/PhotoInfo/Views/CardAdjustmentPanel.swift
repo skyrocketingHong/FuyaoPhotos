@@ -57,7 +57,10 @@ struct CardAdjustmentPanel: View {
 
     private var panel: some View {
         GeometryReader { geometry in
-            let contentWidth = min(640, geometry.size.width)
+            // The frame below carries .padding(.horizontal, 12) on top of it, so the
+            // content width must leave room for both insets or everything overflows
+            // the trailing screen edge.
+            let contentWidth = min(640, geometry.size.width - 24)
             let selectorWidth = min(200, contentWidth * (dynamicTypeSize.isAccessibilitySize ? 0.32 : 0.4))
             let detailWidth = max(0, contentWidth - selectorWidth - 16)
             VStack(spacing: 12) {
@@ -136,8 +139,10 @@ private struct MobileCardInspector: View {
                                         max(52, height * (dynamicTypeSize.isAccessibilitySize ? 0.3 : 0.19)))
             let showsDescription = height >= (dynamicTypeSize.isAccessibilitySize ? 270 : 210)
             let showsDetail = height >= (dynamicTypeSize.isAccessibilitySize ? 420 : 280)
-            let previewRoom = max(64, height - controlHeight - descriptionHeight - buttonHeight - 24)
-            let previewHeight = min(geometry.size.width / CardDetailPreview.referenceAspect, 220, previewRoom)
+            // Four VStack gaps of 8 sit between the blocks; the close-up takes whatever
+            // room is left so it fills the panel height instead of stranding a spacer.
+            let previewRoom = max(64, height - controlHeight - descriptionHeight - buttonHeight - 32)
+            let previewHeight = min(geometry.size.width / CardDetailPreview.referenceAspect, previewRoom)
 
             VStack(alignment: .leading, spacing: 8) {
                 if showsDetail {
