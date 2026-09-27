@@ -1,20 +1,23 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var card = CardPreferences.shared
     @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.darkroom.rawValue
     @AppStorage("defaultDisplayMode") private var defaultMode = MapDisplayMode.photo.rawValue
     @AppStorage("customStartYear") private var startYear = 0
     @AppStorage("defaultSelectedYear") private var selectedYear = 0
     @State private var selectedCategory: Category? = .cards
+    @State private var showLenses = false
     private let currentYear = Calendar.current.component(.year, from: Date())
 
     private enum Category: Hashable, CaseIterable {
-        case cards, map, about
+        case cards, lenses, map, about
 
         var title: LocalizedStringKey {
             switch self {
             case .cards: "tab.cards"
+            case .lenses: "lens.profiles.title"
             case .map: "tab.map"
             case .about: "settings.about.header"
             }
@@ -23,6 +26,7 @@ struct SettingsView: View {
         var description: LocalizedStringKey {
             switch self {
             case .cards: "settings.category.cards.description"
+            case .lenses: "lens.profiles.description"
             case .map: "settings.category.map.description"
             case .about: "settings.category.about.description"
             }
@@ -31,6 +35,7 @@ struct SettingsView: View {
         var symbol: String {
             switch self {
             case .cards: "photo.badge.plus"
+            case .lenses: "camera.aperture"
             case .map: "map"
             case .about: "info.circle"
             }
@@ -45,7 +50,7 @@ struct SettingsView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            if geometry.size.width >= 760 {
+            if geometry.size.width >= 760 && !dynamicTypeSize.isAccessibilitySize {
                 HStack(spacing: 0) {
                     List(Category.allCases, id: \.self, selection: $selectedCategory) { category in
                         Label(category.title, systemImage: category.symbol)
@@ -58,6 +63,7 @@ struct SettingsView: View {
                         Section { categoryIntro(selectedCategory ?? .cards) }
                         switch selectedCategory ?? .cards {
                         case .cards: cardSettings
+                        case .lenses: lensSettings
                         case .map: mapSettings
                         case .about: aboutSettings
                         }
@@ -71,6 +77,9 @@ struct SettingsView: View {
                     Tab("tab.cards", systemImage: "photo.badge.plus") {
                         Form { settingsIntro; cardSettings }.formStyle(.grouped)
                     }
+                    Tab("lens.profiles.title", systemImage: "camera.aperture") {
+                        Form { Section { categoryIntro(.lenses) }; lensSettings }.formStyle(.grouped)
+                    }
                     Tab("tab.map", systemImage: "map") {
                         Form { settingsIntro; mapSettings }.formStyle(.grouped)
                     }
@@ -82,6 +91,7 @@ struct SettingsView: View {
                 Form {
                     settingsIntro
                     cardSettings
+                    lensSettings
                     mapSettings
                     aboutSettings
                 }
@@ -89,12 +99,22 @@ struct SettingsView: View {
 #endif
             }
         }
+        .sheet(isPresented: $showLenses) { LensProfilesView(store: .shared) }
 #if os(macOS)
         .frame(minWidth: 500, minHeight: 420)
 #else
         .navigationTitle("settings.title")
         .navigationBarTitleDisplayMode(.inline)
 #endif
+    }
+
+    private var lensSettings: some View {
+        Section {
+            Button { showLenses = true } label: {
+                Label("lens.profiles.title", systemImage: "camera.aperture")
+            }
+        } header: { Text("lens.settings.header") }
+        footer: { Text("lens.settings.footer") }
     }
 
     private func categoryIntro(_ category: Category) -> some View {

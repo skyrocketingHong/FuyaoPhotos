@@ -44,7 +44,8 @@ import os
                         guard let asset = CardPhotoLibrary.asset(identifier) else { throw CardError.permission }
                         resources = try await PhotoSourceLoader.load(asset, into: folder)
                     }
-                    let metadata = try await CardImageProcessor.shared.read(resources.image, author: CardPreferences.shared.author)
+                    let metadata = try await CardImageProcessor.shared.read(resources.image, author: CardPreferences.shared.author,
+                                                                            profiles: LensProfileStore.shared.profiles)
                     imported.append(CardDocument(resources: resources, metadata: metadata))
                 } catch {
                     try? FileManager.default.removeItem(at: folder)

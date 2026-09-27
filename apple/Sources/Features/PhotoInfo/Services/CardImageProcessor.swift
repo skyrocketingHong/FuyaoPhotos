@@ -30,7 +30,7 @@ actor CardImageProcessor {
         try await LivePhotoMovie.copy(from: source, to: destination, options: options)
     }
 
-    func read(_ url: URL, author: String) throws -> CardPhotoMetadata {
+    func read(_ url: URL, author: String, profiles: [LensProfile] = []) throws -> CardPhotoMetadata {
         let inspection = try PhotoMediaInspector.inspect(url)
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any],
@@ -43,8 +43,19 @@ actor CardImageProcessor {
         card[.author] = tiff[kCGImagePropertyTIFFArtist as String] as? String ?? author
         card[.camera] = exif[kCGImagePropertyExifLensModel as String] as? String ?? ""
         card[.imageSize] = Self.number(Double(inspection.width) * Double(inspection.height) / 1_000_000) + "MP"
-        if let focal = exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] as? NSNumber, focal.doubleValue > 0 {
-            card[.focalLength] = Self.number(focal.doubleValue) + " MM"
+        let equivalent = (exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] as? NSNumber)?.doubleValue
+        let physical = (exif[kCGImagePropertyExifFocalLength as String] as? NSNumber)?.doubleValue
+        let lens = LensProfileResolver.resolve(model: card[.device], lens: card[.camera], equivalent: equivalent,
+                                                physical: physical, profiles: profiles)
+        if let lens {
+            card[.device] = lens.profile.device
+            if card[.camera].isEmpty { card[.camera] = lens.profile.name }
+        }
+        if let focal = equivalent.flatMap({ $0.isFinite && $0 > 0 ? $0 : nil }) ?? lens?.equivalent {
+            card[.focalLength] = Self.number(focal) + " MM"
+            if let zoom = LensProfileResolver.explicitZoom(in: card[.camera]) ?? lens?.profile.zoom(for: focal) {
+                card[.focalLength] += " (\(Self.number(zoom, decimals: 1))X)"
+            }
         }
         if let time = exif[kCGImagePropertyExifExposureTime as String] as? NSNumber, time.doubleValue > 0 {
             card[.exposure] = time.doubleValue < 1 ? "1/\(Int((1 / time.doubleValue).rounded()))" : Self.number(time.doubleValue) + "SEC"
