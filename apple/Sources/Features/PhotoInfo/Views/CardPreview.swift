@@ -112,7 +112,7 @@ private struct CardPreviewImage: View {
     @State private var loading = false
     @State private var error: String?
     @State private var renderingID: UUID?
-    /// Whether the rendered image actually carries EDR values for this display.
+    /// Whether the rendered image contains HDR pixels.
     @State private var effectiveHDR = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -142,16 +142,13 @@ private struct CardPreviewImage: View {
                 if renderingID == taskID { onRenderingChanged?(false) }
             }
             loading = true; error = nil
-            // A clamped display (Low Power Mode, SDR panel) cannot raise headroom;
-            // extended-linear pixels would clip to white, so render tone-mapped SDR.
             let requestedHDR = hdr && document.metadata.hdr
-            let renderHDR = requestedHDR && DisplayEDRCapability.available
             do {
                 let rendered = try await CardImageProcessor.shared.preview(document.sourceURL, card: original ? PhotoCard() : document.card,
-                    hdr: renderHDR, maxDimension: fullResolution ? CGFloat(max(document.metadata.width, document.metadata.height)) : 1800)
+                    hdr: requestedHDR, maxDimension: fullResolution ? CGFloat(max(document.metadata.width, document.metadata.height)) : 1800)
                 try Task.checkCancellation()
                 image = rendered
-                effectiveHDR = renderHDR
+                effectiveHDR = requestedHDR
                 loading = false
             } catch is CancellationError { }
             catch {

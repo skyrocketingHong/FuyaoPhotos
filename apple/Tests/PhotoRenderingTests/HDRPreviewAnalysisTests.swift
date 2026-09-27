@@ -6,9 +6,8 @@ import ImageIO
 import UniformTypeIdentifiers
 @testable import PhotoRenderingCore
 
-/// The card preview's HDR path must hand EDR-capable displays extended-linear pixels
-/// above SDR white; when the display cannot raise headroom the render falls back to a
-/// tone-mapped SDR rendition instead of clipped linear values.
+/// The card preview supplies extended-linear pixels to the system image view for
+/// display mapping; switching HDR off produces a tone-mapped SDR image.
 struct HDRPreviewAnalysisTests {
     @Test func previewCarriesHeadroomWhenHDRRequested() async throws {
         let source = try makeHDRHEIC()
