@@ -16,6 +16,7 @@ struct PhotoCardScreen: View {
     @State private var showingToolbarClose = false
     @State private var showingExternalReplace = false
     @State private var replacementIDs: [String]?
+    private var hasUnsavedChanges: Bool { workspace.hasPendingEdits(in: session) }
 
     private var replaceTitle: LocalizedStringKey {
         session.documents.count == 1 ? "card.replace.confirm.one" : "card.replace.confirm.many"
@@ -45,6 +46,12 @@ struct PhotoCardScreen: View {
             if forcedDarkroom { scheme = .dark }
         }
         .tint(PhotoPreviewTheme.accent(in: forcedDarkroom ? .dark : colorScheme))
+#if os(iOS)
+        .background {
+            NativeTabSelectionStyle(color: PhotoPreviewTheme.accent(in: forcedDarkroom ? .dark : colorScheme))
+                .frame(width: 0, height: 0).accessibilityHidden(true)
+        }
+#endif
         .sheet(isPresented: $showingPicker) { pickerSheet }
         .sheet(isPresented: $showingSave) { saveSheet }
         .confirmationDialog(replaceTitle, isPresented: $showingExternalReplace, titleVisibility: .visible) {
@@ -104,14 +111,14 @@ struct PhotoCardScreen: View {
                     confirmClose: { session.clear() })
             }
             else {
-                ContentUnavailableView {
-                    Label("card.empty.title", systemImage: "photo.badge.plus")
-                } description: { Text("card.empty.description") }
-                actions: {
-                    Button("card.open", action: choosePhotos)
-                        .buttonStyle(.borderedProminent)
-                        .keyboardShortcut("o")
+                Form {
+                    Section {
+                        PhotoPageIntro(title: "tab.cards", description: "card.empty.description", symbol: "photo.badge.plus")
+                        Button("card.open", action: choosePhotos)
+                            .keyboardShortcut("o")
+                    }
                 }
+                .photoPageForm()
             }
         }
 #if !os(macOS)
@@ -141,18 +148,14 @@ struct PhotoCardScreen: View {
             }
             ToolbarItem(placement: .secondaryAction) {
                 Menu("card.more", systemImage: "ellipsis") {
-                    Button("metadata.open.cards", systemImage: "info.circle") {
-                        openInMetadata(document)
-                    }
-                    .disabled(document.assetIdentifier == nil)
                     Button("card.style.reset", systemImage: "arrow.counterclockwise") {
                         document.card.style = PhotoCardStyle()
                     }
-                    if let url = document.exportURL, !document.isLive {
+                    if let url = document.exportURL, !document.isLive || document.exportIsMotionPhoto {
                         ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
                     }
                     Button(closeActionTitle, systemImage: "xmark") {
-                        if session.hasChanges { showingToolbarClose = true } else { session.clear() }
+                        if hasUnsavedChanges { showingToolbarClose = true } else { session.clear() }
                     }
                 }
                 .labelStyle(.iconOnly).buttonBorderShape(.circle)
@@ -179,7 +182,7 @@ struct PhotoCardScreen: View {
     }
 
     private func closeSessionIfSafe() {
-        if session.hasChanges { showingClose = true } else { session.clear() }
+        if hasUnsavedChanges { showingClose = true } else { session.clear() }
     }
 
     private var pickerSheet: some View {
@@ -208,11 +211,11 @@ struct PhotoCardScreen: View {
 
     private func choosePhotos() {
         replacementIDs = nil
-        if session.hasChanges { showingReplace = true } else { showingPicker = true }
+        if hasUnsavedChanges { showingReplace = true } else { showingPicker = true }
     }
     private func choosePhotosFromToolbar() {
         replacementIDs = nil
-        if session.hasChanges { showingToolbarReplace = true } else { showingPicker = true }
+        if hasUnsavedChanges { showingToolbarReplace = true } else { showingPicker = true }
     }
     private func presentSaveOptions() {
         saveDetent = .medium
@@ -227,7 +230,7 @@ struct PhotoCardScreen: View {
     private func handlePendingImport() {
         guard !session.busy, let ids = workspace.pendingAssetIDs else { return }
         workspace.pendingAssetIDs = nil
-        if session.hasChanges { replacementIDs = ids; showingExternalReplace = true }
+        if hasUnsavedChanges { replacementIDs = ids; showingExternalReplace = true }
         else { Task { await session.openAssets(ids) } }
     }
 }

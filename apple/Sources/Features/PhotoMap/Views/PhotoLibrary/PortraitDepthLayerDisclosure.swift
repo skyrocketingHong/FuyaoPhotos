@@ -41,7 +41,7 @@ struct PortraitDepthLayerDisclosure: View {
     }
 }
 
-private extension PortraitDepthLayerPixels {
+extension PortraitDepthLayerPixels {
     var image: CGImage? {
         guard let provider = CGDataProvider(data: bytes as CFData) else { return nil }
         return CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 8,

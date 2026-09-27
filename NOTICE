@@ -3,8 +3,19 @@ Fuyao Photos, original Android implementation, 2026.
 Project conventions and documentation structure were inspected in the local
 FuyaoColorPicker and FuyaoLocale projects owned by skyrocketingHong.
 Build-number allocation, APK naming, system-bar handling and UI token patterns are adapted
-from FuyaoLocale and FuyaoColorPicker (AGPL-3.0-only). Historic color tables and
-image assets were not copied.
+from FuyaoLocale and FuyaoColorPicker (AGPL-3.0-only).
+
+Color sampling, conversion, CSS reference colors and RAL reference tables are
+adapted from FuyaoColorPicker, Copyright (C) 2026 skyrocketingHong:
+https://github.com/skyrocketingHong/FuyaoColorPicker
+The Apple implementation ports these functions to native Swift and Core Image.
+FuyaoColorPicker is a substantial rewrite based on the behavior and reference
+data of Color Picker 3.1 (com.nauj27.android.colorpicker, versionCode 20130326),
+historically hosted at https://code.google.com/p/colorpicker/.
+Material derived from or reconstructed from that GPL-3.0-only baseline,
+including applicable RAL reference data, retains the upstream license and
+attribution. See LICENSES/ColorPicker-GPL-3.0.txt. RAL values are approximate
+reference RGB values, not a licensed physical color measurement standard.
 
 The style follows measurements taken from five local reference screenshots.
 These measurements are independent estimates, not official Apple specifications.

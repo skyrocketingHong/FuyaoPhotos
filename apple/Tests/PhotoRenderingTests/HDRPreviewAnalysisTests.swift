@@ -11,18 +11,35 @@ import UniformTypeIdentifiers
 struct HDRPreviewAnalysisTests {
     @Test func previewCarriesHeadroomWhenHDRRequested() async throws {
         let source = try makeHDRHEIC()
+        defer { try? FileManager.default.removeItem(at: source.deletingLastPathComponent()) }
         let preview = try await CardImageProcessor.shared.preview(source, card: PhotoCard(), hdr: true, maxDimension: 1024)
-        #expect(preview.bitsPerComponent == 16)
+        #expect(preview.bitsPerComponent >= 10)
         let maxValue = try maxComponent(preview)
-        print("PREVIEW max linear value: \(maxValue)")
+        #expect(preview.contentHeadroom > 1)
+        #expect(preview.shouldToneMap)
         #expect(maxValue > 1.0, "HDR preview must keep values above SDR white for EDR display")
     }
 
     @Test func previewToneMapsWhenHDRNotRequested() async throws {
         let source = try makeHDRHEIC()
+        defer { try? FileManager.default.removeItem(at: source.deletingLastPathComponent()) }
         let preview = try await CardImageProcessor.shared.preview(source, card: PhotoCard(), hdr: false, maxDimension: 1024)
-        // SDR render path: RGBA8 clamps at SDR white.
         #expect(preview.bitsPerComponent == 8)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["FUYAO_HDR_SAMPLE"] != nil))
+    func nativePreviewRetainsOriginalAdaptiveMapping() async throws {
+        let path = try #require(ProcessInfo.processInfo.environment["FUYAO_HDR_SAMPLE"])
+        let url = URL(fileURLWithPath: path)
+        let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let original = try #require(CGImageSourceCreateImageAtIndex(source, 0,
+            [kCGImageSourceDecodeRequest: kCGImageSourceDecodeToHDR] as CFDictionary))
+        let preview = try await CardImageProcessor.shared.preview(url, card: PhotoCard(), hdr: true)
+        #expect(abs(preview.contentHeadroom - original.contentHeadroom) < 0.001)
+        #expect(preview.containsImageSpecificToneMappingMetadata)
+        let sdr = try await CardImageProcessor.shared.preview(url, card: PhotoCard(), hdr: false)
+        #expect(sdr.contentHeadroom <= 1)
+        #expect(try maxComponent(preview) > maxComponent(sdr))
     }
 
     // MARK: Helpers
@@ -41,16 +58,15 @@ struct HDRPreviewAnalysisTests {
     }
 
     private func maxComponent(_ image: CGImage) throws -> Float {
-        guard let data = (image.dataProvider?.data as Data?) else {
-            throw MediaContainerError.invalid("no preview data")
+        let input = CIImage(cgImage: image)
+        let scaled = input.transformed(by: CGAffineTransform(scaleX: 64 / input.extent.width, y: 64 / input.extent.height))
+        var values = [Float](repeating: 0, count: 64 * 64 * 4)
+        values.withUnsafeMutableBytes {
+            CIContext().render(scaled, toBitmap: $0.baseAddress!, rowBytes: 64 * 16,
+                bounds: CGRect(x: 0, y: 0, width: 64, height: 64), format: .RGBAf,
+                colorSpace: CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3)!)
         }
-        let buffer = data.withUnsafeBytes { raw in Array(raw.bindMemory(to: UInt16.self)) }
-        var maxValue: Float = 0
-        for raw16 in buffer {
-            let value = Self.float16(from: raw16)
-            if value.isFinite && value > maxValue { maxValue = value }
-        }
-        return maxValue
+        return values.enumerated().filter { $0.offset % 4 != 3 }.map(\.element).max() ?? 0
     }
 
     static func float16(from raw: UInt16) -> Float {

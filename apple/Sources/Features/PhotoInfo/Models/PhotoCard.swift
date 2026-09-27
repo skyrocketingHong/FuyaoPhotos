@@ -64,6 +64,11 @@ nonisolated struct CardSaveOptions: Codable, Equatable, Sendable {
     var keepLocation = false
     var keepCaptureTime = true
     var updateOriginal = false
+    var motionPhoto: Bool?
+    var exportsMotionPhoto: Bool {
+        get { motionPhoto == true }
+        set { motionPhoto = newValue }
+    }
 }
 
 @MainActor @Observable final class CardPreferences {

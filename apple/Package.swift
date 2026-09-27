@@ -6,8 +6,9 @@ let package = Package(
     platforms: [.macOS("26.0"), .iOS("26.0")],
     products: [.library(name: "PhotoRenderingCore", targets: ["PhotoRenderingCore"])],
     targets: [
+        .target(name: "PhotoColorsCore", path: "Sources/Features/Colors/Models", resources: [.process("Resources")]),
         .target(name: "PhotoRenderingCore", path: "Sources/Features/PhotoInfo", exclude: ["Views", "Models/CardSession.swift", "Models/CardDocument.swift", "Models/PhotoSourceResources.swift", "Models/MetadataState.swift", "Services/MetadataPhotoLibrary.swift", "Services/CardPhotoLibrary.swift", "Services/PhotoSourceLoader.swift", "Services/PhotoWorkingDirectory.swift"],
             sources: ["Models/PhotoCard.swift", "Models/LensProfile.swift", "Models/LensProfileStore.swift", "Media", "Rendering", "Services/CardImageProcessor.swift", "Services/MovieMetadataCleaner.swift"]),
-        .testTarget(name: "PhotoRenderingTests", dependencies: ["PhotoRenderingCore"], path: "Tests/PhotoRenderingTests")
+        .testTarget(name: "PhotoRenderingTests", dependencies: ["PhotoRenderingCore", "PhotoColorsCore"], path: "Tests/PhotoRenderingTests")
     ]
 )

@@ -41,6 +41,15 @@ nonisolated enum PhotoAuxiliaryData {
     static func add(to destination: CGImageDestination, source: CGImageSource, orientation: CGImagePropertyOrientation) throws {
         for type in types {
             guard let info = CGImageSourceCopyAuxiliaryDataInfoAtIndex(source,0,type) as? [AnyHashable:Any] else { continue }
+            if orientation == .up {
+                CGImageDestinationAddAuxiliaryDataInfo(destination, type, info as CFDictionary)
+                continue
+            }
+            if type != kCGImageAuxiliaryDataTypeDepth && type != kCGImageAuxiliaryDataTypeDisparity,
+               let oriented = orientedMonochrome(info, orientation: orientation) {
+                CGImageDestinationAddAuxiliaryDataInfo(destination, type, oriented as CFDictionary)
+                continue
+            }
             var writtenType: NSString?
             let dictionary: [AnyHashable:Any]?
             if type == kCGImageAuxiliaryDataTypeDepth || type == kCGImageAuxiliaryDataTypeDisparity {
@@ -56,5 +65,43 @@ nonisolated enum PhotoAuxiliaryData {
             guard let writtenType,let dictionary else { throw CardError.auxiliaryEncoding }
             CGImageDestinationAddAuxiliaryDataInfo(destination,writtenType as CFString,dictionary as CFDictionary)
         }
+    }
+
+    static func orientedMonochrome(_ info: [AnyHashable: Any], orientation: CGImagePropertyOrientation) -> [AnyHashable: Any]? {
+        guard var description = info[kCGImageAuxiliaryDataInfoDataDescription] as? [String: Any],
+              let width = description["Width"] as? Int, let height = description["Height"] as? Int,
+              let stride = description["BytesPerRow"] as? Int,
+              let format = description["PixelFormat"] as? UInt32, format == kCVPixelFormatType_OneComponent8,
+              width > 0, height > 0, stride >= width, width <= 20_000, height <= 20_000,
+              let bytes = info[kCGImageAuxiliaryDataInfoData] as? Data,
+              stride <= bytes.count / height, width * height <= 64_000_000 else { return nil }
+        let swap = orientation.rawValue >= 5
+        let outputWidth = swap ? height : width
+        let outputHeight = swap ? width : height
+        var output = Data(count: outputWidth * outputHeight)
+        for y in 0..<height {
+            for x in 0..<width {
+                let point: (Int, Int)
+                switch orientation {
+                case .up: point = (x, y)
+                case .upMirrored: point = (width - 1 - x, y)
+                case .down: point = (width - 1 - x, height - 1 - y)
+                case .downMirrored: point = (x, height - 1 - y)
+                case .leftMirrored: point = (y, x)
+                case .right: point = (height - 1 - y, x)
+                case .rightMirrored: point = (height - 1 - y, width - 1 - x)
+                case .left: point = (y, width - 1 - x)
+                @unknown default: return nil
+                }
+                output[point.1 * outputWidth + point.0] = bytes[y * stride + x]
+            }
+        }
+        description["Width"] = outputWidth
+        description["Height"] = outputHeight
+        description["BytesPerRow"] = outputWidth
+        var result = info
+        result[kCGImageAuxiliaryDataInfoData] = output
+        result[kCGImageAuxiliaryDataInfoDataDescription] = description
+        return result
     }
 }

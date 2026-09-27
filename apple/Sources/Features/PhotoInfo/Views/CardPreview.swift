@@ -100,6 +100,7 @@ struct CardLivePlaybackIndicator: View {
 
 private struct PreviewKey: Equatable {
     let id: UUID
+    let sourceURL: URL
     let card: PhotoCard
     let hdr: Bool
     let full: Bool
@@ -113,6 +114,7 @@ private struct CardPreviewImage: View {
     var original = false
     var onRenderingChanged: ((Bool) -> Void)?
     @State private var image: CGImage?
+    @State private var cardOverlay: CardOverlayRender?
     @State private var loading = false
     @State private var error: String?
     @State private var renderingID: UUID?
@@ -125,6 +127,23 @@ private struct CardPreviewImage: View {
             Color.clear
             if let image {
                 HDRImageView(image: image, enabled: effectiveHDR)
+                    .overlay {
+                        if !original, let cardOverlay {
+                            GeometryReader { geometry in
+                                let scale = min(geometry.size.width / CGFloat(image.width), geometry.size.height / CGFloat(image.height))
+                                let width = CGFloat(image.width) * scale
+                                let height = CGFloat(image.height) * scale
+                                let rect = cardOverlay.normalizedRect
+                                Image(decorative: cardOverlay.image, scale: 1)
+                                    .resizable()
+                                    .frame(width: rect.width * width, height: rect.height * height)
+                                    .clipShape(.rect(cornerRadius: cardOverlay.normalizedRadius * width))
+                                    .position(x: (geometry.size.width - width) / 2 + rect.midX * width,
+                                              y: (geometry.size.height - height) / 2 + rect.midY * height)
+                            }
+                            .allowsHitTesting(false)
+                        }
+                    }
             }
             if loading {
                 VStack(spacing: 8) {
@@ -143,7 +162,7 @@ private struct CardPreviewImage: View {
             }
         }
         .accessibilityLabel(Text("card.preview"))
-        .task(id: PreviewKey(id: document.id, card: document.card, hdr: hdr, full: fullResolution, original: original)) {
+        .task(id: PreviewKey(id: document.id, sourceURL: document.sourceURL, card: document.card, hdr: hdr, full: fullResolution, original: original)) {
             let taskID = UUID()
             renderingID = taskID
             onRenderingChanged?(true)
@@ -153,10 +172,14 @@ private struct CardPreviewImage: View {
             loading = true; error = nil
             let requestedHDR = hdr && document.metadata.hdr
             do {
-                let rendered = try await CardImageProcessor.shared.preview(document.sourceURL, card: original ? PhotoCard() : document.card,
-                    hdr: requestedHDR, maxDimension: fullResolution ? CGFloat(max(document.metadata.width, document.metadata.height)) : 1800)
+                let dimension = fullResolution ? CGFloat(max(document.metadata.width, document.metadata.height)) : 1800
+                let rendered = try await CardImageProcessor.shared.preview(document.sourceURL, card: PhotoCard(),
+                    hdr: requestedHDR, maxDimension: dimension)
+                let overlay = original ? nil : try await CardImageProcessor.shared.previewOverlay(document.sourceURL,
+                    card: document.card, maxDimension: dimension)
                 try Task.checkCancellation()
                 image = rendered
+                cardOverlay = overlay
                 effectiveHDR = requestedHDR
                 loading = false
             } catch is CancellationError { }

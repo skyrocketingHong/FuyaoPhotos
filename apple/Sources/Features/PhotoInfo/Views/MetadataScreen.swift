@@ -1,309 +1,177 @@
 import SwiftUI
 import PhotosUI
 
-/// The metadata tab: one page per photo showing the technical metadata report and the
-/// photographic styles injection with its own save actions. It holds its own photo
-/// session by default; Settings can make it share the cards session's photos.
 struct MetadataScreen: View {
-    @Bindable var session: CardSession
     @Environment(PhotoWorkspace.self) private var workspace
-    @AppStorage("metadata.sharesCards") private var sharesCards = false
-    @State private var state = MetadataState()
-    @State private var showingPicker = false
-
-    private var errorShown: Binding<Bool> {
-        Binding(get: { state.errorMessage != nil }, set: { if !$0 { state.errorMessage = nil } })
-    }
-    private var savedShown: Binding<Bool> {
-        Binding(get: { state.saved && state.errorMessage == nil }, set: { if !$0 { state.saved = false } })
-    }
-
-    var body: some View {
-        Group {
-            if sharesCards {
-                metadataBody(sourcing: session)
-            } else {
-                metadataBody(sourcing: workspace.metadataSession)
-            }
-        }
-        .task(id: handoffKey) { state.refresh(document: activeSession.current) }
-        .onChange(of: sharesCards) { _, _ in state.refresh(document: activeSession.current) }
-        .onChange(of: workspace.pendingMetadataAssetIDs) { _, _ in handlePendingHandoff() }
-        .onAppear(perform: handlePendingHandoff)
-        .sheet(isPresented: $showingPicker) { pickerSheet }
-        .alert("metadata.error.title", isPresented: errorShown) {
-            Button("done", role: .cancel) { }
-        } message: { Text(state.errorMessage ?? "") }
-        .alert("metadata.save.complete", isPresented: savedShown) {
-            Button("done", role: .cancel) { }
-        } message: {
-            if state.savedToOriginal {
-                Text("metadata.saved.updated")
-            } else {
-                Text("metadata.saved")
-            }
-        }
-        .sensoryFeedback(.success, trigger: state.saved)
-    }
-
-    private var handoffKey: UUID? { activeSession.current?.id }
-
-    private var activeSession: any MetadataPhotoSourcing { sharesCards ? session : workspace.metadataSession }
-
-    private func metadataBody(sourcing: some MetadataPhotoSourcing) -> some View {
-        return Group {
-            if let document = sourcing.current {
-                MetadataContent(document: document, sourcing: sourcing, state: state,
-                                openInCards: { openInCards(document) },
-                                showOnMap: { workspace.selectedTab = .map })
-                    .disabled(state.busy)
-                    .overlay { if state.busy { busyOverlay } }
-            } else {
-                GeometryReader { geometry in
-                    if geometry.size.width >= 800 {
-                        HStack(spacing: 0) {
-                            Form {
-                                MetadataIntroSection()
-                                emptySection
-                            }
-                            .formStyle(.grouped)
-                            .frame(width: min(400, max(320, geometry.size.width * 0.38)))
-                            Divider()
-                            ContentUnavailableView {
-                                Label("metadata.empty.title", systemImage: "doc.text.magnifyingglass")
-                            } description: {
-                                Text("metadata.empty.description")
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                    } else {
-                        Form {
-                            MetadataIntroSection()
-                            emptySection
-                        }
-                        .formStyle(.grouped)
-                    }
-                }
-            }
-        }
-    }
-
-    private var emptySection: some View {
-        Section {
-            ContentUnavailableView {
-                Label("metadata.empty.title", systemImage: "photo")
-            } description: {
-                Text("metadata.empty.description")
-            } actions: {
-                Button("card.open", action: { showingPicker = true })
-                    .buttonStyle(.borderedProminent)
-            }
-        }
-    }
-
-    private var busyOverlay: some View {
-        ProgressView()
-            .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-    }
-
-    private var pickerSheet: some View {
-        NativePhotoPicker { results in
-            showingPicker = false
-            Task { await activeSession.open(results) }
-        }
-#if os(macOS)
-        .frame(minWidth: 680, idealWidth: 820, minHeight: 520, idealHeight: 620)
-        .presentationSizing(.fitted)
-#endif
-    }
-
-    private func handlePendingHandoff() {
-        guard !activeSession.busy, let ids = workspace.pendingMetadataAssetIDs else { return }
-        workspace.pendingMetadataAssetIDs = nil
-        Task { await activeSession.openAssets(ids) }
-    }
-
-    /// Sends the photo to the cards tab: a library photo is loaded into the cards
-    /// session there; a picker-only import (no asset identifier) stays disabled.
-    private func openInCards(_ document: CardDocument) {
-        guard let identifier = document.assetIdentifier else { return }
-        workspace.editPhotos([identifier])
-    }
-}
-
-/// Body of the metadata page: the report, the styles section, and cross-tab handoffs.
-private struct MetadataContent<Sourcing: MetadataPhotoSourcing>: View {
-    let document: CardDocument
-    var sourcing: Sourcing
     @Bindable var state: MetadataState
-    let openInCards: () -> Void
-    let showOnMap: () -> Void
+    @State private var mode = Mode.view
+    @State private var showingPicker = false
     @State private var showingSave = false
-    @State private var preview: CardPreviewState = {
-        let state = CardPreviewState()
-        state.original = true
-        return state
-    }()
+    @State private var confirmReplace = false
+    private enum Mode: Hashable { case view, edit }
+    private var session: CardSession { workspace.session(for: .metadata) }
 
     var body: some View {
-        GeometryReader { geometry in
-            if geometry.size.width >= 800 {
-                VStack(spacing: 0) {
-                    HStack(alignment: .center, spacing: 24) {
-                        MetadataIntroCard()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        if sourcing.documents.count > 1 { photoPicker.frame(width: 280) }
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
+        @Bindable var session = session
+        NavigationStack {
+            GeometryReader { geometry in
+                if geometry.size.width >= 840, let document = session.current {
                     HStack(spacing: 0) {
                         Form {
-                            originalSection
-                            openInSection
+                            intro
+                            photoSelection
+                            original(document)
                         }
-                        .formStyle(.grouped)
-                        .frame(width: min(400, max(320, geometry.size.width * 0.38)))
-                        Divider()
-                        Form {
-                            MediaMetadataReportSection(report: state.report, showsDescriptions: true)
-                            stylesSection(document)
+                        .photoPageForm()
+                        .frame(width: min(460, geometry.size.width * 0.44))
+                        Form { details(document) }.photoPageForm()
+                    }
+                } else {
+                    Form {
+                        intro
+                        photoSelection
+                        if let document = session.current {
+                            original(document)
+                            details(document)
+                        } else {
+                            Section { Text("metadata.empty.description").foregroundStyle(.secondary) }
                         }
-                        .formStyle(.grouped)
-                        .frame(maxWidth: .infinity)
                     }
+                    .photoPageForm()
                 }
-            } else {
-                Form {
-                    MetadataIntroSection()
-                    if sourcing.documents.count > 1 {
-                        Section { photoPicker }
-                    }
-                    originalSection
-                    MediaMetadataReportSection(report: state.report, showsDescriptions: true)
-                    stylesSection(document)
-                    openInSection
-                }
-                .formStyle(.grouped)
             }
-        }
-        .sheet(isPresented: $showingSave) {
-            MetadataSaveSheet(document: document) { updateOriginal in
-                Task { await state.save(document: document, updateOriginal: updateOriginal) }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Picker("tab.metadata", selection: $mode) {
+                    Text("metadata.mode.view").tag(Mode.view)
+                    Text("metadata.mode.edit").tag(Mode.edit)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 20).padding(.vertical, 8)
             }
 #if !os(macOS)
-            .presentationDetents([.medium, .large])
+            .toolbarVisibility(.hidden, for: .navigationBar)
+#endif
+            .disabled(state.busy || session.busy)
+            .overlay {
+                if state.busy || session.busy {
+                    ProgressView().padding().background(.regularMaterial, in: .rect(cornerRadius: 16))
+                }
+            }
+        }
+        .task(id: session.current?.id) { state.refresh(document: session.current) }
+        .onChange(of: workspace.pendingMetadataAssetIDs) { _, _ in handleHandoff() }
+        .onAppear(perform: handleHandoff)
+        .sheet(isPresented: $showingPicker) {
+            NativePhotoPicker { results in
+                showingPicker = false
+                let target = session
+                Task { await target.open(results) }
+            }
+#if os(macOS)
+            .frame(minWidth: 680, idealWidth: 820, minHeight: 520, idealHeight: 620)
 #endif
         }
+        .sheet(isPresented: $showingSave) {
+            MetadataSaveSheet(document: session.current) { updateOriginal in
+                guard let document = session.current else { return }
+                let owner = session
+                Task {
+                    guard !owner.busy else { return }
+                    owner.cancelLocationLookup()
+                    owner.busy = true
+                    defer { owner.busy = false }
+                    await state.save(document: document, updateOriginal: updateOriginal)
+                }
+            }
+        }
+        .confirmationDialog("card.replace.confirm.many", isPresented: $confirmReplace) {
+            Button("card.replace", role: .destructive) { showingPicker = true }
+            Button("card.cancel", role: .cancel) { }
+        }
+        .alert("metadata.error.title", isPresented: Binding(
+            get: { state.errorMessage != nil || session.errorMessage != nil },
+            set: { if !$0 { state.errorMessage = nil; session.errorMessage = nil } })) {
+                Button("done", role: .cancel) { }
+            } message: { Text(state.errorMessage ?? session.errorMessage ?? "") }
+        .alert("metadata.save.complete", isPresented: Binding(
+            get: { state.saved && state.errorMessage == nil }, set: { if !$0 { state.saved = false } })) {
+                Button("done", role: .cancel) { }
+            } message: { Text(state.savedToOriginal ? "metadata.saved.updated" : "metadata.saved") }
     }
 
-    private var photoPicker: some View {
-        let session = sourcing
-        return Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
-            ForEach(sourcing.documents) { item in
-                Text(item.originalName).tag(Optional(item.id))
+    private var intro: some View {
+        Section {
+            PhotoPageIntro(title: "metadata.intro.title", description: "metadata.intro.description", symbol: "info.circle")
+            Button("card.open", systemImage: "photo.badge.plus") {
+                if workspace.hasPendingEdits(in: session) {
+                    confirmReplace = true
+                } else { showingPicker = true }
             }
         }
     }
 
-    private var originalSection: some View {
-        Section("metadata.original.header") {
-            CardPreviewSurface(document: document, controls: preview)
-                .aspectRatio(CGFloat(max(1, document.metadata.width)) / CGFloat(max(1, document.metadata.height)),
-                             contentMode: .fit)
-                .frame(maxWidth: .infinity, maxHeight: 220)
+    @ViewBuilder private var photoSelection: some View {
+        if session.documents.count > 1 {
+            Section {
+                Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
+                    ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
+                }
+            }
+        }
+    }
+
+    private func original(_ document: CardDocument) -> some View {
+        Section {
+            OriginalPhotoSummary(document: document)
+                .id(document.id)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
-            PhotoInformationHeading(name: document.originalName,
-                                    fileExtension: document.sourceURL.pathExtension,
-                                    fileSize: document.metadata.fileSize)
+                .listRowSeparator(.hidden)
         }
+        .listSectionSeparator(.hidden)
     }
 
-    private var openInSection: some View {
-        Section {
-            Button("metadata.open.cards", systemImage: "photo.badge.plus") { openInCards() }
-                .disabled(document.assetIdentifier == nil)
-            if document.location != nil {
-                Button("metadata.open.map", systemImage: "map") { showOnMap() }
-            }
-        } header: {
-            Text("metadata.section.openIn")
-        } footer: {
-            Text("metadata.section.openIn.footer")
-        }
-    }
-
-    private func stylesSection(_ document: CardDocument) -> some View {
-        Section {
-            if !state.supportsInjection(document) {
-                LabeledContent("metadata.styles.status") {
-                    Text("metadata.styles.value.unavailable")
-                }
-            } else if state.report == nil {
-                HStack(spacing: 12) {
-                    ProgressView()
-                    Text("metadata.report.loading")
-                }
-            } else {
-                if state.canAddPhotographic(document) {
-                    Toggle("metadata.styles.standard", isOn: $state.injectStandard)
+    @ViewBuilder private func details(_ document: CardDocument) -> some View {
+        if mode == .view {
+            PhotoDetailInformation(asset: CardPhotoLibrary.asset(document.assetIdentifier), document: document,
+                                   coordinate: document.location?.coordinate)
+        } else {
+            Section {
+                Toggle("card.save.exif", isOn: $state.options.keepExif).tint(.green)
+                Toggle("card.save.location", isOn: $state.options.keepLocation).tint(.green)
+                Toggle("card.save.time", isOn: $state.options.keepCaptureTime).tint(.green)
+            } header: { Text("card.save.metadata") }
+            footer: { Text("metadata.edit.knownFields") }
+            Section {
+                if !state.supportsInjection(document) {
+                    Text(state.unavailableReason(document)).foregroundStyle(.secondary)
+                } else if state.report == nil {
+                    ProgressView("metadata.report.loading")
                 } else {
-                    LabeledContent("metadata.styles.standard") {
-                        Text("metadata.styles.value.present")
+                    if state.canAddPhotographic(document) {
+                        Toggle("metadata.styles.standard", isOn: $state.injectStandard).tint(.green)
+                    } else {
+                        LabeledContent("metadata.styles.standard") { Text("metadata.styles.value.present").foregroundStyle(.secondary) }
                     }
-                }
-                if state.canAddTexture(document) {
-                    let standardPresent = state.coverage(document).photographic
-                        || (state.injectStandard && state.canAddPhotographic(document))
-                    Toggle("metadata.styles.texture", isOn: $state.includeTexture)
-                        .disabled(!standardPresent)
-                } else {
-                    LabeledContent("metadata.styles.texture") {
-                        Text("metadata.styles.value.present")
+                    if state.canAddTexture(document) {
+                        Toggle("metadata.styles.texture", isOn: $state.includeTexture)
+                            .tint(.green)
+                            .disabled(!state.coverage(document).photographic && !state.injectStandard)
+                    } else {
+                        LabeledContent("metadata.styles.texture") { Text("metadata.styles.value.present").foregroundStyle(.secondary) }
                     }
+                    Button("metadata.save", systemImage: "square.and.arrow.down") { showingSave = true }
+                        .disabled(!state.hasPendingAdd(document))
                 }
-                Button {
-                    showingSave = true
-                } label: {
-                    Label("metadata.save", systemImage: "square.and.arrow.down")
-                }
-                .disabled(state.busy || !state.hasPendingAdd(document))
-            }
-        } header: {
-            Text("metadata.styles.header")
-        } footer: {
-            if !state.supportsInjection(document) {
-                Text(state.unavailableReason(document))
-            } else {
-                Text("metadata.styles.footer")
-            }
+            } header: { Text("metadata.styles.header") }
+            footer: { Text("metadata.styles.footer") }
         }
     }
-}
 
-private struct MetadataIntroSection: View {
-    var body: some View {
-        Section { MetadataIntroCard().padding(.vertical, 8) }
-    }
-}
-
-private struct MetadataIntroCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Image(systemName: "info.circle.fill")
-                .font(.title)
-                .foregroundStyle(.tint)
-                .frame(width: 56, height: 56)
-                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
-                .accessibilityHidden(true)
-            Text("metadata.intro.title")
-                .font(.title2.weight(.bold))
-            Text("metadata.intro.description")
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    private func handleHandoff() {
+        guard !session.busy, let ids = workspace.pendingMetadataAssetIDs else { return }
+        workspace.pendingMetadataAssetIDs = nil
+        Task { await session.openAssets(ids) }
     }
 }
 
@@ -312,11 +180,10 @@ struct MetadataSaveSheet: View {
     let save: (Bool) -> Void
     @State private var updateOriginal = false
     @Environment(\.dismiss) private var dismiss
-
     private var canUpdate: Bool {
         guard let document else { return false }
         return document.assetIdentifier != nil && !document.isLive
-            && (document.metadata.kind == .stillHEIC || document.metadata.kind == .heicWithAuxiliaryData)
+            && [.stillHEIC, .heicWithAuxiliaryData, .stillJPEG, .ultraHDRJPEG, .stillPNG].contains(document.metadata.kind)
     }
 
     var body: some View {
@@ -329,21 +196,13 @@ struct MetadataSaveSheet: View {
                             Text("metadata.save.update").tag(true)
                         }
                     } else {
-                        LabeledContent("metadata.save.destination") {
-                            Text("metadata.save.copy")
-                        }
+                        LabeledContent("metadata.save.destination") { Text("metadata.save.copy") }
                     }
                 } footer: {
-                    if canUpdate && updateOriginal {
-                        Text("metadata.save.update.description")
-                    } else if document?.isLive == true {
-                        Text("metadata.save.update.unavailable.live")
-                    } else {
-                        Text("metadata.save.copy.description")
-                    }
+                    Text(updateOriginal ? "metadata.save.update.description" : "metadata.save.copy.description")
                 }
             }
-            .formStyle(.grouped)
+            .photoPageForm()
             .navigationTitle("metadata.save.options")
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -351,14 +210,10 @@ struct MetadataSaveSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("card.cancel", action: dismiss.callAsFunction) }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("metadata.save") {
-                        dismiss()
-                        save(updateOriginal)
-                    }
+                    Button("metadata.save") { dismiss(); save(updateOriginal && canUpdate) }
                 }
             }
         }
-        .onAppear { if !canUpdate { updateOriginal = false } }
 #if os(macOS)
         .frame(minWidth: 480, idealWidth: 560, minHeight: 320, idealHeight: 380)
 #endif

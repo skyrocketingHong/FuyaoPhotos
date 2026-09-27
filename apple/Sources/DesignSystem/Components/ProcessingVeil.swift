@@ -8,7 +8,6 @@ struct ProcessingVeil: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .blur(radius: active ? 2.5 : 0)
             .overlay {
                 if active {
                     Color.black.opacity(0.18)

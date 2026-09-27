@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var card = CardPreferences.shared
+    @State private var workspacePreferences = WorkspacePreferences.shared
     @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
     @AppStorage("defaultDisplayMode") private var defaultMode = MapDisplayMode.photo.rawValue
     @AppStorage("customStartYear") private var startYear = 0
@@ -62,49 +63,51 @@ struct SettingsView: View {
                     Form {
                         Section { categoryIntro(selectedCategory ?? .cards) }
                         switch selectedCategory ?? .cards {
-                        case .cards: cardSettings
+                        case .cards: workspaceSettings; cardSettings
                         case .lenses: lensSettings
                         case .map: mapSettings
                         case .about: aboutSettings
                         }
                     }
-                    .formStyle(.grouped)
+                    .photoPageForm()
                     .frame(maxWidth: .infinity)
                 }
             } else {
 #if os(macOS)
                 TabView {
                     Tab("tab.cards", systemImage: "photo.badge.plus") {
-                        Form { settingsIntro; cardSettings }.formStyle(.grouped)
+                        Form { settingsIntro; workspaceSettings; cardSettings }.photoPageForm()
                     }
                     Tab("lens.profiles.title", systemImage: "camera.aperture") {
-                        Form { Section { categoryIntro(.lenses) }; lensSettings }.formStyle(.grouped)
+                        Form { Section { categoryIntro(.lenses) }; lensSettings }.photoPageForm()
                     }
                     Tab("tab.map", systemImage: "map") {
-                        Form { settingsIntro; mapSettings }.formStyle(.grouped)
+                        Form { settingsIntro; mapSettings }.photoPageForm()
                     }
                     Tab("settings.about.header", systemImage: "info.circle") {
-                        Form { settingsIntro; aboutSettings }.formStyle(.grouped)
+                        Form { settingsIntro; aboutSettings }.photoPageForm()
                     }
                 }
 #else
                 Form {
                     settingsIntro
+                    workspaceSettings
                     cardSettings
                     lensSettings
                     mapSettings
                     aboutSettings
                 }
-                .formStyle(.grouped)
+                .photoPageForm()
 #endif
             }
         }
+        .tint(.secondary)
+        .toggleStyle(NativeSettingsToggleStyle())
         .sheet(isPresented: $showLenses) { LensProfilesView(store: .shared) }
 #if os(macOS)
         .frame(minWidth: 500, minHeight: 420)
 #else
-        .navigationTitle("settings.title")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarVisibility(.hidden, for: .navigationBar)
 #endif
     }
 
@@ -138,23 +141,32 @@ struct SettingsView: View {
 
     private var settingsIntro: some View {
         Section {
-            VStack(alignment: .leading, spacing: 12) {
-                Image(systemName: "gearshape")
-                    .font(.title)
-                    .foregroundStyle(.primary)
-                    .frame(width: 56, height: 56)
-                    .background(.fill.tertiary, in: .rect(cornerRadius: 12))
-                    .accessibilityHidden(true)
-                Text("settings.title")
-                    .font(.title.bold())
-                Text("settings.intro")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
+            PhotoPageIntro(title: "settings.title", description: "settings.intro", symbol: "gearshape")
         }
+    }
+
+    private var workspaceSettings: some View {
+        Section {
+            Picker("workspace.startup", selection: $workspacePreferences.startup) {
+                ForEach(PhotoWorkspace.Tab.featureTabs) { Text($0.title).tag($0) }
+            }
+            Picker("workspace.sharing", selection: $workspacePreferences.sharing) {
+                ForEach(PhotoSharingMode.allCases) { Text($0.title).tag($0) }
+            }
+            if workspacePreferences.sharing == .partial {
+                ForEach(PhotoWorkspace.Tab.photoTabs) { tab in
+                    Toggle(tab.title, isOn: Binding(
+                        get: { workspacePreferences.sharedTabs.contains(tab) },
+                        set: { enabled in
+                            if enabled { workspacePreferences.sharedTabs.insert(tab) }
+                            else { workspacePreferences.sharedTabs.remove(tab) }
+                        }))
+                }
+            }
+        } header: { Text("workspace.header") }
+        footer: { Text("workspace.sharing.description") }
+        .tint(.secondary)
+        .toggleStyle(NativeSettingsToggleStyle())
     }
 
     @ViewBuilder private var cardSettings: some View {
@@ -171,24 +183,15 @@ struct SettingsView: View {
             Text("settings.editor.footer")
         }
         Section {
-            VStack(alignment: .leading, spacing: 4) {
+            LabeledContent("card.defaultAuthor") {
                 TextField("card.defaultAuthor", text: $card.author)
-                Text("settings.author.hint")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .labelsHidden().multilineTextAlignment(.trailing)
             }
             Toggle(isOn: $card.resolveLocation) {
                 settingLabel("card.resolveLocation", hint: "card.resolveLocation.description")
             }
         } header: {
             Text("settings.photo.header")
-        }
-        Section {
-            Toggle(isOn: $card.metadataSharesCards) {
-                settingLabel("metadata.sharesCards", hint: "metadata.sharesCards.footer")
-            }
-        } header: {
-            Text("metadata.settings.header")
         }
         Section {
             Toggle(isOn: $card.saveOptions.updateOriginal) {
@@ -227,19 +230,26 @@ struct SettingsView: View {
     }
 
     private func settingLabel(_ title: LocalizedStringKey, hint: LocalizedStringKey) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-            Text(hint)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        Text(title).accessibilityHint(Text(hint))
     }
 
     @ViewBuilder private var aboutSettings: some View {
         Section("settings.about.header") {
             LabeledContent("settings.version", value: version)
+            Text("about.project")
+            Text("about.features").foregroundStyle(.secondary)
+            Link("AGPL-3.0-only", destination: URL(string: "https://github.com/skyrocketingHong/FuyaoPhotos/blob/main/LICENSE")!)
+            Link("GitHub", destination: URL(string: "https://github.com/skyrocketingHong/FuyaoPhotos")!)
+            Text("about.colors.credit").font(.footnote).foregroundStyle(.secondary)
             Text("settings.apple.notice").font(.footnote).foregroundStyle(.secondary)
         }
+    }
+}
+
+private struct NativeSettingsToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Toggle(isOn: configuration.$isOn) { configuration.label }
+            .toggleStyle(.switch)
+            .tint(.green)
     }
 }

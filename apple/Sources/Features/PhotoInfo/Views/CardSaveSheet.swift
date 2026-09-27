@@ -25,7 +25,7 @@ struct CardSaveSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    if canUpdate {
+                    if canUpdate && !options.exportsMotionPhoto {
                         Picker("card.save.destination", selection: $options.updateOriginal) {
                             Text(copyTitle).tag(false)
                             Text(updateTitle).tag(true)
@@ -67,7 +67,11 @@ struct CardSaveSheet: View {
         }
         .onAppear {
             options = CardPreferences.shared.saveOptions
+            options.keepExif = true
+            options.keepLocation = true
+            options.keepCaptureTime = true
             if !canUpdate { options.updateOriginal = false }
+            if options.exportsMotionPhoto { options.format = .jpeg; options.updateOriginal = false }
             if (hasHDR || hasLive) && options.format == .png { options.format = .jpeg }
         }
 #if os(macOS)
@@ -84,13 +88,27 @@ struct CardSaveControls: View {
         Section {
             Picker("card.save.format", selection: $options.format) {
                 ForEach(CardExportFormat.allCases) { format in
-                    if format != .png || (!hasHDR && !hasLive) { Text(format.title).tag(format) }
+                    if (!options.exportsMotionPhoto || format == .jpeg) && (format != .png || (!hasHDR && !hasLive)) { Text(format.title).tag(format) }
                 }
             }
+            if hasLive {
+                Picker("card.save.motion.format", selection: $options.exportsMotionPhoto) {
+                    Text("Live Photo").tag(false)
+                    Text("Motion Photo").tag(true)
+                }
+                .onChange(of: options.exportsMotionPhoto) { _, enabled in
+                    if enabled { options.format = .jpeg; options.updateOriginal = false }
+                }
+                if options.exportsMotionPhoto { Text("card.save.motion.description").font(.footnote).foregroundStyle(.secondary) }
+            }
             if options.format != .png {
-                VStack(alignment: .leading) {
-                    LabeledContent("card.save.quality", value: "\(Int(options.quality))%")
-                    Slider(value: $options.quality, in: 0...100, step: 1).accessibilityLabel(Text("card.save.quality"))
+                LabeledContent("card.save.quality") {
+                    HStack {
+                        Slider(value: $options.quality, in: 0...100, step: 1)
+                            .frame(minWidth: 80, maxWidth: 180)
+                            .accessibilityLabel(Text("card.save.quality"))
+                        Text("\(Int(options.quality))%").monospacedDigit().foregroundStyle(.secondary)
+                    }
                 }
             }
         } header: {
@@ -98,11 +116,5 @@ struct CardSaveControls: View {
         } footer: {
             Text("card.save.output.footer")
         }
-        Section {
-            Toggle("card.save.exif", isOn: $options.keepExif)
-            Toggle("card.save.location", isOn: $options.keepLocation)
-            Toggle("card.save.time", isOn: $options.keepCaptureTime)
-        } header: { Text("card.save.metadata") }
-        footer: { Text("card.save.metadata.footer") }
     }
 }

@@ -10,6 +10,12 @@ nonisolated struct CardDetailRender {
     let textRects: [CardField: [CGRect]]
 }
 
+nonisolated struct CardOverlayRender {
+    let image: CGImage
+    let normalizedRect: CGRect
+    let normalizedRadius: CGFloat
+}
+
 nonisolated struct CardPhotoMetadata: Sendable {
     var card: PhotoCard
     let width: Int
@@ -76,6 +82,18 @@ actor CardImageProcessor {
 
     func preview(_ url: URL, card: PhotoCard, hdr: Bool, maxDimension: CGFloat = 1800) throws -> CGImage {
         try Task.checkCancellation()
+        if card.rows.isEmpty {
+            guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                  let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceThumbnailMaxPixelSize: max(1, Int(maxDimension)),
+                    kCGImageSourceDecodeRequest: hdr ? kCGImageSourceDecodeToHDR : kCGImageSourceDecodeToSDR,
+                    kCGImageSourceGenerateImageSpecificLumaScaling: true
+                  ] as CFDictionary) else { throw CardError.invalidImage }
+            try Task.checkCancellation()
+            return image
+        }
         guard var image = CIImage(contentsOf: url, options: [.applyOrientationProperty: true, .expandToHDR: hdr, .toneMapHDRtoSDR: !hdr]) else { throw CardError.invalidImage }
         let scale = min(1, maxDimension / max(image.extent.width, image.extent.height))
         image = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
@@ -85,6 +103,24 @@ actor CardImageProcessor {
             colorSpace: CGColorSpace(name: hdr ? CGColorSpace.extendedLinearDisplayP3 : CGColorSpace.displayP3)!,
             deferred: false, calculateHDRStats: hdr) else { throw CardError.exportFailed }
         return result
+    }
+
+    func previewOverlay(_ url: URL, card: PhotoCard, maxDimension: CGFloat = 1800) throws -> CardOverlayRender? {
+        guard !card.rows.isEmpty else { return nil }
+        try Task.checkCancellation()
+        guard var source = CIImage(contentsOf: url, options: [.applyOrientationProperty: true,
+            .expandToHDR: false, .toneMapHDRtoSDR: true]) else { throw CardError.invalidImage }
+        let scale = min(1, maxDimension / max(source.extent.width, source.extent.height))
+        source = source.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let layout = try CardLayout(size: source.extent.size, card: card)
+        let rendered = try CardRenderer.render(source, card: card)
+        guard let image = context.createCGImage(rendered, from: layout.rect, format: .RGBA8,
+            colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!) else { throw CardError.exportFailed }
+        return CardOverlayRender(image: image, normalizedRect: CGRect(
+            x: layout.rect.minX / source.extent.width,
+            y: (source.extent.height - layout.rect.maxY) / source.extent.height,
+            width: layout.rect.width / source.extent.width, height: layout.rect.height / source.extent.height),
+            normalizedRadius: layout.radius / source.extent.width)
     }
 
     func previewCardDetail(_ url: URL, card: PhotoCard, maxDimension: CGFloat = 1600) throws -> CardDetailRender {
@@ -126,7 +162,9 @@ actor CardImageProcessor {
         let rendered = try CardRenderer.render(sdr, card: card).settingProperties(metadata)
         let qualityKey = CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String)
         let orientation = CGImagePropertyOrientation(rawValue: (properties[kCGImagePropertyOrientation as String] as? NSNumber)?.uint32Value ?? 1) ?? .up
-        var representation = try PhotoAuxiliaryData.representation(source: source, orientation: orientation)
+        // Some native matte dictionaries are readable by ImageIO but rejected by
+        // AVFoundation. The verified ImageIO fallback below preserves those planes.
+        var representation = (try? PhotoAuxiliaryData.representation(source: source, orientation: orientation)) ?? [:]
         guard options.format != .png || (representation.isEmpty && !live && !hdr) else { throw CardError.hdrFormat }
         representation[qualityKey] = options.quality / 100
         if hdr {
@@ -191,6 +229,11 @@ actor CardImageProcessor {
     }
 
     nonisolated static func metadata(_ input: [String: Any], options: CardSaveOptions, live: Bool) -> [String: Any] {
+        if options.keepExif && options.keepLocation && options.keepCaptureTime {
+            var preserved = input
+            preserved[kCGImagePropertyOrientation as String] = 1
+            return preserved
+        }
         var result: [String: Any] = [kCGImagePropertyOrientation as String: 1]
         let exif = input[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
         let tiff = input[kCGImagePropertyTIFFDictionary as String] as? [String: Any] ?? [:]

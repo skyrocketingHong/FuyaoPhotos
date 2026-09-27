@@ -57,21 +57,43 @@ struct CardAdjustmentPanel: View {
 
     private var panel: some View {
         GeometryReader { geometry in
-            // The frame below carries .padding(.horizontal, 12) on top of it, so the
-            // content width must leave room for both insets or everything overflows
-            // the trailing screen edge.
-            let contentWidth = min(640, geometry.size.width - 24)
-            let selectorWidth = min(200, contentWidth * (dynamicTypeSize.isAccessibilitySize ? 0.32 : 0.4))
-            let detailWidth = max(0, contentWidth - selectorWidth - 16)
+            let contentWidth = max(0, geometry.size.width - 40)
+            let selectorWidth = min(180, contentWidth * 0.32)
+            let detailWidth = max(0, contentWidth - selectorWidth - 12)
             VStack(spacing: 12) {
                 Picker("card.edit.mode", selection: $mode) {
                     Label("card.information", systemImage: "info.circle").tag(EditingMode.information)
                     Label("card.style", systemImage: "slider.horizontal.3").tag(EditingMode.style)
                 }
                 .pickerStyle(.segmented)
-                HStack(alignment: .top, spacing: 16) {
+                HStack(alignment: .top, spacing: 12) {
                     ZStack {
-                        if mode == .information {
+                        if geometry.size.height < 300 || dynamicTypeSize.isAccessibilitySize {
+                            Menu {
+                                if mode == .information {
+                                    Picker("card.information", selection: $field) {
+                                        ForEach(CardField.allCases) { Text(LocalizedStringKey($0.titleKey)).tag($0) }
+                                    }
+                                } else {
+                                    Picker("card.style", selection: $adjustment) {
+                                        ForEach(CardAdjustment.allCases) { Text($0.title).tag($0) }
+                                    }
+                                }
+                                Button("card.restore.current", systemImage: "arrow.counterclockwise") {
+                                    if mode == .information { document.card[field] = document.defaultCard[field] }
+                                    else { document.card.style[keyPath: adjustment.keyPath] = PhotoCardStyle()[keyPath: adjustment.keyPath] }
+                                }
+                                Button("card.restore.all", systemImage: "arrow.counterclockwise.circle") {
+                                    if mode == .information {
+                                        for item in CardField.allCases { document.card[item] = document.defaultCard[item] }
+                                    } else { document.card.style = PhotoCardStyle() }
+                                }
+                            } label: {
+                                Label(mode == .information ? LocalizedStringKey(field.titleKey) : adjustment.title,
+                                      systemImage: "chevron.up.chevron.down")
+                            }
+                            .frame(minHeight: 44)
+                        } else if mode == .information {
                             EditorItemPicker(items: CardField.allCases, selection: $field) {
                                 $0 == .focalLength ? "card.field.focalLength.short" : LocalizedStringKey($0.titleKey)
                             }
@@ -93,7 +115,7 @@ struct CardAdjustmentPanel: View {
                 .frame(width: contentWidth)
                 .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 20)
             .padding(.bottom, 8)
             .background(alignment: .topTrailing) {
                 PhotoAmbientBackdrop(sourceURL: document.sourceURL)
@@ -133,25 +155,14 @@ private struct MobileCardInspector: View {
     var body: some View {
         GeometryReader { geometry in
             let height = geometry.size.height
-            let buttonHeight: CGFloat = dynamicTypeSize.isAccessibilitySize ? 64 : 48
-            let controlHeight = min(dynamicTypeSize.isAccessibilitySize ? 100 : 76, max(68, height * 0.20))
-            let descriptionHeight = min(dynamicTypeSize.isAccessibilitySize ? 130 : 76,
-                                        max(52, height * (dynamicTypeSize.isAccessibilitySize ? 0.3 : 0.19)))
-            let contentHeight = geometry.size.width + controlHeight + descriptionHeight + buttonHeight + 24
-            let compact = height < contentHeight
-
-            Group {
-                if compact {
-                    ScrollView {
-                        inspectorContents(controlHeight: controlHeight, descriptionHeight: descriptionHeight,
-                                          buttonHeight: buttonHeight, compact: true)
-                    }
-                    .scrollBounceBehavior(.basedOnSize)
-                } else {
-                    inspectorContents(controlHeight: controlHeight, descriptionHeight: descriptionHeight,
-                                      buttonHeight: buttonHeight, compact: false)
-                }
-            }
+            let compact = height < 240 || dynamicTypeSize.isAccessibilitySize
+            let buttonHeight: CGFloat = compact ? 0 : 44
+            let controlHeight: CGFloat = min(dynamicTypeSize.isAccessibilitySize ? 88 : 64, max(44, height - 24))
+            let descriptionHeight: CGFloat = compact ? 0 : 34
+            let previewHeight = max(0, min(geometry.size.width / CardDetailPreview.referenceAspect,
+                height - controlHeight - descriptionHeight - buttonHeight - 24))
+            inspectorContents(controlHeight: controlHeight, descriptionHeight: descriptionHeight,
+                              buttonHeight: buttonHeight, previewHeight: previewHeight, compact: compact)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .onChange(of: selectionID) { _, _ in editingText = false; textEditingActive = false }
@@ -169,18 +180,20 @@ private struct MobileCardInspector: View {
     }
 
     private func inspectorContents(controlHeight: CGFloat, descriptionHeight: CGFloat,
-                                   buttonHeight: CGFloat, compact: Bool) -> some View {
+                                   buttonHeight: CGFloat, previewHeight: CGFloat, compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             CardDetailPreview(document: document, processing: textEditingActive,
                               highlightedField: information ? field : nil,
                               highlightedStyle: information ? nil : adjustment)
+                .frame(height: previewHeight)
+                .clipped()
 
             ZStack(alignment: .leading) {
                 if information {
                     TextField("", text: $document.card[field], axis: .vertical)
                         .textFieldStyle(.plain)
-                        .lineLimit(2...3)
-                        .foregroundStyle(.tint)
+                        .lineLimit(1...2)
+                        .foregroundStyle(.primary)
                         .padding(10)
                         .frame(height: controlHeight - 8, alignment: .top)
                         .glassEffect(.clear.interactive(), in: .rect(cornerRadius: 12))
@@ -207,16 +220,15 @@ private struct MobileCardInspector: View {
             .frame(height: controlHeight)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
 
-            if !compact { Spacer(minLength: 0) }
-
             Text(LocalizedStringKey(information
                  ? "card.field." + field.rawValue + ".hint"
                  : "card.style." + adjustment.rawValue + ".hint"))
-                .font(.subheadline)
+                .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(compact ? nil : 4)
+                .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: compact ? nil : descriptionHeight, alignment: .topLeading)
+                .frame(height: descriptionHeight, alignment: .topLeading)
+                .clipped()
                 .id(selectionID)
                 .transition(.opacity)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
@@ -228,6 +240,8 @@ private struct MobileCardInspector: View {
                               height: buttonHeight, action: restoreAll)
             }
             .frame(height: buttonHeight)
+            .clipped()
+            .accessibilityHidden(compact)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }

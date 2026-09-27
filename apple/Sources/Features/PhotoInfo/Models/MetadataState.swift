@@ -7,8 +7,10 @@ import Observation
 /// mark the document per style generation so an already-injected layer is never
 /// injected twice in-session.
 @MainActor @Observable final class MetadataState {
-    var injectStandard = true
+    var injectStandard = false
     var includeTexture = false
+    var options = CardSaveOptions(keepLocation: true)
+    var hasMetadataChanges: Bool { !options.keepExif || !options.keepLocation || !options.keepCaptureTime }
     var busy = false
     var errorMessage: String?
     var saved = false
@@ -16,12 +18,18 @@ import Observation
     private(set) var report: MediaMetadataReport?
 
     private var requestedID: UUID?
+    private struct Draft {
+        let standard: Bool
+        let texture: Bool
+        let options: CardSaveOptions
+        var hasChanges: Bool { standard || texture || !options.keepExif || !options.keepLocation || !options.keepCaptureTime }
+    }
+    private var drafts: [UUID: Draft] = [:]
     private var refreshRevision: UInt64 = 0
     private var fileCoverage: (photographic: Bool, texture: Bool) = (photographic: false, texture: false)
     private var fileCoverageID: UUID?
     private var injectedPhotographic = Set<UUID>()
     private var injectedTexture = Set<UUID>()
-    private var updatedSources: [UUID: URL] = [:]
 
     private static let supportedKinds: [PhotoMediaKind] = [.stillHEIC, .heicWithAuxiliaryData, .stillJPEG, .ultraHDRJPEG, .stillPNG]
 
@@ -45,7 +53,11 @@ import Observation
 
     /// True when the save would write at least one missing styles layer.
     func hasPendingAdd(_ document: CardDocument) -> Bool {
-        (canAddPhotographic(document) && injectStandard) || (canAddTexture(document) && includeTexture)
+        hasMetadataChanges || (canAddPhotographic(document) && injectStandard) || (canAddTexture(document) && includeTexture)
+    }
+
+    func hasChanges(for document: CardDocument) -> Bool {
+        requestedID == document.id ? hasPendingAdd(document) : drafts[document.id]?.hasChanges == true
     }
 
     func unavailableReason(_ document: CardDocument) -> LocalizedStringKey {
@@ -59,8 +71,14 @@ import Observation
     func refresh(document: CardDocument?) {
         refreshRevision &+= 1
         let revision = refreshRevision
+        if requestedID != document?.id {
+            if let requestedID { drafts[requestedID] = Draft(standard: injectStandard, texture: includeTexture, options: options) }
+            let draft = document.flatMap { drafts[$0.id] }
+            options = draft?.options ?? CardSaveOptions(keepLocation: true)
+            injectStandard = draft?.standard ?? false
+            includeTexture = draft?.texture ?? false
+        }
         requestedID = document?.id
-        includeTexture = false
         report = nil
         fileCoverage = (photographic: false, texture: false)
         fileCoverageID = nil
@@ -68,7 +86,7 @@ import Observation
             return
         }
         let id = document.id
-        let url = updatedSources[id] ?? document.sourceURL
+        let url = document.sourceURL
         let live = document.isLive
         Task {
             let loaded = await Task.detached(priority: .userInitiated) {
@@ -86,32 +104,40 @@ import Observation
         guard !busy, supportsInjection(document) else { return }
         let addPhotographic = canAddPhotographic(document) && injectStandard
         let addTexture = canAddTexture(document) && includeTexture
-        guard addPhotographic || addTexture else { return }
+        guard addPhotographic || addTexture || hasMetadataChanges else { return }
         busy = true
         saved = false
         defer { busy = false }
+        let fileExtension = addPhotographic || addTexture ? "heic" : document.sourceURL.pathExtension
         let output = document.sourceURL.deletingLastPathComponent()
-            .appendingPathComponent("Fuyao-\(UUID().uuidString).heic")
-        let source = updatedSources[document.id] ?? document.sourceURL
+            .appendingPathComponent("Fuyao-\(UUID().uuidString).\(fileExtension)")
+        let source = document.sourceURL
         let kind = document.metadata.kind
         let hdr = document.metadata.hdr
         let name = document.originalName
+        let options = options
+        let cleaning = hasMetadataChanges
         do {
             try await Task.detached(priority: .userInitiated) {
-                try StyleInjection.inject(source: source, kind: kind, hdr: hdr,
-                                          addPhotographic: addPhotographic, addTexture: addTexture,
-                                          grainSeedName: name, destination: output)
+                if addPhotographic || addTexture {
+                    try StyleInjection.inject(source: source, kind: kind, hdr: hdr,
+                                              addPhotographic: addPhotographic, addTexture: addTexture,
+                                              grainSeedName: name, destination: output)
+                    if cleaning {
+                        let cleaned = output.deletingLastPathComponent().appendingPathComponent(UUID().uuidString + ".heic")
+                        defer { try? FileManager.default.removeItem(at: cleaned) }
+                        try MetadataImageWriter.write(output, to: cleaned, options: options)
+                        _ = try FileManager.default.replaceItemAt(output, withItemAt: cleaned)
+                    }
+                } else { try MetadataImageWriter.write(source, to: output, options: options) }
             }.value
+            let metadata = try await CardImageProcessor.shared.read(output, author: "")
             try await MetadataPhotoLibrary.save(photo: output, document: document,
                                                 updateOriginal: updateOriginal,
-                                                textureStyles: addTexture)
+                                                textureStyles: addTexture, options: options)
             if updateOriginal {
-                // Keep the committed bytes in this document's private working directory so
-                // a later style addition starts from the updated photo, not its old import.
-                if let previous = updatedSources[document.id] {
-                    try? FileManager.default.removeItem(at: previous)
-                }
-                updatedSources[document.id] = output
+                document.applyMetadataUpdate(source: output, metadata: metadata)
+                try? FileManager.default.removeItem(at: source)
                 if addPhotographic { injectedPhotographic.insert(document.id) }
                 if addTexture { injectedTexture.insert(document.id) }
             } else {
@@ -119,7 +145,13 @@ import Observation
             }
             savedToOriginal = updateOriginal
             saved = true
-            refresh(document: document)
+            drafts[document.id] = nil
+            if requestedID == document.id {
+                self.options = CardSaveOptions(keepLocation: true)
+                injectStandard = false
+                includeTexture = false
+                refresh(document: document)
+            }
         } catch {
             try? FileManager.default.removeItem(at: output)
             errorMessage = Self.message(for: error)

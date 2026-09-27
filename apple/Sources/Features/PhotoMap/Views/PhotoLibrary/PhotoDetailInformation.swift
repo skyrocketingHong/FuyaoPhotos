@@ -8,6 +8,7 @@ struct PhotoDetailInformation: View {
     let coordinate: CLLocationCoordinate2D?
     @State private var details: PhotoTechnicalDetails?
     @State private var report: MediaMetadataReport?
+    @State private var loadedURL: URL?
 
     var body: some View {
         let groups = PhotoInformationFacts.grouped(asset: asset, metadata: document?.metadata,
@@ -19,25 +20,25 @@ struct PhotoDetailInformation: View {
                                         monospacedDigits: row.numeric)
                 }
             } header: {
-                Text("photo.info.group.\(section.group.rawValue)")
-                    .font(.title3)
-                    .bold()
+                Text(LocalizedStringKey("photo.info.group." + section.group.rawValue))
                     .textCase(nil)
             }
         }
-        MediaMetadataReportSection(report: report, prominentHeaders: true)
+        MediaMetadataReportSection(report: report, showsDescriptions: true)
         .task(id: document?.sourceURL) {
-            details = nil
-            report = nil
             guard let url = document?.sourceURL else { return }
+            // List can recreate its offscreen sections. Keep the completed read so
+            // scrolling does not remove rows and reset the list's content offset.
+            guard loadedURL != url else { return }
             let loaded = await PhotoTechnicalDetailsReader.shared.read(url)
             guard !Task.isCancelled else { return }
-            details = loaded
             let isLive = asset?.mediaSubtypes.contains(.photoLive) ?? document?.isLive ?? false
             let loadedReport = await Task.detached(priority: .userInitiated) {
                 MediaMetadataReportReader.read(url: url, isLivePhoto: isLive)
             }.value
             guard !Task.isCancelled else { return }
+            loadedURL = url
+            details = loaded
             report = loadedReport
         }
     }

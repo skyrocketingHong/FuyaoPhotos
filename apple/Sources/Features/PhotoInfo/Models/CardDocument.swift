@@ -4,11 +4,11 @@ import CoreLocation
 
 @MainActor @Observable final class CardDocument: Identifiable {
     let id = UUID()
-    let sourceURL: URL
+    private(set) var sourceURL: URL
     let sourceMovieURL: URL?
     let originalName: String
     let assetIdentifier: String?
-    let metadata: CardPhotoMetadata
+    private(set) var metadata: CardPhotoMetadata
     private(set) var defaultCard: PhotoCard
     private let workingDirectory: PhotoWorkingDirectory
     var isLive: Bool { sourceMovieURL != nil }
@@ -20,6 +20,7 @@ import CoreLocation
     private(set) var locationRevision: UInt64 = 0
     var savedCard: PhotoCard?
     var exportURL: URL?
+    var exportIsMotionPhoto = false
     var location: CLLocation? {
         guard let lat = metadata.latitude, let lon = metadata.longitude else { return nil }
         return CLLocation(latitude: lat, longitude: lon)
@@ -37,5 +38,12 @@ import CoreLocation
         guard !value.isEmpty else { return }
         defaultCard[.location] = value
         card[.location] = value
+    }
+
+    func applyMetadataUpdate(source: URL, metadata: CardPhotoMetadata) {
+        sourceURL = source
+        self.metadata = metadata
+        defaultCard = metadata.card
+        locationRevision &+= 1
     }
 }

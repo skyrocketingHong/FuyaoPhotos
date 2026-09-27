@@ -14,7 +14,10 @@ struct HDRRegressionTests {
         try context.writeHEIF10Representation(of: image, to: url,
             colorSpace: CGColorSpace(name: CGColorSpace.itur_2100_PQ)!, options: [:])
         let result = try await CardImageProcessor.shared.preview(url, card: PhotoCard(), hdr: false)
-        let reference = try #require(CIImage(contentsOf: url, options: [.toneMapHDRtoSDR: true]))
+        let source = try #require(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let native = try #require(CGImageSourceCreateImageAtIndex(source, 0,
+            [kCGImageSourceDecodeRequest: kCGImageSourceDecodeToSDR] as CFDictionary))
+        let reference = CIImage(cgImage: native)
         func pixel(_ image: CIImage) -> [UInt8] {
             var bytes = [UInt8](repeating: 0, count: 4)
             bytes.withUnsafeMutableBytes {

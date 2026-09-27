@@ -6,7 +6,6 @@ struct CardDetailPreview: View {
     var highlightedField: CardField?
     var highlightedStyle: CardAdjustment?
 
-    /// The crop region always keeps the reference card ratio, so the preview box never jumps between photos.
     static let referenceAspect: CGFloat = 215.0 / 168.0
 
     @State private var render: CardDetailRender?
@@ -16,12 +15,7 @@ struct CardDetailPreview: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var key: CardDetailPreviewKey {
-        CardDetailPreviewKey(documentID: document.id, card: document.card, retry: retry)
-    }
-
-    private var previewAspect: CGFloat {
-        guard let render, render.image.height > 0 else { return Self.referenceAspect }
-        return CGFloat(render.image.width) / CGFloat(render.image.height)
+        CardDetailPreviewKey(documentID: document.id, sourceURL: document.sourceURL, card: document.card, retry: retry)
     }
 
     var body: some View {
@@ -31,11 +25,20 @@ struct CardDetailPreview: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if let render {
-                ZStack {
-                    Image(decorative: render.image, scale: 1, orientation: .up)
-                        .resizable()
-                        .scaledToFit()
-                    CardSelectionHighlight(render: render, field: highlightedField, style: highlightedStyle)
+                GeometryReader { geometry in
+                    let scale = geometry.size.width / CGFloat(render.image.width)
+                    let imageHeight = CGFloat(render.image.height) * scale
+                    let focus = highlightedField.flatMap { render.textRects[$0]?.first?.midY }
+                        ?? CGFloat(render.image.height) / 2
+                    let offset = min(0, max(geometry.size.height - imageHeight,
+                                           geometry.size.height / 2 - focus * scale))
+                    ZStack {
+                        Image(decorative: render.image, scale: 1, orientation: .up)
+                            .resizable()
+                        CardSelectionHighlight(render: render, field: highlightedField, style: highlightedStyle)
+                    }
+                    .frame(width: geometry.size.width, height: imageHeight)
+                    .offset(y: offset)
                 }
                 .modifier(ProcessingVeil(active: processing || loading, pulse: loading && !processing))
             } else if let error {
@@ -50,7 +53,7 @@ struct CardDetailPreview: View {
                         .controlSize(.small)
                 }
                 .padding(12)
-            } else if loading {
+            } else {
                 VStack(spacing: 6) {
                     Image(systemName: "rectangle.on.rectangle")
                         .font(.title3)
@@ -59,8 +62,10 @@ struct CardDetailPreview: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity)
-        .aspectRatio(previewAspect, contentMode: .fit)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            if render == nil { Rectangle().fill(.fill.quaternary) }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("card.preview"))
@@ -121,8 +126,7 @@ private struct CardSelectionHighlight: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let scale = min((geometry.size.width - 12) / CGFloat(render.image.width),
-                            (geometry.size.height - 12) / CGFloat(render.image.height))
+            let scale = geometry.size.width / CGFloat(render.image.width)
             let origin = CGPoint(x: (geometry.size.width - CGFloat(render.image.width) * scale) / 2,
                                  y: (geometry.size.height - CGFloat(render.image.height) * scale) / 2)
             ZStack {
@@ -154,6 +158,7 @@ private struct HighlightBoxShape: Shape {
 
 private struct CardDetailPreviewKey: Equatable {
     let documentID: UUID
+    let sourceURL: URL
     let card: PhotoCard
     let retry: Int
 }

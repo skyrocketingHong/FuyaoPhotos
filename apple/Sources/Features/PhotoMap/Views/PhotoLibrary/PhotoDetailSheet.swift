@@ -58,21 +58,19 @@ struct PhotoDetailContent: View {
         if !compactLayout {
             HSplitView {
                 VStack(alignment: .leading, spacing: 12) {
-                    preview
-                        .aspectRatio(4 / 3, contentMode: .fit)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if let document {
+                        OriginalPhotoSummary(document: document)
+                    } else {
+                        preview.aspectRatio(4 / 3, contentMode: .fit)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
 
                     HStack(alignment: .center, spacing: 12) {
-                        if let document {
-                            PhotoInformationHeading(name: document.originalName,
-                                                    fileExtension: document.sourceURL.pathExtension,
-                                                    fileSize: document.metadata.fileSize)
-                        }
                         Spacer(minLength: 8)
                         photoActions
                     }
                 }
-                .padding(16)
+                .padding(20)
                 .frame(minWidth: 360)
 
                 List {
@@ -92,16 +90,15 @@ struct PhotoDetailContent: View {
     private var compactContent: some View {
         List {
             Section {
-                preview
-                    .aspectRatio(4 / 3, contentMode: .fit)
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
                 if let document {
-                    PhotoInformationHeading(name: document.originalName,
-                                            fileExtension: document.sourceURL.pathExtension,
-                                            fileSize: document.metadata.fileSize)
+                    OriginalPhotoSummary(document: document)
+                        .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
+                        .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
+                } else {
+                    preview.aspectRatio(4 / 3, contentMode: .fit)
+                        .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
+                        .listRowSeparator(.hidden).listRowBackground(Color.clear)
                 }
                 photoActions
                     .listRowSeparator(.hidden)
@@ -109,6 +106,7 @@ struct PhotoDetailContent: View {
             PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
         }
         .listStyle(.plain)
+        .scrollEdgeEffectStyle(.soft, for: .top)
     }
 
     @ViewBuilder private var preview: some View {

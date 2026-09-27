@@ -25,6 +25,8 @@ import os
 
     func openAssets(_ identifiers: [String]) async { await open(identifiers.map(CardImportSource.asset)) }
 
+    func openFiles(_ urls: [URL]) async { await open(urls.map(CardImportSource.file)) }
+
     private func open(_ items: [CardImportSource]) async {
         guard !busy, !items.isEmpty else { return }
         busy = true; total = min(Self.selectionLimit, items.count); progress = 0; savedCount = nil
@@ -43,6 +45,14 @@ import os
                     case .asset(let identifier):
                         guard let asset = CardPhotoLibrary.asset(identifier) else { throw CardError.permission }
                         resources = try await PhotoSourceLoader.load(asset, into: folder)
+                    case .file(let url):
+                        let access = url.startAccessingSecurityScopedResource()
+                        defer { if access { url.stopAccessingSecurityScopedResource() } }
+                        let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                        guard size > 0, size <= 512 * 1024 * 1024 else { throw CardError.tooLarge }
+                        let target = folder.appendingPathComponent("original").appendingPathExtension(url.pathExtension)
+                        try FileManager.default.copyItem(at: url, to: target)
+                        resources = PhotoSourceResources(image: target, movie: nil, originalName: url.lastPathComponent, assetIdentifier: nil)
                     }
                     let metadata = try await CardImageProcessor.shared.read(resources.image, author: CardPreferences.shared.author,
                                                                             profiles: LensProfileStore.shared.profiles)
@@ -128,12 +138,27 @@ import os
                     movie = target
                 }
                 stage = .librarySave
-                try await CardPhotoLibrary.save(photo: output, movie: movie, document: document, options: options)
+                var savedPhoto = output
+                if options.exportsMotionPhoto, let movie {
+                    let mp4 = output.deletingPathExtension().appendingPathExtension("mp4")
+                    let motion = output.deletingLastPathComponent().appendingPathComponent("Motion-\(UUID().uuidString).jpg")
+                    produced.append(contentsOf: [mp4, motion])
+                    let timestamp = try await LivePhotoMotionMovie.write(movie, to: mp4)
+                    try await Task.detached(priority: .userInitiated) {
+                        try MotionPhotoJPEG.assemble(jpeg: output, movie: mp4, timestampMicroseconds: timestamp, destination: motion)
+                    }.value
+                    savedPhoto = motion
+                }
+                try await CardPhotoLibrary.save(photo: savedPhoto, movie: options.exportsMotionPhoto ? nil : movie, document: document, options: options)
                 if let previous = document.exportURL {
                     try? FileManager.default.removeItem(at: previous)
                     try? FileManager.default.removeItem(at: previous.deletingPathExtension().appendingPathExtension("mov"))
                 }
-                document.exportURL = output
+                document.exportURL = savedPhoto
+                document.exportIsMotionPhoto = options.exportsMotionPhoto && document.isLive
+                for url in produced where url != savedPhoto && (options.exportsMotionPhoto || url != movie) {
+                    try? FileManager.default.removeItem(at: url)
+                }
                 document.savedCard = document.card
                 completed = true
                 saved += 1
@@ -180,4 +205,5 @@ import os
 private enum CardImportSource {
     case picker(PHPickerResult)
     case asset(String)
+    case file(URL)
 }

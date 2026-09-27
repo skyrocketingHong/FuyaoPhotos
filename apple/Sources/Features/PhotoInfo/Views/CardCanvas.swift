@@ -26,8 +26,7 @@ struct CardCanvas: View {
                             CardFilmstrip(session: session, preview: preview,
                                           processing: textEditingActive || preview.isRendering)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .padding(.horizontal, 8)
-                                .shadow(color: .black.opacity(0.42), radius: 4, y: 2)
+                                .padding(.horizontal, 20)
                             actionStrip(document: document)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -40,14 +39,13 @@ struct CardCanvas: View {
                             .frame(width: sidebarWidth)
                     }
                 } else {
-                    let photoHeight = min(geometry.size.width * 0.75,
+                    let photoHeight = min((geometry.size.width - 40) * 0.75,
                                           max(72, min(geometry.size.height * 0.43, geometry.size.height - 290)))
                     VStack(spacing: 8) {
                         CardFilmstrip(session: session, preview: preview,
                                       processing: textEditingActive || preview.isRendering)
                             .frame(height: photoHeight)
-                            .padding(.horizontal, 8)
-                            .shadow(color: .black.opacity(0.42), radius: 4, y: 2)
+                            .padding(.horizontal, 20)
                         actionStrip(document: document)
                         CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
                             .frame(maxHeight: .infinity)
@@ -74,6 +72,7 @@ struct CardCanvas: View {
                         open: open, save: save, close: close,
                         confirmReplace: confirmReplace, confirmClose: confirmClose,
                         saved: session.savedCount != nil && session.errorMessage == nil)
+            .padding(.horizontal, 20)
     }
 }
 
@@ -83,7 +82,6 @@ private struct CardActionStrip: View {
     let photoCount: Int
     @Binding var replaceConfirmation: Bool
     @Binding var closeConfirmation: Bool
-    @State private var showingPhotoInfo = false
     let open: () -> Void
     let save: () -> Void
     let close: () -> Void
@@ -104,20 +102,17 @@ private struct CardActionStrip: View {
             .frame(maxHeight: .infinity, alignment: .center)
         }
         .frame(height: 64)
-        .sheet(isPresented: $showingPhotoInfo) {
-            PhotoInformationSheet(document: document)
-        }
     }
 
     private enum Tool: Hashable {
-        case live, hdr, compare, full, open, info, save, more
+        case live, hdr, compare, full, open, save, more
     }
 
     private var optionalTools: [Tool] {
         var tools: [Tool] = [.open]
         if document.isLive { tools.append(.live) }
         if document.metadata.hdr { tools.append(.hdr) }
-        tools.append(contentsOf: [.info, .compare, .full])
+        tools.append(contentsOf: [.compare, .full])
         return tools
     }
 
@@ -134,7 +129,7 @@ private struct CardActionStrip: View {
     }
 
     private func visibleTools(for width: CGFloat) -> [Tool] {
-        let slots = min(7, max(2, Int((max(0, width - 32)) / 64)))
+        let slots = min(7, max(2, Int(max(0, width) / 56)))
         return Array(optionalTools.prefix(slots - 2)) + [.save, .more]
     }
 
@@ -194,8 +189,6 @@ private struct CardActionStrip: View {
                     Button("card.replace", role: .destructive, action: confirmReplace)
                     Button("card.cancel", role: .cancel) { }
                 }
-        case .info:
-            CircularIconButton("photo.info.open", systemImage: "info.circle") { showingPhotoInfo = true }
         case .save:
             CircularIconButton(photoCount == 1 ? "card.save.action.one" : "card.save.action.many",
                                systemImage: saved ? "checkmark.circle.fill" : "square.and.arrow.down", action: save)
@@ -215,7 +208,7 @@ private struct CardActionStrip: View {
     private func moreMenu(for width: CGFloat) -> some View {
         Menu {
             ForEach(overflowTools(for: width), id: \.self) { menuAction(for: $0) }
-            if let url = document.exportURL, !document.isLive {
+            if let url = document.exportURL, !document.isLive || document.exportIsMotionPhoto {
                 ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
             }
             Button("card.style.reset", systemImage: "arrow.counterclockwise") {
@@ -252,8 +245,6 @@ private struct CardActionStrip: View {
             }
         case .open:
             Button("card.open", systemImage: "photo.badge.plus", action: open)
-        case .info:
-            Button("photo.info.open", systemImage: "info.circle") { showingPhotoInfo = true }
         case .save, .more:
             EmptyView()
         }
@@ -272,7 +263,6 @@ private struct CardFilmstrip: View {
                     .modifier(ProcessingVeil(active: processing, pulse: preview.isRendering))
                     .aspectRatio(CGFloat(document.metadata.width)/CGFloat(document.metadata.height),contentMode:.fit)
                     .frame(maxWidth:.infinity,maxHeight:.infinity)
-                    .shadow(color:.black.opacity(0.5),radius:8,y:3)
             }
 #else
             TabView(selection:$session.selectedID) {

@@ -13,7 +13,6 @@ struct ContentView: View {
 #if !os(macOS)
                     .toolbarBackground(.hidden, for: .tabBar)
 #endif
-                    .modifier(TabContentEntrance(active: workspace.selectedTab == .map))
             }
             Tab("tab.cards", systemImage: "photo.badge.plus", value: PhotoWorkspace.Tab.cards) {
                 PhotoCardScreen(session: workspace.cards)
@@ -21,14 +20,15 @@ struct ContentView: View {
                     .toolbarBackground(.visible, for: .tabBar)
                     .toolbarColorScheme(darkroomCards ? .dark : nil, for: .tabBar)
 #endif
-                    .modifier(TabContentEntrance(active: workspace.selectedTab == .cards))
             }
             Tab("tab.metadata", systemImage: "info.circle", value: PhotoWorkspace.Tab.metadata) {
-                MetadataScreen(session: workspace.cards)
+                MetadataScreen(state: workspace.metadataEdits)
 #if !os(macOS)
                     .toolbarBackground(.visible, for: .tabBar)
 #endif
-                    .modifier(TabContentEntrance(active: workspace.selectedTab == .metadata))
+            }
+            Tab("tab.colors", systemImage: "eyedropper.halffull", value: PhotoWorkspace.Tab.colors) {
+                ColorsScreen()
             }
 #if !os(macOS)
             if #available(iOS 27, *) {
@@ -43,30 +43,11 @@ struct ContentView: View {
 #endif
         }
         .tabViewStyle(.tabBarOnly)
-        .tint(workspace.selectedTab == .cards ? PhotoPreviewTheme.accent(in: darkroomCards ? .dark : colorScheme) : .accentColor)
+        .tint(PhotoPreviewTheme.accent(in: darkroomCards && workspace.selectedTab == .cards ? .dark : colorScheme))
 #if os(macOS)
         .frame(minWidth: 760, minHeight: 560)
 #endif
         .environment(workspace)
-    }
-}
-
-private struct TabContentEntrance: ViewModifier {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var visible = false
-    let active: Bool
-
-    func body(content: Content) -> some View {
-        ZStack {
-            content.opacity(visible ? 1 : 0)
-        }
-        .onChange(of: active, initial: true) { _, isActive in
-            if reduceMotion {
-                visible = isActive
-            } else {
-                withAnimation(.easeOut(duration: 0.2)) { visible = isActive }
-            }
-        }
     }
 }
 
@@ -133,6 +114,13 @@ struct PhotoMapScreen: View {
                         .frame(maxHeight: .infinity)
                         .background(.regularMaterial)
                 }
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                PhotoPageIntro(title: "tab.map", description: "map.intro.description", symbol: "map")
+                    .padding(20)
+                    .background(.background, in: .rect(cornerRadius: 20))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
 #if !os(macOS)
