@@ -11,21 +11,8 @@ nonisolated enum PhotoAuxiliaryData {
          kCGImageAuxiliaryDataTypeSemanticSegmentationGlassesMatte, kCGImageAuxiliaryDataTypeSemanticSegmentationSkyMatte]
     }
 
-    static func representation(source: CGImageSource, orientation: CGImagePropertyOrientation) throws -> [CIImageRepresentationOption: Any] {
-        var result: [CIImageRepresentationOption: Any] = [:]
-        var segmentation: [AVSemanticSegmentationMatte] = []
-        for type in types {
-            guard let info = CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, type) as? [AnyHashable: Any] else { continue }
-            if type == kCGImageAuxiliaryDataTypeDepth || type == kCGImageAuxiliaryDataTypeDisparity {
-                result[.avDepthData] = try AVDepthData(fromDictionaryRepresentation: info).applyingExifOrientation(orientation)
-            } else if type == kCGImageAuxiliaryDataTypePortraitEffectsMatte {
-                result[.avPortraitEffectsMatte] = try AVPortraitEffectsMatte(fromDictionaryRepresentation: info).applyingExifOrientation(orientation)
-            } else {
-                segmentation.append(try AVSemanticSegmentationMatte(fromImageSourceAuxiliaryDataType: type, dictionaryRepresentation: info).applyingExifOrientation(orientation))
-            }
-        }
-        if !segmentation.isEmpty { result[.avSemanticSegmentationMattes] = segmentation }
-        return result
+    static func hasAuxiliaryData(_ source: CGImageSource) -> Bool {
+        types.contains { CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, $0) != nil }
     }
 
     static func verify(source: CGImageSource, output: CGImageSource) throws {
@@ -59,8 +46,9 @@ nonisolated enum PhotoAuxiliaryData {
                 dictionary = try AVPortraitEffectsMatte(fromDictionaryRepresentation: info).applyingExifOrientation(orientation)
                     .dictionaryRepresentation(forAuxiliaryDataType: &writtenType)
             } else {
-                dictionary = try AVSemanticSegmentationMatte(fromImageSourceAuxiliaryDataType: type, dictionaryRepresentation: info)
-                    .applyingExifOrientation(orientation).dictionaryRepresentation(forAuxiliaryDataType: &writtenType)
+                // ImageIO supports sky mattes, but AVSemanticSegmentationMatte
+                // accepts only skin/hair/teeth/glasses. Never send sky to that API.
+                throw CardError.auxiliaryEncoding
             }
             guard let writtenType,let dictionary else { throw CardError.auxiliaryEncoding }
             CGImageDestinationAddAuxiliaryDataInfo(destination,writtenType as CFString,dictionary as CFDictionary)

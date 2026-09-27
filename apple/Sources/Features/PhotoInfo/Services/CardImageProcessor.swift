@@ -162,10 +162,9 @@ actor CardImageProcessor {
         let rendered = try CardRenderer.render(sdr, card: card).settingProperties(metadata)
         let qualityKey = CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String)
         let orientation = CGImagePropertyOrientation(rawValue: (properties[kCGImagePropertyOrientation as String] as? NSNumber)?.uint32Value ?? 1) ?? .up
-        // Some native matte dictionaries are readable by ImageIO but rejected by
-        // AVFoundation. The verified ImageIO fallback below preserves those planes.
-        var representation = (try? PhotoAuxiliaryData.representation(source: source, orientation: orientation)) ?? [:]
-        guard options.format != .png || (representation.isEmpty && !live && !hdr) else { throw CardError.hdrFormat }
+        let hasAuxiliaryData = PhotoAuxiliaryData.hasAuxiliaryData(source)
+        var representation: [CIImageRepresentationOption: Any] = [:]
+        guard options.format != .png || (!hasAuxiliaryData && !live && !hdr) else { throw CardError.hdrFormat }
         representation[qualityKey] = options.quality / 100
         if hdr {
             guard options.format != .png,
@@ -175,16 +174,22 @@ actor CardImageProcessor {
         }
         let colorSpace = CGColorSpace(name: CGColorSpace.displayP3)!
         do {
-            switch options.format {
-            case .jpeg: try context.writeJPEGRepresentation(of: rendered, to: destination, colorSpace: colorSpace, options: representation)
-            case .heic: try context.writeHEIFRepresentation(of: rendered, to: destination, format: .RGBA8, colorSpace: colorSpace, options: representation)
-            case .png: try context.writePNGRepresentation(of: rendered, to: destination, format: .RGBA8, colorSpace: colorSpace)
+            if hasAuxiliaryData {
+                try writeImageIO(hdr ? representation[.hdrImage] as? CIImage ?? rendered : rendered,
+                    metadata: metadata, source: source, orientation: orientation, options: options, hdr: hdr, to: destination)
+            } else {
+                switch options.format {
+                case .jpeg: try context.writeJPEGRepresentation(of: rendered, to: destination, colorSpace: colorSpace, options: representation)
+                case .heic: try context.writeHEIFRepresentation(of: rendered, to: destination, format: .RGBA8, colorSpace: colorSpace, options: representation)
+                case .png: try context.writePNGRepresentation(of: rendered, to: destination, format: .RGBA8, colorSpace: colorSpace)
+                }
             }
             try verifyImage(destination, width: Int(sdr.extent.width), height: Int(sdr.extent.height), hdr: hdr)
             try PhotoAuxiliaryData.verify(source: source, output: CGImageSourceCreateWithURL(destination as CFURL, nil)!)
         } catch {
             try? FileManager.default.removeItem(at: destination)
             if (error as NSError).code == NSFileWriteOutOfSpaceError { throw CardError.storageFull }
+            if hasAuxiliaryData { throw error }
             try writeImageIO(hdr ? representation[.hdrImage] as? CIImage ?? rendered : rendered,
                 metadata: metadata, source: source, orientation: orientation, options: options, hdr: hdr, to: destination)
         }
