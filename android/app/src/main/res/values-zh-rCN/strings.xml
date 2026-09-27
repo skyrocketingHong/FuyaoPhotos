@@ -392,6 +392,7 @@
   <string name="workspace_sharing_partial">部分共享</string>
   <string name="workspace_sharing_hint">共享页面使用同一组选中的照片，并同步当前照片。部分共享请选择至少两个页面，其余页面独立保留照片。</string>
   <string name="colors_title">色彩</string>
+  <string name="colors_auto_space">自动（%1$s）</string>
   <string name="colors_description">选取照片像素，查看色彩空间换算、CSS 颜色与 RAL 参考色。</string>
   <string name="colors_camera">拍照</string>
   <string name="colors_camera_failed">无法打开相机。请允许相机访问，或从相册选择照片。</string>

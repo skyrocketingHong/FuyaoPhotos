@@ -473,6 +473,7 @@
 "colors.sample.definition" = "Values describe decoded source pixels. The HDR switch changes display only. Gain-map images are sampled from their base image; native HDR pixel values remain extended.";
 "colors.magnifier" = "Pixel magnifier";
 "colors.space" = "Color Space";
+"colors.auto.value" = "Auto (%@)";
 "colors.copy" = "Copy Value";
 "colors.sample" = "Swatch";
 "colors.pixel" = "Select Pixel";

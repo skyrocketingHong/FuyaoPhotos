@@ -18,9 +18,8 @@ struct MetadataScreen: View {
                 if geometry.size.width >= 840, let document = session.current {
                     HStack(spacing: 0) {
                         Form {
-                            intro
-                            photoSelection
                             original(document)
+                            modeControls
                         }
                         .photoPageForm()
                         .frame(width: min(460, geometry.size.width * 0.44))
@@ -28,25 +27,16 @@ struct MetadataScreen: View {
                     }
                 } else {
                     Form {
-                        intro
-                        photoSelection
                         if let document = session.current {
                             original(document)
+                            modeControls
                             details(document)
                         } else {
-                            Section { Text("metadata.empty.description").foregroundStyle(.secondary) }
+                            intro
                         }
                     }
                     .photoPageForm()
                 }
-            }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                Picker("tab.metadata", selection: $mode) {
-                    Text("metadata.mode.view").tag(Mode.view)
-                    Text("metadata.mode.edit").tag(Mode.edit)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 20).padding(.vertical, 8)
             }
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)
@@ -103,21 +93,38 @@ struct MetadataScreen: View {
         Section {
             PhotoPageIntro(title: "metadata.intro.title", description: "metadata.intro.description", symbol: "info.circle")
             Button("card.open", systemImage: "photo.badge.plus") {
-                if workspace.hasPendingEdits(in: session) {
-                    confirmReplace = true
-                } else { showingPicker = true }
+                choosePhoto()
             }
         }
     }
 
-    @ViewBuilder private var photoSelection: some View {
-        if session.documents.count > 1 {
-            Section {
-                Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
-                    ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
+    private var modeControls: some View {
+        Section {
+            HStack {
+                Picker("tab.metadata", selection: $mode) {
+                    Text("metadata.mode.view").tag(Mode.view)
+                    Text("metadata.mode.edit").tag(Mode.edit)
                 }
+                .pickerStyle(.segmented)
+                Menu("card.open", systemImage: "photo.badge.plus") {
+                    Button("card.open", action: choosePhoto)
+                    if session.documents.count > 1 {
+                        Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
+                            ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
+                        }
+                    }
+                }
+                .labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
             }
         }
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
+
+    private func choosePhoto() {
+        if workspace.hasPendingEdits(in: session) { confirmReplace = true }
+        else { showingPicker = true }
     }
 
     private func original(_ document: CardDocument) -> some View {

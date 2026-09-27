@@ -116,11 +116,13 @@ struct PhotoMapScreen: View {
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                PhotoPageIntro(title: "tab.map", description: "map.intro.description", symbol: "map")
-                    .padding(20)
-                    .background(.background, in: .rect(cornerRadius: 20))
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
+                if session.phase == .loading {
+                    PhotoPageIntro(title: "tab.map", description: "map.intro.description", symbol: "map")
+                        .padding(20)
+                        .background(.background, in: .rect(cornerRadius: 20))
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                }
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
 #if !os(macOS)

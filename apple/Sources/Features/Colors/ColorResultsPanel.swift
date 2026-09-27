@@ -8,10 +8,11 @@ import UIKit
 struct ColorResultsPanel: View {
     let sample: PhotoColorSample
     let information: PhotoColorDescription?
-    @Binding var space: ColorResultSpace
+    @Binding var space: ColorResultSpace?
     @Binding var hdr: Bool
     let showInfo: () -> Void
     let movePixel: (Int, Int) -> Void
+    private var resolvedSpace: ColorResultSpace { space ?? .matchingProfile(information?.colorSpace ?? "") }
 
     var body: some View {
         Section {
@@ -35,19 +36,21 @@ struct ColorResultsPanel: View {
             }
             if information?.headroom ?? 1 > 1 { Toggle("HDR", isOn: $hdr).tint(.green) }
             Picker("colors.space", selection: $space) {
-                ForEach(ColorResultSpace.allCases) { Text($0.rawValue).tag($0) }
+                Text(String(format: String.localized("colors.auto.value"), ColorResultSpace.matchingProfile(information?.colorSpace ?? "").rawValue))
+                    .tag(nil as ColorResultSpace?)
+                ForEach(ColorResultSpace.allCases) { Text($0.rawValue).tag(Optional($0)) }
             }
             .pickerStyle(.menu)
         }
         Section {
             LabeledContent("colors.sample") {
-                let rgb = (space == .css ? sample.color.cssReference?.rgb : space == .ral ? sample.color.ralReference?.rgb : nil) ?? sample.color.srgb
+                let rgb = (resolvedSpace == .css ? sample.color.cssReference?.rgb : resolvedSpace == .ral ? sample.color.ralReference?.rgb : nil) ?? sample.color.srgb
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color(.sRGB, red: rgb.clipped.x, green: rgb.clipped.y, blue: rgb.clipped.z, opacity: 1))
                     .frame(width: 64, height: 44)
                     .accessibilityLabel(Text(verbatim: rgb.hex))
             }
-            ForEach(sample.color.readouts(space)) { row in
+            ForEach(sample.color.readouts(resolvedSpace)) { row in
                 LabeledContent(row.label) {
                     Text(row.value).monospaced().textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
@@ -55,10 +58,10 @@ struct ColorResultsPanel: View {
                 }
             }
         } footer: {
-            if space == .ral { Text("colors.ral.note") }
-            else if space == .css { Text("colors.css.note") }
+            if resolvedSpace == .ral { Text("colors.ral.note") }
+            else if resolvedSpace == .css { Text("colors.css.note") }
             else if sample.color.srgb.outOfGamut { Text("colors.gamut.note") }
-            else if space == .sRGB { Text("colors.cmyk.note") }
+            else if resolvedSpace == .sRGB { Text("colors.cmyk.note") }
         }
         Section("colors.pixel") {
             Stepper("X: \(sample.color.x)", onIncrement: { movePixel(sample.color.x + 1, sample.color.y) },

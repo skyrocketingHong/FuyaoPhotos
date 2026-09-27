@@ -42,6 +42,7 @@ import ing.fuyaoskyrocket.photoinfo.features.colors.domain.model.PhotoColorInfo
 import ing.fuyaoskyrocket.photoinfo.features.colors.domain.model.SampledColor
 import ing.fuyaoskyrocket.photoinfo.features.colors.ui.theme.FuyaoDimensions
 import ing.fuyaoskyrocket.photoinfo.features.colors.ui.theme.FuyaoSpacing
+import ing.fuyaoskyrocket.photoinfo.features.colors.domain.color.SourceColorSpace
 
 /** Material 3 supporting panel for the magnifier, image controls, and color values. */
 @Composable
@@ -54,8 +55,10 @@ internal fun ColorResultPanel(
     onHdrDisplayEnabledChange: (Boolean) -> Unit,
     expandColorValues: Boolean = false,
     modifier: Modifier = Modifier,
+    sourceProfile: String? = photoColorInfo?.colorSpaceName,
 ) {
-    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(-1) }
+    val autoSpaceIndex = SourceColorSpace.fromProfile(sourceProfile).tabIndex
     val canToggleHdr = photoColorInfo?.hasHdrContent == true
     val hdrStateDescription = when {
         !canToggleHdr -> stringResource(R.string.cp_hdr_action_unavailable)
@@ -102,6 +105,7 @@ internal fun ColorResultPanel(
                 hdrDisplayEnabled = hdrDisplayEnabled,
                 hdrStateDescription = hdrStateDescription,
                 selectedTabIndex = selectedTabIndex,
+                autoSpaceIndex = autoSpaceIndex,
                 onTabSelected = { selectedTabIndex = it },
                 onShowPhotoInfo = onShowPhotoInfo,
                 onHdrDisplayEnabledChange = onHdrDisplayEnabledChange,
@@ -109,7 +113,7 @@ internal fun ColorResultPanel(
             )
             Spacer(modifier = Modifier.height(FuyaoSpacing.extraSmall))
             ColorValueContent(
-                selectedTabIndex = selectedTabIndex,
+                selectedTabIndex = if (selectedTabIndex < 0) autoSpaceIndex else selectedTabIndex,
                 sampledColor = sampledColor,
                 modifier = if (expandColorValues) Modifier.weight(1f) else Modifier,
             )
@@ -126,6 +130,7 @@ private fun ResultHeader(
     hdrDisplayEnabled: Boolean,
     hdrStateDescription: String,
     selectedTabIndex: Int,
+    autoSpaceIndex: Int,
     onTabSelected: (Int) -> Unit,
     onShowPhotoInfo: () -> Unit,
     onHdrDisplayEnabledChange: (Boolean) -> Unit,
@@ -171,6 +176,7 @@ private fun ResultHeader(
                 selectedTabIndex = selectedTabIndex,
                 onTabSelected = onTabSelected,
                 modifier = Modifier.fillMaxWidth(),
+                autoSpaceIndex = autoSpaceIndex,
             )
         }
     }

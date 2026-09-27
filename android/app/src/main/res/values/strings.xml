@@ -392,6 +392,7 @@
   <string name="workspace_sharing_partial">Choose pages</string>
   <string name="workspace_sharing_hint">Shared pages open the same photos and follow the selected photo. Choose at least two pages for partial sharing. Other pages keep their own photos.</string>
   <string name="colors_title">Colors</string>
+  <string name="colors_auto_space">Auto (%1$s)</string>
   <string name="colors_description">Sample photo pixels and compare color spaces, CSS colors and RAL references.</string>
   <string name="colors_camera">Camera</string>
   <string name="colors_camera_failed">Camera unavailable. Allow camera access or choose a photo from your library.</string>

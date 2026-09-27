@@ -107,7 +107,17 @@ struct CardSaveControls: View {
                         Slider(value: $options.quality, in: 0...100, step: 1)
                             .frame(minWidth: 80, maxWidth: 180)
                             .accessibilityLabel(Text("card.save.quality"))
-                        Text("\(Int(options.quality))%").monospacedDigit().foregroundStyle(.secondary)
+                        Text("100%")
+                            .monospacedDigit()
+                            .hidden()
+                            .overlay(alignment: .trailing) {
+                                Text("\(Int(options.quality))%")
+                                    .monospacedDigit().foregroundStyle(.secondary)
+                            }
+                            .fixedSize()
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(Text("card.save.quality"))
+                            .accessibilityValue(Text("\(Int(options.quality))%"))
                     }
                 }
             }

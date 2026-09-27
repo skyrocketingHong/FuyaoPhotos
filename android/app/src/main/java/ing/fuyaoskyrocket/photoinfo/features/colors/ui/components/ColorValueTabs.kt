@@ -37,9 +37,10 @@ internal fun ColorValueTabRow(
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    autoSpaceIndex: Int = 0,
 ) {
     val tabs = ColorValueTab.entries
-    val safeSelectedIndex = selectedTabIndex.coerceIn(tabs.indices)
+    val safeSelectedIndex = if (selectedTabIndex < 0) 0 else selectedTabIndex.coerceIn(tabs.indices) + 1
     SecondaryScrollableTabRow(
         selectedTabIndex = safeSelectedIndex,
         modifier = modifier.fillMaxWidth(),
@@ -49,9 +50,12 @@ internal fun ColorValueTabRow(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         },
     ) {
+        Tab(selected = selectedTabIndex < 0, onClick = { onTabSelected(-1) }, text = {
+            Text(stringResource(R.string.colors_auto_space, stringResource(tabs[autoSpaceIndex.coerceIn(tabs.indices)].labelResource)))
+        })
         tabs.forEachIndexed { index, tab ->
             Tab(
-                selected = safeSelectedIndex == index,
+                selected = selectedTabIndex == index,
                 onClick = { onTabSelected(index) },
                 text = {
                     Text(

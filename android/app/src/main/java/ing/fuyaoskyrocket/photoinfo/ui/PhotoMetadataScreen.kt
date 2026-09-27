@@ -13,11 +13,8 @@ import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.presentation.OriginalPhoto
 import ing.fuyaoskyrocket.photoinfo.presentation.PhotoPageItem
-import ing.fuyaoskyrocket.photoinfo.ui.components.OriginalPreviewState
-import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoInfoContent
-import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoInfoDisplay
-import ing.fuyaoskyrocket.photoinfo.ui.components.MetadataEditPanel
 import ing.fuyaoskyrocket.photoinfo.presentation.MetadataEditViewModel
+import ing.fuyaoskyrocket.photoinfo.ui.components.*
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -27,58 +24,67 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
     onSelectPhoto: (Int) -> Unit, onGallery: () -> Unit, onFiles: () -> Unit,
     edit: MetadataEditViewModel = viewModel()) {
     var editing by rememberSaveable { mutableStateOf(false) }
-    val overview: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.content)) {
-            FuyaoPageIntro(stringResource(R.string.photo_metadata_title),
-                stringResource(if (sharesCards) R.string.metadata_shared_description else R.string.photo_metadata_description), R.drawable.ic_info) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(onClick = onGallery, enabled = !busy) { Text(stringResource(R.string.from_gallery)) }
-                    OutlinedButton(onClick = onFiles, enabled = !busy) { Text(stringResource(R.string.from_file)) }
-                }
-            }
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                listOf(R.string.metadata_mode_view, R.string.metadata_mode_edit).forEachIndexed { index, title ->
-                    SegmentedButton(selected = editing == (index == 1), onClick = { editing = index == 1 },
-                        shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(stringResource(title)) }
-                }
-            }
+    var showOpen by remember { mutableStateOf(false) }
+    val modeControls: @Composable () -> Unit = {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (photos.size > 1) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { onSelectPhoto(photoIndex - 1) }, enabled = !busy && photoIndex > 0) {
+                IconButton({ onSelectPhoto(photoIndex - 1) }, enabled = !busy && photoIndex > 0) {
                     Icon(painterResource(R.drawable.ic_back), stringResource(R.string.previous_photo))
                 }
-                Text(stringResource(R.string.photo_position, photoIndex + 1, photos.size), Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium)
-                IconButton(onClick = { onSelectPhoto(photoIndex + 1) }, enabled = !busy && photoIndex < photos.lastIndex) {
+                Text(stringResource(R.string.photo_position, photoIndex + 1, photos.size), Modifier.weight(1f))
+                IconButton({ onSelectPhoto(photoIndex + 1) }, enabled = !busy && photoIndex < photos.lastIndex) {
                     Icon(painterResource(R.drawable.ic_chevron), stringResource(R.string.next_photo))
+                }
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
+                    listOf(R.string.metadata_mode_view, R.string.metadata_mode_edit).forEachIndexed { index, title ->
+                        SegmentedButton(selected = editing == (index == 1), onClick = { editing = index == 1 },
+                            shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(stringResource(title)) }
+                    }
+                }
+                Box {
+                    IconButton({ showOpen = true }, enabled = !busy) {
+                        Icon(painterResource(R.drawable.ic_photo_add), stringResource(R.string.from_gallery))
+                    }
+                    DropdownMenu(showOpen, { showOpen = false }) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.from_gallery)) }, onClick = { showOpen = false; onGallery() })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.from_file)) }, onClick = { showOpen = false; onFiles() })
+                    }
                 }
             }
         }
     }
     FuyaoScaffold("", showTopBar = false) { padding ->
-        val summary: @Composable (Modifier, PhotoInfoDisplay) -> Unit = { modifier, display ->
-            if (photo != null && editing) FuyaoPageColumn(modifier) {
-                overview()
-                MetadataEditPanel(photo, edit)
+        if (photo == null) {
+            FuyaoPageColumn(Modifier.fillMaxSize().padding(padding)) {
+                FuyaoPageIntro(stringResource(R.string.photo_metadata_title),
+                    stringResource(if (sharesCards) R.string.metadata_shared_description else R.string.photo_metadata_description), R.drawable.ic_info) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(onGallery, enabled = !busy) { Text(stringResource(R.string.from_gallery)) }
+                        OutlinedButton(onFiles, enabled = !busy) { Text(stringResource(R.string.from_file)) }
+                    }
+                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
             }
-            else if (photo != null) PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
-                display = display, header = overview)
-            else FuyaoPageColumn(modifier) {
-                overview()
-                if (busy) {
-                    CircularProgressIndicator(Modifier.size(28.dp).align(Alignment.CenterHorizontally))
-                    Text(stringResource(R.string.loading_photo), style = MaterialTheme.typography.bodyMedium)
-                } else Text(stringResource(R.string.photo_metadata_empty), Modifier.padding(horizontal = FuyaoSpacing.cardInset),
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+        } else {
+            FuyaoAdaptivePage(padding, contentUnderTopEdge = true,
+                single = { modifier ->
+                    PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
+                        display = if (editing) PhotoInfoDisplay.SUMMARY else PhotoInfoDisplay.ALL,
+                        afterSummary = {
+                            Column(verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.content)) {
+                                modeControls()
+                                if (editing) MetadataEditPanel(photo, edit)
+                            }
+                        })
+                },
+                leading = { modifier -> PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
+                    display = PhotoInfoDisplay.SUMMARY, afterSummary = modeControls) },
+                trailing = { modifier ->
+                    if (editing) FuyaoPageColumn(modifier) { MetadataEditPanel(photo, edit) }
+                    else PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier, display = PhotoInfoDisplay.FACTS)
+                })
         }
-        FuyaoAdaptivePage(padding, contentUnderTopEdge = true,
-            single = { summary(it, PhotoInfoDisplay.ALL) },
-            leading = { summary(it, PhotoInfoDisplay.SUMMARY) },
-            trailing = { modifier ->
-                if (photo != null && editing) PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
-                    display = PhotoInfoDisplay.SUMMARY)
-                else if (photo != null) PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
-                    display = PhotoInfoDisplay.FACTS)
-            })
     }
 }

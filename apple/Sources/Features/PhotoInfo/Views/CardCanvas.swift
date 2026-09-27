@@ -265,7 +265,8 @@ private struct CardFilmstrip: View {
                     .frame(maxWidth:.infinity,maxHeight:.infinity)
             }
 #else
-            TabView(selection:$session.selectedID) {
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 0) {
                 ForEach(session.documents) { document in
                     Group {
                         if document.id==session.selectedID {
@@ -275,11 +276,19 @@ private struct CardFilmstrip: View {
                         } else { Color.clear }
                     }
                     .aspectRatio(CGFloat(document.metadata.width)/CGFloat(document.metadata.height),contentMode:.fit)
-                    .frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)
-                    .tag(Optional(document.id))
+                    .containerRelativeFrame(.horizontal)
+                    .frame(maxHeight: .infinity, alignment: .center)
+                    .id(document.id)
                 }
+                }
+                .frame(maxHeight: .infinity)
+                .scrollTargetLayout()
             }
-            .tabViewStyle(.page(indexDisplayMode:.never))
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: Binding(get: { session.selectedID }, set: { id in
+                if let id, session.documents.contains(where: { $0.id == id }) { session.selectedID = id }
+            }))
+            .scrollIndicators(.hidden)
             .modifier(ProcessingVeil(active: processing, pulse: preview.isRendering))
 #endif
             if session.documents.count>1 {

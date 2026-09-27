@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 struct ColorsScreen: View {
     @Environment(PhotoWorkspace.self) private var workspace
     @State private var sampling = ColorSamplingState()
-    @State private var space = ColorResultSpace.sRGB
+    @State private var space: ColorResultSpace?
     @State private var showingPicker = false
     @State private var showingFiles = false
     @State private var showingInfo = false
@@ -18,29 +18,26 @@ struct ColorsScreen: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                if geometry.size.width >= 840 {
+                if session.current == nil {
+                    Form { intro }.photoPageForm()
+                } else if geometry.size.width >= 800 || (geometry.size.width >= 700 && geometry.size.width > geometry.size.height * 1.2) {
                     HStack(spacing: 0) {
-                        Form {
-                            intro
-                            photoSelector
-                            Section { photo.frame(height: max(240, geometry.size.height * 0.55)) }
-                                .listRowBackground(Color.clear).listRowSeparator(.hidden)
+                        VStack(spacing: 8) {
+                            photo.frame(maxWidth: .infinity, maxHeight: .infinity)
+                            photoTools
                         }
-                        .photoPageForm()
+                        .padding(.horizontal, 20)
                         .frame(width: geometry.size.width * 0.55)
                         Form { results }.photoPageForm()
                     }
                 } else {
-                    Form {
-                        intro
-                        photoSelector
-                        if session.current != nil {
-                            Section { photo.aspectRatio(4.0 / 3.0, contentMode: .fit) }
-                                .listRowInsets(EdgeInsets()).listRowBackground(Color.clear).listRowSeparator(.hidden)
-                        }
-                        results
+                    let photoHeight = min((geometry.size.width - 40) * 0.75,
+                        max(72, min(geometry.size.height * 0.43, geometry.size.height - 290)))
+                    VStack(spacing: 8) {
+                        photo.frame(height: photoHeight).padding(.horizontal, 20)
+                        photoTools.padding(.horizontal, 20)
+                        Form { results }.photoPageForm().frame(maxHeight: .infinity)
                     }
-                    .photoPageForm()
                 }
             }
 #if !os(macOS)
@@ -104,14 +101,25 @@ struct ColorsScreen: View {
         }
 #endif
     }
-    @ViewBuilder private var photoSelector: some View {
-        if session.documents.count > 1 {
-            Section {
-                Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
-                    ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
-                }
+    private var photoTools: some View {
+        HStack {
+            if session.documents.count > 1 {
+                let index = session.documents.firstIndex(where: { $0.id == session.selectedID }) ?? 0
+                Button("card.previous", systemImage: "chevron.left") { session.selectedID = session.documents[index - 1].id }
+                    .labelStyle(.iconOnly).disabled(index == 0)
+                Text("card.photo.position \(index + 1) \(session.documents.count)").font(.caption.monospacedDigit())
+                Button("card.next", systemImage: "chevron.right") { session.selectedID = session.documents[index + 1].id }
+                    .labelStyle(.iconOnly).disabled(index >= session.documents.count - 1)
             }
+            Spacer(minLength: 0)
+            Menu("card.open", systemImage: "photo.badge.plus") {
+                inputButtons
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.bordered)
         }
+        .frame(minHeight: 44)
+        .disabled(session.busy)
     }
     private var photo: some View {
         ZStack {
@@ -134,8 +142,8 @@ struct ColorsScreen: View {
                     sampling.sample(at: CGPoint(x: (Double(x) + 0.5) / Double(document.metadata.width),
                         y: (Double(y) + 0.5) / Double(document.metadata.height)), document: document)
                 })
-        } else if !sampling.busy {
-            Section { Text("colors.empty").foregroundStyle(.secondary) }
+        } else if sampling.busy {
+            Section { ProgressView() }
         }
     }
     private func request(_ input: Input) {

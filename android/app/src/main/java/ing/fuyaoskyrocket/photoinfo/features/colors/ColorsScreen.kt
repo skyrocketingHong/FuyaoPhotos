@@ -15,6 +15,8 @@ import ing.fuyaoskyrocket.photoinfo.presentation.OriginalPhoto
 import ing.fuyaoskyrocket.photoinfo.presentation.PhotoPageItem
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoAmbientBackdrop
+import ing.fuyaoskyrocket.photoinfo.ui.components.EditorWorkspace
+import androidx.compose.ui.Alignment
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -33,11 +35,6 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
                 OutlinedButton(onCamera, enabled = !busy) { Text(stringResource(R.string.colors_camera)) }
             }
         }
-        if (photos.size > 1) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton({ onSelect(photoIndex - 1) }, enabled = !busy && photoIndex > 0) { Text(stringResource(R.string.previous_photo)) }
-            Text(stringResource(R.string.photo_position, photoIndex + 1, photos.size))
-            TextButton({ onSelect(photoIndex + 1) }, enabled = !busy && photoIndex < photos.lastIndex) { Text(stringResource(R.string.next_photo)) }
-        }
     }
     @Composable fun image(modifier: Modifier) {
         Box(modifier) {
@@ -52,22 +49,46 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
     }
     @Composable fun results(modifier: Modifier) {
         ColorResultPanel(model.bitmap, model.sample, model.info, model.hdr,
-            { showingInfo = true }, model::setHDR, expandColorValues = true, modifier = modifier)
+            { showingInfo = true }, model::setHDR, expandColorValues = true, modifier = modifier,
+            sourceProfile = photo?.details?.colorSpace ?: model.info?.colorSpaceName)
+    }
+    @Composable fun photoTools() {
+        var showOpen by remember { mutableStateOf(false) }
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (photos.size > 1) {
+                IconButton({ onSelect(photoIndex - 1) }, enabled = !busy && photoIndex > 0) {
+                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_back), stringResource(R.string.previous_photo))
+                }
+                Text(stringResource(R.string.photo_position, photoIndex + 1, photos.size), Modifier.weight(1f))
+                IconButton({ onSelect(photoIndex + 1) }, enabled = !busy && photoIndex < photos.lastIndex) {
+                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_chevron), stringResource(R.string.next_photo))
+                }
+            } else Spacer(Modifier.weight(1f))
+            Box {
+                IconButton({ showOpen = true }, enabled = !busy) {
+                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_photo_add), stringResource(R.string.from_gallery))
+                }
+                DropdownMenu(showOpen, { showOpen = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.from_gallery)) }, onClick = { showOpen = false; onGallery() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.from_file)) }, onClick = { showOpen = false; onFiles() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.colors_camera)) }, onClick = { showOpen = false; onCamera() })
+                }
+            }
+        }
     }
     FuyaoScaffold("", showTopBar = false) { padding ->
-        FuyaoAdaptivePage(padding, contentUnderTopEdge = true,
-            single = { modifier ->
-                BoxWithConstraints(modifier) {
-                    val resultHeight = (maxHeight * .65f).coerceAtLeast(400.dp)
-                    FuyaoPageColumn(Modifier.fillMaxSize()) {
-                        overview()
-                        if (photo != null) image(Modifier.fillMaxWidth().aspectRatio(4f / 3f))
-                        results(Modifier.fillMaxWidth().height(resultHeight))
+        if (photo == null) {
+            FuyaoPageColumn(Modifier.fillMaxSize().padding(padding)) { overview() }
+        } else Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
+            EditorWorkspace(
+                preview = { modifier, _ ->
+                    Column(modifier.padding(horizontal = FuyaoSpacing.content)) {
+                        image(Modifier.fillMaxWidth().weight(1f))
+                        photoTools()
                     }
-                }
-            },
-            leading = { modifier -> FuyaoPageColumn(modifier) { overview(); image(Modifier.fillMaxWidth().aspectRatio(4f / 3f)) } },
-            trailing = { modifier -> results(modifier.padding(FuyaoSpacing.content)) })
+                },
+                controls = { modifier -> results(modifier.padding(horizontal = FuyaoSpacing.content)) })
+        }
     }
     if (showingInfo) model.info?.let { PhotoInfoSheet(it, model.hdr) { showingInfo = false } }
 }

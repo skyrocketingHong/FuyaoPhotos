@@ -39,7 +39,8 @@ enum class PhotoInfoDisplay { ALL, SUMMARY, FACTS }
 @Composable
 fun PhotoInfoContent(photo: OriginalPhoto, controls: OriginalPreviewState, hdrAvailable: Boolean,
     busy: Boolean, modifier: Modifier = Modifier, topInset: Dp = LocalPaneTopInset.current,
-    display: PhotoInfoDisplay = PhotoInfoDisplay.ALL, header: (@Composable () -> Unit)? = null) {
+    display: PhotoInfoDisplay = PhotoInfoDisplay.ALL, header: (@Composable () -> Unit)? = null,
+    afterSummary: (@Composable () -> Unit)? = null) {
     val details = photo.details
     val context = LocalContext.current
     val groups = detailGroups(context, details)
@@ -52,6 +53,7 @@ fun PhotoInfoContent(photo: OriginalPhoto, controls: OriginalPreviewState, hdrAv
         if (display != PhotoInfoDisplay.FACTS) item("original-preview") {
             OriginalPhotoSummary(photo, controls, subtitle, hdrAvailable, busy)
         }
+        if (afterSummary != null) item("preview-controls") { afterSummary() }
         if (display != PhotoInfoDisplay.SUMMARY) groups.forEach { group ->
             item(group.title) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

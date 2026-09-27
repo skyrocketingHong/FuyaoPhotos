@@ -472,6 +472,7 @@
 "colors.sample.definition" = "数值来自解码后的原始像素，HDR 开关仅影响显示。带增益图的照片从基底取色，原生 HDR 像素保留扩展范围。";
 "colors.magnifier" = "像素放大镜";
 "colors.space" = "色彩空间";
+"colors.auto.value" = "自动（%@）";
 "colors.copy" = "复制色值";
 "colors.sample" = "色样";
 "colors.pixel" = "选择像素";

@@ -11,6 +11,7 @@ struct CardStyleSlider: View {
     let minimumSymbol: String
     let maximumSymbol: String
     let formattedValue: String
+    @ScaledMetric(relativeTo: .headline) private var valueSlotWidth: CGFloat = 56
 
     private var atMinimum: Bool {
         value <= range.lowerBound + (range.upperBound - range.lowerBound) * 0.001
@@ -35,7 +36,7 @@ struct CardStyleSlider: View {
             Text(formattedValue)
                 .font(.headline.monospacedDigit())
                 .foregroundStyle(.tint)
-                .frame(minWidth: 52, alignment: .trailing)
+                .frame(width: valueSlotWidth, alignment: .trailing)
                 .accessibilityHidden(true)
         }
         .frame(maxWidth: 320, alignment: .leading)
