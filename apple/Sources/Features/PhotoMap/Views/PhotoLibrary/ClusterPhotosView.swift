@@ -6,6 +6,9 @@ struct ClusterPhotosView: View {
     let selection: ClusterSelection
     let library: PhotoLibraryService
     let addCard: (String) -> Void
+    @Binding var navigationPath: [PhotoLocation]
+    var embedded = false
+    var onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var members: [PhotoLocation] = []
@@ -20,7 +23,7 @@ struct ClusterPhotosView: View {
 
     var body: some View {
         let request = MemberPageRequest(offset: requestedOffset, attempt: attempt)
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             ScrollView {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 80, maximum: 180), spacing: 2)], spacing: 2) {
                     ForEach(members) { location in
@@ -58,19 +61,22 @@ struct ClusterPhotosView: View {
             .navigationSubtitle(Text("map.cluster.member.count \(selection.cluster.count)"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("card.close", systemImage: "xmark", action: dismiss.callAsFunction)
+                    Button("card.close", systemImage: "xmark") {
+                        if let onClose { onClose() } else { dismiss() }
+                    }
                         .buttonBorderShape(.circle)
                 }
             }
             .navigationDestination(for: PhotoLocation.self) { location in
                 PhotoDetailContent(location: location, thumbnails: library.thumbnails,
-                    indexVersion: selection.indexVersion, addCard: addCard)
+                    indexVersion: selection.indexVersion, addCard: addCard, compactLayout: embedded)
                     .id(location.id)
                     .navigationTitle("photo.detail.title")
             }
         }
 #if os(macOS)
-        .frame(minWidth: 660, idealWidth: 820, minHeight: 480, idealHeight: 800)
+        .frame(minWidth: embedded ? nil : 660, idealWidth: embedded ? nil : 820,
+               minHeight: embedded ? nil : 480, idealHeight: embedded ? nil : 800)
 #else
         .presentationDetents([.large])
 #endif

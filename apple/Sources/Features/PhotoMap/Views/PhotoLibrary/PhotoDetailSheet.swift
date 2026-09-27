@@ -6,24 +6,30 @@ struct PhotoDetailSheet: View {
     let thumbnails: PhotoThumbnailStore
     let indexVersion: UInt64
     let addCard: (String) -> Void
+    var embedded = false
+    var onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            PhotoDetailContent(location: location, thumbnails: thumbnails, indexVersion: indexVersion, addCard: addCard)
+            PhotoDetailContent(location: location, thumbnails: thumbnails, indexVersion: indexVersion,
+                               addCard: addCard, compactLayout: embedded)
                 .navigationTitle("photo.detail.title")
 #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
 #endif
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("card.close", systemImage: "xmark", action: dismiss.callAsFunction)
+                        Button("card.close", systemImage: "xmark") {
+                            if let onClose { onClose() } else { dismiss() }
+                        }
                             .buttonBorderShape(.circle)
                     }
                 }
         }
 #if os(macOS)
-        .frame(minWidth: 660, idealWidth: 820, minHeight: 520, idealHeight: 800)
+        .frame(minWidth: embedded ? nil : 660, idealWidth: embedded ? nil : 820,
+               minHeight: embedded ? nil : 520, idealHeight: embedded ? nil : 800)
 #else
         .presentationDetents([.large])
 #endif
@@ -35,6 +41,7 @@ struct PhotoDetailContent: View {
     let thumbnails: PhotoThumbnailStore
     let indexVersion: UInt64
     let addCard: (String) -> Void
+    var compactLayout = false
     @State private var document: CardDocument?
     @State private var failed = false
     @State private var attempt = 0
@@ -48,33 +55,42 @@ struct PhotoDetailContent: View {
 
     @ViewBuilder private var content: some View {
 #if os(macOS)
-        HSplitView {
-            VStack(alignment: .leading, spacing: 12) {
-                preview
-                    .aspectRatio(4 / 3, contentMode: .fit)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.black)
+        if !compactLayout {
+            HSplitView {
+                VStack(alignment: .leading, spacing: 12) {
+                    preview
+                        .aspectRatio(4 / 3, contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(.black)
 
-                HStack(alignment: .center, spacing: 12) {
-                    if let document {
-                        PhotoInformationHeading(name: document.originalName,
-                                                fileExtension: document.sourceURL.pathExtension,
-                                                fileSize: document.metadata.fileSize)
+                    HStack(alignment: .center, spacing: 12) {
+                        if let document {
+                            PhotoInformationHeading(name: document.originalName,
+                                                    fileExtension: document.sourceURL.pathExtension,
+                                                    fileSize: document.metadata.fileSize)
+                        }
+                        Spacer(minLength: 8)
+                        photoActions
                     }
-                    Spacer(minLength: 8)
-                    photoActions
                 }
-            }
-            .padding(16)
-            .frame(minWidth: 360)
+                .padding(16)
+                .frame(minWidth: 360)
 
-            List {
-                PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
+                List {
+                    PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
+                }
+                .listStyle(.inset)
+                .frame(minWidth: 260, idealWidth: 320)
             }
-            .listStyle(.inset)
-            .frame(minWidth: 260, idealWidth: 320)
+        } else {
+            compactContent
         }
 #else
+        compactContent
+#endif
+    }
+
+    private var compactContent: some View {
         List {
             Section {
                 preview
@@ -93,7 +109,6 @@ struct PhotoDetailContent: View {
             PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
         }
         .listStyle(.plain)
-#endif
     }
 
     @ViewBuilder private var preview: some View {
@@ -112,19 +127,27 @@ struct PhotoDetailContent: View {
     }
 
     private var photoActions: some View {
-        HStack(spacing: 10) {
-            Button("photo.open.library", systemImage: "photo.on.rectangle") {
-                Task { cannotOpenPhotos = !(await PhotosApplication.open()) }
-            }
-            if location.asset.mediaType == .image {
-                Button("photo.add.card", systemImage: "photo.badge.plus") {
-                    addCard(location.id)
-                }
+        Group {
+            if compactLayout {
+                VStack(alignment: .leading, spacing: 10) { photoActionButtons }
+            } else {
+                HStack(spacing: 10) { photoActionButtons }
             }
         }
         .buttonStyle(.bordered)
         .controlSize(.regular)
         .frame(minHeight: 44, alignment: .leading)
+    }
+
+    @ViewBuilder private var photoActionButtons: some View {
+        Button("photo.open.library", systemImage: "photo.on.rectangle") {
+            Task { cannotOpenPhotos = !(await PhotosApplication.open()) }
+        }
+        if location.asset.mediaType == .image {
+            Button("photo.add.card", systemImage: "photo.badge.plus") {
+                addCard(location.id)
+            }
+        }
     }
 
     private func load() async {

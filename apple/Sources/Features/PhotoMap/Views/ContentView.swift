@@ -76,78 +76,104 @@ struct PhotoMapScreen: View {
     @State private var session = MapSession()
     @State private var showingOptions = false
     @State private var editAfterDismiss: [String]?
+    @State private var availableWidth: CGFloat = 0
+    @State private var clusterNavigationPath: [PhotoLocation] = []
     @Environment(PhotoWorkspace.self) private var workspace
+
+    private var showsSelectionPane: Bool { availableWidth >= 900 }
+    private var selectionPaneWidth: CGFloat { min(420, max(320, availableWidth * 0.34)) }
 
     var body: some View {
         @Bindable var session = session
         NavigationStack {
-            MapContainerView(session: session, scope: mapScope)
+            HStack(spacing: 0) {
+                MapContainerView(session: session, scope: mapScope)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 #if !os(macOS)
-                .toolbarVisibility(.hidden, for: .navigationBar)
-                .overlay(alignment: .topTrailing) {
-                    VStack(alignment: .trailing, spacing: 16) {
-                        mapStyleMenu
-                        DisplayModeMenu(displayMode: $session.displayMode)
-                            .accessibilityLabel(Text("sidebar.display.mode"))
-                        YearFilterMenu(selectedYear: $session.selectedYear, availableYears: session.availableYears)
-                            .accessibilityLabel(Text("year.filter.title"))
-                        mapOptionsButton
-                        fitPhotosButton
-                        if session.displayMode != .heatmap && session.options.compass { MapCompass(scope: mapScope) }
+                    .overlay(alignment: .topTrailing) {
+                        VStack(alignment: .trailing, spacing: 16) {
+                            mapStyleMenu
+                            DisplayModeMenu(displayMode: $session.displayMode)
+                                .accessibilityLabel(Text("sidebar.display.mode"))
+                            YearFilterMenu(selectedYear: $session.selectedYear, availableYears: session.availableYears)
+                                .accessibilityLabel(Text("year.filter.title"))
+                            mapOptionsButton
+                            fitPhotosButton
+                            if session.displayMode != .heatmap && session.options.compass { MapCompass(scope: mapScope) }
+                        }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.glass)
+                        .buttonBorderShape(.circle)
+                        .controlSize(.large)
+                        .padding(20)
                     }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.glass)
-                    .buttonBorderShape(.circle)
-                    .controlSize(.large)
-                    .padding(20)
-                }
 #else
-                .toolbar {
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        mapStyleMenu
-                            .labelStyle(.iconOnly)
-                            .buttonBorderShape(.circle)
-                            .help(Text("sidebar.map.style"))
-                        DisplayModeMenu(displayMode: $session.displayMode)
-                            .labelStyle(.iconOnly)
-                            .buttonBorderShape(.circle)
-                            .help(Text("sidebar.display.mode"))
-                        YearFilterMenu(selectedYear: $session.selectedYear, availableYears: session.availableYears)
-                            .accessibilityLabel(Text("year.filter.title"))
-                            .buttonBorderShape(.circle)
-                            .help(Text("year.filter.title"))
+                    .overlay(alignment: .topTrailing) {
+                        if session.displayMode != .heatmap && session.options.compass {
+                            MapCompass(scope: mapScope)
+                                .padding(20)
+                        }
                     }
-                    ToolbarItemGroup(placement: .primaryAction) {
-                        mapOptionsButton
-                            .labelStyle(.iconOnly)
-                            .buttonBorderShape(.circle)
-                            .help(Text("map.options"))
-                        fitPhotosButton
-                            .labelStyle(.iconOnly)
-                            .buttonBorderShape(.circle)
-                            .help(Text("map.fit.photos"))
-                    }
-                }
-                .overlay(alignment: .topTrailing) {
-                    if session.displayMode != .heatmap && session.options.compass {
-                        MapCompass(scope: mapScope)
-                            .padding(20)
-                    }
-                }
 #endif
-                .overlay(alignment: .bottomLeading) {
-                    if session.hasQueryResult {
-                        Text("photo.count.visible \(session.visiblePhotoCount)")
-                            .font(.caption.monospacedDigit())
-                            .padding(.horizontal, 12).padding(.vertical, 8)
-                            .glassEffect(in: .capsule)
-                            .padding(12)
+                    .overlay(alignment: .bottomLeading) {
+                        if session.hasQueryResult {
+                            Text("photo.count.visible \(session.visiblePhotoCount)")
+                                .font(.caption.monospacedDigit())
+                                .padding(.horizontal, 12).padding(.vertical, 8)
+                                .glassEffect(in: .capsule)
+                                .padding(12)
+                        }
                     }
+                if showsSelectionPane, let presentation = session.presentation {
+                    Divider()
+                    MapSelectionPane(presentation: presentation, session: session,
+                                     navigationPath: $clusterNavigationPath,
+                                     close: { session.presentation = nil }, addCard: addCard)
+                        .id(presentation.id)
+                        .frame(width: selectionPaneWidth)
+                        .frame(maxHeight: .infinity)
+                        .background(.regularMaterial)
                 }
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { availableWidth = $0 }
+#if !os(macOS)
+            .toolbarVisibility(.hidden, for: .navigationBar)
+#else
+            .toolbar {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    mapStyleMenu
+                        .labelStyle(.iconOnly)
+                        .buttonBorderShape(.circle)
+                        .help(Text("sidebar.map.style"))
+                    DisplayModeMenu(displayMode: $session.displayMode)
+                        .labelStyle(.iconOnly)
+                        .buttonBorderShape(.circle)
+                        .help(Text("sidebar.display.mode"))
+                    YearFilterMenu(selectedYear: $session.selectedYear, availableYears: session.availableYears)
+                        .accessibilityLabel(Text("year.filter.title"))
+                        .buttonBorderShape(.circle)
+                        .help(Text("year.filter.title"))
+                }
+                ToolbarItemGroup(placement: .primaryAction) {
+                    mapOptionsButton
+                        .labelStyle(.iconOnly)
+                        .buttonBorderShape(.circle)
+                        .help(Text("map.options"))
+                    fitPhotosButton
+                        .labelStyle(.iconOnly)
+                        .buttonBorderShape(.circle)
+                        .help(Text("map.fit.photos"))
+                }
+            }
+#endif
         }
         .mapScope(mapScope)
         .modifier(MapLifecycleModifier(session: session))
-        .sheet(item: $session.presentation, onDismiss: {
+        .onChange(of: session.presentation?.id) { _, _ in clusterNavigationPath = [] }
+        .sheet(item: Binding(
+            get: { showsSelectionPane ? nil : session.presentation },
+            set: { if !showsSelectionPane { session.presentation = $0 } }
+        ), onDismiss: {
             if let ids = editAfterDismiss { editAfterDismiss = nil; workspace.editPhotos(ids) }
         }) { presentation in
             switch presentation {
@@ -155,14 +181,20 @@ struct PhotoMapScreen: View {
                 PhotoDetailSheet(location: location, thumbnails: session.library.thumbnails,
                                  indexVersion: session.library.indexVersion, addCard: addCard)
             case .cluster(let selection):
-                ClusterPhotosView(selection: selection, library: session.library, addCard: addCard)
+                ClusterPhotosView(selection: selection, library: session.library, addCard: addCard,
+                                  navigationPath: $clusterNavigationPath)
             }
         }
     }
 
     private func addCard(_ id: String) {
-        editAfterDismiss = [id]
-        session.presentation = nil
+        if showsSelectionPane {
+            session.presentation = nil
+            workspace.editPhotos([id])
+        } else {
+            editAfterDismiss = [id]
+            session.presentation = nil
+        }
     }
 
     private var mapStyleMenu: some View {
@@ -195,6 +227,26 @@ struct PhotoMapScreen: View {
             Task { await session.fitPhotos() }
         }
         .disabled(!session.hasQueryResult)
+    }
+}
+
+private struct MapSelectionPane: View {
+    let presentation: MapPresentation
+    let session: MapSession
+    @Binding var navigationPath: [PhotoLocation]
+    let close: () -> Void
+    let addCard: (String) -> Void
+
+    var body: some View {
+        switch presentation {
+        case .photo(let location):
+            PhotoDetailSheet(location: location, thumbnails: session.library.thumbnails,
+                             indexVersion: session.library.indexVersion, addCard: addCard,
+                             embedded: true, onClose: close)
+        case .cluster(let selection):
+            ClusterPhotosView(selection: selection, library: session.library, addCard: addCard,
+                              navigationPath: $navigationPath, embedded: true, onClose: close)
+        }
     }
 }
 
