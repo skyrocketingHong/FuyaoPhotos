@@ -3,9 +3,13 @@ package ing.fuyaoskyrocket.photoinfo.ui.components
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,47 +20,53 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
-import ing.fuyaoskyrocket.photoinfo.data.photo.PhotoRepository
 import ing.fuyaoskyrocket.photoinfo.domain.media.XiaomiPortraitDepth
 import ing.fuyaoskyrocket.photoinfo.domain.media.XiaomiPortraitTail
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Shows the vendor depth plane the importer recognized, near-to-light far-to-dark, so the
- * conversion input is visible before any export happens.
+ * Offers the recognized disparity plane only after it can be decoded. The photo itself stays
+ * visible above this control; the layer starts collapsed.
  */
 @Composable
 internal fun PortraitDepthPreview(file: File, modifier: Modifier = Modifier) {
     var bitmap by remember(file) { mutableStateOf<Bitmap?>(null) }
-    var failed by remember(file) { mutableStateOf(false) }
+    var expanded by remember(file) { mutableStateOf(false) }
     LaunchedEffect(file) {
         try {
             bitmap = withContext(Dispatchers.Default) { renderDepth(file) }
-        } catch (_: Exception) {
-            failed = true
-        }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { bitmap = null }
     }
-    Box(modifier.fillMaxWidth(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-        val current = bitmap
-        when {
-            current != null -> Image(
+    val current = bitmap ?: return
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = { expanded = !expanded }) {
+            Icon(painterResource(R.drawable.ic_photo_info), contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(if (expanded) R.string.portrait_depth_hide else R.string.portrait_depth_show))
+        }
+        if (expanded) {
+            Text(stringResource(R.string.portrait_depth_disparity_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Image(
                 current.asImageBitmap(),
                 contentDescription = stringResource(R.string.portrait_depth_preview),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxWidth()
                     .aspectRatio(current.width.toFloat() / current.height)
                     .clip(MaterialTheme.shapes.medium))
-            failed -> Text(stringResource(R.string.portrait_depth_unavailable),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

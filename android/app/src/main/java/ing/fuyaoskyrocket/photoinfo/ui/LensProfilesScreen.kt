@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.data.camera.*
@@ -74,16 +74,7 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
             onEditConsumed()
         }
     }
-    val requestBack = rememberConfirmedBack(onBack, hasChanges = profiles != initial)
-    FuyaoScaffold(stringResource(R.string.lens_profiles),onBack=requestBack,snackbarHost={ SnackbarHost(snackbar, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) },actions={
-        FuyaoAppBarAction(R.drawable.ic_plus,stringResource(R.string.add_lens),{ onEdit(draft()) },enabled=profiles.size<64&&productName!=null)
-        TextButton(onClick={ onSave(profiles) },enabled=!duplicateBindings) { Text(stringResource(R.string.save_profiles)) }
-    }) { padding ->
-        Box(Modifier.fillMaxSize().consumeWindowInsets(padding),contentAlignment=Alignment.TopCenter) {
-            LazyColumn(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxSize(),contentPadding=PaddingValues(
-                start=padding.calculateStartPadding(LocalLayoutDirection.current)+16.dp,
-                end=padding.calculateEndPadding(LocalLayoutDirection.current)+16.dp,
-                top=padding.calculateTopPadding()+16.dp,bottom=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    val inventoryItems: LazyListScope.() -> Unit = {
                 item {
                     SectionHeading(stringResource(R.string.scan_lenses),stringResource(R.string.inventory_hint))
                     OutlinedButton(onClick={ permission.launch(Manifest.permission.CAMERA) },enabled=!scanning) { Text(stringResource(R.string.scan_lenses)) }
@@ -128,6 +119,8 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                         }
                     }
                 }
+    }
+    val savedItems: LazyListScope.() -> Unit = {
                 item { HorizontalDivider();Spacer(Modifier.height(12.dp));SectionHeading(stringResource(R.string.saved_profiles)) }
                 if(duplicateBindings)item { Text(stringResource(R.string.duplicate_lens_binding),color=MaterialTheme.colorScheme.error) }
                 if(profiles.isEmpty())item {
@@ -155,8 +148,35 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                         })
                     }
                 }
-                item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))) }
-            }
-        }
     }
+    val requestBack = rememberConfirmedBack(onBack, hasChanges = profiles != initial)
+    FuyaoScaffold(stringResource(R.string.lens_profiles),onBack=requestBack,
+        snackbarHost={ SnackbarHost(snackbar, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) },
+        actions={
+            FuyaoAppBarAction(R.drawable.ic_plus,stringResource(R.string.add_lens),{ onEdit(draft()) },enabled=profiles.size<64&&productName!=null)
+            TextButton(onClick={ onSave(profiles) },enabled=!duplicateBindings) { Text(stringResource(R.string.save_profiles)) }
+        }) { padding ->
+        FuyaoAdaptivePage(padding,
+            single = { modifier ->
+                Box(modifier,contentAlignment=Alignment.TopCenter) {
+                    LazyColumn(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxSize(),
+                        contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                        inventoryItems(); savedItems()
+                        item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))) }
+                    }
+                }
+            },
+            leading = { modifier ->
+                LazyColumn(modifier,contentPadding=PaddingValues(16.dp),
+                    verticalArrangement=Arrangement.spacedBy(8.dp)) { inventoryItems() }
+            },
+            trailing = { modifier ->
+                LazyColumn(modifier,contentPadding=PaddingValues(16.dp),
+                    verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    savedItems()
+                    item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))) }
+                }
+            })
+    }
+
 }

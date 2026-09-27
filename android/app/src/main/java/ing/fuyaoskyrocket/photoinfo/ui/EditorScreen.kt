@@ -92,6 +92,26 @@ private fun PhotoBottomBar(selected: PhotoPage, enabled: Boolean, onSelect: (Pho
     }
 }
 
+@Composable
+private fun PhotoSideRail(selected: PhotoPage, enabled: Boolean, onSelect: (PhotoPage) -> Unit) {
+    NavigationRail(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+        topLevelTabs.forEach { tab ->
+            NavigationRailItem(
+                selected = selected == tab.page,
+                onClick = { onSelect(tab.page) },
+                enabled = enabled,
+                icon = { Icon(painterResource(tab.icon), contentDescription = null, Modifier.size(24.dp)) },
+                label = { Text(stringResource(tab.label)) },
+                colors = NavigationRailItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primary,
+                ),
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
@@ -194,13 +214,17 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     }
     ing.fuyaoskyrocket.photoinfo.ui.theme.EditorDarkroomTheme(currentEntry?.destination?.route in listOf(null,PhotoPage.EDITOR.name,PhotoPage.PREVIEW.name)) {
     val currentPage = PhotoPage.entries.firstOrNull { it.name == currentEntry?.destination?.route }
+    BoxWithConstraints {
+    val useRail = maxWidth >= 840.dp && androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.4f
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            if (currentPage in topLevelPages) PhotoBottomBar(currentPage ?: PhotoPage.EDITOR, !state.busy, ::selectTab)
+            if (!useRail && currentPage in topLevelPages) PhotoBottomBar(currentPage ?: PhotoPage.EDITOR, !state.busy, ::selectTab)
         },
     ) { outerPadding ->
-    Box(Modifier.fillMaxSize().padding(outerPadding).consumeWindowInsets(outerPadding)) {
+    Row(Modifier.fillMaxSize().padding(outerPadding).consumeWindowInsets(outerPadding)) {
+    if (useRail && currentPage in topLevelPages) PhotoSideRail(currentPage ?: PhotoPage.EDITOR, !state.busy, ::selectTab)
+    Box(Modifier.weight(1f).fillMaxHeight()) {
     NavHost(
         navController = navigation,
         startDestination = PhotoPage.EDITOR.name,
@@ -326,6 +350,8 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 showHdr=state.hdrPhoto || hasGainmap,hdrEnabled=hdrEnabled,hdrAvailable=hdrAvailable,onHdr={ hdrEnabled=!hdrEnabled }) { returnFrom(PhotoPage.PREVIEW) }
             else LaunchedEffect(state.busy) { if (!state.busy) returnFrom(PhotoPage.PREVIEW) }
         }
+    }
+    }
     }
     }
     }

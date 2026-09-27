@@ -272,6 +272,9 @@
   <string name="wheel_focal">焦距</string>
   <string name="photo_details">照片详情</string>
   <string name="portrait_depth_preview">识别到的景深</string>
+  <string name="portrait_depth_show">查看人像景深图层</string>
+  <string name="portrait_depth_hide">收起人像景深图层</string>
+  <string name="portrait_depth_disparity_note">原片中的视差图层，距离较近的区域显示得更亮。</string>
   <string name="portrait_depth_unavailable">景深预览不可用</string>
   <string name="photo_export_blocked_title">这张照片无法导出</string>
   <string name="media_badge_description">照片数据存在无法保留的内容</string>

@@ -2,6 +2,8 @@ package ing.fuyaoskyrocket.photoinfo.ui
 
 import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -9,6 +11,7 @@ import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -44,11 +47,7 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
     val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
         listOf(lens.device, lens.name, number(lens.equivalentMin), number(lens.equivalentMax), number(lens.zoomMin), number(lens.zoomMax), number(lens.physicalMin), number(lens.physicalMax), lens.exifModel, number(lens.digitalZoomMax)),
         listOf(device, name, min, max, zoomMin, zoomMax, physicalMin, physicalMax, exifModel, digitalMax), (2..7).toSet() + 9)
-    val requestBack = rememberConfirmedBack(onBack, hasChanges = changed)
-    FuyaoScaffold(stringResource(R.string.configure_lens),onBack=requestBack,actions={
-        TextButton(onClick={ onSave(draft) },enabled=valid&&!readingProduct) { Text(stringResource(R.string.apply_lens)) }
-    }) { padding ->
-        FuyaoFormPage(padding) {
+    val identityContent: @Composable ColumnScope.() -> Unit = {
             Text(stringResource(R.string.apply_lens_hint), style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
             SectionHeading(stringResource(R.string.lens_identity),stringResource(R.string.profile_match_hint))
             OutlinedTextField(device,{ if(it.length<=256)device=it },Modifier.fillMaxWidth(),enabled=!readingProduct,label={ Text(stringResource(R.string.profile_device)) },singleLine=true)
@@ -62,7 +61,8 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
             TextButton(onClick={ exifModel=currentExifModel },enabled=currentExifModel.isNotBlank()) { Text(stringResource(R.string.read_photo_model)) }
             if(lens.cameraId.isNotBlank()) Text(stringResource(R.string.bound_camera_id,lens.cameraId),style=MaterialTheme.typography.bodySmall)
             OutlinedTextField(name,{ if(it.length<=256)name=it },Modifier.fillMaxWidth(),label={ Text(stringResource(R.string.profile_name)) },maxLines=3)
-            HorizontalDivider()
+    }
+    val rangeContent: @Composable ColumnScope.() -> Unit = {
             SectionHeading(stringResource(R.string.equivalent_range),stringResource(R.string.fixed_range_hint))
             RangeFields(min,max,R.string.equivalent_min,R.string.equivalent_max,{ min=it },{ max=it },2000.0)
             SectionHeading(stringResource(R.string.zoom_range),stringResource(R.string.optional_range_hint))
@@ -78,7 +78,35 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
             SectionHeading(stringResource(R.string.physical_range),stringResource(R.string.physical_range_hint))
             RangeFields(physicalMin,physicalMax,R.string.physical_min,R.string.physical_max,{ physicalMin=it },{ physicalMax=it },1000.0,last=true)
             if(!valid)Text(stringResource(R.string.lens_validation_hint),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+    }
+    val requestBack = rememberConfirmedBack(onBack, hasChanges = changed)
+    FuyaoScaffold(stringResource(R.string.configure_lens),onBack=requestBack,actions={
+        TextButton(onClick={ onSave(draft) },enabled=valid&&!readingProduct) { Text(stringResource(R.string.apply_lens)) }
+    }) { padding ->
+        FuyaoAdaptivePage(padding,
+            single = { modifier ->
+                Box(modifier,contentAlignment=Alignment.TopCenter) {
+                    Column(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxWidth()
+                        .verticalScroll(rememberScrollState()).padding(16.dp),
+                        verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                        identityContent()
+                        HorizontalDivider()
+                        rangeContent()
+                        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)))
+                    }
+                }
+            },
+            leading = { modifier ->
+                Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement=Arrangement.spacedBy(16.dp),content=identityContent)
+            },
+            trailing = { modifier ->
+                Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                    rangeContent()
+                    Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)))
+                }
+            })
     }
 }
 

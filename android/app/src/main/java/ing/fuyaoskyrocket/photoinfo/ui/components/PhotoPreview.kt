@@ -13,21 +13,31 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.LocalActivity
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.layout.FoldingFeature
+import androidx.window.layout.WindowInfoTracker
+import androidx.window.layout.WindowLayoutInfo
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.layout.PreviewViewport
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
@@ -39,6 +49,8 @@ import kotlinx.coroutines.Job
 import ing.fuyaoskyrocket.photoinfo.presentation.PhotoFailureMessages
 import ing.fuyaoskyrocket.photoinfo.presentation.PhotoOperation
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlin.math.roundToInt
 
 @Composable
@@ -86,6 +98,13 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
     var scale by remember(photoId) { mutableFloatStateOf(1f) }
     var offset by remember(photoId) { mutableStateOf(Offset.Zero) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
+    val activity = LocalActivity.current
+    val layoutFlow: Flow<WindowLayoutInfo?> = remember(activity) {
+        activity?.let { WindowInfoTracker.getOrCreate(it).windowLayoutInfo(it) } ?: emptyFlow()
+    }
+    val layout by layoutFlow.collectAsStateWithLifecycle(initialValue = null)
+    val fold = layout?.displayFeatures?.filterIsInstance<FoldingFeature>()?.firstOrNull { it.isSeparating }
+    var bounds by remember { mutableStateOf(Rect.Zero) }
     val scope=rememberCoroutineScope()
     var resetJob by remember { mutableStateOf<Job?>(null) }
     DisposableEffect(photoId) { onDispose { resetJob?.cancel() } }
@@ -105,7 +124,8 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
             }
         }
     }
-    val window = LocalActivity.current?.window
+    LaunchedEffect(viewport, displayed) { offset = bounded(offset, scale) }
+    val window = activity?.window
     val view = LocalView.current
     DisposableEffect(window, view) {
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
@@ -118,8 +138,9 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
             controller?.isAppearanceLightNavigationBars = lightNavigation
         }
     }
-    Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().background(Color.Black).onSizeChanged { viewport=it }
+    val zoomDescription = stringResource(R.string.zoom_value, (scale * 100).roundToInt())
+    val previewCanvas: @Composable (Modifier) -> Unit = { modifier ->
+        Box(modifier.background(Color.Black).onSizeChanged { viewport=it }
             .pointerInput(photoId) {
                 detectTransformGestures { centroid,pan,zoom,_ ->
                     if(playing)return@detectTransformGestures
@@ -130,17 +151,20 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
                     scale=next;offset=bounded(anchored,next)
                 }
             }.pointerInput(photoId) { detectTapGestures(onDoubleTap={ if(!playing)moveTo(1f) }) }) {
-            val zoomDescription=stringResource(R.string.zoom_value,(scale*100).roundToInt())
             Image(displayed.asImageBitmap(),stringResource(R.string.preview_content),Modifier.fillMaxSize()
                 .semantics { stateDescription=zoomDescription }
                 .graphicsLayer { scaleX=scale;scaleY=scale;translationX=offset.x;translationY=offset.y },contentScale=ContentScale.Fit)
             if(playing && motion!=null)MotionPhotoPreview(motion,Modifier.fillMaxSize(),
                 onFinished={ playing=false },onError={ playing=false;playbackError=true })
-            Surface(Modifier.align(Alignment.TopCenter),
+        }
+    }
+    val toolbar: @Composable (Boolean) -> Unit = { wide ->
+            Surface(Modifier.fillMaxWidth(),
                 color=Color.Black.copy(alpha=.72f),contentColor=Color.White) {
                 Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)).heightIn(min=48.dp).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically) {
                     FuyaoIconButton(R.drawable.ic_close,stringResource(R.string.close),onDismiss)
-                    Text(if(loading)stringResource(R.string.full_preview_loading) else stringResource(R.string.preview_quality,
+                    if (wide) Spacer(Modifier.weight(1f))
+                    else Text(if(loading)stringResource(R.string.full_preview_loading) else stringResource(R.string.preview_quality,
                         zoomDescription,stringResource(if(detail!=null)R.string.original_size_preview else R.string.thumbnail_preview)),
                         Modifier.weight(1f),style=MaterialTheme.typography.labelLarge,maxLines=2)
                     if(motion!=null)PreviewMediaButton(if(playing)R.drawable.ic_stop else R.drawable.ic_motion,
@@ -152,8 +176,9 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
 
                 }
             }
-            Surface(Modifier.align(Alignment.BottomStart)
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal)).padding(8.dp),
+    }
+    val zoomControls: @Composable () -> Unit = {
+            Surface(
                 color=Color.Black.copy(alpha=.72f),contentColor=Color.White,shape=MaterialTheme.shapes.large) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
                     FuyaoIconButton(R.drawable.ic_minus,stringResource(R.string.zoom_out),{ moveTo(scale/1.5f) },enabled=!playing && scale>1f)
@@ -161,6 +186,90 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
                     FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.zoom_in),{ moveTo(scale*1.5f) },enabled=!playing && scale<8f)
                 }
             }
+    }
+    val statusPanel: @Composable (Modifier) -> Unit = { modifier ->
+        Surface(modifier, color=Color(0xFF191B1E), contentColor=Color.White) {
+            Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                Text(if(loading) stringResource(R.string.full_preview_loading)
+                    else stringResource(R.string.preview_quality,zoomDescription,
+                        stringResource(if(detail!=null)R.string.original_size_preview else R.string.thumbnail_preview)),
+                    style=MaterialTheme.typography.labelLarge)
+                zoomControls()
+            }
+        }
+    }
+    val phoneLayout: @Composable (Modifier) -> Unit = { modifier ->
+        Box(modifier) {
+            previewCanvas(Modifier.fillMaxSize())
+            Box(Modifier.align(Alignment.TopCenter)) { toolbar(false) }
+            Box(Modifier.align(Alignment.BottomStart)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal))
+                .padding(8.dp)) { zoomControls() }
+        }
+    }
+    val density = LocalDensity.current
+    val direction = LocalLayoutDirection.current
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)
+        .onGloballyPositioned { bounds = it.boundsInWindow() }) {
+        val hinge = fold?.bounds
+        val vertical = fold?.orientation == FoldingFeature.Orientation.VERTICAL && hinge != null &&
+            hinge.left > bounds.left && hinge.right < bounds.right
+        val horizontal = fold?.orientation == FoldingFeature.Orientation.HORIZONTAL && hinge != null &&
+            hinge.top > bounds.top && hinge.bottom < bounds.bottom
+        when {
+            vertical -> {
+                val foldBounds = requireNotNull(hinge)
+                val left = with(density) { (foldBounds.left - bounds.left).toDp() }
+                val right = with(density) { (bounds.right - foldBounds.right).toDp() }
+                val gap = with(density) { foldBounds.width().toDp() }
+                val photoWidth = if (direction == LayoutDirection.Ltr) left else right
+                val controlsWidth = if (direction == LayoutDirection.Ltr) right else left
+                if (density.fontScale <= 1.4f && photoWidth >= 280.dp && controlsWidth >= 180.dp) {
+                    Row(Modifier.fillMaxSize()) {
+                        Box(Modifier.width(photoWidth).fillMaxHeight()) {
+                            previewCanvas(Modifier.fillMaxSize())
+                            Box(Modifier.align(Alignment.TopCenter)) { toolbar(true) }
+                        }
+                        Spacer(Modifier.width(gap))
+                        statusPanel(Modifier.weight(1f).fillMaxHeight()
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom+WindowInsetsSides.End)))
+                    }
+                } else {
+                    val useRight = right > left
+                    phoneLayout(Modifier.fillMaxSize().absolutePadding(
+                        left = if(useRight) left + gap else 0.dp,
+                        right = if(useRight) 0.dp else right + gap))
+                }
+            }
+            horizontal -> {
+                val foldBounds = requireNotNull(hinge)
+                val top = with(density) { (foldBounds.top - bounds.top).toDp() }
+                val bottom = with(density) { (bounds.bottom - foldBounds.bottom).toDp() }
+                val gap = with(density) { foldBounds.height().toDp() }
+                if (top >= 320.dp && bottom >= 200.dp) Column(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxWidth().height(top)) {
+                        previewCanvas(Modifier.fillMaxSize())
+                        Box(Modifier.align(Alignment.TopCenter)) { toolbar(false) }
+                    }
+                    Spacer(Modifier.height(gap))
+                    statusPanel(Modifier.fillMaxWidth().weight(1f)
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal)))
+                } else {
+                    val useBottom = bottom > top
+                    phoneLayout(Modifier.fillMaxSize().absolutePadding(
+                        top = if(useBottom) top + gap else 0.dp,
+                        bottom = if(useBottom) 0.dp else bottom + gap))
+                }
+            }
+            maxWidth >= 840.dp && density.fontScale <= 1.4f -> Column(Modifier.fillMaxSize()) {
+                toolbar(true)
+                Row(Modifier.fillMaxWidth().weight(1f)) {
+                    previewCanvas(Modifier.weight(1f).fillMaxHeight())
+                    statusPanel(Modifier.width(200.dp).fillMaxHeight()
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom+WindowInsetsSides.End)))
+                }
+            }
+            else -> phoneLayout(Modifier.fillMaxSize())
         }
     }
 }

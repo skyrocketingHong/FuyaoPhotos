@@ -1,17 +1,17 @@
 package ing.fuyaoskyrocket.photoinfo.ui
 
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsControls
-import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsSaver
-import ing.fuyaoskyrocket.photoinfo.ui.components.AboutDialog
-import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.Alignment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -20,7 +20,19 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
+import ing.fuyaoskyrocket.photoinfo.ui.components.AboutDialog
+import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsControls
+import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsSaver
+import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
+
+private enum class SettingsCategory(@StringRes val label: Int, @DrawableRes val icon: Int) {
+    CARDS(R.string.photo_cards_title, R.drawable.ic_photo_add),
+    EXPORT(R.string.export_defaults, R.drawable.ic_export),
+    METADATA(R.string.section_metadata, R.drawable.ic_info),
+    LENSES(R.string.lens_settings, R.drawable.ic_photo_info),
+    ABOUT(R.string.about, R.drawable.ic_info),
+}
 
 @Composable
 fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->Unit,onBack:()->Unit,
@@ -32,6 +44,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
     var mainFocal by rememberSaveable { mutableStateOf(settings.fallbackMainFocal) }
     var exportDefaults by rememberSaveable(stateSaver=ExportOptionsSaver) { mutableStateOf(settings.exportDefaults) }
     var hevcEncoder by rememberSaveable { mutableStateOf(settings.hevcEncoder) }
+    var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.CARDS) }
     val draft=EditorSettings(author,geocode,mainFocal,settings.lenses,exportDefaults,hevcEncoder)
     val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
         listOf(settings.defaultAuthor, settings.resolvePhotoLocation.toString(), settings.fallbackMainFocal),
@@ -39,22 +52,24 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
         hevcEncoder != settings.hevcEncoder
     SideEffect { onDirtyChanged(changed) }
     val requestBack = rememberConfirmedBack(onBack, hasChanges = changed, enabled = !showAbout)
-    FuyaoScaffold(stringResource(R.string.settings),onBack=requestBack,actions={
-        TextButton(onClick={ onSave(draft,false) },enabled=draft.validFocal) { Text(stringResource(R.string.save_settings)) }
-    }) { padding ->
-        FuyaoFormPage(padding) {
-            Surface(Modifier.fillMaxWidth(), shape=MaterialTheme.shapes.extraLarge,
-                color=MaterialTheme.colorScheme.surfaceContainerLow) {
-                Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Icon(painterResource(R.drawable.ic_settings),null,Modifier.size(32.dp),
-                        tint=MaterialTheme.colorScheme.primary)
-                    Text(stringResource(R.string.settings),style=MaterialTheme.typography.titleLarge)
-                    Text(stringResource(R.string.settings_overview_description),
-                        style=MaterialTheme.typography.bodyMedium,
-                        color=MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+
+    @Composable fun overview() {
+        Surface(Modifier.fillMaxWidth(), shape=MaterialTheme.shapes.extraLarge,
+            color=MaterialTheme.colorScheme.surfaceContainerLow) {
+            Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                Icon(painterResource(R.drawable.ic_settings),null,Modifier.size(32.dp),
+                    tint=MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.settings),style=MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.settings_overview_description),
+                    style=MaterialTheme.typography.bodyMedium,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SettingsSection(stringResource(R.string.photo_cards_title),
+        }
+    }
+
+    @Composable fun categoryContent(category: SettingsCategory) {
+        when(category) {
+            SettingsCategory.CARDS -> SettingsSection(stringResource(R.string.photo_cards_title),
                 stringResource(R.string.settings_cards_description)) {
                 OutlinedTextField(author,{ if(it.length<=512)author=it },Modifier.fillMaxWidth(),
                     label={ Text(stringResource(R.string.field_author)) },maxLines=3,
@@ -63,7 +78,8 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
                     Text(stringResource(R.string.save_apply_author))
                 }
             }
-            SettingsSection(stringResource(R.string.export_defaults),stringResource(R.string.export_defaults_hint)) {
+            SettingsCategory.EXPORT -> SettingsSection(stringResource(R.string.export_defaults),
+                stringResource(R.string.export_defaults_hint)) {
                 ExportOptionsControls(exportDefaults,{ exportDefaults=it })
                 HorizontalDivider()
                 val x265Available=ing.fuyaoskyrocket.photoinfo.platform.HevcEncoders.x265Available
@@ -81,7 +97,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
                 Text(stringResource(if(x265Available)R.string.hevc_encoder_hint else R.string.hevc_encoder_unavailable),
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SettingsSection(stringResource(R.string.section_metadata),
+            SettingsCategory.METADATA -> SettingsSection(stringResource(R.string.section_metadata),
                 stringResource(R.string.settings_metadata_description)) {
                 val locationLabel=stringResource(R.string.resolve_location)
                 Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=geocode,role=Role.Switch,
@@ -92,7 +108,8 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
                 Text(stringResource(R.string.resolve_location_hint),style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SettingsSection(stringResource(R.string.lens_settings),stringResource(R.string.lens_entry_hint)) {
+            SettingsCategory.LENSES -> SettingsSection(stringResource(R.string.lens_settings),
+                stringResource(R.string.lens_entry_hint)) {
                 ListItem(headlineContent={ Text(stringResource(R.string.manage_lenses,settings.lenses.size)) },
                     trailingContent={ Icon(painterResource(R.drawable.ic_chevron),null) },
                     modifier=Modifier.clickable(onClick=onManageLenses),
@@ -104,13 +121,52 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,onManageLenses:()->U
                     isError=!draft.validFocal,
                     supportingText={ Text(stringResource(if(draft.validFocal)R.string.main_focal_hint else R.string.main_focal_error)) })
             }
-            SettingsSection(stringResource(R.string.about),stringResource(R.string.about_summary)) {
+            SettingsCategory.ABOUT -> SettingsSection(stringResource(R.string.about),
+                stringResource(R.string.about_summary)) {
                 ListItem(headlineContent={ Text(stringResource(R.string.about)) },
                     trailingContent={ Icon(painterResource(R.drawable.ic_chevron),null) },
                     modifier=Modifier.clickable { showAbout=true },
                     colors=ListItemDefaults.colors(containerColor=MaterialTheme.colorScheme.surfaceContainerLow))
             }
         }
+    }
+
+    FuyaoScaffold(stringResource(R.string.settings),onBack=requestBack,actions={
+        TextButton(onClick={ onSave(draft,false) },enabled=draft.validFocal) { Text(stringResource(R.string.save_settings)) }
+    }) { padding ->
+        FuyaoAdaptivePage(padding,
+            single = { modifier ->
+                Box(modifier,contentAlignment=Alignment.TopCenter) {
+                    Column(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxWidth()
+                        .verticalScroll(rememberScrollState()).padding(16.dp),
+                        verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                        overview()
+                        SettingsCategory.entries.forEach { categoryContent(it) }
+                        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)))
+                    }
+                }
+            },
+            leading = { modifier ->
+                Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                    overview()
+                    SettingsCategory.entries.forEach { category ->
+                        NavigationDrawerItem(
+                            label={ Text(stringResource(category.label)) },
+                            selected=selectedCategory==category,
+                            onClick={ selectedCategory=category },
+                            icon={ Icon(painterResource(category.icon),null) },
+                        )
+                    }
+                }
+            },
+            trailing = { modifier ->
+                Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                    categoryContent(selectedCategory)
+                    Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)))
+                }
+            })
     }
 }
 

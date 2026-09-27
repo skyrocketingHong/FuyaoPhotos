@@ -272,6 +272,9 @@
   <string name="wheel_focal">Focal length</string>
   <string name="photo_details">Photo details</string>
   <string name="portrait_depth_preview">Recognized portrait depth</string>
+  <string name="portrait_depth_show">View portrait depth layer</string>
+  <string name="portrait_depth_hide">Hide portrait depth layer</string>
+  <string name="portrait_depth_disparity_note">Disparity layer from the original photo. Nearer areas appear lighter.</string>
   <string name="portrait_depth_unavailable">Depth preview unavailable</string>
   <string name="photo_export_blocked_title">This photo cannot be exported</string>
   <string name="media_badge_description">Photo data needs attention</string>

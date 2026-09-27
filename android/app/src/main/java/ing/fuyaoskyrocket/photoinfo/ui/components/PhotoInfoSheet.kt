@@ -35,6 +35,8 @@ private data class DetailRow(@StringRes val label: Int, val value: String)
 private data class DetailGroup(@StringRes val title: Int, val rows: List<DetailRow>,
     @StringRes val description: Int? = null)
 
+enum class PhotoInfoDisplay { ALL, SUMMARY, FACTS }
+
 /** Displays only metadata retained from the imported original, not edited card text. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +54,8 @@ fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThumbnail: Boolean = true) {
+fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThumbnail: Boolean = true,
+    display: PhotoInfoDisplay = PhotoInfoDisplay.ALL) {
     val details = state.photoDetails ?: return
     val context = LocalContext.current
     val groups = detailGroups(context, details)
@@ -62,8 +65,8 @@ fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThum
     val size = details.byteCount?.let { android.text.format.Formatter.formatFileSize(context, it) }
     val subtitle = listOfNotNull(kind, size).joinToString(" · ")
     val exportNotice = exportBlockingNotice(state)
-    Column(modifier) {
-            if (exportNotice != null) {
+    LazyColumn(modifier, contentPadding = PaddingValues(bottom = 28.dp)) {
+            if (display != PhotoInfoDisplay.FACTS && exportNotice != null) item {
                 Surface(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     shape = MaterialTheme.shapes.medium,
@@ -84,7 +87,7 @@ fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThum
                     }
                 }
             }
-            Surface(
+            if (display != PhotoInfoDisplay.FACTS) item { Surface(
                 Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 tonalElevation = 1.dp,
@@ -105,7 +108,7 @@ fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThum
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    state.photos.getOrNull(state.photoIndex)?.path?.takeIf { it.isNotEmpty() }?.let { path ->
+                    state.photos.getOrNull(state.photoIndex)?.path?.takeIf { showThumbnail && state.portraitDepth && it.isNotEmpty() }?.let { path ->
                         PortraitDepthPreview(file = java.io.File(path), modifier = Modifier.fillMaxWidth())
                     }
                     if (state.hdrPhoto || state.motionPhoto) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -115,14 +118,10 @@ fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThum
                             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     }
                 }
-            }
-            LazyColumn(
-                Modifier.fillMaxWidth().weight(1f, fill = false),
-                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 28.dp),
-            ) {
-                groups.forEach { group ->
+            } }
+                if (display != PhotoInfoDisplay.SUMMARY) groups.forEach { group ->
                     item {
-                        Column(Modifier.padding(top = 16.dp, bottom = 4.dp),
+                        Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(stringResource(group.title), style = MaterialTheme.typography.titleMedium)
                             group.description?.let {
@@ -131,9 +130,10 @@ fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThum
                             }
                         }
                     }
-                    items(group.rows) { row -> DetailValueRow(row) }
+                    items(group.rows) { row ->
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) { DetailValueRow(row) }
+                    }
                 }
-            }
     }
 }
 
