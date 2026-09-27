@@ -27,17 +27,22 @@ import UniformTypeIdentifiers
             }
         } else {
             var movie: URL?
+            defer { if let movie { try? FileManager.default.removeItem(at: movie) } }
             if let original = document.sourceMovieURL {
                 let target = photo.deletingPathExtension().appendingPathExtension("mov")
                 try FileManager.default.copyItem(at: original, to: target)
                 movie = target
             }
             if let movie { try await LivePhotoPair.validate(photo: photo, movie: movie) }
-            let source = CardPhotoLibrary.asset(document.assetIdentifier)
+            let readStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+            let source = readStatus == .authorized || readStatus == .limited
+                ? CardPhotoLibrary.asset(document.assetIdentifier) : nil
+            // ASVS 5.3.2: sanitize the source name before using it as PhotoKit metadata.
+            let resourceName = resourceFilename(for: document.originalName)
             try await PHPhotoLibrary.shared().performChanges {
                 let request = PHAssetCreationRequest.forAsset()
                 let imageOptions = PHAssetResourceCreationOptions()
-                imageOptions.originalFilename = document.originalName
+                imageOptions.originalFilename = resourceName
                 imageOptions.contentType = .heic
                 request.addResource(with: .photo, fileURL: photo, options: imageOptions)
                 if let movie {
@@ -46,9 +51,21 @@ import UniformTypeIdentifiers
                     videoOptions.contentType = .quickTimeMovie
                     request.addResource(with: .pairedVideo, fileURL: movie, options: videoOptions)
                 }
-                request.location = source?.location
+                request.location = source?.location ?? document.location
                 if let date = source?.creationDate { request.creationDate = date }
             }
         }
+    }
+
+    private static func resourceFilename(for originalName: String) -> String {
+        let basename = (originalName as NSString).lastPathComponent
+        let stem = (basename as NSString).deletingPathExtension
+        let safe = String(stem.unicodeScalars
+            .filter { !CharacterSet.controlCharacters.contains($0) && $0 != "/" && $0 != "\\" }
+            .map { String($0) }
+            .joined()
+            .prefix(80))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(safe.isEmpty ? "FuyaoPhoto" : safe).heic"
     }
 }

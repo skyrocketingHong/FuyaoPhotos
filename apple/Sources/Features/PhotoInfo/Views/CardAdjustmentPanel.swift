@@ -137,78 +137,20 @@ private struct MobileCardInspector: View {
             let controlHeight = min(dynamicTypeSize.isAccessibilitySize ? 100 : 76, max(68, height * 0.20))
             let descriptionHeight = min(dynamicTypeSize.isAccessibilitySize ? 130 : 76,
                                         max(52, height * (dynamicTypeSize.isAccessibilitySize ? 0.3 : 0.19)))
-            let showsDescription = height >= (dynamicTypeSize.isAccessibilitySize ? 270 : 210)
-            let showsDetail = height >= (dynamicTypeSize.isAccessibilitySize ? 420 : 280)
-            // Four VStack gaps of 8 sit between the blocks; the close-up takes whatever
-            // room is left so it fills the panel height instead of stranding a spacer.
-            let previewRoom = max(64, height - controlHeight - descriptionHeight - buttonHeight - 32)
-            let previewHeight = min(geometry.size.width / CardDetailPreview.referenceAspect, previewRoom)
+            let contentHeight = geometry.size.width + controlHeight + descriptionHeight + buttonHeight + 24
+            let compact = height < contentHeight
 
-            VStack(alignment: .leading, spacing: 8) {
-                if showsDetail {
-                    CardDetailPreview(document: document, height: previewHeight, processing: textEditingActive,
-                                      highlightedField: information ? field : nil,
-                                      highlightedStyle: information ? nil : adjustment)
-                }
-
-                ZStack(alignment: .leading) {
-                    if information {
-                        TextField("", text: $document.card[field], axis: .vertical)
-                            .textFieldStyle(.plain)
-                            .lineLimit(2...3)
-                            .foregroundStyle(.yellow)
-                            .tint(.yellow)
-                            .padding(10)
-                            .frame(height: controlHeight - 8, alignment: .top)
-                            .glassEffect(.clear.interactive(), in: .rect(cornerRadius: 12))
-                            .padding(4)
-                            .focused($editingText)
-                            .accessibilityLabel(Text(LocalizedStringKey(field.titleKey)))
-                            .id(selectionID)
-                            .transition(.opacity)
-                    } else {
-                        CardStyleSlider(
-                            value: $document.card.style[dynamicMember: adjustment.keyPath],
-                            range: adjustment.range,
-                            defaultValue: PhotoCardStyle()[keyPath: adjustment.keyPath],
-                            label: adjustment.title,
-                            minimumSymbol: adjustment.symbols.0,
-                            maximumSymbol: adjustment.symbols.1,
-                            formattedValue: adjustment.percentage
-                                ? document.card.style[keyPath: adjustment.keyPath].formatted(.percent.precision(.fractionLength(0)))
-                                : document.card.style[keyPath: adjustment.keyPath].formatted(.number.precision(.fractionLength(0))))
-                            .id(selectionID)
-                            .transition(.opacity)
+            Group {
+                if compact {
+                    ScrollView {
+                        inspectorContents(controlHeight: controlHeight, descriptionHeight: descriptionHeight,
+                                          buttonHeight: buttonHeight, compact: true)
                     }
+                    .scrollBounceBehavior(.basedOnSize)
+                } else {
+                    inspectorContents(controlHeight: controlHeight, descriptionHeight: descriptionHeight,
+                                      buttonHeight: buttonHeight, compact: false)
                 }
-                .frame(height: controlHeight)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
-
-                Spacer(minLength: 0)
-
-                if showsDescription {
-                    ZStack(alignment: .topLeading) {
-                        Text(LocalizedStringKey(information
-                             ? "card.field." + field.rawValue + ".hint"
-                             : "card.style." + adjustment.rawValue + ".hint"))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(4)
-                            .id(selectionID)
-                            .transition(.opacity)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: descriptionHeight, alignment: .topLeading)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
-                }
-
-                HStack(spacing: 6) {
-                    restoreButton("card.restore.current", symbol: "arrow.counterclockwise",
-                                  height: buttonHeight, action: restoreCurrent)
-                    restoreButton("card.restore.all", symbol: "arrow.counterclockwise.circle",
-                                  height: buttonHeight, action: restoreAll)
-                }
-                .frame(height: buttonHeight)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
@@ -224,6 +166,71 @@ private struct MobileCardInspector: View {
             textEditingActive = false
         }
 #endif
+    }
+
+    private func inspectorContents(controlHeight: CGFloat, descriptionHeight: CGFloat,
+                                   buttonHeight: CGFloat, compact: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CardDetailPreview(document: document, processing: textEditingActive,
+                              highlightedField: information ? field : nil,
+                              highlightedStyle: information ? nil : adjustment)
+
+            ZStack(alignment: .leading) {
+                if information {
+                    TextField("", text: $document.card[field], axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .lineLimit(2...3)
+                        .foregroundStyle(.yellow)
+                        .tint(.yellow)
+                        .padding(10)
+                        .frame(height: controlHeight - 8, alignment: .top)
+                        .glassEffect(.clear.interactive(), in: .rect(cornerRadius: 12))
+                        .padding(4)
+                        .focused($editingText)
+                        .accessibilityLabel(Text(LocalizedStringKey(field.titleKey)))
+                        .id(selectionID)
+                        .transition(.opacity)
+                } else {
+                    CardStyleSlider(
+                        value: $document.card.style[dynamicMember: adjustment.keyPath],
+                        range: adjustment.range,
+                        defaultValue: PhotoCardStyle()[keyPath: adjustment.keyPath],
+                        label: adjustment.title,
+                        minimumSymbol: adjustment.symbols.0,
+                        maximumSymbol: adjustment.symbols.1,
+                        formattedValue: adjustment.percentage
+                            ? document.card.style[keyPath: adjustment.keyPath].formatted(.percent.precision(.fractionLength(0)))
+                            : document.card.style[keyPath: adjustment.keyPath].formatted(.number.precision(.fractionLength(0))))
+                        .id(selectionID)
+                        .transition(.opacity)
+                }
+            }
+            .frame(height: controlHeight)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
+
+            if !compact { Spacer(minLength: 0) }
+
+            Text(LocalizedStringKey(information
+                 ? "card.field." + field.rawValue + ".hint"
+                 : "card.style." + adjustment.rawValue + ".hint"))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(compact ? nil : 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: compact ? nil : descriptionHeight, alignment: .topLeading)
+                .id(selectionID)
+                .transition(.opacity)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
+
+            HStack(spacing: 6) {
+                restoreButton("card.restore.current", symbol: "arrow.counterclockwise",
+                              height: buttonHeight, action: restoreCurrent)
+                restoreButton("card.restore.all", symbol: "arrow.counterclockwise.circle",
+                              height: buttonHeight, action: restoreAll)
+            }
+            .frame(height: buttonHeight)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private func restoreButton(_ title: LocalizedStringKey, symbol: String, height: CGFloat,

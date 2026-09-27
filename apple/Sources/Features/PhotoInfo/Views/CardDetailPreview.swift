@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CardDetailPreview: View {
     let document: CardDocument
-    var height: CGFloat = 156
     var processing = false
     var highlightedField: CardField?
     var highlightedStyle: CardAdjustment?
@@ -20,6 +19,11 @@ struct CardDetailPreview: View {
         CardDetailPreviewKey(documentID: document.id, card: document.card, retry: retry)
     }
 
+    private var previewAspect: CGFloat {
+        guard let render, render.image.height > 0 else { return Self.referenceAspect }
+        return CGFloat(render.image.width) / CGFloat(render.image.height)
+    }
+
     var body: some View {
         ZStack {
             if document.card.rows.isEmpty {
@@ -31,7 +35,6 @@ struct CardDetailPreview: View {
                     Image(decorative: render.image, scale: 1, orientation: .up)
                         .resizable()
                         .scaledToFit()
-                        .padding(6)
                     CardSelectionHighlight(render: render, field: highlightedField, style: highlightedStyle)
                 }
                 .modifier(ProcessingVeil(active: processing || loading, pulse: loading && !processing))
@@ -57,7 +60,7 @@ struct CardDetailPreview: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: height)
+        .aspectRatio(previewAspect, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("card.preview"))

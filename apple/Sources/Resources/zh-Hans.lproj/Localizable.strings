@@ -107,6 +107,17 @@
 
 // MARK: - Settings
 "settings.title" = "设置";
+"settings.intro" = "设置照片信息卡的编辑与保存方式，以及照片地图的默认展示方式。";
+"settings.editor.header" = "编辑器";
+"settings.editor.footer" = "暗房外观会以深色背景展示照片编辑工具。";
+"settings.appearance.hint" = "选择暗房外观，或跟随系统外观。";
+"settings.photo.header" = "照片信息";
+"settings.author.hint" = "照片未记录拍摄者时使用此默认值；修改单张照片不会改变默认值。";
+"settings.save.header" = "保存默认值";
+"settings.save.destination.hint" = "选择默认更新相册原片，或另存为新照片。";
+"settings.save.footer" = "每次保存时仍可单独调整这些选项。";
+"settings.map.header" = "照片地图";
+"settings.map.mode.hint" = "选择打开照片地图时显示的视图。";
 "settings.defaults.header" = "默认设置";
 "settings.defaults.footer" = "这些设置将在应用启动时生效";
 "settings.default.display.mode" = "默认展示模式";
@@ -231,6 +242,8 @@
 "card.save.copy.description" = "另存一张新照片，保留原照片。";
 "card.save.copy.description.many" = "分别另存新照片，保留全部原照片。";
 "card.save.format" = "图片格式";
+"card.save.output.header" = "图片输出";
+"card.save.output.footer" = "设置保存照片时使用的文件格式和编码质量。";
 "card.save.quality" = "编码质量";
 "card.save.exif" = "保留拍摄参数";
 "card.save.location" = "保留定位";
@@ -294,20 +307,23 @@
 
 "tab.metadata" = "元数据";
 
+"metadata.intro.title" = "照片元数据";
+"metadata.intro.description" = "查看照片实际包含的信息，为支持的照片添加摄影风格，并选择保存到图库的方式。";
 "metadata.empty.title" = "没有照片";
-"metadata.empty.description" = "先在信息卡片页打开照片，即可查看元数据并添加影像风格。";
+"metadata.empty.description" = "打开照片，即可查看元数据并添加摄影风格。";
 "metadata.photo.name" = "照片";
 "metadata.report.loading" = "正在读取元数据…";
-"metadata.save" = "保存元数据";
+"metadata.save" = "保存到照片图库";
 "metadata.save.options" = "保存选项";
 "metadata.save.destination" = "保存位置";
 "metadata.save.copy" = "另存为新照片";
 "metadata.save.update" = "更新原照片";
-"metadata.save.copy.description" = "将写入影像风格元数据的照片另存为图库中的新照片，位置与拍摄时间一并保留。";
+"metadata.save.copy.description" = "将添加风格后的照片作为新照片存入图库。HEIC 内可读取的定位与拍摄信息会保留；能读取来源图库照片时，也会沿用其图库拍摄日期。";
 "metadata.save.update.description" = "将影像风格元数据写入所选原照片，像素不重新编码。";
 "metadata.save.update.unavailable.live" = "Live Photo 无法原地更新；写入风格的照片将另存为新照片，并保留 Live Photo 配对。";
 "metadata.save.complete" = "元数据已保存";
-"metadata.saved" = "已为照片写入影像风格元数据。";
+"metadata.saved" = "已将含摄影风格的新照片保存到照片图库，所选原照片未改变。";
+"metadata.saved.updated" = "已在照片图库中更新所选原照片的摄影风格。";
 "metadata.error.title" = "保存失败";
 "metadata.error.alreadyStyled" = "此照片已包含影像风格元数据，未重复添加。";
 "metadata.error.unsupported" = "此照片无法注入影像风格：%@";
@@ -321,14 +337,20 @@
 "metadata.styles.value.unavailable" = "不可用";
 "metadata.styles.standard" = "添加摄影风格（Standard）";
 "metadata.styles.texture" = "添加质感风格（纹理与颗粒）";
-"metadata.styles.footer" = "保存时将所选 Apple 摄影风格层写入原照片，像素不重新编码。质感风格依赖摄影风格（Standard）层。输出为 HEIC；另存为新照片时 Live Photo 配对保持不变。";
+"metadata.styles.footer" = "质感风格依赖摄影风格（Standard）层。点按“保存到照片图库”后，可选择另存为新照片，或在支持时更新原照片。输出为 HEIC；另存 Live Photo 时会保留配对。";
 
 "metadata.report.section.container" = "容器";
+"metadata.report.section.container.description" = "显示可从这张照片读取的文件格式与封装信息。";
 "metadata.report.section.color" = "色彩";
+"metadata.report.section.color.description" = "显示文件中已有的色彩配置、色域及传递函数信息。";
 "metadata.report.section.hdr" = "HDR";
+"metadata.report.section.hdr.description" = "显示增益图格式及可读取参数；实际 HDR 显示还取决于屏幕。";
 "metadata.report.section.motion" = "拍摄动态";
+"metadata.report.section.motion.description" = "有实况照片或内嵌动态视频时，显示其相关信息。";
 "metadata.report.section.styles" = "影像风格";
+"metadata.report.section.styles.description" = "显示文件中已包含的风格层；可在下方添加缺失的风格。";
 "metadata.report.section.vendor" = "厂商数据";
+"metadata.report.section.vendor.description" = "显示已识别的设备景深与辅助数据。";
 "metadata.report.format" = "格式";
 "metadata.report.brands" = "ftyp 品牌";
 "metadata.report.bitDepth" = "像素位深";
@@ -357,7 +379,7 @@
 "metadata.settings.header" = "元数据";
 "metadata.sharesCards" = "与信息卡片共享照片";
 "metadata.sharesCards.footer" = "元数据页显示信息卡片页的照片，而不是自己的照片。";
-"metadata.open.cards" = "在元数据中打开";
+"metadata.open.cards" = "在信息卡片中打开";
 "metadata.open.map" = "在地图上查看";
 "metadata.section.openIn" = "打开到";
 "metadata.section.openIn.footer" = "照片会在对应页面自己的会话中打开；图库照片会自动出现在地图上。";

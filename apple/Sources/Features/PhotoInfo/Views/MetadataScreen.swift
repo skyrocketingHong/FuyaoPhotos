@@ -36,7 +36,13 @@ struct MetadataScreen: View {
         } message: { Text(state.errorMessage ?? "") }
         .alert("metadata.save.complete", isPresented: savedShown) {
             Button("done", role: .cancel) { }
-        } message: { Text("metadata.saved") }
+        } message: {
+            if state.savedToOriginal {
+                Text("metadata.saved.updated")
+            } else {
+                Text("metadata.saved")
+            }
+        }
         .sensoryFeedback(.success, trigger: state.saved)
     }
 
@@ -53,14 +59,20 @@ struct MetadataScreen: View {
                     .disabled(state.busy)
                     .overlay { if state.busy { busyOverlay } }
             } else {
-                ContentUnavailableView {
-                    Label("metadata.empty.title", systemImage: "info.circle")
-                } description: {
-                    Text("metadata.empty.description")
-                } actions: {
-                    Button("card.open", action: { showingPicker = true })
-                        .buttonStyle(.borderedProminent)
+                Form {
+                    MetadataIntroSection()
+                    Section {
+                        ContentUnavailableView {
+                            Label("metadata.empty.title", systemImage: "photo")
+                        } description: {
+                            Text("metadata.empty.description")
+                        } actions: {
+                            Button("card.open", action: { showingPicker = true })
+                                .buttonStyle(.borderedProminent)
+                        }
+                    }
                 }
+                .formStyle(.grouped)
             }
         }
     }
@@ -107,6 +119,7 @@ private struct MetadataContent<Sourcing: MetadataPhotoSourcing>: View {
 
     var body: some View {
         Form {
+            MetadataIntroSection()
             if sourcing.documents.count > 1 {
                 Section {
                     let session = sourcing
@@ -117,7 +130,7 @@ private struct MetadataContent<Sourcing: MetadataPhotoSourcing>: View {
                     }
                 }
             }
-            MediaMetadataReportSection(report: state.report)
+            MediaMetadataReportSection(report: state.report, showsDescriptions: true)
             stylesSection(document)
             Section {
                 Button("metadata.open.cards", systemImage: "photo.badge.plus") { openInCards() }
@@ -132,14 +145,6 @@ private struct MetadataContent<Sourcing: MetadataPhotoSourcing>: View {
             }
         }
         .formStyle(.grouped)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("metadata.save", systemImage: "checkmark") { showingSave = true }
-                    .labelStyle(.iconOnly)
-                    .disabled(state.busy || !state.hasPendingAdd(document))
-                    .accessibilityLabel(Text("metadata.save"))
-            }
-        }
         .sheet(isPresented: $showingSave) {
             MetadataSaveSheet(document: document) { updateOriginal in
                 Task { await state.save(document: document, updateOriginal: updateOriginal) }
@@ -179,6 +184,12 @@ private struct MetadataContent<Sourcing: MetadataPhotoSourcing>: View {
                         Text("metadata.styles.value.present")
                     }
                 }
+                Button {
+                    showingSave = true
+                } label: {
+                    Label("metadata.save", systemImage: "square.and.arrow.down")
+                }
+                .disabled(state.busy || !state.hasPendingAdd(document))
             }
         } header: {
             Text("metadata.styles.header")
@@ -188,6 +199,27 @@ private struct MetadataContent<Sourcing: MetadataPhotoSourcing>: View {
             } else {
                 Text("metadata.styles.footer")
             }
+        }
+    }
+}
+
+private struct MetadataIntroSection: View {
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                Image(systemName: "info.circle.fill")
+                    .font(.title)
+                    .foregroundStyle(.tint)
+                    .frame(width: 56, height: 56)
+                    .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                    .accessibilityHidden(true)
+                Text("metadata.intro.title")
+                    .font(.title2.weight(.bold))
+                Text("metadata.intro.description")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 8)
         }
     }
 }

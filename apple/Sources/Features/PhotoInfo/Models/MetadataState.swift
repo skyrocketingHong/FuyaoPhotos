@@ -12,13 +12,16 @@ import Observation
     var busy = false
     var errorMessage: String?
     var saved = false
+    private(set) var savedToOriginal = false
     private(set) var report: MediaMetadataReport?
 
     private var requestedID: UUID?
+    private var refreshRevision: UInt64 = 0
     private var fileCoverage: (photographic: Bool, texture: Bool) = (photographic: false, texture: false)
     private var fileCoverageID: UUID?
     private var injectedPhotographic = Set<UUID>()
     private var injectedTexture = Set<UUID>()
+    private var updatedSources: [UUID: URL] = [:]
 
     private static let supportedKinds: [PhotoMediaKind] = [.stillHEIC, .heicWithAuxiliaryData, .stillJPEG, .ultraHDRJPEG, .stillPNG]
 
@@ -54,23 +57,25 @@ import Observation
     }
 
     func refresh(document: CardDocument?) {
+        refreshRevision &+= 1
+        let revision = refreshRevision
         requestedID = document?.id
         includeTexture = false
+        report = nil
+        fileCoverage = (photographic: false, texture: false)
+        fileCoverageID = nil
         guard let document else {
-            report = nil
-            fileCoverage = (photographic: false, texture: false)
-            fileCoverageID = nil
             return
         }
         let id = document.id
-        let url = document.sourceURL
+        let url = updatedSources[id] ?? document.sourceURL
         let live = document.isLive
         Task {
             let loaded = await Task.detached(priority: .userInitiated) {
                 (report: MediaMetadataReportReader.read(url: url, isLivePhoto: live),
                  coverage: StyleInjection.stylesCoverage(in: url))
             }.value
-            guard !Task.isCancelled, id == requestedID else { return }
+            guard !Task.isCancelled, id == requestedID, revision == refreshRevision else { return }
             report = loaded.report
             fileCoverage = loaded.coverage
             fileCoverageID = id
@@ -83,10 +88,11 @@ import Observation
         let addTexture = canAddTexture(document) && includeTexture
         guard addPhotographic || addTexture else { return }
         busy = true
+        saved = false
         defer { busy = false }
         let output = document.sourceURL.deletingLastPathComponent()
             .appendingPathComponent("Fuyao-\(UUID().uuidString).heic")
-        let source = document.sourceURL
+        let source = updatedSources[document.id] ?? document.sourceURL
         let kind = document.metadata.kind
         let hdr = document.metadata.hdr
         let name = document.originalName
@@ -99,9 +105,19 @@ import Observation
             try await MetadataPhotoLibrary.save(photo: output, document: document,
                                                 updateOriginal: updateOriginal,
                                                 textureStyles: addTexture)
-            try? FileManager.default.removeItem(at: output)
-            if addPhotographic { injectedPhotographic.insert(document.id) }
-            if addTexture { injectedTexture.insert(document.id) }
+            if updateOriginal {
+                // Keep the committed bytes in this document's private working directory so
+                // a later style addition starts from the updated photo, not its old import.
+                if let previous = updatedSources[document.id] {
+                    try? FileManager.default.removeItem(at: previous)
+                }
+                updatedSources[document.id] = output
+                if addPhotographic { injectedPhotographic.insert(document.id) }
+                if addTexture { injectedTexture.insert(document.id) }
+            } else {
+                try? FileManager.default.removeItem(at: output)
+            }
+            savedToOriginal = updateOriginal
             saved = true
             refresh(document: document)
         } catch {
@@ -200,4 +216,3 @@ private enum MetadataImportSource {
     case picker(PHPickerResult)
     case asset(String)
 }
-

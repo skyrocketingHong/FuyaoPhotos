@@ -93,6 +93,10 @@ struct CardSaveControls: View {
                     Slider(value: $options.quality, in: 0...100, step: 1).accessibilityLabel(Text("card.save.quality"))
                 }
             }
+        } header: {
+            Text("card.save.output.header")
+        } footer: {
+            Text("card.save.output.footer")
         }
         Section {
             Toggle("card.save.exif", isOn: $options.keepExif)

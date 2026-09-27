@@ -18,21 +18,22 @@ struct SettingsView: View {
 #if os(macOS)
         TabView {
             Tab("tab.cards", systemImage: "photo.badge.plus") {
-                Form { cardSettings }
+                Form { settingsIntro; cardSettings }
                     .formStyle(.grouped)
             }
             Tab("tab.map", systemImage: "map") {
-                Form { mapSettings }
+                Form { settingsIntro; mapSettings }
                     .formStyle(.grouped)
             }
             Tab("settings.about.header", systemImage: "info.circle") {
-                Form { aboutSettings }
+                Form { settingsIntro; aboutSettings }
                     .formStyle(.grouped)
             }
         }
         .frame(minWidth: 500, minHeight: 420)
 #else
         Form {
+            settingsIntro
             cardSettings
             mapSettings
             aboutSettings
@@ -43,42 +44,103 @@ struct SettingsView: View {
 #endif
     }
 
+    private var settingsIntro: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 12) {
+                Image(systemName: "gearshape")
+                    .font(.title)
+                    .foregroundStyle(.primary)
+                    .frame(width: 56, height: 56)
+                    .background(.fill.tertiary, in: .rect(cornerRadius: 12))
+                    .accessibilityHidden(true)
+                Text("settings.title")
+                    .font(.title.bold())
+                Text("settings.intro")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 8)
+        }
+    }
+
     @ViewBuilder private var cardSettings: some View {
-        Section("card.information") {
-            Picker("settings.card.appearance", selection: $cardAppearance) {
+        Section {
+            Picker(selection: $cardAppearance) {
                 Text("settings.appearance.darkroom").tag(CardAppearance.darkroom.rawValue)
                 Text("settings.appearance.system").tag(CardAppearance.system.rawValue)
+            } label: {
+                settingLabel("settings.card.appearance", hint: "settings.appearance.hint")
             }
-            TextField("card.defaultAuthor", text: $card.author)
-            Toggle("card.resolveLocation", isOn: $card.resolveLocation)
-            Text("card.resolveLocation.description").font(.caption).foregroundStyle(.secondary)
+        } header: {
+            Text("settings.editor.header")
+        } footer: {
+            Text("settings.editor.footer")
         }
         Section {
-            Toggle("metadata.sharesCards", isOn: $card.metadataSharesCards)
+            VStack(alignment: .leading, spacing: 4) {
+                TextField("card.defaultAuthor", text: $card.author)
+                Text("settings.author.hint")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Toggle(isOn: $card.resolveLocation) {
+                settingLabel("card.resolveLocation", hint: "card.resolveLocation.description")
+            }
+        } header: {
+            Text("settings.photo.header")
+        }
+        Section {
+            Toggle(isOn: $card.metadataSharesCards) {
+                settingLabel("metadata.sharesCards", hint: "metadata.sharesCards.footer")
+            }
         } header: {
             Text("metadata.settings.header")
-        } footer: {
-            Text("metadata.sharesCards.footer")
         }
-        Section("card.save.destination") {
-            Toggle("card.save.update", isOn: $card.saveOptions.updateOriginal)
+        Section {
+            Toggle(isOn: $card.saveOptions.updateOriginal) {
+                settingLabel("card.save.update", hint: "settings.save.destination.hint")
+            }
+        } header: {
+            Text("settings.save.header")
+        } footer: {
+            Text("settings.save.footer")
         }
         CardSaveControls(options: $card.saveOptions)
     }
 
     @ViewBuilder private var mapSettings: some View {
-        Section("tab.map") {
-            Picker("settings.default.display.mode", selection: $defaultMode) {
+        Section {
+            Picker(selection: $defaultMode) {
                 ForEach(MapDisplayMode.allCases) { mode in Text(mode.localizedName).tag(mode.rawValue) }
+            } label: {
+                settingLabel("settings.default.display.mode", hint: "settings.map.mode.hint")
             }
-            Picker("settings.start.year", selection: $startYear) {
+            Picker(selection: $startYear) {
                 Text("settings.year.auto").tag(0)
                 ForEach(Array((1900...currentYear).reversed()), id: \.self) { Text(String($0)).tag($0) }
+            } label: {
+                settingLabel("settings.start.year", hint: "settings.start.year.footer")
             }
-            Picker("settings.default.year", selection: $selectedYear) {
+            Picker(selection: $selectedYear) {
                 Text("year.filter.all").tag(0)
                 ForEach(Array((1900...currentYear).reversed()), id: \.self) { Text(String($0)).tag($0) }
+            } label: {
+                settingLabel("settings.default.year", hint: "settings.default.year.footer")
             }
+        } header: {
+            Text("settings.map.header")
+        }
+    }
+
+    private func settingLabel(_ title: LocalizedStringKey, hint: LocalizedStringKey) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+            Text(hint)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

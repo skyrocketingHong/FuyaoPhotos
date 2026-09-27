@@ -42,6 +42,7 @@ struct ContentView: View {
 #endif
         }
         .tabViewStyle(.tabBarOnly)
+        .tint(workspace.selectedTab == .cards ? .yellow : .accentColor)
 #if os(macOS)
         .frame(minWidth: 760, minHeight: 560)
 #endif

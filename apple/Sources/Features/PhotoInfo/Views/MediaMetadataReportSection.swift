@@ -5,6 +5,7 @@ import SwiftUI
 struct MediaMetadataReportSection: View {
     let report: MediaMetadataReport?
     var prominentHeaders = false
+    var showsDescriptions = false
 
     var body: some View {
         if let report {
@@ -21,6 +22,10 @@ struct MediaMetadataReportSection: View {
                     }
                 } header: {
                     sectionHeader(section.titleKey)
+                } footer: {
+                    if showsDescriptions {
+                        MetadataReportFooter(titleKey: section.titleKey)
+                    }
                 }
             }
         } else {
@@ -38,6 +43,22 @@ struct MediaMetadataReportSection: View {
             Text(LocalizedStringKey(key)).font(.title3).bold().textCase(nil)
         } else {
             Text(LocalizedStringKey(key))
+        }
+    }
+}
+
+private struct MetadataReportFooter: View {
+    let titleKey: String
+
+    var body: some View {
+        switch titleKey {
+        case "metadata.report.section.container": Text("metadata.report.section.container.description")
+        case "metadata.report.section.color": Text("metadata.report.section.color.description")
+        case "metadata.report.section.hdr": Text("metadata.report.section.hdr.description")
+        case "metadata.report.section.motion": Text("metadata.report.section.motion.description")
+        case "metadata.report.section.styles": Text("metadata.report.section.styles.description")
+        case "metadata.report.section.vendor": Text("metadata.report.section.vendor.description")
+        default: EmptyView()
         }
     }
 }

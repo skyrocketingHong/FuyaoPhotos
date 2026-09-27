@@ -107,6 +107,17 @@
 
 // MARK: - Settings
 "settings.title" = "Settings";
+"settings.intro" = "Choose how photo cards are edited and saved, and how your photo map opens.";
+"settings.editor.header" = "Editor";
+"settings.editor.footer" = "The darkroom appearance keeps the editor's photo tools on a dark surface.";
+"settings.appearance.hint" = "Choose a dark editor or follow the system appearance.";
+"settings.photo.header" = "Photo Details";
+"settings.author.hint" = "Used for photos without a photographer in their metadata. Editing one photo does not change this default.";
+"settings.save.header" = "Save Defaults";
+"settings.save.destination.hint" = "Choose whether saves usually update a library original or create a new copy.";
+"settings.save.footer" = "You can change these choices for each save.";
+"settings.map.header" = "Photo Map";
+"settings.map.mode.hint" = "Choose the view shown when the photo map opens.";
 "settings.defaults.header" = "Defaults";
 "settings.defaults.footer" = "These settings will take effect when the app launches";
 "settings.default.display.mode" = "Default Display Mode";
@@ -231,6 +242,8 @@
 "card.save.copy.description" = "Save a new copy and keep the original photo.";
 "card.save.copy.description.many" = "Save new copies and keep the original photos.";
 "card.save.format" = "Format";
+"card.save.output.header" = "Image Output";
+"card.save.output.footer" = "Choose the file format and encoding quality for saved photos.";
 "card.save.quality" = "Encoding Quality";
 "card.save.exif" = "Keep Camera Details";
 "card.save.location" = "Keep Location";
@@ -294,20 +307,23 @@
 
 "tab.metadata" = "Metadata";
 
+"metadata.intro.title" = "Metadata";
+"metadata.intro.description" = "Inspect what this photo actually contains, then add supported photographic styles and choose where to save the result.";
 "metadata.empty.title" = "No Photo";
-"metadata.empty.description" = "Open a photo in Photo Cards to inspect its metadata and add photographic styles.";
+"metadata.empty.description" = "Open a photo to inspect its metadata and add photographic styles.";
 "metadata.photo.name" = "Photo";
 "metadata.report.loading" = "Reading metadata…";
-"metadata.save" = "Save Metadata";
+"metadata.save" = "Save to Photos";
 "metadata.save.options" = "Save Options";
 "metadata.save.destination" = "Destination";
 "metadata.save.copy" = "New Copy";
 "metadata.save.update" = "Update Original";
-"metadata.save.copy.description" = "Saves the photo with the added style metadata as a new photo in the library. Location and capture time carry over.";
+"metadata.save.copy.description" = "Saves the styled photo as a new item in Photos. Available location and capture metadata remain in the HEIC; the Photos date is preserved when the source asset can be read.";
 "metadata.save.update.description" = "Writes the style metadata into the selected original photo. The pixels are not re-encoded.";
 "metadata.save.update.unavailable.live" = "A Live Photo cannot be updated in place; the styled photo is saved as a new copy and keeps its Live Photo pairing.";
 "metadata.save.complete" = "Metadata Saved";
-"metadata.saved" = "The photographic styles metadata was written to the photo.";
+"metadata.saved" = "A new photo with photographic styles was saved in Photos. The selected original remains unchanged.";
+"metadata.saved.updated" = "The selected original photo was updated in Photos with photographic styles.";
 "metadata.error.title" = "Save Failed";
 "metadata.error.alreadyStyled" = "This photo already carries photographic styles metadata, so nothing was added.";
 "metadata.error.unsupported" = "Style injection is not available for this photo: %@";
@@ -321,14 +337,20 @@
 "metadata.styles.value.unavailable" = "Unavailable";
 "metadata.styles.standard" = "Add Photographic Styles (Standard)";
 "metadata.styles.texture" = "Add Texture Styles (Texture and Grain)";
-"metadata.styles.footer" = "Saving writes the selected Apple Photographic Styles layers into the original photo without re-encoding its pixels. The texture styles require the Standard layer. The output is HEIC; a Live Photo keeps its pairing when saved as a new copy.";
+"metadata.styles.footer" = "Texture styles require the Standard layer. Tap Save to Photos to choose a new copy or, when available, update the original. The result is HEIC; a Live Photo keeps its pairing when saved as a new copy.";
 
 "metadata.report.section.container" = "Container";
+"metadata.report.section.container.description" = "File format and container details that can be read from this photo.";
 "metadata.report.section.color" = "Color";
+"metadata.report.section.color.description" = "Color profile, gamut, and transfer information present in the file.";
 "metadata.report.section.hdr" = "HDR";
+"metadata.report.section.hdr.description" = "Gain map format and available parameters; actual HDR display also depends on the screen.";
 "metadata.report.section.motion" = "Capture Motion";
+"metadata.report.section.motion.description" = "Live Photo or embedded motion-video information when present.";
 "metadata.report.section.styles" = "Photographic Styles";
+"metadata.report.section.styles.description" = "Style layers already stored in the file. Add missing layers below.";
 "metadata.report.section.vendor" = "Vendor Data";
+"metadata.report.section.vendor.description" = "Recognized depth and auxiliary data from the capture device.";
 "metadata.report.format" = "Format";
 "metadata.report.brands" = "ftyp Brands";
 "metadata.report.bitDepth" = "Bit Depth";
@@ -357,7 +379,7 @@
 "metadata.settings.header" = "Metadata";
 "metadata.sharesCards" = "Share Photos with Cards";
 "metadata.sharesCards.footer" = "The metadata page shows the cards page's photos instead of its own.";
-"metadata.open.cards" = "Open in Metadata";
+"metadata.open.cards" = "Open in Photo Cards";
 "metadata.open.map" = "Show on Map";
 "metadata.section.openIn" = "Open In";
 "metadata.section.openIn.footer" = "The photo opens in that page's own session; library photos appear there automatically.";
