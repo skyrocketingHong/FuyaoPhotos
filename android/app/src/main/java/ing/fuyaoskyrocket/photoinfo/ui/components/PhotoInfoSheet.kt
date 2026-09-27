@@ -241,12 +241,18 @@ private fun detailGroups(context: Context, details: PhotoDetails): List<DetailGr
             add(DetailRow(R.string.photo_info_longitude, degreeText(point.longitude, false)))
         }
     }
+    val report = details.report?.sections?.map { section ->
+        DetailGroup(section.title, section.rows.map { row ->
+            DetailRow(row.label, row.text ?: row.value?.let(context::getString).orEmpty())
+        })
+    }.orEmpty()
     return listOf(
         DetailGroup(R.string.photo_info_file, file),
         DetailGroup(R.string.photo_info_camera, camera),
         DetailGroup(R.string.photo_info_capture, capture),
         DetailGroup(R.string.photo_info_location, location),
-    ).filter { it.rows.isNotEmpty() }
+    ) + report
+        .filter { it.rows.isNotEmpty() }
 }
 
 private fun imageKind(context: Context, mime: String): String {

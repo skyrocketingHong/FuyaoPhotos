@@ -1,5 +1,6 @@
 package ing.fuyaoskyrocket.photoinfo.domain.model
 
+import ing.fuyaoskyrocket.photoinfo.domain.media.MediaMetadataReport
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.PhotoCoordinates
 
 /** Facts from the selected file. Absent source metadata stays absent. */
@@ -12,4 +13,5 @@ data class PhotoDetails(
     val colorSpace: String? = null,
     val exif: Map<String, String> = emptyMap(),
     val coordinates: PhotoCoordinates? = null,
+    val report: MediaMetadataReport? = null,
 )

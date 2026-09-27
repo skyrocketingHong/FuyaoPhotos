@@ -327,4 +327,33 @@
   <string name="style_reference">Reference %1$s</string>
   <string name="field_value_placeholder">Enter a value</string>
   <string name="font_hint">Choose a local font for this card. The reference typeface is restored when you reset it.</string>
+
+  <string name="media_report_container">Container</string>
+  <string name="media_report_color">Color</string>
+  <string name="media_report_hdr">HDR</string>
+  <string name="media_report_motion">Capture Motion</string>
+  <string name="media_report_styles">Photographic Styles</string>
+  <string name="media_report_vendor">Vendor Data</string>
+  <string name="media_report_format">Format</string>
+  <string name="media_report_brands">ftyp Brands</string>
+  <string name="media_report_bit_depth">Bit Depth</string>
+  <string name="media_report_trailing_data">Trailing Data</string>
+  <string name="media_report_color_gamut">Gamut / Transfer</string>
+  <string name="media_report_hdr_standard">HDR Standard</string>
+  <string name="media_report_hdr_parameters">Gain Map</string>
+  <string name="media_report_motion_standard">Motion Standard</string>
+  <string name="media_report_trailing_video">Trailing Video</string>
+  <string name="media_report_styles_standard">Photographic Styles</string>
+  <string name="media_report_styles_texture">Texture Styles</string>
+  <string name="media_report_xiaomi_depth">Xiaomi Portrait Depth</string>
+  <string name="media_report_maker_note">Apple MakerNote Tags</string>
+  <string name="media_report_aux_stack">Apple Auxiliary Items</string>
+  <string name="media_report_value_none">None</string>
+  <string name="media_report_value_ultrahdr">Ultra HDR (Google XMP)</string>
+  <string name="media_report_value_isogainmap">ISO 21496-1 Gain Map</string>
+  <string name="media_report_value_applegainmap">Apple Private Gain Map</string>
+  <string name="media_report_value_heicmotion">HEIC Embedded Motion (Google)</string>
+  <string name="media_report_value_googlemotion">Google Motion Photo</string>
+  <string name="media_report_value_styles2023">Included (2023 Standard)</string>
+  <string name="media_report_value_styles2026">Included (2026 Texture and Grain)</string>
 </resources>

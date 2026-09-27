@@ -128,8 +128,9 @@ class PhotoRepository(private val context: Context) {
         ))
         val tags = ing.fuyaoskyrocket.photoinfo.domain.metadata.ExportMetadata.readableTags.mapNotNull { tag -> text(tag).takeIf { it.isNotEmpty() }?.let { tag to it } }.toMap()
         val mime = bounds.outMimeType.orEmpty()
+        var graph: HeifGraph.Report? = null
         val media = if (mime in setOf("image/heic", "image/heif", "image/avif")) {
-            val graph = runCatching { HeifGraph.inspect(file) }.getOrNull()
+            graph = runCatching { HeifGraph.inspect(file) }.getOrNull()
             val motion = graph?.motionPayload?.let { payload ->
                 runCatching { MotionPhoto.inspectHeif(file, exif?.getAttribute(ExifInterface.TAG_XMP), payload) }.getOrNull()
             }
@@ -155,6 +156,12 @@ class PhotoRepository(private val context: Context) {
             ExifInterface.TAG_FLASH, ExifInterface.TAG_X_RESOLUTION,
             ExifInterface.TAG_Y_RESOLUTION, ExifInterface.TAG_RESOLUTION_UNIT,
         ).mapNotNull { tag -> text(tag).takeIf(String::isNotEmpty)?.let { tag to it } }.toMap()
+        val report = runCatching {
+            ing.fuyaoskyrocket.photoinfo.domain.media.MediaMetadataReportReader.read(
+                mime, file, media, graph, exif?.getAttribute(ExifInterface.TAG_XMP)) { value ->
+                android.text.format.Formatter.formatShortFileSize(context, value)
+            }
+        }.getOrNull()
         val details = PhotoDetails(
             mimeType = mime.takeIf(String::isNotEmpty),
             byteCount = file.length().takeIf { it > 0L },
@@ -163,6 +170,7 @@ class PhotoRepository(private val context: Context) {
             colorSpace = bounds.outColorSpace?.name,
             exif = detailTags,
             coordinates = coordinates,
+            report = report,
         )
         return PhotoSource(file, width, height, orientation, info, tags, coordinates, media, details)
     }

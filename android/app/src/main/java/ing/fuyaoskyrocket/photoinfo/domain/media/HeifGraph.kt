@@ -17,9 +17,19 @@ object HeifGraph {
         val toneMapItemId: Int?,
         val hasIsoGainMap: Boolean,
         val hasStyleMetadata: Boolean,
+        val hasTextureStyles: Boolean,
         val hasPortraitMetadata: Boolean,
         val hasUnsupportedItems: Boolean,
         val motionPayload: MotionPayload?,
+        // Tolerant display facts for the metadata report: any parse trouble leaves null
+        // instead of failing the structural validation above.
+        val brands: List<String> = emptyList(),
+        val primaryBitDepth: Int? = null,
+        val colrPrimaries: Int? = null,
+        val colrTransfer: Int? = null,
+        val auxiliaryURNs: List<String> = emptyList(),
+        val toneMapPayload: ByteArray? = null,
+        val exifPayload: ByteArray? = null,
     )
 
     private data class Box(val type: String, val start: Long, val dataStart: Long, val end: Long) {
@@ -47,11 +57,12 @@ object HeifGraph {
         val motionPayload = motionBox?.let { MotionPayload(it.dataStart, it.end - it.dataStart, it.dataStart - it.start) }
         val ftyp = top.firstOrNull { it.type == "ftyp" } ?: throw IOException("HEIF file type missing")
         if (ftyp.size < 16 || ftyp.size > 1024) throw IOException("HEIF file type is invalid")
-        val brands = bytes(source, ftyp.dataStart, ftyp.end - ftyp.dataStart)
-        val allowedBrands = setOf("heic", "heix", "hevc", "hevx", "mif1", "msf1")
-        val isHeif = (0..brands.size - 4 step 4).any { index ->
-            brands.copyOfRange(index, index + 4).toString(Charsets.US_ASCII) in allowedBrands
+        val brandBytes = bytes(source, ftyp.dataStart, ftyp.end - ftyp.dataStart)
+        val brandList = (0..brandBytes.size - 4 step 4).map { index ->
+            brandBytes.copyOfRange(index, index + 4).toString(Charsets.US_ASCII)
         }
+        val allowedBrands = setOf("heic", "heix", "hevc", "hevx", "mif1", "msf1")
+        val isHeif = brandList.any { it in allowedBrands }
         if (!isHeif) throw IOException("Unsupported HEIF brand")
         val meta = top.singleOrNull { it.type == "meta" } ?: throw IOException("HEIF metadata missing")
         if (meta.end - meta.dataStart !in 4..MAX_META_BYTES) throw IOException("HEIF metadata exceeds limit")
@@ -77,6 +88,7 @@ object HeifGraph {
             it.type.contains("style", true) || it.contentType?.contains("styleMetadata", true) == true ||
                 it.contentType?.contains("photo:metadata:styles", true) == true
         }
+        val textureStyles = items.any { it.contentType?.contains("photo:metadata:texture_styles", true) == true }
         val portrait = items.any {
             it.type.contains("depth", true) || it.contentType?.contains("portrait", true) == true
         } || auxiliary.any { it == "urn:mpeg:hevc:2015:auxid:2" || it.contains("portraiteffectsmatte") }
@@ -88,7 +100,23 @@ object HeifGraph {
                     item.contentType in setOf("application/rdf+xml", "application/xmp+xml"))
         } ||
             references.any { it.type !in setOf("dimg", "thmb", "cdsc") || it.from !in itemIds || it.to.any { target -> target !in itemIds } }
-        Report(primary, toneMap, hasAux && toneMapReference, styles, portrait, unsupportedItems, motionPayload)
+        // Display facts never influence the structural verdict: every helper below is
+        // total and returns null on any parse trouble.
+        val locations = children.firstOrNull { it.type == "iloc" }?.let { runCatching { itemLocations(source, it) }.getOrNull() }
+        val properties = children.firstOrNull { it.type == "iprp" }?.let { runCatching { associatedProperties(source, it) }.getOrNull() }
+        val primaryProperties = properties?.get(primary).orEmpty()
+        val primaryBitDepth = primaryProperties.filter { it.first == "pixi" }
+            .mapNotNull { (_, payload) -> runCatching { pixiDepth(payload) }.getOrNull() }.maxOrNull()
+        val colr = primaryProperties.firstOrNull { it.first == "colr" && it.second.size >= 8 &&
+            it.second.copyOfRange(0, 4).toString(Charsets.US_ASCII) == "nclx" }
+        val colrPrimaries = colr?.let { ((it.second[4].toInt() and 255) shl 8) or (it.second[5].toInt() and 255) }
+        val colrTransfer = colr?.let { ((it.second[6].toInt() and 255) shl 8) or (it.second[7].toInt() and 255) }
+        fun payloadOf(id: Int, limit: Int): ByteArray? = locations?.get(id)
+            ?.let { runCatching { readPayload(source, it, limit) }.getOrNull() }
+        val toneMapPayload = toneMap?.let { payloadOf(it, 4096) }
+        val exifPayload = items.firstOrNull { it.type == "Exif" }?.let { payloadOf(it.id, 128 * 1024) }
+        Report(primary, toneMap, hasAux && toneMapReference, styles, textureStyles, portrait, unsupportedItems,
+            motionPayload, brandList, primaryBitDepth, colrPrimaries, colrTransfer, auxiliary, toneMapPayload, exifPayload)
     }
 
     private fun readPrimary(source: RandomAccessFile, box: Box): Int {
@@ -169,6 +197,113 @@ object HeifGraph {
         val ipco = boxes(source, iprp.dataStart, iprp.end).singleOrNull { it.type == "ipco" } ?: return false
         val ordinary = setOf("ispe", "pixi", "hvcC", "colr", "clli", "pasp", "irot", "imir", "clap", "rloc")
         return boxes(source, ipco.dataStart, ipco.end).any { it.type !in ordinary && it.type != "auxC" }
+    }
+
+    /** iloc version 0..2 extents per item id; construction method 1 (idat) entries are skipped. */
+    private fun itemLocations(source: RandomAccessFile, box: Box): Map<Int, List<Pair<Long, Long>>> {
+        if (box.end - box.dataStart < 8) throw IOException("HEIF location box is truncated")
+        source.seek(box.dataStart)
+        val version = source.readUnsignedByte()
+        source.skipBytes(3)
+        if (version !in 0..2) throw IOException("Unsupported HEIF location version")
+        val sizes = source.readUnsignedByte()
+        val sizes2 = source.readUnsignedByte()
+        val offsetSize = sizes ushr 4
+        val lengthSize = sizes and 15
+        val baseSize = sizes2 ushr 4
+        val indexSize = if (version == 0) 0 else sizes2 and 15
+        val count = if (version < 2) source.readUnsignedShort() else {
+            if (box.end - source.filePointer < 4) throw IOException("HEIF location count is truncated")
+            source.readInt()
+        }
+        if (count !in 0..MAX_BOXES) throw IOException("HEIF location count exceeds limit")
+        fun variable(size: Int): Long = when (size) {
+            0 -> 0L
+            1 -> source.readUnsignedByte().toLong()
+            2 -> source.readUnsignedShort().toLong()
+            4 -> source.readInt().toLong() and 0xffffffffL
+            8 -> source.readLong()
+            else -> throw IOException("Unsupported HEIF location field size")
+        }
+        val result = mutableMapOf<Int, List<Pair<Long, Long>>>()
+        repeat(count) {
+            val id = if (version < 2) source.readUnsignedShort() else source.readInt()
+            val construction = if (version > 0) source.readUnsignedShort() else 0
+            source.readUnsignedShort()
+            val base = variable(baseSize)
+            val extentCount = source.readUnsignedShort()
+            if (extentCount !in 1..MAX_BOXES) throw IOException("HEIF extent count exceeds limit")
+            val extents = mutableListOf<Pair<Long, Long>>()
+            repeat(extentCount) {
+                variable(indexSize)
+                val offset = variable(offsetSize)
+                val length = variable(lengthSize)
+                if (construction == 0) extents += (base + offset) to length
+            }
+            result[id] = extents
+        }
+        return result
+    }
+
+    /** ipco property payloads keyed by their 1-based index, plus ipma associations per item. */
+    private fun associatedProperties(source: RandomAccessFile, iprp: Box): Map<Int, List<Pair<String, ByteArray>>> {
+        val children = boxes(source, iprp.dataStart, iprp.end)
+        val ipco = children.firstOrNull { it.type == "ipco" } ?: throw IOException("HEIF property container missing")
+        val propertyBoxes = boxes(source, ipco.dataStart, ipco.end)
+        val properties = propertyBoxes.mapIndexed { index, box ->
+            val payload = bytes(source, box.dataStart, minOf(box.end - box.dataStart, 1024))
+            Triple(index + 1, box.type, payload)
+        }
+        val result = mutableMapOf<Int, MutableList<Pair<String, ByteArray>>>()
+        children.filter { it.type == "ipma" }.forEach { ipma ->
+            if (ipma.end - ipma.dataStart < 8) throw IOException("HEIF association box is truncated")
+            source.seek(ipma.dataStart)
+            val version = source.readUnsignedByte()
+            source.skipBytes(2)
+            val flags = source.readUnsignedByte()
+            if (version > 1 || flags > 1) throw IOException("Unsupported HEIF association version")
+            if (ipma.end - source.filePointer < 4) throw IOException("HEIF association count is truncated")
+            val count = source.readInt()
+            if (count !in 0..MAX_BOXES) throw IOException("HEIF association count exceeds limit")
+            repeat(count) {
+                val id = if (version == 0) source.readUnsignedShort() else source.readInt()
+                val propertyCount = source.readUnsignedByte()
+                if (propertyCount > ipco.size) throw IOException("HEIF association index exceeds properties")
+                repeat(propertyCount) {
+                    val value = if (flags == 0) source.readUnsignedByte() else {
+                        if (ipma.end - source.filePointer < 2) throw IOException("HEIF association is truncated")
+                        source.readUnsignedShort()
+                    }
+                    val mask = if (flags == 0) 0x80 else 0x8000
+                    val property = properties.firstOrNull { it.first == (value and (mask - 1)) } ?: return@repeat
+                    result.getOrPut(id) { mutableListOf() } += property.second to property.third
+                }
+            }
+        }
+        return result
+    }
+
+    /** pixi payload after the box header: version/flags word, channel count, per-channel bits. */
+    private fun pixiDepth(payload: ByteArray): Int? {
+        if (payload.size < 6) return null
+        val channels = payload[4].toInt() and 255
+        if (channels !in 1..4 || payload.size != 5 + channels) return null
+        return payload.drop(5).maxOf { it.toInt() and 255 }
+    }
+
+    /** Concatenates construction-method-0 extents, capped so display reads stay bounded. */
+    private fun readPayload(source: RandomAccessFile, extents: List<Pair<Long, Long>>, limit: Int): ByteArray? {
+        val total = extents.sumOf { it.second }
+        if (total <= 0L || total > limit) return null
+        if (extents.any { (start, length) -> start < 0 || start + length > source.length() }) return null
+        val out = ByteArray(total.toInt())
+        var at = 0
+        extents.forEach { (start, length) ->
+            source.seek(start)
+            source.readFully(out, at, length.toInt())
+            at += length.toInt()
+        }
+        return out
     }
 
     private fun boxes(source: RandomAccessFile, start: Long, end: Long): List<Box> {
