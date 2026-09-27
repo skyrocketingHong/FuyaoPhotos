@@ -6,7 +6,36 @@ struct SettingsView: View {
     @AppStorage("defaultDisplayMode") private var defaultMode = MapDisplayMode.photo.rawValue
     @AppStorage("customStartYear") private var startYear = 0
     @AppStorage("defaultSelectedYear") private var selectedYear = 0
+    @State private var selectedCategory: Category? = .cards
     private let currentYear = Calendar.current.component(.year, from: Date())
+
+    private enum Category: Hashable, CaseIterable {
+        case cards, map, about
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .cards: "tab.cards"
+            case .map: "tab.map"
+            case .about: "settings.about.header"
+            }
+        }
+
+        var description: LocalizedStringKey {
+            switch self {
+            case .cards: "settings.category.cards.description"
+            case .map: "settings.category.map.description"
+            case .about: "settings.category.about.description"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .cards: "photo.badge.plus"
+            case .map: "map"
+            case .about: "info.circle"
+            }
+        }
+    }
     private var version: String {
         let raw = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         let marketing = raw.hasSuffix(".0") ? String(raw.dropLast(2)) : raw
@@ -15,33 +44,76 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        GeometryReader { geometry in
+            if geometry.size.width >= 760 {
+                HStack(spacing: 0) {
+                    List(Category.allCases, id: \.self, selection: $selectedCategory) { category in
+                        Label(category.title, systemImage: category.symbol)
+                            .tag(category)
+                    }
+                    .listStyle(.sidebar)
+                    .frame(width: 220)
+                    Divider()
+                    Form {
+                        Section { categoryIntro(selectedCategory ?? .cards) }
+                        switch selectedCategory ?? .cards {
+                        case .cards: cardSettings
+                        case .map: mapSettings
+                        case .about: aboutSettings
+                        }
+                    }
+                    .formStyle(.grouped)
+                    .frame(maxWidth: .infinity)
+                }
+            } else {
 #if os(macOS)
-        TabView {
-            Tab("tab.cards", systemImage: "photo.badge.plus") {
-                Form { settingsIntro; cardSettings }
-                    .formStyle(.grouped)
-            }
-            Tab("tab.map", systemImage: "map") {
-                Form { settingsIntro; mapSettings }
-                    .formStyle(.grouped)
-            }
-            Tab("settings.about.header", systemImage: "info.circle") {
-                Form { settingsIntro; aboutSettings }
-                    .formStyle(.grouped)
+                TabView {
+                    Tab("tab.cards", systemImage: "photo.badge.plus") {
+                        Form { settingsIntro; cardSettings }.formStyle(.grouped)
+                    }
+                    Tab("tab.map", systemImage: "map") {
+                        Form { settingsIntro; mapSettings }.formStyle(.grouped)
+                    }
+                    Tab("settings.about.header", systemImage: "info.circle") {
+                        Form { settingsIntro; aboutSettings }.formStyle(.grouped)
+                    }
+                }
+#else
+                Form {
+                    settingsIntro
+                    cardSettings
+                    mapSettings
+                    aboutSettings
+                }
+                .formStyle(.grouped)
+#endif
             }
         }
+#if os(macOS)
         .frame(minWidth: 500, minHeight: 420)
 #else
-        Form {
-            settingsIntro
-            cardSettings
-            mapSettings
-            aboutSettings
-        }
-        .formStyle(.grouped)
         .navigationTitle("settings.title")
         .navigationBarTitleDisplayMode(.inline)
 #endif
+    }
+
+    private func categoryIntro(_ category: Category) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Image(systemName: category.symbol)
+                .font(.title)
+                .foregroundStyle(.primary)
+                .frame(width: 56, height: 56)
+                .background(.fill.tertiary, in: .rect(cornerRadius: 12))
+                .accessibilityHidden(true)
+            Text(category.title)
+                .font(.title.bold())
+            Text(category.description)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
     }
 
     private var settingsIntro: some View {

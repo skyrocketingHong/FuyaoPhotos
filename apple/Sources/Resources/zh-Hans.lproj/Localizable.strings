@@ -30,6 +30,15 @@
 
 // MARK: - Photo Detail
 "photo.detail.title" = "信息";
+"photo.depth.layer" = "人像景深图层";
+"photo.depth.depth" = "深度";
+"photo.depth.disparity" = "视差";
+"photo.depth.visualization" = "较亮区域表示距离较近。这是原片内嵌景深数据的可视化结果。";
+"card.preview.status" = "照片状态";
+"card.preview.source" = "当前视图";
+"card.preview.original" = "原片";
+"card.preview.edited" = "信息卡片";
+"card.preview.zoom" = "缩放";
 "photo.detail.location.info" = "位置信息";
 "photo.detail.photo.properties" = "照片属性";
 "photo.detail.map.location" = "地图位置";
@@ -108,6 +117,9 @@
 // MARK: - Settings
 "settings.title" = "设置";
 "settings.intro" = "设置照片信息卡的编辑与保存方式，以及照片地图的默认展示方式。";
+"settings.category.cards.description" = "设置照片信息卡的编辑、元数据和保存默认值。";
+"settings.category.map.description" = "选择照片地图的默认展示方式与年份筛选。";
+"settings.category.about.description" = "查看应用版本与其他信息。";
 "settings.editor.header" = "编辑器";
 "settings.editor.footer" = "暗房外观会以深色背景展示照片编辑工具。";
 "settings.appearance.hint" = "选择暗房外观，或跟随系统外观。";
@@ -308,6 +320,7 @@
 "tab.metadata" = "元数据";
 
 "metadata.intro.title" = "照片元数据";
+"metadata.original.header" = "原片";
 "metadata.intro.description" = "查看照片实际包含的信息，为支持的照片添加摄影风格，并选择保存到图库的方式。";
 "metadata.empty.title" = "没有照片";
 "metadata.empty.description" = "打开照片，即可查看元数据并添加摄影风格。";

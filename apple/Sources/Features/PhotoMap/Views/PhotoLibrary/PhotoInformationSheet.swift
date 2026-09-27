@@ -10,6 +10,7 @@ struct PhotoInformationSheet: View {
         return state
     }()
     @State private var cannotOpenPhotos = false
+    @State private var depthLayer: PortraitDepthLayerPixels?
 
     var body: some View {
         let asset = CardPhotoLibrary.asset(document.assetIdentifier)
@@ -24,6 +25,10 @@ struct PhotoInformationSheet: View {
                         .listRowInsets(EdgeInsets())
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
+                    if let depthLayer {
+                        PortraitDepthLayerDisclosure(layer: depthLayer)
+                            .id(document.id)
+                    }
                     PhotoInformationHeading(name: document.originalName,
                                             fileExtension: document.sourceURL.pathExtension,
                                             fileSize: document.metadata.fileSize)
@@ -53,6 +58,12 @@ struct PhotoInformationSheet: View {
         }
         .preferredColorScheme(.dark)
         .background(Color.black.ignoresSafeArea())
+        .task(id: document.sourceURL) {
+            depthLayer = nil
+            let result = await PortraitDepthLayerReader.readAsync(document.sourceURL)
+            guard !Task.isCancelled else { return }
+            depthLayer = result
+        }
         .alert("photo.open.failed", isPresented: $cannotOpenPhotos) { Button("done", role: .cancel) {} }
 #if os(macOS)
         .frame(minWidth: 460, idealWidth: 620, minHeight: 520, idealHeight: 740)

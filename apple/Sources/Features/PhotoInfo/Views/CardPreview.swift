@@ -167,32 +167,79 @@ private struct CardFullPreview: View {
     @State private var zoom = 1.0
     @State private var committedZoom = 1.0
     @State private var resetVersion = 0
+    @State private var isWide = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            previewContent
-                .background(.black)
-                .navigationTitle("card.preview")
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) { Button("done", action: dismiss.callAsFunction) }
-                    ToolbarItem(placement: .automatic) {
-                        Button("card.preview.reset", systemImage: "1.magnifyingglass") {
-#if os(macOS)
-                            zoom = 1; committedZoom = 1
-#else
-                            resetVersion += 1
-#endif
-                        }
-                        .buttonBorderShape(.circle)
+            GeometryReader { geometry in
+                if geometry.size.width >= 800 {
+                    HStack(spacing: 0) {
+                        previewContent
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        Divider()
+                        previewInspector
+                            .frame(width: 220)
+                    }
+                } else {
+                    previewContent
+                }
+            }
+            .background(.black)
+            .onGeometryChange(for: Bool.self) { $0.size.width >= 800 } action: { isWide = $0 }
+            .navigationTitle("card.preview")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("done", action: dismiss.callAsFunction) }
+                ToolbarItem(placement: .automatic) {
+                    if !isWide {
+                        Button("card.preview.reset", systemImage: "1.magnifyingglass", action: resetPreview)
+                            .buttonBorderShape(.circle)
                     }
                 }
+            }
         }
 #if !os(macOS)
         .interactiveDismissDisabled()
 #endif
 #if os(macOS)
         .frame(minWidth: 600, minHeight: 500)
+#endif
+    }
+
+    private var previewInspector: some View {
+        Form {
+            Section("card.preview.status") {
+                LabeledContent("card.preview.source") {
+                    Text(original ? "card.preview.original" : "card.preview.edited")
+                }
+                LabeledContent("photo.dimensions") {
+                    Text("\(document.metadata.width) × \(document.metadata.height)")
+                        .monospacedDigit()
+                }
+                if document.metadata.hdr {
+                    LabeledContent("HDR") {
+                        Text(hdr ? "photo.info.yes" : "photo.info.no")
+                    }
+                }
+#if os(macOS)
+                LabeledContent("card.preview.zoom") {
+                    Text(zoom, format: .percent.precision(.fractionLength(0)))
+                        .monospacedDigit()
+                }
+#endif
+            }
+            Section {
+                Button("card.preview.reset", systemImage: "1.magnifyingglass", action: resetPreview)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func resetPreview() {
+#if os(macOS)
+        zoom = 1; committedZoom = 1
+#else
+        resetVersion += 1
 #endif
     }
 

@@ -59,20 +59,44 @@ struct MetadataScreen: View {
                     .disabled(state.busy)
                     .overlay { if state.busy { busyOverlay } }
             } else {
-                Form {
-                    MetadataIntroSection()
-                    Section {
-                        ContentUnavailableView {
-                            Label("metadata.empty.title", systemImage: "photo")
-                        } description: {
-                            Text("metadata.empty.description")
-                        } actions: {
-                            Button("card.open", action: { showingPicker = true })
-                                .buttonStyle(.borderedProminent)
+                GeometryReader { geometry in
+                    if geometry.size.width >= 800 {
+                        HStack(spacing: 0) {
+                            Form {
+                                MetadataIntroSection()
+                                emptySection
+                            }
+                            .formStyle(.grouped)
+                            .frame(width: min(400, max(320, geometry.size.width * 0.38)))
+                            Divider()
+                            ContentUnavailableView {
+                                Label("metadata.empty.title", systemImage: "doc.text.magnifyingglass")
+                            } description: {
+                                Text("metadata.empty.description")
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
+                    } else {
+                        Form {
+                            MetadataIntroSection()
+                            emptySection
+                        }
+                        .formStyle(.grouped)
                     }
                 }
-                .formStyle(.grouped)
+            }
+        }
+    }
+
+    private var emptySection: some View {
+        Section {
+            ContentUnavailableView {
+                Label("metadata.empty.title", systemImage: "photo")
+            } description: {
+                Text("metadata.empty.description")
+            } actions: {
+                Button("card.open", action: { showingPicker = true })
+                    .buttonStyle(.borderedProminent)
             }
         }
     }
@@ -116,35 +140,53 @@ private struct MetadataContent<Sourcing: MetadataPhotoSourcing>: View {
     let openInCards: () -> Void
     let showOnMap: () -> Void
     @State private var showingSave = false
+    @State private var preview: CardPreviewState = {
+        let state = CardPreviewState()
+        state.original = true
+        return state
+    }()
 
     var body: some View {
-        Form {
-            MetadataIntroSection()
-            if sourcing.documents.count > 1 {
-                Section {
-                    let session = sourcing
-                    Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
-                        ForEach(sourcing.documents) { item in
-                            Text(item.originalName).tag(Optional(item.id))
+        GeometryReader { geometry in
+            if geometry.size.width >= 800 {
+                VStack(spacing: 0) {
+                    HStack(alignment: .center, spacing: 24) {
+                        MetadataIntroCard()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if sourcing.documents.count > 1 { photoPicker.frame(width: 280) }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    HStack(spacing: 0) {
+                        Form {
+                            originalSection
+                            openInSection
                         }
+                        .formStyle(.grouped)
+                        .frame(width: min(400, max(320, geometry.size.width * 0.38)))
+                        Divider()
+                        Form {
+                            MediaMetadataReportSection(report: state.report, showsDescriptions: true)
+                            stylesSection(document)
+                        }
+                        .formStyle(.grouped)
+                        .frame(maxWidth: .infinity)
                     }
                 }
-            }
-            MediaMetadataReportSection(report: state.report, showsDescriptions: true)
-            stylesSection(document)
-            Section {
-                Button("metadata.open.cards", systemImage: "photo.badge.plus") { openInCards() }
-                    .disabled(document.assetIdentifier == nil)
-                if document.location != nil {
-                    Button("metadata.open.map", systemImage: "map") { showOnMap() }
+            } else {
+                Form {
+                    MetadataIntroSection()
+                    if sourcing.documents.count > 1 {
+                        Section { photoPicker }
+                    }
+                    originalSection
+                    MediaMetadataReportSection(report: state.report, showsDescriptions: true)
+                    stylesSection(document)
+                    openInSection
                 }
-            } header: {
-                Text("metadata.section.openIn")
-            } footer: {
-                Text("metadata.section.openIn.footer")
+                .formStyle(.grouped)
             }
         }
-        .formStyle(.grouped)
         .sheet(isPresented: $showingSave) {
             MetadataSaveSheet(document: document) { updateOriginal in
                 Task { await state.save(document: document, updateOriginal: updateOriginal) }
@@ -152,6 +194,43 @@ private struct MetadataContent<Sourcing: MetadataPhotoSourcing>: View {
 #if !os(macOS)
             .presentationDetents([.medium, .large])
 #endif
+        }
+    }
+
+    private var photoPicker: some View {
+        let session = sourcing
+        return Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
+            ForEach(sourcing.documents) { item in
+                Text(item.originalName).tag(Optional(item.id))
+            }
+        }
+    }
+
+    private var originalSection: some View {
+        Section("metadata.original.header") {
+            CardPreviewSurface(document: document, controls: preview)
+                .aspectRatio(CGFloat(max(1, document.metadata.width)) / CGFloat(max(1, document.metadata.height)),
+                             contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: 220)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            PhotoInformationHeading(name: document.originalName,
+                                    fileExtension: document.sourceURL.pathExtension,
+                                    fileSize: document.metadata.fileSize)
+        }
+    }
+
+    private var openInSection: some View {
+        Section {
+            Button("metadata.open.cards", systemImage: "photo.badge.plus") { openInCards() }
+                .disabled(document.assetIdentifier == nil)
+            if document.location != nil {
+                Button("metadata.open.map", systemImage: "map") { showOnMap() }
+            }
+        } header: {
+            Text("metadata.section.openIn")
+        } footer: {
+            Text("metadata.section.openIn.footer")
         }
     }
 
@@ -205,22 +284,26 @@ private struct MetadataContent<Sourcing: MetadataPhotoSourcing>: View {
 
 private struct MetadataIntroSection: View {
     var body: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: "info.circle.fill")
-                    .font(.title)
-                    .foregroundStyle(.tint)
-                    .frame(width: 56, height: 56)
-                    .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
-                    .accessibilityHidden(true)
-                Text("metadata.intro.title")
-                    .font(.title2.weight(.bold))
-                Text("metadata.intro.description")
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.vertical, 8)
+        Section { MetadataIntroCard().padding(.vertical, 8) }
+    }
+}
+
+private struct MetadataIntroCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Image(systemName: "info.circle.fill")
+                .font(.title)
+                .foregroundStyle(.tint)
+                .frame(width: 56, height: 56)
+                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                .accessibilityHidden(true)
+            Text("metadata.intro.title")
+                .font(.title2.weight(.bold))
+            Text("metadata.intro.description")
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
