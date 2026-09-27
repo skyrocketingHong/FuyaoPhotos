@@ -43,25 +43,20 @@ nonisolated enum LivePhotoMovie {
     static func sampleDigest(_ url: URL, type: AVMediaType) async throws -> String {
         let asset = AVURLAsset(url: url)
         var digest = SHA256()
-        for track in try await asset.loadTracks(withMediaType: type) {
+        for track in try await asset.load(.tracks).filter({ $0.mediaType == type }) {
             let reader = try AVAssetReader(asset: asset)
             let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
             let provider = reader.outputProvider(for: output)
             try reader.start()
+            defer { if reader.status == .reading { reader.cancelReading() } }
+            var samples = LivePhotoSampleDigest()
             while let sample = try await provider.next() {
                 try Task.checkCancellation()
-                switch sample.content {
-                case .dataBuffer(let data):
-                    guard data.count <= 64 * 1024 * 1024 else { throw CardError.tooLarge }
-                    // Materialize the sample so the digest covers its logical compressed bytes.
-                    digest.update(data: Data(data))
-                case .markerOnly: continue
-                default: throw CardError.videoMetadata
-                }
-                let time = CMTimeConvertScale(sample.presentationTimeStamp,timescale:1_000_000,method:.default)
-                digest.update(data: Data("\(time.value)".utf8))
+                // Keep Core Media buffers inside their scoped lifetime; avoid DynamicContent materialization.
+                try sample.withUnsafeSampleBuffer { try samples.append($0) }
             }
             guard reader.status == .completed else { throw VerificationFailure.readerIncomplete(reader.status.rawValue) }
+            samples.value.withUnsafeBytes { digest.update(bufferPointer: $0) }
         }
         return digest.finalize().description
     }

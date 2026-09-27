@@ -3,6 +3,7 @@ import Foundation
 import ImageIO
 import CoreImage
 import UniformTypeIdentifiers
+import AVFoundation
 @testable import PhotoRenderingCore
 
 struct MotionPhotoTests {
@@ -27,6 +28,23 @@ struct MotionPhotoTests {
         #expect(text.contains("A &amp; B"))
         #expect(text.components(separatedBy: "http://ns.adobe.com/xap/1.0/").count == 2)
         #expect(throws: (any Error).self) { try MotionPhotoJPEG.rewrite(jpeg("<!DOCTYPE root>" + xml), videoLength: 100, timestamp: -1) }
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["FUYAO_MOTION_MOVIE"] != nil))
+    func suppliedMovieConvertsWithoutChangingSamples() async throws {
+        let source = URL(fileURLWithPath: try #require(ProcessInfo.processInfo.environment["FUYAO_MOTION_MOVIE"]))
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("fuyao-movie-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let output = folder.appendingPathComponent("video.mp4")
+        _ = try await LivePhotoMotionMovie.write(source, to: output)
+        let before = AVURLAsset(url: source), after = AVURLAsset(url: output)
+        let beforeTracks = try await before.load(.tracks), afterTracks = try await after.load(.tracks)
+        #expect(beforeTracks.map { $0.mediaType.rawValue }.sorted() == afterTracks.map { $0.mediaType.rawValue }.sorted())
+        for type in Set(beforeTracks.map(\.mediaType)) {
+            #expect(try await LivePhotoMovie.sampleDigest(source, type: type) == LivePhotoMovie.sampleDigest(output, type: type))
+        }
+        #expect(try Data(contentsOf: output).subdata(in: 4..<8) == Data("ftyp".utf8))
     }
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["FUYAO_LIVE_SAMPLE"] != nil))

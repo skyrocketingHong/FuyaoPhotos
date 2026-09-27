@@ -4,25 +4,20 @@ import AVFoundation
 nonisolated enum LivePhotoMotionMovie {
     static func write(_ source: URL, to destination: URL) async throws -> Int64 {
         let asset = AVURLAsset(url: source)
-        let composition = AVMutableComposition()
-        let videoTracks = try await asset.loadTracks(withMediaType: .video)
-        guard !videoTracks.isEmpty else { throw CardError.livePairing }
+        let tracks = try await asset.load(.tracks)
+        guard tracks.contains(where: { $0.mediaType == .video }) else { throw CardError.livePairing }
         let cover = try await coverTime(asset)
-        for type in [AVMediaType.video, .audio] {
-            for track in try await asset.loadTracks(withMediaType: type) {
-                guard let target = composition.addMutableTrack(withMediaType: type, preferredTrackID: kCMPersistentTrackID_Invalid)
-                else { throw CardError.videoMetadata }
-                let range = try await track.load(.timeRange)
-                try target.insertTimeRange(range, of: track, at: range.start)
-                target.preferredTransform = try await track.load(.preferredTransform)
-            }
-        }
-        guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough)
+        // Export the original asset so auxiliary tracks and their associations survive the container change.
+        guard let exporter = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough)
         else { throw CardError.videoMetadata }
         exporter.metadata = try await asset.load(.metadata)
         do {
             try await exporter.export(to: destination, as: .mp4)
-            for type in [AVMediaType.video, .audio] {
+            let outputTracks = try await AVURLAsset(url: destination).load(.tracks)
+            let types = tracks.map(\.mediaType)
+            guard types.map(\.rawValue).sorted() == outputTracks.map({ $0.mediaType.rawValue }).sorted()
+            else { throw CardError.videoMetadata }
+            for type in Set(types) {
                 let before = try await LivePhotoMovie.sampleDigest(source, type: type)
                 let after = try await LivePhotoMovie.sampleDigest(destination, type: type)
                 guard before == after else { throw CardError.videoMetadata }
