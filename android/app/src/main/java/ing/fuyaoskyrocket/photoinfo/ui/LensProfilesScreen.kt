@@ -8,7 +8,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -159,22 +158,17 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
         FuyaoAdaptivePage(padding,
             single = { modifier ->
                 Box(modifier,contentAlignment=Alignment.TopCenter) {
-                    LazyColumn(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxSize(),
-                        contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    FuyaoPageList(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxSize()) {
                         inventoryItems(); savedItems()
-                        item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))) }
                     }
                 }
             },
             leading = { modifier ->
-                LazyColumn(modifier,contentPadding=PaddingValues(16.dp),
-                    verticalArrangement=Arrangement.spacedBy(8.dp)) { inventoryItems() }
+                FuyaoPageList(modifier) { inventoryItems() }
             },
             trailing = { modifier ->
-                LazyColumn(modifier,contentPadding=PaddingValues(16.dp),
-                    verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                FuyaoPageList(modifier) {
                     savedItems()
-                    item { Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))) }
                 }
             })
     }

@@ -30,6 +30,7 @@ import kotlin.math.roundToInt
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -45,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import ing.fuyaoskyrocket.photoinfo.platform.PreviewDynamicRange
+import ing.fuyaoskyrocket.photoinfo.platform.hasHdrPreviewContent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -56,6 +58,10 @@ import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsControls
 import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsSaver
 import ing.fuyaoskyrocket.photoinfo.domain.model.ExportFormat
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorViewModel
+import ing.fuyaoskyrocket.photoinfo.presentation.MetadataViewModel
+import ing.fuyaoskyrocket.photoinfo.presentation.originalPhoto
+import ing.fuyaoskyrocket.photoinfo.ui.components.OriginalPreviewState
+import ing.fuyaoskyrocket.photoinfo.ui.components.OriginalPreviewMode
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorControls
 import ing.fuyaoskyrocket.photoinfo.ui.components.exportBlockingNotice
 import ing.fuyaoskyrocket.photoinfo.ui.components.FullScreenPreview
@@ -112,10 +118,12 @@ private fun PhotoSideRail(selected: PhotoPage, enabled: Boolean, onSelect: (Phot
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     val state = vm.state
+    val metadata: MetadataViewModel = viewModel()
+    val metadataState = metadata.state
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var showExport by rememberSaveable { mutableStateOf(false) }
@@ -124,14 +132,14 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     var editingPhotoText by remember(activePhotoId) { mutableStateOf(false) }
     var original by rememberSaveable { mutableStateOf(false) }
     var hdrEnabled by rememberSaveable { mutableStateOf(true) }
-    val hasGainmap=Build.VERSION.SDK_INT>=34 && state.original?.hasGainmap()==true
-    val hdrAvailable=hasGainmap && LocalView.current.display?.hdrCapabilities?.supportedHdrTypes?.isNotEmpty()==true
-    PreviewDynamicRange(hasGainmap,hdrEnabled && hdrAvailable)
+    val hasHdrContent=state.original.hasHdrPreviewContent()
+    val hdrAvailable=hasHdrContent && LocalView.current.display?.hdrCapabilities?.supportedHdrTypes?.isNotEmpty()==true
     var showPhotoMenu by remember { mutableStateOf(false) }
     val navigation = rememberNavController()
     val currentEntry by navigation.currentBackStackEntryAsState()
     var settingsDirty by remember { mutableStateOf(false) }
     var pendingTab by remember { mutableStateOf<PhotoPage?>(null) }
+    var requestedTab by remember { mutableStateOf<PhotoPage?>(null) }
     var settingsLenses by rememberSaveable(stateSaver = ProfilesSaver) { mutableStateOf(state.settings.lenses) }
     fun atPage(page: PhotoPage) = navigation.currentBackStackEntry?.let {
         it.destination.route == page.name && it.lifecycle.currentState == Lifecycle.State.RESUMED
@@ -149,12 +157,20 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         }
     }
     fun selectTab(page: PhotoPage) {
-        if (page !in topLevelPages || state.busy || currentEntry?.lifecycle?.currentState != Lifecycle.State.RESUMED ||
-            currentEntry?.destination?.route == page.name) return
-        if (currentEntry?.destination?.route == PhotoPage.SETTINGS.name && settingsDirty) pendingTab = page
+        if (page in topLevelPages) requestedTab = page
+    }
+    LaunchedEffect(requestedTab, currentEntry) {
+        val target = requestedTab ?: return@LaunchedEffect
+        val entry = currentEntry ?: return@LaunchedEffect
+        // A tap during a transition waits for RESUMED instead of being discarded.
+        entry.lifecycle.currentStateFlow.first { it == Lifecycle.State.RESUMED }
+        if (requestedTab != target || navigation.currentBackStackEntry != entry) return@LaunchedEffect
+        requestedTab = null
+        if (entry.destination.route == target.name) return@LaunchedEffect
+        if (entry.destination.route == PhotoPage.SETTINGS.name && settingsDirty) pendingTab = target
         else {
-            if (page == PhotoPage.SETTINGS) settingsLenses = state.settings.lenses
-            navigateToTab(page)
+            if (target == PhotoPage.SETTINGS) settingsLenses = state.settings.lenses
+            navigateToTab(target)
         }
     }
     var editingLens by rememberSaveable { mutableStateOf<List<String>?>(null) }
@@ -182,6 +198,35 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     }
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments(), importSelectedPhotos)
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(PhotoEditSnapshot.MAX_PHOTOS), importSelectedPhotos)
+    var metadataPendingPhotos by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    var metadataReplacement by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    var metadataImportSharesCards by rememberSaveable { mutableStateOf(false) }
+    fun importMetadataPhotos(uris: List<Uri>) {
+        if (metadataImportSharesCards) vm.importPhotos(uris) else metadata.importPhotos(uris)
+    }
+    val metadataPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        metadataPendingPhotos?.let { values ->
+            metadataPendingPhotos = null
+            importMetadataPhotos(values.map(Uri::parse))
+        }
+    }
+    val confirmMetadataImport: (List<Uri>) -> Unit = { uris ->
+        if (Build.VERSION.SDK_INT >= 29 && ContextCompat.checkSelfPermission(context,
+                Manifest.permission.ACCESS_MEDIA_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            metadataPendingPhotos = uris.map(Uri::toString)
+            metadataPermission.launch(Manifest.permission.ACCESS_MEDIA_LOCATION)
+        } else importMetadataPhotos(uris)
+    }
+    val selectMetadataPhotos: (List<Uri>) -> Unit = { uris ->
+        if (uris.isNotEmpty()) {
+            metadataImportSharesCards = vm.state.settings.metadataSharesCards
+            if (metadataImportSharesCards && vm.state.hasChanges) metadataReplacement = uris.map(Uri::toString)
+            else confirmMetadataImport(uris)
+        }
+    }
+    val metadataGallery = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(PhotoEditSnapshot.MAX_PHOTOS), selectMetadataPhotos)
+    val metadataFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments(), selectMetadataPhotos)
     var folderFormat by rememberSaveable { mutableStateOf(ExportFormat.JPEG.name) }
     val exportFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) vm.export(ExportFormat.valueOf(folderFormat), directory = uri)
@@ -197,9 +242,9 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         if (it != null) vm.export(ExportFormat.HEIC, it)
     }
     val shareLabel = stringResource(R.string.share)
-    LaunchedEffect(vm.sharedPhotos, state.busy, state.error, currentEntry, replacementPhotos, pendingPhotos) {
+    LaunchedEffect(vm.sharedPhotos, state.busy, state.error, currentEntry, replacementPhotos, pendingPhotos, metadataPendingPhotos, metadataReplacement) {
         val incoming=vm.sharedPhotos
-        if(incoming!=null && !state.busy && state.error==null && currentEntry!=null && replacementPhotos==null && pendingPhotos==null) {
+        if(incoming!=null && !state.busy && state.error==null && currentEntry!=null && replacementPhotos==null && pendingPhotos==null && metadataPendingPhotos==null && metadataReplacement==null) {
             showExport=false;showPhotoMenu=false
             if(state.hasChanges || currentEntry?.destination?.route!=PhotoPage.EDITOR.name) replacementPhotos=incoming.map(Uri::toString)
             else importConfirmedPhotos(incoming)
@@ -213,16 +258,26 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         }
     }
     val currentPage = PhotoPage.entries.firstOrNull { it.name == currentEntry?.destination?.route }
+    val sharesCards = state.settings.metadataSharesCards
+    val metadataPhoto = if (sharesCards) state.originalPhoto(vm.motionClip(activePhotoId)) else metadataState.current
+    val metadataControls = remember(metadataPhoto?.id) { OriginalPreviewState() }
+    val metadataHasHdr = metadataPhoto?.bitmap.hasHdrPreviewContent()
+    val metadataHdrAvailable = metadataHasHdr && LocalView.current.display?.hdrCapabilities?.supportedHdrTypes?.isNotEmpty() == true
+    val inMetadata = currentPage == PhotoPage.METADATA
+    val inEditor = currentPage == PhotoPage.EDITOR || currentPage == PhotoPage.PREVIEW
+    PreviewDynamicRange(if (inMetadata) metadataHasHdr else inEditor && hasHdrContent,
+        if (inMetadata) metadataHdrAvailable && metadataControls.hdr && metadataControls.mode != OriginalPreviewMode.DEPTH
+        else inEditor && hdrEnabled && hdrAvailable)
     BoxWithConstraints {
     val useRail = maxWidth >= 840.dp && androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.4f
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            if (!useRail && currentPage in topLevelPages) PhotoBottomBar(currentPage ?: PhotoPage.EDITOR, !state.busy, ::selectTab)
+            if (!useRail && !WindowInsets.isImeVisible && currentPage in topLevelPages) PhotoBottomBar(currentPage ?: PhotoPage.EDITOR, !state.exporting && !state.closing, ::selectTab)
         },
     ) { outerPadding ->
     Row(Modifier.fillMaxSize().padding(outerPadding).consumeWindowInsets(outerPadding)) {
-    if (useRail && currentPage in topLevelPages) PhotoSideRail(currentPage ?: PhotoPage.EDITOR, !state.busy, ::selectTab)
+    if (useRail && currentPage in topLevelPages) PhotoSideRail(currentPage ?: PhotoPage.EDITOR, !state.exporting && !state.closing, ::selectTab)
     Box(Modifier.weight(1f).fillMaxHeight()) {
     NavHost(
         navController = navigation,
@@ -256,7 +311,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                     if(exportNotice!=null)showExportBlocked=true else showExport=true
                 },enabled=!state.busy)
             }
-            FuyaoScaffold(title=stringResource(R.string.editor_title),showTopBar=state.photos.isEmpty(),actions=editorActions,
+            FuyaoScaffold(title="",showTopBar=false,
                 snackbarHost={ SnackbarHost(snackbar, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) { data ->
                 ExportNotice(data,onOpen={ notice ->
                     vm.clearNotice(notice.id)
@@ -266,28 +321,25 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                     if(!PhotoIntents.launch(context,Intent.createChooser(PhotoIntents.share(notice.photos),shareLabel))) vm.reportExternalError(R.string.share_failed,R.string.error_export_title)
                 })
             } }) { padding ->
-                Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
                     if(state.photos.isEmpty()) {
-                        Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center) {
-                            Column(Modifier.widthIn(max=420.dp).verticalScroll(rememberScrollState()).padding(32.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(16.dp)) {
-                                Icon(painterResource(R.drawable.ic_photo_info),null,Modifier.size(56.dp),MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(stringResource(R.string.empty_title),style=MaterialTheme.typography.headlineSmall)
-                                Text(stringResource(R.string.empty_hint,PhotoEditSnapshot.MAX_PHOTOS),style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        FuyaoPageColumn(Modifier.fillMaxSize().consumeWindowInsets(padding).imePadding(),topInset=padding.calculateTopPadding()) {
+                            FuyaoPageIntro(stringResource(R.string.photo_cards_title),
+                                stringResource(R.string.empty_hint,PhotoEditSnapshot.MAX_PHOTOS),R.drawable.ic_photo_add) {
                                 FilledTonalButton(onClick={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_gallery)) }
-                                FilledTonalButton(onClick={ filePicker.launch(arrayOf("image/*")) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_file)) }
+                                OutlinedButton(onClick={ filePicker.launch(arrayOf("image/*")) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_file)) }
                                 if(state.busy) {
                                     CircularProgressIndicator(Modifier.size(24.dp),strokeWidth=2.dp)
                                     Text(stringResource(R.string.importing_photos), style=MaterialTheme.typography.bodyMedium)
                                 }
-                                Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)))
                             }
                         }
                     } else {
+                        Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
                         val photoId = state.photos.getOrNull(state.photoIndex)?.id
                         EditorWorkspace(
                             preview = { modifier, bottomSafe ->
                                 EditorPreviewPane(state, vm::selectPhoto, original, { original = !original },
-                                    { openPage(PhotoPage.EDITOR, PhotoPage.PREVIEW) }, vm.motionClip(photoId),state.hdrPhoto || hasGainmap,
+                                    { openPage(PhotoPage.EDITOR, PhotoPage.PREVIEW) }, vm.motionClip(photoId),state.hdrPhoto || hasHdrContent,
                                     hdrEnabled,hdrAvailable,{ hdrEnabled=!hdrEnabled },modifier,bottomSafe,editingPhotoText,editorActions)
                             },
                             controls = { modifier ->
@@ -301,24 +353,29 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                             },
                         )
                     }
-                }
+                        }
             }
         }
         composable(PhotoPage.METADATA.name) {
-            PhotoMetadataScreen(state, onOpenCards = { selectTab(PhotoPage.EDITOR) },
-                onSelectPhoto = vm::selectPhoto)
+            PhotoMetadataScreen(photo = metadataPhoto, photos = if (sharesCards) state.photos else metadataState.photos,
+                photoIndex = if (sharesCards) state.photoIndex else metadataState.photoIndex,
+                busy = if (sharesCards) state.busy else metadataState.busy, sharesCards = sharesCards,
+                controls = metadataControls, hdrAvailable = metadataHdrAvailable,
+                onSelectPhoto = { if (sharesCards) vm.selectPhoto(it) else metadata.selectPhoto(it) },
+                onGallery = { metadataGallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                onFiles = { metadataFiles.launch(arrayOf("image/*")) })
         }
         composable(PhotoPage.SETTINGS.name) {
             SettingsScreen(state.settings.copy(lenses = settingsLenses), state.photos.isNotEmpty(),
+                canSave = !state.busy,
                 onManageLenses = { editedLens = null; openPage(PhotoPage.SETTINGS, PhotoPage.LENSES) },
                 onBack = { returnFrom(PhotoPage.SETTINGS) },
                 onDirtyChanged = { settingsDirty = it },
                 onSave = { settings, apply ->
-                    if (!vm.state.busy && atPage(PhotoPage.SETTINGS)) {
+                    if (!vm.state.busy && navigation.currentBackStackEntry?.destination?.route == PhotoPage.SETTINGS.name) {
                         vm.saveSettings(settings)
                         if (apply) vm.applyDefaultAuthor()
                         settingsDirty = false
-                        navigation.popBackStack(PhotoPage.EDITOR.name, false)
                     }
                 })
         }
@@ -346,7 +403,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             val photoId=state.photos.getOrNull(state.photoIndex)?.id
             if (bitmap != null && photoId != null) FullScreenPreview(bitmap,photoId,
                 loadFullResolution={ vm.fullResolutionPreview(photoId,original) },motion=vm.motionClip(photoId),
-                showHdr=state.hdrPhoto || hasGainmap,hdrEnabled=hdrEnabled,hdrAvailable=hdrAvailable,onHdr={ hdrEnabled=!hdrEnabled }) { returnFrom(PhotoPage.PREVIEW) }
+                showHdr=state.hdrPhoto || hasHdrContent,hdrEnabled=hdrEnabled,hdrAvailable=hdrAvailable,onHdr={ hdrEnabled=!hdrEnabled }) { returnFrom(PhotoPage.PREVIEW) }
             else LaunchedEffect(state.busy) { if (!state.busy) returnFrom(PhotoPage.PREVIEW) }
         }
     }
@@ -366,6 +423,21 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             dismissButton = { TextButton(onClick = { pendingTab = null }) {
                 Text(stringResource(R.string.continue_editing))
             } })
+    }
+    metadataReplacement?.let { selected ->
+        AlertDialog(onDismissRequest = { metadataReplacement = null },
+            title = { Text(stringResource(R.string.discard_title)) },
+            text = { Text(stringResource(R.string.metadata_shared_replace)) },
+            confirmButton = { TextButton(onClick = {
+                metadataReplacement = null
+                confirmMetadataImport(selected.map(Uri::parse))
+            }) { Text(stringResource(R.string.replace_photos_confirm)) } },
+            dismissButton = { TextButton(onClick = { metadataReplacement = null }) { Text(stringResource(R.string.continue_editing)) } })
+    }
+    metadataState.error?.let { message ->
+        AlertDialog(onDismissRequest = metadata::clearError,
+            title = { Text(stringResource(R.string.error_import_title)) }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = metadata::clearError) { Text(stringResource(R.string.close)) } })
     }
     replacementPhotos?.let { selected ->
         AlertDialog(onDismissRequest = { replacementPhotos = null },
@@ -465,7 +537,7 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
     val scope = rememberCoroutineScope()
     var submitting by remember { mutableStateOf(false) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = FuyaoSpacing.content),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(stringResource(R.string.save_options), style = MaterialTheme.typography.headlineSmall)
             Text(if(count>1) stringResource(R.string.batch_export_size,count) else stringResource(R.string.export_size, width, height),

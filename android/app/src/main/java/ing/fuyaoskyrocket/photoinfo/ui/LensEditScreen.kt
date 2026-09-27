@@ -2,8 +2,6 @@ package ing.fuyaoskyrocket.photoinfo.ui
 
 import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -86,25 +84,19 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
         FuyaoAdaptivePage(padding,
             single = { modifier ->
                 Box(modifier,contentAlignment=Alignment.TopCenter) {
-                    Column(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxWidth()
-                        .verticalScroll(rememberScrollState()).padding(16.dp),
-                        verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                    FuyaoPageColumn(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxSize()) {
                         identityContent()
                         HorizontalDivider()
                         rangeContent()
-                        Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)))
                     }
                 }
             },
             leading = { modifier ->
-                Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp),
-                    verticalArrangement=Arrangement.spacedBy(16.dp),content=identityContent)
+                FuyaoPageColumn(modifier,content=identityContent)
             },
             trailing = { modifier ->
-                Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp),
-                    verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                FuyaoPageColumn(modifier) {
                     rangeContent()
-                    Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)))
                 }
             })
     }

@@ -194,7 +194,7 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
     }
     val statusPanel: @Composable (Modifier) -> Unit = { modifier ->
         Surface(modifier, color=MaterialTheme.colorScheme.surfaceContainerLow, contentColor=MaterialTheme.colorScheme.onSurface) {
-            Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.padding(FuyaoSpacing.content),verticalArrangement=Arrangement.spacedBy(16.dp)) {
                 Text(if(loading) stringResource(R.string.full_preview_loading)
                     else stringResource(R.string.preview_quality,zoomDescription,
                         stringResource(if(detail!=null)R.string.original_size_preview else R.string.thumbnail_preview)),

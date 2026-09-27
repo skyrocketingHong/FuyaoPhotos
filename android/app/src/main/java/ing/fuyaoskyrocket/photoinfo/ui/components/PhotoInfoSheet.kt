@@ -2,19 +2,13 @@ package ing.fuyaoskyrocket.photoinfo.ui.components
 
 import android.content.Context
 import androidx.annotation.StringRes
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -22,7 +16,13 @@ import androidx.exifinterface.media.ExifInterface
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoDetails
+import ing.fuyaoskyrocket.photoinfo.presentation.OriginalPhoto
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoPageList
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.SectionHeading
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.LocalPaneTopInset
+import androidx.compose.ui.unit.Dp
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -36,104 +36,42 @@ private data class DetailGroup(@StringRes val title: Int, val rows: List<DetailR
 
 enum class PhotoInfoDisplay { ALL, SUMMARY, FACTS }
 
-/** Displays only metadata retained from the imported original, not edited card text. */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PhotoInfoSheet(state: EditorState, onDismiss: () -> Unit) {
-    if (state.photoDetails == null) return
-    val maxHeight = (LocalConfiguration.current.screenHeightDp * .9f).dp
-    // Opening directly at full height keeps list drags from fighting the sheet's
-    // half-to-expanded settling, which used to bounce the sheet at the list end.
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) {
-        PhotoInfoContent(state, Modifier.fillMaxWidth().heightIn(max = maxHeight))
-    }
-}
-
-@Composable
-fun PhotoInfoContent(state: EditorState, modifier: Modifier = Modifier, showThumbnail: Boolean = true,
-    display: PhotoInfoDisplay = PhotoInfoDisplay.ALL) {
-    val details = state.photoDetails ?: return
+fun PhotoInfoContent(photo: OriginalPhoto, controls: OriginalPreviewState, hdrAvailable: Boolean,
+    busy: Boolean, modifier: Modifier = Modifier, topInset: Dp = LocalPaneTopInset.current,
+    display: PhotoInfoDisplay = PhotoInfoDisplay.ALL, header: (@Composable () -> Unit)? = null) {
+    val details = photo.details
     val context = LocalContext.current
     val groups = detailGroups(context, details)
-    val photo = state.original
-    val name = details.displayName ?: stringResource(R.string.photo_details)
     val kind = details.mimeType?.let { imageKind(context, it) }
     val size = details.byteCount?.let { android.text.format.Formatter.formatFileSize(context, it) }
     val subtitle = listOfNotNull(kind, size).joinToString(" · ")
-    val exportNotice = exportBlockingNotice(state)
-    LazyColumn(modifier, contentPadding = PaddingValues(bottom = 28.dp)) {
-            if (display != PhotoInfoDisplay.FACTS && exportNotice != null) item {
-                Surface(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                ) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Icon(painterResource(R.drawable.ic_info), null, Modifier.size(20.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(stringResource(R.string.photo_export_blocked_title),
-                                style = MaterialTheme.typography.titleSmall)
-                            Text(exportNotice, style = MaterialTheme.typography.bodySmall)
-                            state.blockDetail?.takeIf { it.isNotBlank() }?.let { detail ->
-                                Text(detail, style = MaterialTheme.typography.labelSmall)
-                            }
+    key(photo.id) {
+    FuyaoPageList(modifier, topInset) {
+        if (header != null) item("page-intro") { header() }
+        if (display != PhotoInfoDisplay.FACTS) item("original-preview") {
+            OriginalPhotoSummary(photo, controls, subtitle, hdrAvailable, busy)
+        }
+        if (display != PhotoInfoDisplay.SUMMARY) groups.forEach { group ->
+            item(group.title) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionHeading(stringResource(group.title), group.description?.let { stringResource(it) },
+                        Modifier.padding(horizontal = FuyaoSpacing.cardInset))
+                    Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        Column(Modifier.padding(horizontal = FuyaoSpacing.cardInset, vertical = 8.dp)) {
+                            group.rows.forEachIndexed { index, row -> DetailValueRow(row, index < group.rows.lastIndex) }
                         }
                     }
                 }
             }
-            if (display != PhotoInfoDisplay.FACTS) item { Box(Modifier.fillMaxWidth()) {
-                if (showThumbnail) PhotoAmbientBackdrop(photo, modifier = Modifier.matchParentSize())
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
-                    if (showThumbnail && photo != null) {
-                        Image(
-                            bitmap = photo.asImageBitmap(),
-                            contentDescription = stringResource(R.string.original_preview),
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp),
-                        )
-                    }
-                    state.photos.getOrNull(state.photoIndex)?.path?.takeIf { showThumbnail && state.portraitDepth && it.isNotEmpty() }?.let { path ->
-                        PortraitDepthPreview(file = java.io.File(path), modifier = Modifier.fillMaxWidth())
-                    }
-                    Text(name, style = MaterialTheme.typography.titleLarge)
-                    if (subtitle.isNotEmpty()) Text(
-                        subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (state.hdrPhoto || state.motionPhoto) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (state.hdrPhoto) Text(stringResource(R.string.media_hdr),
-                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                        if (state.motionPhoto) Text(stringResource(R.string.media_motion),
-                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            } }
-                if (display != PhotoInfoDisplay.SUMMARY) groups.forEach { group ->
-                    item {
-                        Column(Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(stringResource(group.title), style = MaterialTheme.typography.titleMedium)
-                            group.description?.let {
-                                Text(stringResource(it), style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                    items(group.rows) { row ->
-                        Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) { DetailValueRow(row) }
-                    }
-                }
+        }
+    }
     }
 }
 
 @Composable
-private fun DetailValueRow(row: DetailRow) {
+private fun DetailValueRow(row: DetailRow, divider: Boolean) {
     Column {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(vertical = 10.dp),
@@ -153,7 +91,7 @@ private fun DetailValueRow(row: DetailRow) {
                 textAlign = TextAlign.End,
             )
         }
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .55f))
+        if (divider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .55f))
     }
 }
 

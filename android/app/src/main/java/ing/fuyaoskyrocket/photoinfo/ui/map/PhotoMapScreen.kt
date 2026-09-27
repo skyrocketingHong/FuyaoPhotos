@@ -18,28 +18,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoScaffold
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoPageColumn
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoPageIntro
 
 @Composable
 fun PhotoMapScreen(modifier: Modifier = Modifier, onOpenMetadata: () -> Unit) {
-    FuyaoScaffold(title = stringResource(R.string.photo_map_title), modifier = modifier, showTopBar = true) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-            Column(
-                Modifier.padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(
-                    painterResource(R.drawable.ic_map),
-                    null,
-                    Modifier.size(56.dp),
-                    MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(stringResource(R.string.photo_map_reserved_title), style = MaterialTheme.typography.headlineSmall)
-                Text(
-                    stringResource(R.string.photo_map_reserved_body),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    FuyaoScaffold(title = "", modifier = modifier, showTopBar = false) { padding ->
+        FuyaoPageColumn(Modifier.fillMaxSize(),topInset=padding.calculateTopPadding()) {
+            FuyaoPageIntro(stringResource(R.string.photo_map_title),
+                stringResource(R.string.photo_map_reserved_body),R.drawable.ic_map) {
                 TextButton(onClick = onOpenMetadata) {
                     Text(stringResource(R.string.photo_metadata_title))
                 }

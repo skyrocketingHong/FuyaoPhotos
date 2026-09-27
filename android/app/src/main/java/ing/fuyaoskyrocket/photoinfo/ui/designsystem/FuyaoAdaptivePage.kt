@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,11 +39,16 @@ import androidx.window.layout.WindowLayoutInfo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.calculateEndPadding
+
+val LocalPaneTopInset = staticCompositionLocalOf { 0.dp }
 
 /** Shared page geometry for metadata, settings and lens forms. Each pane owns its own scroll. */
 @Composable
 fun FuyaoAdaptivePage(
     padding: PaddingValues,
+    contentUnderTopEdge: Boolean = false,
     single: @Composable (Modifier) -> Unit,
     leading: @Composable (Modifier) -> Unit,
     trailing: @Composable (Modifier) -> Unit,
@@ -55,7 +62,11 @@ fun FuyaoAdaptivePage(
     val density = LocalDensity.current
     val direction = LocalLayoutDirection.current
     var bounds by remember { mutableStateOf(Rect.Zero) }
-    Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+    val outerPadding = if (contentUnderTopEdge) PaddingValues(
+        start = padding.calculateStartPadding(direction), end = padding.calculateEndPadding(direction),
+        bottom = padding.calculateBottomPadding()) else padding
+    CompositionLocalProvider(LocalPaneTopInset provides if (contentUnderTopEdge) padding.calculateTopPadding() else 0.dp) {
+    Box(Modifier.fillMaxSize().padding(outerPadding).consumeWindowInsets(padding).imePadding()) {
         BoxWithConstraints(Modifier.fillMaxSize().onGloballyPositioned { bounds = it.boundsInWindow() }) {
             val hinge = fold?.bounds
             val vertical = fold?.orientation == FoldingFeature.Orientation.VERTICAL && hinge != null &&
@@ -89,12 +100,16 @@ fun FuyaoAdaptivePage(
                     if (top >= 360.dp && bottom >= 360.dp) Column(Modifier.fillMaxSize()) {
                         leading(Modifier.fillMaxWidth().height(top))
                         Spacer(Modifier.height(gap))
-                        trailing(Modifier.fillMaxWidth().weight(1f))
+                        CompositionLocalProvider(LocalPaneTopInset provides 0.dp) {
+                            trailing(Modifier.fillMaxWidth().weight(1f))
+                        }
                     } else {
                         val useBottom = bottom > top
-                        single(Modifier.fillMaxSize().absolutePadding(
-                            top = if (useBottom) top + gap else 0.dp,
-                            bottom = if (useBottom) 0.dp else bottom + gap))
+                        CompositionLocalProvider(LocalPaneTopInset provides if (useBottom) 0.dp else LocalPaneTopInset.current) {
+                            single(Modifier.fillMaxSize().absolutePadding(
+                                top = if (useBottom) top + gap else 0.dp,
+                                bottom = if (useBottom) 0.dp else bottom + gap))
+                        }
                     }
                 }
                 maxWidth >= 840.dp && density.fontScale <= 1.4f -> {
@@ -107,5 +122,6 @@ fun FuyaoAdaptivePage(
                 else -> single(Modifier.fillMaxSize())
             }
         }
+    }
     }
 }

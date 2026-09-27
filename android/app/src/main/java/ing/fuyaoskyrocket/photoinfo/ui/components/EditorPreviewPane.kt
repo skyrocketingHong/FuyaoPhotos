@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoIconButton
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 import ing.fuyaoskyrocket.photoinfo.platform.MotionClipSource
 import kotlinx.coroutines.launch
 
@@ -31,7 +32,6 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
     val photoId=state.photos.getOrNull(state.photoIndex)?.id
     var playing by remember(photoId) { mutableStateOf(false) }
     var playbackError by remember(photoId) { mutableStateOf(false) }
-    var showingInfo by remember(photoId) { mutableStateOf(false) }
     LaunchedEffect(state.busy,state.rendering,motion) { if(state.busy || state.rendering || motion==null)playing=false }
     val focus=LocalFocusManager.current
     val keyboard=LocalSoftwareKeyboardController.current
@@ -46,11 +46,10 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
     val justifiedControls=maxWidth>=336.dp
     LaunchedEffect(showPhoto) { if(!showPhoto)playing=false }
     PhotoAmbientBackdrop(state.original, featherEdges=false, modifier=Modifier.matchParentSize())
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().padding(horizontal=FuyaoSpacing.content)) {
         if(showPhoto) {
-        Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal=8.dp,vertical=4.dp)) {
-            Surface(Modifier.matchParentSize(),
-                color=Color.Transparent,shadowElevation=3.dp) {
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            Box(Modifier.matchParentSize()) {
                 val pager=rememberPagerState(initialPage=state.photoIndex) { state.photos.size }
                 LaunchedEffect(pager.isScrollInProgress) { if(pager.isScrollInProgress)playing=false }
                 LaunchedEffect(pager) {
@@ -110,11 +109,6 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                 PreviewMediaButton(R.drawable.ic_compare,stringResource(R.string.original),original,{ playing=false;onOriginal() },enabled=state.original!=null)
                 actions()
                 FuyaoIconButton(R.drawable.ic_expand,stringResource(R.string.enlarge),{ playing=false;onEnlarge() },enabled=state.preview!=null)
-                val badgeDescription=stringResource(R.string.media_badge_description)
-                BadgedBox(badge={ if(state.preservationBlocked || state.previewError!=null)
-                    Badge(Modifier.semantics { contentDescription=badgeDescription }) }) {
-                    FuyaoIconButton(R.drawable.ic_info,stringResource(R.string.photo_details),{ showingInfo=true })
-                }
             }
             if(justifiedControls) Row(Modifier.fillMaxWidth().height(52.dp),verticalAlignment=Alignment.CenterVertically,
                 horizontalArrangement=Arrangement.SpaceBetween,content=mediaActions)
@@ -123,7 +117,6 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
         }
     }
     }
-    if(showingInfo)PhotoInfoSheet(state=state,onDismiss={ showingInfo=false })
     if(playbackError)AlertDialog(onDismissRequest={ playbackError=false },title={ Text(stringResource(R.string.motion_playback_title)) },
         text={ Text(stringResource(R.string.motion_playback_error)) },confirmButton={ TextButton(onClick={ playbackError=false }) { Text(stringResource(R.string.close)) } })
 }

@@ -18,9 +18,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
+import ing.fuyaoskyrocket.photoinfo.domain.layout.PageGeometry
 
 object FuyaoSpacing {
-    val xs=4.dp;val small=8.dp;val compact=12.dp;val content=16.dp;val large=24.dp;val extraLarge=32.dp
+    val xs=4.dp;val small=8.dp;val compact=12.dp;val content=PageGeometry.MARGIN.dp;val cardInset=PageGeometry.CARD_INSET.dp;val large=24.dp;val extraLarge=32.dp
 }
 object FuyaoLayout {
     val appBar=48.dp;val appBarIcon=28.dp;val readable=840.dp;val editor=1040.dp;val inspector=360.dp
@@ -33,7 +34,8 @@ object FuyaoMotion {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FuyaoScaffold(title:String,modifier:Modifier=Modifier,onBack:(()->Unit)?=null,
-    actions:@Composable RowScope.()->Unit={},snackbarHost:@Composable ()->Unit={},showTopBar:Boolean=true,content:@Composable (PaddingValues)->Unit) {
+    actions:@Composable RowScope.()->Unit={},snackbarHost:@Composable ()->Unit={},showTopBar:Boolean=true,
+    bottomBar:@Composable ()->Unit={},content:@Composable (PaddingValues)->Unit) {
     val titleHeight=with(LocalDensity.current) { MaterialTheme.typography.titleLarge.lineHeight.toDp() }+8.dp
     Box(modifier.fillMaxSize()) {
     Scaffold(modifier=Modifier.fillMaxSize(),containerColor=MaterialTheme.colorScheme.surface,
@@ -44,7 +46,7 @@ fun FuyaoScaffold(title:String,modifier:Modifier=Modifier,onBack:(()->Unit)?=nul
             actions=actions,expandedHeight=maxOf(FuyaoLayout.appBar,titleHeight),
             windowInsets=WindowInsets.statusBars.union(WindowInsets.captionBar).only(WindowInsetsSides.Top).union(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
             colors=TopAppBarDefaults.topAppBarColors(containerColor=MaterialTheme.colorScheme.surface,actionIconContentColor=MaterialTheme.colorScheme.onSurfaceVariant)) },
-        snackbarHost=snackbarHost,content=content)
+        bottomBar=bottomBar,snackbarHost=snackbarHost,content=content)
     }
 }
 
@@ -86,8 +88,8 @@ fun FuyaoFormPage(padding:PaddingValues,content:@Composable ColumnScope.()->Unit
 }
 
 @Composable
-fun SectionHeading(text:String,description:String?=null) {
-    Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
+fun SectionHeading(text:String,description:String?=null,modifier:Modifier=Modifier) {
+    Column(modifier,verticalArrangement=Arrangement.spacedBy(4.dp)) {
         Text(text,Modifier.semantics { heading() },color=MaterialTheme.colorScheme.onSurfaceVariant,
             style=MaterialTheme.typography.titleSmall)
         if(description!=null)Text(description,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)

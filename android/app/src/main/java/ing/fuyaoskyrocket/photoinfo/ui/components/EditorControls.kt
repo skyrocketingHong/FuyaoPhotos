@@ -2,8 +2,6 @@ package ing.fuyaoskyrocket.photoinfo.ui.components
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -25,6 +23,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
 import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
 import ing.fuyaoskyrocket.photoinfo.presentation.LocationStatus
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 import kotlin.math.roundToInt
 
 @Composable
@@ -65,7 +64,24 @@ fun EditorControls(
     DisposableEffect(Unit) { onDispose { editingCallback.value(false) } }
     val fieldLabels = FieldId.entries.map { stringResource(if (it == FieldId.FOCAL_LENGTH) R.string.wheel_focal else fieldLabel(it)) }
     val styleLabels = StyleSetting.entries.map { stringResource(it.label) } + stringResource(R.string.font)
-    Column(modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+    val currentState = rememberUpdatedState(state)
+    val currentOnField = rememberUpdatedState(onField)
+    val currentResolve = rememberUpdatedState(onResolveLocation)
+    // Keep the native input's selection and composition when the keyboard changes the layout.
+    val fieldContent = remember {
+        movableContentOf {
+            FieldControl(currentState.value, FieldId.entries[fieldIndex], currentOnField.value, currentResolve.value,
+                { fieldFocused = it; if (!it) setEditingActive(false) },
+                { if (fieldFocused) setEditingActive(true) })
+        }
+    }
+    BoxWithConstraints(modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))) {
+    if (maxHeight < 240.dp || maxWidth < 320.dp || LocalDensity.current.fontScale > 1.6f) {
+        CompactEditorControl(state, tab, fieldIndex, styleIndex, { nextTab, nextIndex ->
+            focus.clearFocus(); setEditingActive(false); tab = nextTab
+            if (nextTab == 0) fieldIndex = nextIndex else styleIndex = nextIndex
+        }, fieldContent, onStyle, onResetField, onResetAllFields, onImportFont, onResetFont, Modifier.fillMaxSize())
+    } else Column(Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally) {
         PrimaryTabRow(selectedTabIndex = tab, containerColor = androidx.compose.ui.graphics.Color.Transparent, divider = {}) {
             listOf(R.string.tab_info, R.string.tab_style).forEachIndexed { index, title ->
@@ -73,10 +89,10 @@ fun EditorControls(
                     text = { Text(stringResource(title)) })
             }
         }
-        Row(Modifier.widthIn(max = 640.dp).fillMaxWidth().weight(1f).padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(Modifier.widthIn(max = 640.dp).fillMaxWidth().weight(1f).padding(horizontal = FuyaoSpacing.content),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Crossfade(targetState = tab, animationSpec = tween(180), label = "editor wheel",
-                modifier = Modifier.weight(.4f).fillMaxHeight()) { pickerTab ->
+                modifier = Modifier.weight(.34f).fillMaxHeight()) { pickerTab ->
                 val pickerLabels = if (pickerTab == 0) fieldLabels else styleLabels
                 CyclicItemSelector(pickerLabels, if (pickerTab == 0) fieldIndex else styleIndex, !state.busy,
                     Modifier.fillMaxSize()) { index ->
@@ -86,11 +102,62 @@ fun EditorControls(
                     }
                 }
             }
-            EditorInspector(state, tab, fieldIndex, styleIndex, onField, onStyle, onResetField,
-                onResetAllFields, onImportFont, onResetFont, onResolveLocation,
-                editingActive, { fieldFocused = it; if (!it) setEditingActive(false) },
-                { if (fieldFocused) setEditingActive(true) },
-                Modifier.weight(.6f).fillMaxHeight())
+            EditorInspector(state, tab, fieldIndex, styleIndex, fieldContent, onStyle, onResetField,
+                onResetAllFields, onImportFont, onResetFont, editingActive,
+                Modifier.weight(.66f).fillMaxHeight())
+        }
+    }
+    }
+}
+
+@Composable
+private fun CompactEditorControl(state: EditorState, tab: Int, fieldIndex: Int, styleIndex: Int,
+    onChoice: (Int, Int) -> Unit, fieldContent: @Composable () -> Unit, onStyle: (CardStyle) -> Unit,
+    onResetField: (FieldId) -> Unit, onResetAll: () -> Unit, onImportFont: () -> Unit, onResetFont: () -> Unit,
+    modifier: Modifier) {
+    var menu by remember { mutableStateOf(false) }
+    val field = FieldId.entries[fieldIndex]
+    val setting = StyleSetting.entries.getOrNull(styleIndex)
+    Row(modifier.padding(horizontal = FuyaoSpacing.content), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.weight(.34f)) {
+            OutlinedButton(onClick = { menu = true }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(if (tab == 0) fieldLabel(field) else setting?.label ?: R.string.font),
+                    style = MaterialTheme.typography.labelMedium)
+            }
+            DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                Text(stringResource(R.string.tab_info), Modifier.padding(12.dp), style = MaterialTheme.typography.labelLarge)
+                FieldId.entries.forEachIndexed { index, item ->
+                    DropdownMenuItem(text = { Text(stringResource(fieldLabel(item))) },
+                        onClick = { menu = false; onChoice(0, index) })
+                }
+                HorizontalDivider()
+                Text(stringResource(R.string.tab_style), Modifier.padding(12.dp), style = MaterialTheme.typography.labelLarge)
+                StyleSetting.entries.forEachIndexed { index, item ->
+                    DropdownMenuItem(text = { Text(stringResource(item.label)) },
+                        onClick = { menu = false; onChoice(1, index) })
+                }
+                DropdownMenuItem(text = { Text(stringResource(R.string.font)) },
+                    onClick = { menu = false; onChoice(1, StyleSetting.entries.size) })
+                HorizontalDivider()
+                DropdownMenuItem(text = { Text(stringResource(R.string.restore_current)) }, onClick = {
+                    menu = false
+                    if (tab == 0) onResetField(field)
+                    else if (setting == null) onResetFont()
+                    else onStyle(setting.update(state.style, setting.value(CardStyle())))
+                })
+                DropdownMenuItem(text = { Text(stringResource(R.string.restore_all)) }, onClick = {
+                    menu = false
+                    if (tab == 0) onResetAll() else { onResetFont(); onStyle(CardStyle()) }
+                })
+            }
+        }
+        Box(Modifier.weight(.66f).heightIn(max = 88.dp)) {
+            if (tab == 0) fieldContent()
+            else if (setting == null) FontControl(state, onImportFont)
+            else CardStyleSlider(setting.value(state.style), { onStyle(setting.update(state.style, it)) },
+                setting.minimum..setting.maximum, setting.value(CardStyle()), stringResource(setting.label),
+                styleValue(setting.percentage, setting.value(state.style)), !state.busy, Modifier.fillMaxWidth())
         }
     }
 }
@@ -101,30 +168,24 @@ private fun EditorInspector(
     tab: Int,
     fieldIndex: Int,
     styleIndex: Int,
-    onField: (FieldId, String) -> Unit,
+    fieldContent: @Composable () -> Unit,
     onStyle: (CardStyle) -> Unit,
     onResetField: (FieldId) -> Unit,
     onResetAllFields: () -> Unit,
     onImportFont: () -> Unit,
     onResetFont: () -> Unit,
-    onResolveLocation: () -> Unit,
     editingActive: Boolean,
-    onFieldFocus: (Boolean) -> Unit,
-    onFieldEdited: () -> Unit,
     modifier: Modifier,
 ) {
     BoxWithConstraints(modifier) {
         val tight = maxHeight < 200.dp
-        val scrollable = maxHeight < 380.dp
-        val controlHeight = if (tight) 64.dp else 76.dp
-        val hintHeight = if (maxWidth < 190.dp) 88.dp else 72.dp
-        val showHint = maxHeight >= controlHeight + 48.dp + hintHeight + 16.dp || scrollable
+        val controlHeight = if (tight) 56.dp else 72.dp
+        val hintHeight = 32.dp
+        val showHint = maxHeight >= controlHeight + 48.dp + hintHeight + 96.dp && LocalDensity.current.fontScale <= 1.4f
         val previewRoom = maxHeight - controlHeight - 48.dp -
-            (if (showHint) hintHeight + 20.dp else 12.dp)
-        // The crop keeps the reference card ratio, so a full-width box has a stable height.
-        val previewHeight = minOf(maxWidth / CardPreviewReference.aspect, previewRoom, 220.dp)
-        val showPreview = maxHeight >= 210.dp && previewHeight >= 56.dp &&
-            LocalDensity.current.fontScale < 1.5f
+            (if (showHint) hintHeight + 16.dp else 8.dp)
+        val previewHeight = minOf(maxWidth, previewRoom.coerceAtLeast(0.dp))
+        val showPreview = previewHeight >= 48.dp && LocalDensity.current.fontScale < 1.5f
         val selection = tab to if (tab == 0) fieldIndex else styleIndex
         val currentField = FieldId.entries[fieldIndex]
         val currentStyle = StyleSetting.entries.getOrNull(styleIndex)
@@ -152,7 +213,7 @@ private fun EditorInspector(
         PhotoAmbientBackdrop(state.original,
             modifier = Modifier.align(Alignment.TopCenter).requiredWidth(maxWidth + 24.dp)
                 .height(minOf(240.dp, maxHeight * .58f)))
-        Column(Modifier.fillMaxSize().then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
+        Column(Modifier.fillMaxWidth()) {
             if (showPreview) {
                 CardDetailPreview(
                     bitmap = state.preview,
@@ -172,12 +233,10 @@ private fun EditorInspector(
                 )
                 Spacer(Modifier.height(8.dp))
             }
-            Crossfade(targetState = selection, animationSpec = tween(180), label = "editor setting",
-                modifier = Modifier.fillMaxWidth().height(controlHeight)) { (selectedTab, selectedIndex) ->
-                if (selectedTab == 0) {
-                    FieldControl(state, FieldId.entries[selectedIndex], onField, onResolveLocation,
-                        onFieldFocus, onFieldEdited)
-                } else if (selectedIndex == StyleSetting.entries.size) {
+            Box(Modifier.fillMaxWidth().height(controlHeight)) {
+                if (tab == 0) fieldContent()
+                else Crossfade(targetState = styleIndex, animationSpec = tween(180), label = "editor style") { selectedIndex ->
+                if (selectedIndex == StyleSetting.entries.size) {
                     FontControl(state, onImportFont)
                 } else {
                     val setting = StyleSetting.entries[selectedIndex]
@@ -186,23 +245,16 @@ private fun EditorInspector(
                         setting.minimum..setting.maximum, setting.value(CardStyle()), stringResource(setting.label),
                         styleValue(setting.percentage, value), !state.busy, Modifier.fillMaxWidth())
                 }
+                }
             }
-            if (!scrollable) Spacer(Modifier.weight(1f))
             if (showHint) {
                 Spacer(Modifier.height(8.dp))
-                Column(Modifier.fillMaxWidth().heightIn(min = hintHeight), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(Modifier.fillMaxWidth().height(hintHeight)) {
                     val hintText = stringResource(hint)
                     Text(hintText, Modifier.semantics { contentDescription = hintText },
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 4, overflow = TextOverflow.Ellipsis)
-                    if (tab == 1 && currentStyle != null) {
-                        Text(stringResource(R.string.style_reference, styleValue(currentStyle.percentage,
-                            currentStyle.value(CardStyle()))),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
+                        maxLines = 2)
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -220,11 +272,6 @@ private fun EditorInspector(
             }
         }
     }
-}
-
-/** Reference card box ratio: the detail crop always keeps it, so the preview never jumps. */
-internal object CardPreviewReference {
-    val aspect = 215f / 168f
 }
 
 @Composable

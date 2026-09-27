@@ -18,7 +18,7 @@ object EditorWorkspacePolicy {
                 (height - 96f).coerceAtLeast(72f),
             )
             else -> maxOf(minimumPreview, minOf(
-                width * .75f + 52f,
+                (width - PageGeometry.MARGIN * 2).coerceAtLeast(0f) * .75f + 52f,
                 height * .55f,
                 (height - 220f).coerceAtLeast(96f),
             ))

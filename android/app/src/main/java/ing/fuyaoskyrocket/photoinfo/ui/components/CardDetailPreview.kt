@@ -80,11 +80,13 @@ internal fun CardDetailPreview(
             PendingPhotoEffect(rendering || editingActive, Modifier.fillMaxSize()) {
                 Canvas(Modifier.fillMaxSize()) {
                     if (size.width <= 0f || size.height <= 0f) return@Canvas
-                    val scale = minOf(size.width / crop.width, size.height / crop.height)
+                    val scale = size.width / crop.width
                     val width = (crop.width * scale).roundToInt().coerceAtLeast(1)
                     val height = (crop.height * scale).roundToInt().coerceAtLeast(1)
                     val left = ((size.width - width) / 2f).roundToInt()
-                    val top = ((size.height - height) / 2f).roundToInt()
+                    val focusY = targets.firstOrNull()?.centerY()?.minus(crop.top) ?: (crop.height / 2f)
+                    val top = if (height <= size.height) ((size.height - height) / 2f).roundToInt()
+                        else (size.height / 2f - focusY * scale).coerceIn(size.height - height, 0f).roundToInt()
                     drawImage(
                         image = image,
                         srcOffset = IntOffset(crop.left, crop.top),
