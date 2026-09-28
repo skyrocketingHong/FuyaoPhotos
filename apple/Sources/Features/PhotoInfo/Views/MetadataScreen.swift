@@ -8,8 +8,12 @@ struct MetadataScreen: View {
     @State private var showingPicker = false
     @State private var showingSave = false
     @State private var confirmReplace = false
+    @State private var replacementIDs: [String]?
     private enum Mode: Hashable { case view, edit }
     private var session: CardSession { workspace.session(for: .metadata) }
+    private var replacementTitle: LocalizedStringKey {
+        session.documents.count == 1 ? "card.replace.confirm.one" : "card.replace.confirm.many"
+    }
 
     var body: some View {
         @Bindable var session = session
@@ -22,6 +26,8 @@ struct MetadataScreen: View {
                             modeControls
                         }
                         .photoPageForm()
+                        .scrollContentBackground(.hidden)
+                        .contentMargins(.top, 4, for: .scrollContent)
                         .frame(width: min(460, geometry.size.width * 0.44))
                         Form { details(document) }.photoPageForm()
                     }
@@ -36,6 +42,14 @@ struct MetadataScreen: View {
                         }
                     }
                     .photoPageForm()
+                    .scrollContentBackground(session.current == nil ? .visible : .hidden)
+                    .contentMargins(.top, session.current == nil ? 20 : 4, for: .scrollContent)
+                }
+            }
+            .background {
+                if let document = session.current {
+                    PhotoAmbientBackdrop(sourceURL: document.sourceURL, featherEdges: false)
+                        .ignoresSafeArea(edges: .top)
                 }
             }
 #if !os(macOS)
@@ -50,6 +64,7 @@ struct MetadataScreen: View {
         }
         .task(id: session.current?.id) { state.refresh(document: session.current) }
         .onChange(of: workspace.pendingMetadataAssetIDs) { _, _ in handleHandoff() }
+        .onChange(of: session.busy) { _, busy in if !busy { handleHandoff() } }
         .onAppear(perform: handleHandoff)
         .sheet(isPresented: $showingPicker) {
             NativePhotoPicker { results in
@@ -73,10 +88,6 @@ struct MetadataScreen: View {
                     await state.save(document: document, updateOriginal: updateOriginal)
                 }
             }
-        }
-        .confirmationDialog("card.replace.confirm.many", isPresented: $confirmReplace) {
-            Button("card.replace", role: .destructive) { showingPicker = true }
-            Button("card.cancel", role: .cancel) { }
         }
         .alert("metadata.error.title", isPresented: Binding(
             get: { state.errorMessage != nil || session.errorMessage != nil },
@@ -115,6 +126,15 @@ struct MetadataScreen: View {
                     }
                 }
                 .labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
+                .confirmationDialog(replacementTitle, isPresented: $confirmReplace, titleVisibility: .visible) {
+                    Button("card.replace", role: .destructive) {
+                        if let ids = replacementIDs {
+                            replacementIDs = nil
+                            Task { await session.openAssets(ids) }
+                        } else { showingPicker = true }
+                    }
+                    Button("card.cancel", role: .cancel) { replacementIDs = nil }
+                }
             }
         }
         .listRowInsets(EdgeInsets())
@@ -123,13 +143,14 @@ struct MetadataScreen: View {
     }
 
     private func choosePhoto() {
-        if workspace.hasPendingEdits(in: session) { confirmReplace = true }
+        replacementIDs = nil
+        if session.current != nil { confirmReplace = true }
         else { showingPicker = true }
     }
 
     private func original(_ document: CardDocument) -> some View {
         Section {
-            OriginalPhotoSummary(document: document)
+            OriginalPhotoSummary(document: document, showsBackdrop: false)
                 .id(document.id)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
@@ -178,7 +199,8 @@ struct MetadataScreen: View {
     private func handleHandoff() {
         guard !session.busy, let ids = workspace.pendingMetadataAssetIDs else { return }
         workspace.pendingMetadataAssetIDs = nil
-        Task { await session.openAssets(ids) }
+        if session.current != nil { replacementIDs = ids; confirmReplace = true }
+        else { Task { await session.openAssets(ids) } }
     }
 }
 

@@ -484,3 +484,15 @@
 "about.project" = "Fuyao Photos brings photo maps, information cards, metadata and color sampling into one app.";
 "about.features" = "Browse photos by location, add information cards, inspect and edit metadata, and sample colors across color spaces.";
 "about.colors.credit" = "Color tools come from FuyaoColorPicker. The original Color Picker reference materials retain their GPL-3.0-only license.";
+
+"map.modes" = "Map Modes";
+
+"map.location" = "Current Location";
+
+"map.location.permission" = "Allow location access in system settings to show your position on the map.";
+
+"map.location.failed" = "Your location is unavailable. Try again.";
+
+"map.preview.unavailable" = "Preview unavailable";
+
+"colors.gesture" = "Touch and hold, then drag to sample. Use two fingers to zoom or move the photo.";

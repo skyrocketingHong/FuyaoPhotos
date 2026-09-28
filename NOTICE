@@ -71,6 +71,14 @@ third_party/XDRemux-Flutter/LICENSE. The application uses its own Kotlin and Swi
 implementations rather than bundling upstream Flutter or Rust binaries.
 https://github.com/BeetMan/XDRemux-Flutter
 
+Motionary optical reference
+--------------------------
+The color-picker loupe interaction and spherical optical treatment are adapted
+from Motionary, Copyright (c) 2026 Feiyu (Alan) Chang, under the MIT License.
+The native Metal and Android AGSL implementations preserve sampling separately
+from the decorative optical effect. See LICENSES/Motionary-MIT.txt.
+https://github.com/alanfeiyuchang/motionary-ios-animations
+
 Vendored x265
 --------------
 The Android app embeds the x265 video encoder (source vendored under

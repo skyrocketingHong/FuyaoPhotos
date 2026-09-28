@@ -28,10 +28,7 @@ struct CardDetailPreview: View {
                 GeometryReader { geometry in
                     let scale = geometry.size.width / CGFloat(render.image.width)
                     let imageHeight = CGFloat(render.image.height) * scale
-                    let focus = highlightedField.flatMap { render.textRects[$0]?.first?.midY }
-                        ?? CGFloat(render.image.height) / 2
-                    let offset = min(0, max(geometry.size.height - imageHeight,
-                                           geometry.size.height / 2 - focus * scale))
+                    let offset = min(0, (geometry.size.height - imageHeight) / 2)
                     ZStack {
                         Image(decorative: render.image, scale: 1, orientation: .up)
                             .resizable()

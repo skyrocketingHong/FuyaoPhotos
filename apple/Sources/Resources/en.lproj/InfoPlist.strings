@@ -2,3 +2,7 @@
 "NSPhotoLibraryUsageDescription" = "Show photos on the map, preserve Live Photos and save edits to your library.";
 "NSPhotoLibraryAddUsageDescription" = "Save photos with information cards to your photo library.";
 "NSCameraUsageDescription" = "Take a photo to sample its colors.";
+
+"NSLocationWhenInUseUsageDescription" = "Show your current position when you tap the map location button.";
+
+"NSLocationUsageDescription" = "Show your current position when you tap the map location button.";

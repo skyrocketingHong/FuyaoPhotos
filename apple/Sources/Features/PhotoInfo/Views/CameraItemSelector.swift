@@ -16,8 +16,7 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                 Color.clear
                     .frame(maxWidth: .infinity)
                     .frame(height: rowHeight)
-                    .glassEffect(.clear, in: .capsule)
-                    .opacity(0.55)
+                    .glassEffect(.regular, in: .capsule)
                     .padding(.horizontal, 6)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)

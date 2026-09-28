@@ -5,12 +5,12 @@ import AppKit
 import UIKit
 #endif
 
-struct ColorResultsPanel: View {
+struct ColorResultsPanel<PhotoActions: View>: View {
     let sample: PhotoColorSample
     let information: PhotoColorDescription?
     @Binding var space: ColorResultSpace?
     @Binding var hdr: Bool
-    let showInfo: () -> Void
+    @ViewBuilder let photoActions: () -> PhotoActions
     let movePixel: (Int, Int) -> Void
     private var resolvedSpace: ColorResultSpace { space ?? .matchingProfile(information?.colorSpace ?? "") }
 
@@ -32,7 +32,7 @@ struct ColorResultsPanel: View {
                     }
                 }
                 Spacer(minLength: 0)
-                Button("colors.source", systemImage: "info.circle", action: showInfo).labelStyle(.iconOnly)
+                photoActions()
             }
             if information?.headroom ?? 1 > 1 { Toggle("HDR", isOn: $hdr).tint(.green) }
             Picker("colors.space", selection: $space) {

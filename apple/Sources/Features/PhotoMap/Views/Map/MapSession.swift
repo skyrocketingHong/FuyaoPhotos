@@ -11,6 +11,7 @@ final class MapSession {
     enum Phase: Equatable { case idle, loading, ready, permissionRequired, failed }
 
     let library = PhotoLibraryService.shared
+    let location = MapLocationService()
     var displayMode = AppSettings.shared.defaultDisplayMode {
         didSet {
             guard oldValue != displayMode else { return }
@@ -118,6 +119,7 @@ final class MapSession {
 
     func pause() {
         isActive = false
+        location.cancel()
         cancelQuery()
     }
 
@@ -143,10 +145,23 @@ final class MapSession {
         refreshAvailableYears()
     }
 
-    func fitPhotos() async {
+    func fitPhotos(animated: Bool = true) async {
         guard let region = await library.initialRegion(year: selectedYear) else { return }
-        currentRegion = region
-        cameraPosition = .region(region)
+        moveCamera(to: region, animated: animated)
+    }
+
+    func locateUser(animated: Bool) {
+        location.request { [weak self] coordinate in
+            self?.moveCamera(to: MKCoordinateRegion(center: coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.012, longitudeDelta: 0.012)), animated: animated)
+        }
+    }
+
+    private func moveCamera(to region: MKCoordinateRegion, animated: Bool) {
+        withAnimation(animated ? .smooth(duration: 0.55) : nil) {
+            currentRegion = region
+            cameraPosition = .region(region)
+        }
         requestQuery(immediate: true)
     }
 

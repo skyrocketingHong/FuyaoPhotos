@@ -6,9 +6,10 @@ struct HeatmapView: View {
     @Binding var region: MKCoordinateRegion
     let clusters: [MapCluster]
     let options: MapOptions
+    let showsUserLocation: Bool
 
     var body: some View {
-        HeatmapPlatformView(region: $region, clusters: clusters, options: options)
+        HeatmapPlatformView(region: $region, clusters: clusters, options: options, showsUserLocation: showsUserLocation)
     }
 }
 
@@ -17,11 +18,13 @@ private struct HeatmapPlatformView: NSViewRepresentable {
     @Binding var region: MKCoordinateRegion
     let clusters: [MapCluster]
     let options: MapOptions
+    let showsUserLocation: Bool
     @Environment(\.colorScheme) private var colorScheme
     func makeCoordinator() -> HeatmapCoordinator { HeatmapCoordinator(region: $region) }
     func makeNSView(context: Context) -> MKMapView { context.coordinator.makeMap() }
     func updateNSView(_ map: MKMapView, context: Context) {
-        context.coordinator.update(map, region: $region, clusters: clusters, options: options)
+        context.coordinator.update(map, region: $region, clusters: clusters, options: options,
+            showsUserLocation: showsUserLocation, animated: context.transaction.animation != nil)
         map.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
     }
     static func dismantleNSView(_ map: MKMapView, coordinator: HeatmapCoordinator) { map.delegate = nil }
@@ -31,11 +34,13 @@ private struct HeatmapPlatformView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     let clusters: [MapCluster]
     let options: MapOptions
+    let showsUserLocation: Bool
     @Environment(\.colorScheme) private var colorScheme
     func makeCoordinator() -> HeatmapCoordinator { HeatmapCoordinator(region: $region) }
     func makeUIView(context: Context) -> MKMapView { context.coordinator.makeMap() }
     func updateUIView(_ map: MKMapView, context: Context) {
-        context.coordinator.update(map, region: $region, clusters: clusters, options: options)
+        context.coordinator.update(map, region: $region, clusters: clusters, options: options,
+            showsUserLocation: showsUserLocation, animated: context.transaction.animation != nil)
         map.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
     }
     static func dismantleUIView(_ map: MKMapView, coordinator: HeatmapCoordinator) { map.delegate = nil }
@@ -64,13 +69,15 @@ private final class HeatmapCoordinator: NSObject, MKMapViewDelegate {
         map.addSubview(compass)
         NSLayoutConstraint.activate([
             compass.trailingAnchor.constraint(equalTo: map.safeAreaLayoutGuide.trailingAnchor,constant:-12),
-            compass.bottomAnchor.constraint(equalTo: map.safeAreaLayoutGuide.bottomAnchor,constant:-12)
+            compass.topAnchor.constraint(equalTo: map.safeAreaLayoutGuide.topAnchor,constant:12)
         ])
         self.compass = compass
         return map
     }
 
-    func update(_ map: MKMapView, region: Binding<MKCoordinateRegion>, clusters: [MapCluster], options: MapOptions) {
+    func update(_ map: MKMapView, region: Binding<MKCoordinateRegion>, clusters: [MapCluster], options: MapOptions,
+                showsUserLocation: Bool, animated: Bool) {
+        map.showsUserLocation = showsUserLocation
         self.region = region // Do not retain an obsolete representable value.
         if lastOptions != options {
             map.preferredConfiguration = options.configuration()
@@ -85,9 +92,10 @@ private final class HeatmapCoordinator: NSObject, MKMapViewDelegate {
         }
         lastOptions = options
         if !interacting && (lastInput == nil || !Self.same(lastInput!, region.wrappedValue)) {
+            let shouldAnimate = lastInput != nil && animated
             lastInput = region.wrappedValue
             applyingRegion = true
-            map.setRegion(region.wrappedValue, animated: false)
+            map.setRegion(region.wrappedValue, animated: shouldAnimate)
             applyingRegion = false
         }
     }

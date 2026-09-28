@@ -3,7 +3,6 @@ import MapKit
 
 struct ContentView: View {
     @State private var workspace = PhotoWorkspace()
-    @Environment(\.colorScheme) private var colorScheme
     @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
     private var darkroomCards: Bool { cardAppearance == CardAppearance.darkroom.rawValue }
     var body: some View {
@@ -43,7 +42,13 @@ struct ContentView: View {
 #endif
         }
         .tabViewStyle(.tabBarOnly)
-        .tint(PhotoPreviewTheme.accent(in: darkroomCards && workspace.selectedTab == .cards ? .dark : colorScheme))
+        .tint(.yellow)
+#if os(iOS)
+        .background {
+            NativeTabSelectionStyle(color: .yellow, selection: workspace.selectedTab)
+                .frame(width: 0, height: 0).accessibilityHidden(true)
+        }
+#endif
 #if os(macOS)
         .frame(minWidth: 760, minHeight: 560)
 #endif
@@ -55,6 +60,8 @@ struct PhotoMapScreen: View {
     @Namespace private var mapScope
     @State private var session = MapSession()
     @State private var showingOptions = false
+    @State private var showingModes = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var editAfterDismiss: [String]?
     @State private var availableWidth: CGFloat = 0
     @State private var clusterNavigationPath: [PhotoLocation] = []
@@ -70,21 +77,22 @@ struct PhotoMapScreen: View {
                 MapContainerView(session: session, scope: mapScope)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 #if !os(macOS)
-                    .overlay(alignment: .topTrailing) {
-                        VStack(alignment: .trailing, spacing: 16) {
-                            mapStyleMenu
-                            DisplayModeMenu(displayMode: $session.displayMode)
-                                .accessibilityLabel(Text("sidebar.display.mode"))
-                            YearFilterMenu(selectedYear: $session.selectedYear, availableYears: session.availableYears)
-                                .accessibilityLabel(Text("year.filter.title"))
-                            mapOptionsButton
-                            fitPhotosButton
+                    .overlay(alignment: .bottomTrailing) {
+                        VStack(alignment: .trailing, spacing: 12) {
                             if session.displayMode != .heatmap && session.options.compass { MapCompass(scope: mapScope) }
+                            VStack(spacing: 0) {
+                                mapStyleMenu.frame(width: 52, height: 52)
+                                mapOptionsButton.frame(width: 52, height: 52)
+                                fitPhotosButton.frame(width: 52, height: 52)
+                                Divider().padding(.horizontal, 12)
+                                locationButton.frame(width: 52, height: 52)
+                            }
+                            .glassEffect(.regular.interactive(), in: .capsule)
                         }
                         .labelStyle(.iconOnly)
-                        .buttonStyle(.glass)
-                        .buttonBorderShape(.circle)
-                        .controlSize(.large)
+                        .buttonStyle(.plain)
+                        .font(.title3)
+                        .foregroundStyle(.primary)
                         .padding(20)
                     }
 #else
@@ -95,13 +103,13 @@ struct PhotoMapScreen: View {
                         }
                     }
 #endif
-                    .overlay(alignment: .bottomLeading) {
+                    .overlay(alignment: .topLeading) {
                         if session.hasQueryResult {
                             Text("photo.count.visible \(session.visiblePhotoCount)")
                                 .font(.caption.monospacedDigit())
                                 .padding(.horizontal, 12).padding(.vertical, 8)
                                 .glassEffect(in: .capsule)
-                                .padding(12)
+                                .padding(.horizontal, 20).padding(.top, 12)
                         }
                     }
                 if showsSelectionPane, let presentation = session.presentation {
@@ -134,10 +142,6 @@ struct PhotoMapScreen: View {
                         .labelStyle(.iconOnly)
                         .buttonBorderShape(.circle)
                         .help(Text("sidebar.map.style"))
-                    DisplayModeMenu(displayMode: $session.displayMode)
-                        .labelStyle(.iconOnly)
-                        .buttonBorderShape(.circle)
-                        .help(Text("sidebar.display.mode"))
                     YearFilterMenu(selectedYear: $session.selectedYear, availableYears: session.availableYears)
                         .accessibilityLabel(Text("year.filter.title"))
                         .buttonBorderShape(.circle)
@@ -152,6 +156,7 @@ struct PhotoMapScreen: View {
                         .labelStyle(.iconOnly)
                         .buttonBorderShape(.circle)
                         .help(Text("map.fit.photos"))
+                    locationButton.labelStyle(.iconOnly).help(Text("map.location"))
                 }
             }
 #endif
@@ -187,16 +192,29 @@ struct PhotoMapScreen: View {
     }
 
     private var mapStyleMenu: some View {
-        @Bindable var session = session
-        return Menu {
-            Picker("sidebar.map.style", selection: $session.options.style) {
-                ForEach(MapStyleMode.allCases) { style in
-                    Label(style.localizedName, systemImage: style.icon).tag(style)
-                }
+        Button("map.modes", systemImage: session.options.style.icon) { showingModes = true }
+            .popover(isPresented: $showingModes) {
+                MapModesView(session: session)
+#if os(iOS)
+                    .presentationCompactAdaptation(.sheet)
+                    .presentationDetents([.medium, .large])
+#endif
             }
+    }
+
+    private var locationButton: some View {
+        Button {
+            session.locateUser(animated: !reduceMotion)
         } label: {
-            Label("sidebar.map.style", systemImage: "map")
+            if session.location.locating { ProgressView().controlSize(.small) }
+            else { Label("map.location", systemImage: "location.fill") }
         }
+        .disabled(session.location.locating)
+        .accessibilityLabel(Text("map.location"))
+        .alert("map.location", isPresented: Binding(get: { session.location.errorMessage != nil },
+            set: { if !$0 { session.location.errorMessage = nil } })) {
+                Button("done", role: .cancel) { }
+            } message: { Text(session.location.errorMessage ?? "") }
         .accessibilityLabel(Text("sidebar.map.style"))
     }
 
@@ -213,7 +231,7 @@ struct PhotoMapScreen: View {
 
     private var fitPhotosButton: some View {
         Button("map.fit.photos", systemImage: "arrow.up.left.and.arrow.down.right") {
-            Task { await session.fitPhotos() }
+            Task { await session.fitPhotos(animated: !reduceMotion) }
         }
         .disabled(!session.hasQueryResult)
     }

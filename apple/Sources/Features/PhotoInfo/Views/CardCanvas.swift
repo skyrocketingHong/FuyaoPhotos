@@ -94,7 +94,7 @@ private struct CardActionStrip: View {
             HStack(spacing: 0) {
                 ForEach(visible, id: \.self) { tool in
                     control(for: tool, width: geometry.size.width)
-                        .frame(maxWidth: .infinity)
+                        .frame(width: geometry.size.width / CGFloat(visible.count))
                         .frame(height: 64)
                 }
             }
@@ -129,7 +129,7 @@ private struct CardActionStrip: View {
     }
 
     private func visibleTools(for width: CGFloat) -> [Tool] {
-        let slots = min(7, max(2, Int(max(0, width) / 56)))
+        let slots = min(7, max(2, Int(max(0, width) / 68)))
         return Array(optionalTools.prefix(slots - 2)) + [.save, .more]
     }
 

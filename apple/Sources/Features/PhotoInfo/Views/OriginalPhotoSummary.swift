@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OriginalPhotoSummary: View {
     let document: CardDocument
+    var showsBackdrop = true
     @State private var preview: CardPreviewState = {
         let value = CardPreviewState()
         value.original = true
@@ -26,6 +27,7 @@ struct OriginalPhotoSummary: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
             }
             .aspectRatio(4.0 / 3.0, contentMode: .fit)
+            .background { PhotoImageShadow(aspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) }
 
             PhotoInformationHeading(name: document.originalName,
                                     fileExtension: document.sourceURL.pathExtension,
@@ -35,7 +37,7 @@ struct OriginalPhotoSummary: View {
                 VStack(alignment: .leading, spacing: 8) { mediaButtons }
             }
         }
-        .background { PhotoAmbientBackdrop(sourceURL: document.sourceURL) }
+        .background { if showsBackdrop { PhotoAmbientBackdrop(sourceURL: document.sourceURL, featherEdges: false) } }
         .task(id: document.sourceURL) {
             showsDepth = false
             preview.playing = false

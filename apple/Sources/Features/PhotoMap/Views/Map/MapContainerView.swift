@@ -33,7 +33,7 @@ private struct MapCanvas: View {
             if session.displayMode == .heatmap {
                 HeatmapView(
                     region: $session.heatmapRegion, clusters: session.clusters,
-                    options: session.options
+                    options: session.options, showsUserLocation: session.location.authorized
                 )
             } else {
                 PhotoClusterMap(session: session, scope: scope)
@@ -51,6 +51,7 @@ private struct PhotoClusterMap: View {
 
     var body: some View {
         Map(position: $session.cameraPosition, selection: $selectedClusterID, scope: scope) {
+            if session.location.authorized { UserAnnotation() }
             ForEach(session.clusters) { cluster in
                 if session.displayMode == .photo {
                     Annotation("", coordinate: CLLocationCoordinate2D(latitude: cluster.latitude, longitude: cluster.longitude)) {

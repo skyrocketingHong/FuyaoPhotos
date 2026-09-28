@@ -15,7 +15,7 @@ struct MapOptionsView: View {
                 .formStyle(.columns)
                 .padding(.horizontal, 20)
         }
-        .frame(width: 370, height: session.displayMode == .heatmap ? 400 : 340)
+        .frame(width: 390, height: session.displayMode == .heatmap ? 500 : 420)
 #else
         NavigationStack {
             Form { optionSections }
@@ -31,6 +31,12 @@ struct MapOptionsView: View {
 
     @ViewBuilder
     private var optionSections: some View {
+        Section("year.filter.title") {
+            Picker("year.filter.title", selection: $session.selectedYear) {
+                Text(L10n.YearFilter.all).tag(nil as Int?)
+                ForEach(session.availableYears, id: \.self) { Text($0, format: .number.grouping(.never)).tag(Optional($0)) }
+            }
+        }
         if session.displayMode == .heatmap {
             Section("sidebar.display.mode") {
                 LabeledContent("map.heat.radius") {

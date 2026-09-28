@@ -14,7 +14,6 @@ struct PhotoCardScreen: View {
     @State private var showingClose = false
     @State private var showingToolbarReplace = false
     @State private var showingToolbarClose = false
-    @State private var showingExternalReplace = false
     @State private var replacementIDs: [String]?
     private var hasUnsavedChanges: Bool { workspace.hasPendingEdits(in: session) }
 
@@ -37,6 +36,7 @@ struct PhotoCardScreen: View {
     var body: some View {
         NavigationStack {
             editorContent
+                .tint(PhotoPreviewTheme.accent(in: forcedDarkroom ? .dark : colorScheme))
                 .toolbar { editorToolbar }
                 .disabled(session.busy)
                 .overlay { busyOverlay }
@@ -45,19 +45,8 @@ struct PhotoCardScreen: View {
         .transformEnvironment(\.colorScheme) { scheme in
             if forcedDarkroom { scheme = .dark }
         }
-        .tint(PhotoPreviewTheme.accent(in: forcedDarkroom ? .dark : colorScheme))
-#if os(iOS)
-        .background {
-            NativeTabSelectionStyle(color: PhotoPreviewTheme.accent(in: forcedDarkroom ? .dark : colorScheme))
-                .frame(width: 0, height: 0).accessibilityHidden(true)
-        }
-#endif
         .sheet(isPresented: $showingPicker) { pickerSheet }
         .sheet(isPresented: $showingSave) { saveSheet }
-        .confirmationDialog(replaceTitle, isPresented: $showingExternalReplace, titleVisibility: .visible) {
-            Button("card.replace", role: .destructive, action: replacePhotos)
-            Button("card.cancel", role: .cancel) { replacementIDs = nil }
-        }
         .modifier(SessionAlerts(session: session))
         .sensoryFeedback(.success, trigger: session.savedCount) { (_: Int?, newValue: Int?) in newValue != nil }
         .onChange(of: workspace.pendingAssetIDs) { (_: [String]?, _: [String]?) in handlePendingImport() }
@@ -211,11 +200,11 @@ struct PhotoCardScreen: View {
 
     private func choosePhotos() {
         replacementIDs = nil
-        if hasUnsavedChanges { showingReplace = true } else { showingPicker = true }
+        if session.current != nil { showingReplace = true } else { showingPicker = true }
     }
     private func choosePhotosFromToolbar() {
         replacementIDs = nil
-        if hasUnsavedChanges { showingToolbarReplace = true } else { showingPicker = true }
+        if session.current != nil { showingToolbarReplace = true } else { showingPicker = true }
     }
     private func presentSaveOptions() {
         saveDetent = .medium
@@ -230,7 +219,7 @@ struct PhotoCardScreen: View {
     private func handlePendingImport() {
         guard !session.busy, let ids = workspace.pendingAssetIDs else { return }
         workspace.pendingAssetIDs = nil
-        if hasUnsavedChanges { replacementIDs = ids; showingExternalReplace = true }
+        if session.current != nil { replacementIDs = ids; showingReplace = true }
         else { Task { await session.openAssets(ids) } }
     }
 }

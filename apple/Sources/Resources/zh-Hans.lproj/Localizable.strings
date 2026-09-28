@@ -483,3 +483,15 @@
 "about.project" = "扶摇照片将照片地图、信息卡片、元数据与图片取色整合在一个应用中。";
 "about.features" = "按地点浏览照片，制作信息卡片，查看和修改元数据，跨色彩空间取色。";
 "about.colors.credit" = "取色功能迁移自 FuyaoColorPicker。原 Color Picker 参考材料保留 GPL-3.0-only 许可。";
+
+"map.modes" = "地图模式";
+
+"map.location" = "当前位置";
+
+"map.location.permission" = "请在系统设置中允许访问位置，以在地图上显示当前位置。";
+
+"map.location.failed" = "暂时无法获取位置，请重试。";
+
+"map.preview.unavailable" = "预览暂不可用";
+
+"colors.gesture" = "按住照片后拖动取色，双指缩放或移动照片。";

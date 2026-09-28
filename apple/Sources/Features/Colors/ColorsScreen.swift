@@ -14,6 +14,9 @@ struct ColorsScreen: View {
     @State private var confirmReplace = false
     private enum Input { case photos, files, camera }
     private var session: CardSession { workspace.session(for: .colors) }
+    private var replacementTitle: LocalizedStringKey {
+        session.documents.count == 1 ? "card.replace.confirm.one" : "card.replace.confirm.many"
+    }
 
     var body: some View {
         NavigationStack {
@@ -24,20 +27,24 @@ struct ColorsScreen: View {
                     HStack(spacing: 0) {
                         VStack(spacing: 8) {
                             photo.frame(maxWidth: .infinity, maxHeight: .infinity)
-                            photoTools
                         }
                         .padding(.horizontal, 20)
                         .frame(width: geometry.size.width * 0.55)
-                        Form { results }.photoPageForm()
+                        Form { results }.photoPageForm().scrollContentBackground(.hidden)
                     }
                 } else {
                     let photoHeight = min((geometry.size.width - 40) * 0.75,
                         max(72, min(geometry.size.height * 0.43, geometry.size.height - 290)))
                     VStack(spacing: 8) {
                         photo.frame(height: photoHeight).padding(.horizontal, 20)
-                        photoTools.padding(.horizontal, 20)
-                        Form { results }.photoPageForm().frame(maxHeight: .infinity)
+                        Form { results }.photoPageForm().scrollContentBackground(.hidden).frame(maxHeight: .infinity)
                     }
+                }
+            }
+            .background {
+                if let document = session.current {
+                    PhotoAmbientBackdrop(sourceURL: document.sourceURL, featherEdges: false)
+                        .ignoresSafeArea(edges: .top)
                 }
             }
 #if !os(macOS)
@@ -72,10 +79,6 @@ struct ColorsScreen: View {
         }
 #endif
         .sheet(isPresented: $showingInfo) { ColorInformationSheet(information: sampling.information) }
-        .confirmationDialog("card.replace.confirm.many", isPresented: $confirmReplace) {
-            Button("card.replace", role: .destructive) { if let pendingInput { present(pendingInput) } }
-            Button("card.cancel", role: .cancel) { pendingInput = nil }
-        }
         .alert("card.error.title", isPresented: Binding(get: { session.errorMessage != nil }, set: { if !$0 { session.errorMessage = nil } })) {
             Button("done", role: .cancel) { }
         } message: { Text(session.errorMessage ?? "") }
@@ -101,7 +104,7 @@ struct ColorsScreen: View {
         }
 #endif
     }
-    private var photoTools: some View {
+    private var photoNavigation: some View {
         HStack {
             if session.documents.count > 1 {
                 let index = session.documents.firstIndex(where: { $0.id == session.selectedID }) ?? 0
@@ -111,43 +114,64 @@ struct ColorsScreen: View {
                 Button("card.next", systemImage: "chevron.right") { session.selectedID = session.documents[index + 1].id }
                     .labelStyle(.iconOnly).disabled(index >= session.documents.count - 1)
             }
-            Spacer(minLength: 0)
-            Menu("card.open", systemImage: "photo.badge.plus") {
-                inputButtons
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.bordered)
         }
         .frame(minHeight: 44)
         .disabled(session.busy)
     }
+    private var inputMenu: some View {
+        Menu("card.open", systemImage: "photo.badge.plus") {
+            inputButtons
+            Divider()
+            Button("colors.source", systemImage: "info.circle") { showingInfo = true }
+        }
+        .labelStyle(.iconOnly)
+        .frame(minWidth: 44, minHeight: 44)
+        .disabled(session.busy)
+        .confirmationDialog(replacementTitle, isPresented: $confirmReplace, titleVisibility: .visible) {
+            Button("card.replace", role: .destructive) { if let pendingInput { present(pendingInput) } }
+            Button("card.cancel", role: .cancel) { pendingInput = nil }
+        }
+    }
     private var photo: some View {
         ZStack {
             if let document = session.current {
-                PhotoAmbientBackdrop(sourceURL: document.sourceURL)
                 if let image = sampling.image {
-                    ColorPhotoViewport(image: image, hdr: sampling.hdr, point: sampling.point) {
+                    ColorPhotoViewport(image: image, hdr: sampling.hdr, point: sampling.point, hex: sampling.sample?.color.srgb.hex) {
                         sampling.sample(at: $0, document: document)
                     }
+                    .background { PhotoImageShadow(aspectRatio: CGFloat(image.width) / CGFloat(image.height)) }
                 }
             }
             if sampling.busy || session.busy { ProgressView() }
             if let error = sampling.error { Text(error).foregroundStyle(.secondary).padding() }
         }
+        .overlay(alignment: .bottom) { if session.documents.count > 1 { photoNavigation } }
     }
     @ViewBuilder private var results: some View {
         if let sample = sampling.sample, let document = session.current {
             ColorResultsPanel(sample: sample, information: sampling.information, space: $space,
-                hdr: $sampling.hdr, showInfo: { showingInfo = true }, movePixel: { x, y in
+                hdr: $sampling.hdr, photoActions: { inputMenu }, movePixel: { x, y in
                     sampling.sample(at: CGPoint(x: (Double(x) + 0.5) / Double(document.metadata.width),
                         y: (Double(y) + 0.5) / Double(document.metadata.height)), document: document)
                 })
-        } else if sampling.busy {
-            Section { ProgressView() }
+        } else {
+            Section {
+                HStack(spacing: 16) {
+                    ZStack {
+                        Rectangle().fill(.fill.quaternary)
+                        if sampling.busy { ProgressView() }
+                        else { Image(systemName: "eyedropper").foregroundStyle(.secondary) }
+                    }
+                    .frame(width: 72, height: 72)
+                    .accessibilityLabel(Text("colors.magnifier"))
+                    Spacer(minLength: 0)
+                    inputMenu
+                }
+            }
         }
     }
     private func request(_ input: Input) {
-        if workspace.hasPendingEdits(in: session) {
+        if session.current != nil {
             pendingInput = input; confirmReplace = true
         } else { present(input) }
     }

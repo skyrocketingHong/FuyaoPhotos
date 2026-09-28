@@ -2,3 +2,7 @@
 "NSPhotoLibraryUsageDescription" = "在地图展示已授权照片，保留实况照片并将编辑保存到相册。";
 "NSPhotoLibraryAddUsageDescription" = "将制作好信息卡的照片保存到相册。";
 "NSCameraUsageDescription" = "拍摄照片并选取其中的颜色。";
+
+"NSLocationWhenInUseUsageDescription" = "点击地图定位按钮时，获取并显示当前位置。";
+
+"NSLocationUsageDescription" = "点击地图定位按钮时，获取并显示当前位置。";
