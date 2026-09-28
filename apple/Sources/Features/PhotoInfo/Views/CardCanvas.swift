@@ -16,45 +16,33 @@ struct CardCanvas: View {
         GeometryReader { geometry in
             if let document = session.current {
                 let metrics = PhotoPreviewMetrics(available: geometry.size)
-                Group {
+                PhotoPreviewPage(sourceURL: document.sourceURL, metrics: metrics,
+                    imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
+                    CardFilmstrip(session: session, preview: preview,
+                                  processing: textEditingActive || preview.isRendering)
+                } accessories: {
+                    CardActionStrip(document: document, preview: preview, photoCount: session.documents.count,
+                                    replaceConfirmation: $replaceConfirmation, closeConfirmation: $closeConfirmation,
+                                    open: open, save: save, close: close,
+                                    confirmReplace: confirmReplace, confirmClose: confirmClose,
+                                    saved: session.savedCount != nil && session.errorMessage == nil)
+                } content: {
                     if metrics.isWide {
-                        HStack(alignment: .top, spacing: 0) {
-                            stage(document: document, metrics: metrics)
-                            CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
-                                .frame(maxWidth: 460, maxHeight: .infinity)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
+                        CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
+                            .frame(maxWidth: 460, maxHeight: .infinity)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
-                        VStack(spacing: 8) {
-                            stage(document: document, metrics: metrics)
-                            CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
-                                .frame(maxHeight: .infinity)
-                        }
-                        .frame(maxWidth: .infinity)
+                        CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
+                            .frame(maxHeight: .infinity)
+                            .frame(maxWidth: .infinity)
                     }
                 }
-                .background { PhotoWorkspaceBackdrop(sourceURL: document.sourceURL) }
                 .onChange(of:session.selectedID) { _,_ in
                     preview.playing=false; preview.original=false; textEditingActive=false
                 }
             }
         }
     }
-
-    private func stage(document: CardDocument, metrics: PhotoPreviewMetrics) -> some View {
-        PhotoPreviewStage(metrics: metrics,
-            imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
-            CardFilmstrip(session: session, preview: preview,
-                          processing: textEditingActive || preview.isRendering)
-        } accessories: {
-            CardActionStrip(document: document, preview: preview, photoCount: session.documents.count,
-                            replaceConfirmation: $replaceConfirmation, closeConfirmation: $closeConfirmation,
-                            open: open, save: save, close: close,
-                            confirmReplace: confirmReplace, confirmClose: confirmClose,
-                            saved: session.savedCount != nil && session.errorMessage == nil)
-        }
-    }
-
 }
 
 private struct CardActionStrip: View {

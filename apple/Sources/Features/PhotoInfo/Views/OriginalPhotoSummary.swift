@@ -1,93 +1,105 @@
 import SwiftUI
 
-struct OriginalPhotoSummary<Actions: View>: View {
-    let document: CardDocument
-    let metrics: PhotoPreviewMetrics
-    var showsFileSummary = true
-    @ViewBuilder var actions: Actions
-    @State private var preview: CardPreviewState = {
+/// State shared between the pinned photo column and its accessory row.
+@MainActor @Observable final class OriginalSummaryState {
+    let preview: CardPreviewState = {
         let value = CardPreviewState()
         value.original = true
         return value
     }()
-    @State private var depthImage: CGImage?
-    @State private var showsDepth = false
+    var depthImage: CGImage?
+    var showsDepth = false
+}
+
+/// The photo column of the original-photo summary; runs the depth lookup feeding the depth toggle.
+struct OriginalSummaryPhoto: View {
+    let document: CardDocument
+    let state: OriginalSummaryState
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        PhotoPreviewStage(metrics: metrics,
-            imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
-            ZStack {
-                if showsDepth, let depthImage {
-                    Image(decorative: depthImage, scale: 1)
-                        .resizable().scaledToFit()
-                        .accessibilityLabel(Text("photo.depth.layer"))
-                } else {
-                    CardPreviewSurface(document: document, controls: preview)
-                }
+        ZStack {
+            if state.showsDepth, let depthImage = state.depthImage {
+                Image(decorative: depthImage, scale: 1)
+                    .resizable().scaledToFit()
+                    .accessibilityLabel(Text("photo.depth.layer"))
+            } else {
+                CardPreviewSurface(document: document, controls: state.preview)
             }
-        } accessories: {
-            Group(subviews: actions) { extraActions in
-                let tools = mediaTools
-                let room = metrics.width - PhotoPageLayout.margin * 2 - (showsFileSummary ? 128 : 0)
-                let maximum = max(extraActions.count + 1, Int(room / PhotoPreviewMetrics.inlineToolWidth))
-                let visibleCount = extraActions.count + tools.count <= maximum
-                    ? tools.count : max(0, maximum - extraActions.count - 1)
-                HStack(spacing: 8) {
-                    if showsFileSummary {
-                        PhotoInformationHeading(name: document.originalName,
-                            fileExtension: document.sourceURL.pathExtension, fileSize: document.metadata.fileSize)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .task(id: document.sourceURL) {
+            state.showsDepth = false; state.preview.playing = false; state.depthImage = nil
+            let layer = await PortraitDepthLayerReader.readAsync(document.sourceURL)
+            guard !Task.isCancelled else { return }
+            state.depthImage = layer?.image
+        }
+        .onDisappear { state.preview.playing = false }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { state.preview.playing = false }
+        }
+    }
+}
+
+/// The accessory row of the original-photo summary: file heading, media toggles, caller actions.
+struct OriginalSummaryActions<Actions: View>: View {
+    let document: CardDocument
+    let metrics: PhotoPreviewMetrics
+    let state: OriginalSummaryState
+    var showsFileSummary = true
+    @ViewBuilder var actions: Actions
+
+    var body: some View {
+        Group(subviews: actions) { extraActions in
+            let tools = mediaTools
+            let room = metrics.width - PhotoPageLayout.margin * 2 - (showsFileSummary ? 128 : 0)
+            let maximum = max(extraActions.count + 1, Int(room / PhotoPreviewMetrics.inlineToolWidth))
+            let visibleCount = extraActions.count + tools.count <= maximum
+                ? tools.count : max(0, maximum - extraActions.count - 1)
+            HStack(spacing: 8) {
+                if showsFileSummary {
+                    PhotoInformationHeading(name: document.originalName,
+                        fileExtension: document.sourceURL.pathExtension, fileSize: document.metadata.fileSize)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                PhotoPreviewActionRow(fillsWidth: !showsFileSummary) {
+                    ForEach(extraActions) { $0 }
+                    ForEach(Array(tools.prefix(visibleCount)), id: \.self) { tool in
+                        mediaControl(tool)
                     }
-                    PhotoPreviewActionRow(fillsWidth: !showsFileSummary) {
-                        ForEach(extraActions) { $0 }
-                        ForEach(Array(tools.prefix(visibleCount)), id: \.self) { tool in
-                            mediaControl(tool)
-                        }
-                        if visibleCount < tools.count {
-                            PhotoPreviewMenu(title: "card.more") {
-                                ForEach(Array(tools.dropFirst(visibleCount)), id: \.self) { tool in
-                                    mediaMenuControl(tool)
-                                }
+                    if visibleCount < tools.count {
+                        PhotoPreviewMenu(title: "card.more") {
+                            ForEach(Array(tools.dropFirst(visibleCount)), id: \.self) { tool in
+                                mediaMenuControl(tool)
                             }
                         }
                     }
                 }
             }
         }
-        .task(id: document.sourceURL) {
-            showsDepth = false; preview.playing = false; depthImage = nil
-            let layer = await PortraitDepthLayerReader.readAsync(document.sourceURL)
-            guard !Task.isCancelled else { return }
-            depthImage = layer?.image
-        }
-        .onDisappear { preview.playing = false }
-        .onChange(of: scenePhase) { _, phase in
-            if phase != .active { preview.playing = false }
-        }
     }
+
     private enum MediaTool: Hashable { case hdr, live, depth }
     private var mediaTools: [MediaTool] {
         var result: [MediaTool] = []
         if document.metadata.hdr { result.append(.hdr) }
         if document.isLive { result.append(.live) }
-        if depthImage != nil { result.append(.depth) }
+        if state.depthImage != nil { result.append(.depth) }
         return result
     }
 
     private func mediaBinding(_ tool: MediaTool) -> Binding<Bool> {
         switch tool {
         case .hdr:
-            Binding(get: { preview.hdr && !showsDepth }, set: { value in
-                showsDepth = false; preview.hdr = value
+            Binding(get: { state.preview.hdr && !state.showsDepth }, set: { value in
+                state.showsDepth = false; state.preview.hdr = value
             })
         case .live:
-            Binding(get: { preview.playing }, set: { value in
-                showsDepth = false; preview.playing = value
+            Binding(get: { state.preview.playing }, set: { value in
+                state.showsDepth = false; state.preview.playing = value
             })
         case .depth:
-            Binding(get: { showsDepth }, set: { value in
-                preview.playing = false; showsDepth = value
+            Binding(get: { state.showsDepth }, set: { value in
+                state.preview.playing = false; state.showsDepth = value
             })
         }
     }
@@ -95,7 +107,7 @@ struct OriginalPhotoSummary<Actions: View>: View {
     @ViewBuilder private func mediaControl(_ tool: MediaTool) -> some View {
         switch tool {
         case .hdr: CircularIconToggle("HDR", imageAsset: "HDR", isOn: mediaBinding(tool))
-        case .live: CircularIconToggle("card.live.preview", systemImage: preview.playing ? "stop.circle" : "livephoto", isOn: mediaBinding(tool))
+        case .live: CircularIconToggle("card.live.preview", systemImage: state.preview.playing ? "stop.circle" : "livephoto", isOn: mediaBinding(tool))
         case .depth: CircularIconToggle("photo.depth.layer", systemImage: "square.3.layers.3d", isOn: mediaBinding(tool))
         }
     }
@@ -110,5 +122,4 @@ struct OriginalPhotoSummary<Actions: View>: View {
             Toggle("photo.depth.layer", systemImage: "square.3.layers.3d", isOn: mediaBinding(tool))
         }
     }
-
 }

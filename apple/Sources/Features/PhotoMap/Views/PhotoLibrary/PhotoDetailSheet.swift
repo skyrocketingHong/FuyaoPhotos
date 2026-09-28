@@ -13,7 +13,7 @@ struct PhotoDetailSheet: View {
     var body: some View {
         NavigationStack {
             PhotoDetailContent(location: location, thumbnails: thumbnails, indexVersion: indexVersion,
-                               addCard: addCard, compactLayout: embedded)
+                               addCard: addCard)
                 .navigationTitle("photo.detail.title")
 #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
@@ -41,11 +41,11 @@ struct PhotoDetailContent: View {
     let thumbnails: PhotoThumbnailStore
     let indexVersion: UInt64
     let addCard: (String) -> Void
-    var compactLayout = false
     @State private var document: CardDocument?
     @State private var failed = false
     @State private var attempt = 0
     @State private var cannotOpenPhotos = false
+    @State private var summaryState = OriginalSummaryState()
 
     var body: some View {
         content
@@ -53,44 +53,25 @@ struct PhotoDetailContent: View {
             .alert("photo.open.asset.failed", isPresented: $cannotOpenPhotos) { Button("done", role: .cancel) {} }
     }
 
+    // The preview scrolls with the page here: it is one element of the sheet, not pinned chrome.
     private var content: some View {
         GeometryReader { geometry in
             let metrics = PhotoPreviewMetrics(available: geometry.size)
-            if metrics.isWide && !compactLayout {
-                HStack(alignment: .top, spacing: 0) {
-                    previewStage(metrics)
-                    Form {
-                        PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
-                    }
-                    .photoPageForm().scrollContentBackground(.hidden)
-                }
-            } else {
-                Form {
-                    PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
-                }
-                .photoPageForm()
-                .scrollContentBackground(.hidden)
-                .safeAreaBar(edge: .top, spacing: 0) { previewStage(metrics).frame(maxWidth: .infinity) }
-            }
-        }
-        .background { PhotoWorkspaceBackdrop(sourceURL: document?.sourceURL) }
-    }
-
-    @ViewBuilder private func previewStage(_ metrics: PhotoPreviewMetrics) -> some View {
-        if let document {
-            OriginalPhotoSummary(document: document, metrics: metrics, showsFileSummary: false) { photoActionButtons }
-        } else {
-            PhotoPreviewStage(metrics: metrics,
+            InlinePhotoPreviewPage(sourceURL: document?.sourceURL, metrics: metrics,
                 imageAspectRatio: CGFloat(location.asset.pixelWidth) / CGFloat(max(1, location.asset.pixelHeight))) {
-                preview
+                summaryMedia
             } accessories: {
-                PhotoPreviewActionRow { photoActionButtons }
+                summaryActions(metrics: metrics)
+            } details: {
+                PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
             }
         }
     }
 
-    @ViewBuilder private var preview: some View {
-        if location.asset.mediaType == .video {
+    @ViewBuilder private var summaryMedia: some View {
+        if let document {
+            OriginalSummaryPhoto(document: document, state: summaryState)
+        } else if location.asset.mediaType == .video {
             LibraryVideoPreview(asset: location.asset)
         } else if failed {
             ContentUnavailableView {
@@ -99,6 +80,15 @@ struct PhotoDetailContent: View {
             actions: { Button("action.retry") { attempt += 1 } }
         } else {
             ProgressView("loading.photos").frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    @ViewBuilder private func summaryActions(metrics: PhotoPreviewMetrics) -> some View {
+        if let document {
+            OriginalSummaryActions(document: document, metrics: metrics, state: summaryState,
+                showsFileSummary: false, actions: { photoActionButtons })
+        } else {
+            PhotoPreviewActionRow { photoActionButtons }
         }
     }
 

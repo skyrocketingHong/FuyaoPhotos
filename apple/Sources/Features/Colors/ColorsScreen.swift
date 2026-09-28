@@ -24,24 +24,18 @@ struct ColorsScreen: View {
             GeometryReader { geometry in
                 let metrics = PhotoPreviewMetrics(available: geometry.size)
                 if let document = session.current {
-                    if metrics.isWide {
-                        HStack(alignment: .top, spacing: 0) {
-                            previewStage(document: document, metrics: metrics)
-                            Form { results }.photoPageForm().scrollContentBackground(.hidden)
-                        }
-                    } else {
-                        Form { results }
-                            .photoPageForm()
-                            .scrollContentBackground(.hidden)
-                            .safeAreaBar(edge: .top, spacing: 0) {
-                                previewStage(document: document, metrics: metrics).frame(maxWidth: .infinity)
-                            }
+                    PhotoPreviewPage(sourceURL: document.sourceURL, metrics: metrics,
+                        imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
+                        photo
+                    } accessories: {
+                        colorsActions(metrics: metrics)
+                    } content: {
+                        Form { results }.photoPageForm().scrollContentBackground(.hidden)
                     }
                 } else {
                     Form { intro }.photoPageForm()
                 }
             }
-            .background { PhotoWorkspaceBackdrop(sourceURL: session.current?.sourceURL) }
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)
 #endif
@@ -99,29 +93,24 @@ struct ColorsScreen: View {
         }
 #endif
     }
-    private func previewStage(document: CardDocument, metrics: PhotoPreviewMetrics) -> some View {
-        PhotoPreviewStage(metrics: metrics,
-            imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
-            photo
-        } accessories: {
-            let actionCount = (cameraAvailable ? 3 : 2) + (hasHDR ? 2 : 1)
-            Group {
-                if metrics.width - PhotoPageLayout.margin * 2 >= CGFloat(actionCount) * 64 {
-                    PhotoPreviewActionRow {
-                        if session.documents.count > 1 { inputMenu }
-                        else { inputAction(.photos, title: "card.open", symbol: "photo.badge.plus") }
-                        inputAction(.files, title: "colors.files", symbol: "folder")
+    private func colorsActions(metrics: PhotoPreviewMetrics) -> some View {
+        let actionCount = (cameraAvailable ? 3 : 2) + (hasHDR ? 2 : 1)
+        return Group {
+            if metrics.width - PhotoPageLayout.margin * 2 >= CGFloat(actionCount) * 64 {
+                PhotoPreviewActionRow {
+                    if session.documents.count > 1 { inputMenu }
+                    else { inputAction(.photos, title: "card.open", symbol: "photo.badge.plus") }
+                    inputAction(.files, title: "colors.files", symbol: "folder")
 #if os(iOS)
-                        if cameraAvailable { inputAction(.camera, title: "colors.camera", symbol: "camera") }
+                    if cameraAvailable { inputAction(.camera, title: "colors.camera", symbol: "camera") }
 #endif
-                        colorTools
-                    }
-                } else {
-                    PhotoPreviewActionRow { inputMenu; colorTools }
+                    colorTools
                 }
+            } else {
+                PhotoPreviewActionRow { inputMenu; colorTools }
             }
-            .disabled(session.busy)
         }
+        .disabled(session.busy)
     }
 
     private var cameraAvailable: Bool {

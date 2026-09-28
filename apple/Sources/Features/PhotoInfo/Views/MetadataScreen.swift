@@ -9,6 +9,7 @@ struct MetadataScreen: View {
     @State private var showingSave = false
     @State private var confirmReplace = false
     @State private var replacementIDs: [String]?
+    @State private var summaryState = OriginalSummaryState()
     private enum Mode: Hashable { case view, edit }
     private var session: CardSession { workspace.session(for: .metadata) }
     private var replacementTitle: LocalizedStringKey {
@@ -21,29 +22,19 @@ struct MetadataScreen: View {
             GeometryReader { geometry in
                 let metrics = PhotoPreviewMetrics(available: geometry.size)
                 if let document = session.current {
-                    if metrics.isWide {
-                        HStack(alignment: .top, spacing: 0) {
-                            original(document, metrics: metrics)
-                            Form { details(document) }
-                                .photoPageForm().scrollContentBackground(.hidden)
-                                .safeAreaBar(edge: .top, spacing: 0) { modeControls }
-                        }
-                    } else {
-                        Form { details(document) }
-                            .photoPageForm()
-                            .scrollContentBackground(.hidden)
-                            .safeAreaBar(edge: .top, spacing: 0) {
-                                VStack(spacing: 0) {
-                                    original(document, metrics: metrics).frame(maxWidth: .infinity)
-                                    modeControls
-                                }
-                            }
+                    PhotoPreviewPage(sourceURL: document.sourceURL, metrics: metrics,
+                        imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
+                        OriginalSummaryPhoto(document: document, state: summaryState)
+                    } accessories: {
+                        OriginalSummaryActions(document: document, metrics: metrics, state: summaryState,
+                            actions: { openPhotoButton })
+                    } content: {
+                        detailsForm(document)
                     }
                 } else {
                     Form { intro }.photoPageForm()
                 }
             }
-            .background { PhotoWorkspaceBackdrop(sourceURL: session.current?.sourceURL) }
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)
 #endif
@@ -137,9 +128,11 @@ struct MetadataScreen: View {
         else { showingPicker = true }
     }
 
-    private func original(_ document: CardDocument, metrics: PhotoPreviewMetrics) -> some View {
-        OriginalPhotoSummary(document: document, metrics: metrics) { openPhotoButton }
-            .id(document.id)
+    private func detailsForm(_ document: CardDocument) -> some View {
+        Form { details(document) }
+            .photoPageForm()
+            .scrollContentBackground(.hidden)
+            .safeAreaBar(edge: .top, spacing: 0) { modeControls }
     }
 
     @ViewBuilder private func details(_ document: CardDocument) -> some View {

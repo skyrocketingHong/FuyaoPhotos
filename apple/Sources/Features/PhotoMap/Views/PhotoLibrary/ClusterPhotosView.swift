@@ -70,7 +70,7 @@ struct ClusterPhotosView: View {
             }
             .navigationDestination(for: PhotoLocation.self) { location in
                 PhotoDetailContent(location: location, thumbnails: library.thumbnails,
-                    indexVersion: selection.indexVersion, addCard: addCard, compactLayout: embedded)
+                    indexVersion: selection.indexVersion, addCard: addCard)
                     .id(location.id)
                     .navigationTitle("photo.detail.title")
             }

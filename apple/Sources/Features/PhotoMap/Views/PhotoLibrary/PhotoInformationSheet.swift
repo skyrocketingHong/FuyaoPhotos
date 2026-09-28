@@ -5,32 +5,24 @@ struct PhotoInformationSheet: View {
     let document: CardDocument
     @Environment(\.dismiss) private var dismiss
     @State private var cannotOpenPhotos = false
+    @State private var summaryState = OriginalSummaryState()
 
     var body: some View {
         let asset = CardPhotoLibrary.asset(document.assetIdentifier)
         NavigationStack {
             GeometryReader { geometry in
                 let metrics = PhotoPreviewMetrics(available: geometry.size)
-                if metrics.isWide {
-                    HStack(alignment: .top, spacing: 0) {
-                        previewStage(metrics, assetID: asset?.localIdentifier)
-                        Form {
-                            PhotoDetailInformation(asset: asset, document: document, coordinate: nil)
-                        }
-                        .photoPageForm().scrollContentBackground(.hidden)
-                    }
-                } else {
-                    Form {
-                        PhotoDetailInformation(asset: asset, document: document, coordinate: nil)
-                    }
-                    .photoPageForm()
-                    .scrollContentBackground(.hidden)
-                    .safeAreaBar(edge: .top, spacing: 0) {
-                        previewStage(metrics, assetID: asset?.localIdentifier).frame(maxWidth: .infinity)
-                    }
+                // The preview scrolls with the page here: it is one element of the sheet, not pinned chrome.
+                InlinePhotoPreviewPage(sourceURL: document.sourceURL, metrics: metrics,
+                    imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
+                    OriginalSummaryPhoto(document: document, state: summaryState)
+                } accessories: {
+                    OriginalSummaryActions(document: document, metrics: metrics, state: summaryState,
+                        actions: { libraryButton(assetID: asset?.localIdentifier) })
+                } details: {
+                    PhotoDetailInformation(asset: asset, document: document, coordinate: nil)
                 }
             }
-            .background { PhotoWorkspaceBackdrop(sourceURL: document.sourceURL) }
             .navigationTitle("photo.detail.title")
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -51,14 +43,12 @@ struct PhotoInformationSheet: View {
         .presentationContentInteraction(.scrolls)
 #endif
     }
-    private func previewStage(_ metrics: PhotoPreviewMetrics, assetID: String?) -> some View {
-        OriginalPhotoSummary(document: document, metrics: metrics) {
-            if let assetID {
-                CircularIconButton("photo.open.library", systemImage: "photo.on.rectangle") {
-                    Task { cannotOpenPhotos = !(await PhotosApplication.open(assetIdentifier: assetID)) }
-                }
+
+    @ViewBuilder private func libraryButton(assetID: String?) -> some View {
+        if let assetID {
+            CircularIconButton("photo.open.library", systemImage: "photo.on.rectangle") {
+                Task { cannotOpenPhotos = !(await PhotosApplication.open(assetIdentifier: assetID)) }
             }
         }
     }
-
 }
