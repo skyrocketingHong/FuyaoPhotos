@@ -497,6 +497,7 @@
 
 "colors.gesture" = "Touch or click the photo to sample. Drag to adjust; use two fingers to zoom or move.";
 
+"photo.count.unit" = "items";
 
 "map.coordinates.alignment" = "Map alignment";
 "map.coordinates.gcj02" = "Amap (GCJ-02)";

@@ -496,6 +496,7 @@
 
 "colors.gesture" = "触摸或点击照片即可取色，拖动调整，双指缩放或移动。";
 
+"photo.count.unit" = "项";
 
 "map.coordinates.alignment" = "地图位置对齐";
 "map.coordinates.gcj02" = "高德底图（GCJ-02）";

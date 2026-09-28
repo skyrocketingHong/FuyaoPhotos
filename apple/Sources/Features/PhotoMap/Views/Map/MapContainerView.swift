@@ -60,6 +60,7 @@ private struct MapCanvas: View {
                 } else {
                     if session.options.scale {
                         MapScaleView(alignment: .trailing, scope: scope).mapControlVisibility(.visible)
+                            .modifier(MapScaleContentAlignment())
                     }
                     if session.options.compass {
                         MapCompass(scope: scope).mapControlVisibility(.visible)

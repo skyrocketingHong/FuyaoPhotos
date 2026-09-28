@@ -7,7 +7,7 @@ struct HeatmapControls: View {
 
     var body: some View {
 #if os(iOS)
-        if options.scale { HeatmapScale(map: map) }
+        if options.scale { HeatmapScale(map: map).modifier(MapScaleContentAlignment()) }
 #endif
         if options.compass { HeatmapCompass(map: map) }
     }
