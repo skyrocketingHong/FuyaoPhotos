@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CardCanvas: View {
     @Bindable var session: CardSession
+    var zoom: Namespace.ID
     @Binding var replaceConfirmation: Bool
     @Binding var closeConfirmation: Bool
     let open: () -> Void
@@ -18,8 +19,9 @@ struct CardCanvas: View {
                 let metrics = PhotoPreviewMetrics(available: geometry.size)
                 PhotoPreviewPage(sourceURL: document.sourceURL, metrics: metrics,
                     imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
-                    CardFilmstrip(session: session, preview: preview,
+                    CardFilmstrip(session: session, preview: preview, zoom: zoom,
                                   processing: textEditingActive || preview.isRendering)
+                        .photoDevelopEffect()
                 } accessories: {
                     CardActionStrip(document: document, preview: preview, photoCount: session.documents.count,
                                     replaceConfirmation: $replaceConfirmation, closeConfirmation: $closeConfirmation,
@@ -40,6 +42,15 @@ struct CardCanvas: View {
                 .onChange(of:session.selectedID) { _,_ in
                     preview.playing=false; preview.original=false; textEditingActive=false
                 }
+#if os(iOS)
+                .navigationDestination(isPresented: $preview.fullScreen) {
+                    // Photos-style zoom push from the canvas photo; registered here, outside
+                    // the filmstrip's lazy pager.
+                    CardFullPreview(document: document, hdr: preview.hdr, original: preview.original)
+                        .navigationTransition(.zoom(sourceID: document.id, in: zoom))
+                        .toolbarVisibility(.hidden, for: .tabBar)
+                }
+#endif
             }
         }
     }
@@ -184,12 +195,13 @@ private struct CardActionStrip: View {
 private struct CardFilmstrip: View {
     @Bindable var session: CardSession
     let preview: CardPreviewState
+    let zoom: Namespace.ID
     let processing: Bool
     var body: some View {
         ZStack {
 #if os(macOS)
             if let document=session.current {
-                CardPreviewSurface(document:document,controls:preview).id(document.id)
+                CardPreviewSurface(document:document,controls:preview,zoom:zoom).id(document.id)
                     .modifier(ProcessingVeil(active: processing, pulse: preview.isRendering))
                     .aspectRatio(CGFloat(document.metadata.width)/CGFloat(document.metadata.height),contentMode:.fit)
                     .frame(maxWidth:.infinity,maxHeight:.infinity)
@@ -200,7 +212,7 @@ private struct CardFilmstrip: View {
                 ForEach(session.documents) { document in
                     Group {
                         if document.id==session.selectedID {
-                            CardPreviewSurface(document:document,controls:preview)
+                            CardPreviewSurface(document:document,controls:preview,zoom:zoom)
                         } else if abs((session.documents.firstIndex { $0.id==document.id } ?? 0)-selectedIndex)<=1 {
                             CardNeighborPreview(document:document,hdr:preview.hdr)
                         } else { Color.clear }

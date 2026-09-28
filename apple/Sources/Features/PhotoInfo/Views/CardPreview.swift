@@ -18,6 +18,7 @@ import UIKit
 struct CardPreviewSurface: View {
     let document: CardDocument
     @Bindable var controls: CardPreviewState
+    var zoom: Namespace.ID
     var body: some View {
         ZStack {
             CardPreviewImage(document: document, hdr: controls.hdr, fullResolution: false,
@@ -28,9 +29,18 @@ struct CardPreviewSurface: View {
                 }
             }
         }
+#if os(iOS)
+            // Zoom-transition source identity; the push itself is owned by the canvas,
+            // outside the filmstrip's lazy pager.
+            .matchedTransitionSource(id: document.id, in: zoom)
+#else
             .sheet(isPresented: $controls.fullScreen) {
-                CardFullPreview(document: document, hdr: controls.hdr, original: controls.original)
+                NavigationStack {
+                    CardFullPreview(document: document, hdr: controls.hdr, original: controls.original)
+                }
+                .frame(minWidth: 600, minHeight: 500)
             }
+#endif
             .onDisappear {
                 controls.finishLivePlayback()
                 controls.isRendering = false
@@ -138,7 +148,7 @@ private struct CardPreviewImage: View {
     }
 }
 
-private struct CardFullPreview: View {
+struct CardFullPreview: View {
     let document: CardDocument
     let hdr: Bool
     let original: Bool
@@ -149,39 +159,31 @@ private struct CardFullPreview: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationStack {
-            GeometryReader { geometry in
-                if geometry.size.width >= 800 {
-                    HStack(spacing: 0) {
-                        previewContent
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        Divider()
-                        previewInspector
-                            .frame(width: 220)
-                    }
-                } else {
+        GeometryReader { geometry in
+            if geometry.size.width >= 800 {
+                HStack(spacing: 0) {
                     previewContent
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Divider()
+                    previewInspector
+                        .frame(width: 220)
                 }
+            } else {
+                previewContent
             }
-            .background(PhotoPreviewTheme.surface)
-            .onGeometryChange(for: Bool.self) { $0.size.width >= 800 } action: { isWide = $0 }
-            .navigationTitle("card.preview")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("done", action: dismiss.callAsFunction) }
-                ToolbarItem(placement: .automatic) {
-                    if !isWide {
-                        Button("card.preview.reset", systemImage: "1.magnifyingglass", action: resetPreview)
-                            .buttonBorderShape(.circle)
-                    }
+        }
+        .background(PhotoPreviewTheme.surface)
+        .onGeometryChange(for: Bool.self) { $0.size.width >= 800 } action: { isWide = $0 }
+        .navigationTitle("card.preview")
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) { Button("done", action: dismiss.callAsFunction) }
+            ToolbarItem(placement: .automatic) {
+                if !isWide {
+                    Button("card.preview.reset", systemImage: "1.magnifyingglass", action: resetPreview)
+                        .buttonBorderShape(.circle)
                 }
             }
         }
-#if !os(macOS)
-        .interactiveDismissDisabled()
-#endif
-#if os(macOS)
-        .frame(minWidth: 600, minHeight: 500)
-#endif
     }
 
     private var previewInspector: some View {

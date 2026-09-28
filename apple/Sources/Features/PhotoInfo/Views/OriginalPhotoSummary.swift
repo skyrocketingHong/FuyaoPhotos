@@ -16,6 +16,8 @@ struct OriginalSummaryPhoto: View {
     let document: CardDocument
     let state: OriginalSummaryState
     @Environment(\.scenePhase) private var scenePhase
+    /// No zoom destination lives here; the surface only needs a namespace to satisfy its initializer.
+    @Namespace private var idleZoom
 
     var body: some View {
         ZStack {
@@ -24,7 +26,7 @@ struct OriginalSummaryPhoto: View {
                     .resizable().scaledToFit()
                     .accessibilityLabel(Text("photo.depth.layer"))
             } else {
-                CardPreviewSurface(document: document, controls: state.preview)
+                CardPreviewSurface(document: document, controls: state.preview, zoom: idleZoom)
             }
         }
         .task(id: document.sourceURL) {

@@ -6,6 +6,8 @@ struct PhotoCardScreen: View {
     @Environment(PhotoWorkspace.self) private var workspace
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
+    /// Zoom-transition identity shared by the canvas photo and the fullscreen push.
+    @Namespace private var fullScreenZoom
     private var forcedDarkroom: Bool { cardAppearance == CardAppearance.darkroom.rawValue }
     @State private var showingPicker = false
     @State private var showingSave = false
@@ -98,7 +100,7 @@ struct PhotoCardScreen: View {
     private var editorContent: some View {
         Group {
             if session.current != nil {
-                CardCanvas(session: session,
+                CardCanvas(session: session, zoom: fullScreenZoom,
                     replaceConfirmation: $showingReplace,
                     closeConfirmation: $showingClose,
                     open: choosePhotos,
