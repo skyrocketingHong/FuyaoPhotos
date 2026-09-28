@@ -98,6 +98,9 @@ struct PhotoCardScreen: View {
                     close: closeSessionIfSafe,
                     confirmReplace: replacePhotos,
                     confirmClose: { session.clear() })
+                // The canvas has no vertically scrolling content; a top scroll edge here only
+                // hazes the photo without ever reacting to scrolling.
+                .scrollEdgeEffectHidden(true, for: .top)
             }
             else {
                 Form {
@@ -113,7 +116,6 @@ struct PhotoCardScreen: View {
 #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-        .scrollEdgeEffectStyle(.soft, for: .top)
         .toolbarVisibility(.hidden, for: .navigationBar)
         .toolbarColorScheme(forcedDarkroom ? .dark : nil, for: .navigationBar)
 #endif
