@@ -9,6 +9,7 @@ signing.properties
 *.keystore
 .DS_Store
 .local/
+.vscode/
 # Original personal photos and fonts stay local; selected README media is allowlisted below.
 references/*
 !references/README.md
@@ -26,6 +27,7 @@ __pycache__/
 /docs/
 AGENTS.md
 agents.md
+.zcode
 
 .kotlin/
 
