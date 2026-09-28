@@ -42,6 +42,13 @@ import PhotoMapCore
 
     func stop() { displayLink?.invalidate(); displayLink = nil }
 
+    func removeAll() {
+        stop()
+        for layer in layers { map?.removeOverlay(layer.overlay) }
+        layers.removeAll()
+        map = nil
+    }
+
     func finish() {
         stop()
         for layer in layers where layer.retirement != nil { map?.removeOverlay(layer.overlay) }

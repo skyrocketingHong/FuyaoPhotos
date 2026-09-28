@@ -31,25 +31,44 @@ private struct MapCanvas: View {
     let scope: Namespace.ID
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var heatmap = HeatmapSurface()
 
     var body: some View {
-        ZStack {
-            if session.displayMode == .heatmap {
-                HeatmapView(
-                    region: $session.heatmapRegion, clusters: session.clusters,
-                    options: session.options, showsUserLocation: session.location.authorized
-                )
-                .transition(.opacity)
-            } else {
-                PhotoClusterMap(session: session, scope: scope)
+        GeometryReader { geometry in
+            ZStack {
+                if session.displayMode == .heatmap {
+                    HeatmapView(
+                        map: heatmap.map, region: $session.heatmapRegion, clusters: session.clusters,
+                        options: session.options, showsUserLocation: session.location.authorized
+                    )
                     .transition(.opacity)
+                } else {
+                    PhotoClusterMap(session: session, scope: scope)
+                        .transition(.opacity)
+                }
+            }
+            // Expand the real map, then restore the safe area used by its attribution.
+            .safeAreaPadding(EdgeInsets(top: geometry.safeAreaInsets.top,
+                leading: geometry.safeAreaInsets.leading, bottom: geometry.safeAreaInsets.bottom + 8,
+                trailing: geometry.safeAreaInsets.trailing))
+            .ignoresSafeArea(.container)
+        }
+        .overlay(alignment: .top) {
+            MapHeader(count: session.hasQueryResult ? session.visiblePhotoCount : nil) {
+                if session.displayMode == .heatmap {
+                    HeatmapControls(map: heatmap.map, options: session.options)
+                } else {
+                    if session.options.scale {
+                        MapScaleView(alignment: .trailing, scope: scope).mapControlVisibility(.visible)
+                    }
+                    if session.options.compass {
+                        MapCompass(scope: scope).mapControlVisibility(.visible)
+                    }
+                }
             }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: session.displayMode == .heatmap)
         .environment(\.colorScheme, session.options.appearance.colorScheme ?? colorScheme)
-        .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
-        .backgroundExtensionEffect()
-        .ignoresSafeArea(edges: .top)
     }
 }
 
