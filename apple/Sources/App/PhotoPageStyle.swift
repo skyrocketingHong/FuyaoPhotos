@@ -31,10 +31,13 @@ struct PhotoPageFormStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .formStyle(.grouped)
+            .tint(.secondary)
+            .toggleStyle(NativeFormToggleStyle())
             .contentMargins(.horizontal, PhotoPageLayout.margin, for: .scrollContent)
             .listRowInsets(EdgeInsets(top: 12, leading: PhotoPageLayout.cardInset,
                                      bottom: 12, trailing: PhotoPageLayout.cardInset))
             .scrollEdgeEffectStyle(.soft, for: .top)
+            .scrollEdgeEffectHidden(false, for: .top)
     }
 }
 

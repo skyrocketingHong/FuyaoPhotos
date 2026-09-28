@@ -5,12 +5,10 @@ import AppKit
 import UIKit
 #endif
 
-struct ColorResultsPanel<PhotoActions: View>: View {
+struct ColorResultsPanel: View {
     let sample: PhotoColorSample
     let information: PhotoColorDescription?
     @Binding var space: ColorResultSpace?
-    @Binding var hdr: Bool
-    @ViewBuilder let photoActions: () -> PhotoActions
     let movePixel: (Int, Int) -> Void
     private var resolvedSpace: ColorResultSpace { space ?? .matchingProfile(information?.colorSpace ?? "") }
 
@@ -32,9 +30,7 @@ struct ColorResultsPanel<PhotoActions: View>: View {
                     }
                 }
                 Spacer(minLength: 0)
-                photoActions()
             }
-            if information?.headroom ?? 1 > 1 { Toggle("HDR", isOn: $hdr).tint(.green) }
             Picker("colors.space", selection: $space) {
                 Text(String(format: String.localized("colors.auto.value"), ColorResultSpace.matchingProfile(information?.colorSpace ?? "").rawValue))
                     .tag(nil as ColorResultSpace?)
@@ -51,11 +47,8 @@ struct ColorResultsPanel<PhotoActions: View>: View {
                     .accessibilityLabel(Text(verbatim: rgb.hex))
             }
             ForEach(sample.color.readouts(resolvedSpace)) { row in
-                LabeledContent(row.label) {
-                    Text(row.value).monospaced().textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .contextMenu { Button("colors.copy", systemImage: "doc.on.doc") { copy(row.value) } }
-                }
+                PhotoInformationRow(title: LocalizedStringKey(row.label), value: row.value, monospaced: true)
+                    .contextMenu { Button("colors.copy", systemImage: "doc.on.doc") { copy(row.value) } }
             }
         } footer: {
             if resolvedSpace == .ral { Text("colors.ral.note") }

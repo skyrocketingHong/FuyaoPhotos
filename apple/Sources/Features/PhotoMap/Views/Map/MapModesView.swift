@@ -42,6 +42,7 @@ struct MapModesView: View {
                 .padding(20)
                 .buttonStyle(.plain)
             }
+            .scrollEdgeEffectStyle(.soft, for: .top)
             .navigationTitle("map.modes")
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

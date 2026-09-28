@@ -117,21 +117,7 @@ struct CardAdjustmentPanel: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 8)
-            .background(alignment: .topTrailing) {
-                PhotoAmbientBackdrop(sourceURL: document.sourceURL)
-                    .frame(width: detailWidth + selectorWidth * 0.18,
-                           height: min(294, geometry.size.height * 0.62))
-                    .mask {
-                        LinearGradient(stops: [
-                            .init(color: .clear, location: 0),
-                            .init(color: .white, location: 0.18),
-                            .init(color: .white, location: 0.82),
-                            .init(color: .clear, location: 1)
-                        ], startPoint: .leading, endPoint: .trailing)
-                    }
-                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topTrailing)
-                    .allowsHitTesting(false)
-            }
+
         }
         .onChange(of: mode) { _, _ in textEditingActive = false }
     }
@@ -159,8 +145,9 @@ private struct MobileCardInspector: View {
             let buttonHeight: CGFloat = compact ? 0 : 44
             let controlHeight: CGFloat = min(dynamicTypeSize.isAccessibilitySize ? 88 : 64, max(44, height - 24))
             let descriptionHeight: CGFloat = compact ? 0 : 34
-            let previewHeight = max(0, min(geometry.size.width / CardDetailPreview.referenceAspect,
-                height - controlHeight - descriptionHeight - buttonHeight - 24))
+            let availablePreviewHeight = height - controlHeight - descriptionHeight - buttonHeight - 24
+            let previewHeight = availablePreviewHeight >= 44
+                ? min(geometry.size.width / CardDetailPreview.referenceAspect, availablePreviewHeight) : 0
             inspectorContents(controlHeight: controlHeight, descriptionHeight: descriptionHeight,
                               buttonHeight: buttonHeight, previewHeight: previewHeight, compact: compact)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -182,11 +169,13 @@ private struct MobileCardInspector: View {
     private func inspectorContents(controlHeight: CGFloat, descriptionHeight: CGFloat,
                                    buttonHeight: CGFloat, previewHeight: CGFloat, compact: Bool) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            CardDetailPreview(document: document, processing: textEditingActive,
-                              highlightedField: information ? field : nil,
-                              highlightedStyle: information ? nil : adjustment)
-                .frame(height: previewHeight)
-                .clipped()
+            if previewHeight > 0 {
+                CardDetailPreview(document: document, processing: textEditingActive,
+                                  highlightedField: information ? field : nil,
+                                  highlightedStyle: information ? nil : adjustment)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: previewHeight)
+            }
 
             ZStack(alignment: .leading) {
                 if information {

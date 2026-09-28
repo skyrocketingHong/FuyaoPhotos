@@ -15,6 +15,9 @@ struct PhotoDetailInformation: View {
                                                    details: details, coordinate: coordinate)
         ForEach(groups, id: \.group) { section in
             Section {
+                if section.group == .file, let document {
+                    PhotoInformationRow(title: "photo.info.fileName", value: document.originalName)
+                }
                 ForEach(section.rows) { row in
                     PhotoInformationRow(title: LocalizedStringKey(row.id), value: row.value,
                                         monospacedDigits: row.numeric)

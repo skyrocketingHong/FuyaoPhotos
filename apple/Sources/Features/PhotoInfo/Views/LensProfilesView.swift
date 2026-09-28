@@ -64,6 +64,7 @@ struct LensProfilesView: View {
                     }
                 }
             }
+            .scrollEdgeEffectStyle(.soft, for: .top)
             .navigationTitle("lens.profiles.title")
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)

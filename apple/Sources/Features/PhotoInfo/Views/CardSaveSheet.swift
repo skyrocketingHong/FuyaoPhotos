@@ -49,7 +49,7 @@ struct CardSaveSheet: View {
                 }
                 CardSaveControls(options: $options, hasHDR: hasHDR, hasLive: hasLive)
             }
-            .formStyle(.grouped)
+            .photoPageForm()
             .navigationTitle("card.save.options")
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)

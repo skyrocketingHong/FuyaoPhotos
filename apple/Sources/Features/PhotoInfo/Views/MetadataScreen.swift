@@ -19,39 +19,31 @@ struct MetadataScreen: View {
         @Bindable var session = session
         NavigationStack {
             GeometryReader { geometry in
-                if geometry.size.width >= 840, let document = session.current {
-                    HStack(spacing: 0) {
-                        Form {
-                            original(document)
-                            modeControls
+                let metrics = PhotoPreviewMetrics(available: geometry.size)
+                if let document = session.current {
+                    if metrics.isWide {
+                        HStack(alignment: .top, spacing: 0) {
+                            original(document, metrics: metrics)
+                            Form { details(document) }
+                                .photoPageForm().scrollContentBackground(.hidden)
+                                .safeAreaBar(edge: .top, spacing: 0) { modeControls }
                         }
-                        .photoPageForm()
-                        .scrollContentBackground(.hidden)
-                        .contentMargins(.top, 4, for: .scrollContent)
-                        .frame(width: min(460, geometry.size.width * 0.44))
-                        Form { details(document) }.photoPageForm()
+                    } else {
+                        Form { details(document) }
+                            .photoPageForm()
+                            .scrollContentBackground(.hidden)
+                            .safeAreaBar(edge: .top, spacing: 0) {
+                                VStack(spacing: 0) {
+                                    original(document, metrics: metrics).frame(maxWidth: .infinity)
+                                    modeControls
+                                }
+                            }
                     }
                 } else {
-                    Form {
-                        if let document = session.current {
-                            original(document)
-                            modeControls
-                            details(document)
-                        } else {
-                            intro
-                        }
-                    }
-                    .photoPageForm()
-                    .scrollContentBackground(session.current == nil ? .visible : .hidden)
-                    .contentMargins(.top, session.current == nil ? 20 : 4, for: .scrollContent)
+                    Form { intro }.photoPageForm()
                 }
             }
-            .background {
-                if let document = session.current {
-                    PhotoAmbientBackdrop(sourceURL: document.sourceURL, featherEdges: false)
-                        .ignoresSafeArea(edges: .top)
-                }
-            }
+            .background { PhotoWorkspaceBackdrop(sourceURL: session.current?.sourceURL) }
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)
 #endif
@@ -110,36 +102,33 @@ struct MetadataScreen: View {
     }
 
     private var modeControls: some View {
-        Section {
-            HStack {
-                Picker("tab.metadata", selection: $mode) {
-                    Text("metadata.mode.view").tag(Mode.view)
-                    Text("metadata.mode.edit").tag(Mode.edit)
-                }
-                .pickerStyle(.segmented)
-                Menu("card.open", systemImage: "photo.badge.plus") {
-                    Button("card.open", action: choosePhoto)
-                    if session.documents.count > 1 {
-                        Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
-                            ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
-                        }
-                    }
-                }
-                .labelStyle(.iconOnly).frame(minWidth: 44, minHeight: 44)
-                .confirmationDialog(replacementTitle, isPresented: $confirmReplace, titleVisibility: .visible) {
-                    Button("card.replace", role: .destructive) {
-                        if let ids = replacementIDs {
-                            replacementIDs = nil
-                            Task { await session.openAssets(ids) }
-                        } else { showingPicker = true }
-                    }
-                    Button("card.cancel", role: .cancel) { replacementIDs = nil }
+        Picker("tab.metadata", selection: $mode) {
+            Text("metadata.mode.view").tag(Mode.view)
+            Text("metadata.mode.edit").tag(Mode.edit)
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, PhotoPageLayout.margin)
+        .padding(.vertical, 8)
+    }
+
+    private var openPhotoButton: some View {
+        PhotoPreviewMenu(title: "card.open", systemImage: "photo.badge.plus") {
+            Button("card.open", action: choosePhoto)
+            if session.documents.count > 1 {
+                Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
+                    ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
                 }
             }
         }
-        .listRowInsets(EdgeInsets())
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
+        .confirmationDialog(replacementTitle, isPresented: $confirmReplace, titleVisibility: .visible) {
+            Button("card.replace", role: .destructive) {
+                if let ids = replacementIDs {
+                    replacementIDs = nil
+                    Task { await session.openAssets(ids) }
+                } else { showingPicker = true }
+            }
+            Button("card.cancel", role: .cancel) { replacementIDs = nil }
+        }
     }
 
     private func choosePhoto() {
@@ -148,15 +137,9 @@ struct MetadataScreen: View {
         else { showingPicker = true }
     }
 
-    private func original(_ document: CardDocument) -> some View {
-        Section {
-            OriginalPhotoSummary(document: document, showsBackdrop: false)
-                .id(document.id)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-        }
-        .listSectionSeparator(.hidden)
+    private func original(_ document: CardDocument, metrics: PhotoPreviewMetrics) -> some View {
+        OriginalPhotoSummary(document: document, metrics: metrics) { openPhotoButton }
+            .id(document.id)
     }
 
     @ViewBuilder private func details(_ document: CardDocument) -> some View {

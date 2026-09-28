@@ -102,7 +102,7 @@ struct SettingsView: View {
             }
         }
         .tint(.secondary)
-        .toggleStyle(NativeSettingsToggleStyle())
+        .toggleStyle(NativeFormToggleStyle())
         .sheet(isPresented: $showLenses) { LensProfilesView(store: .shared) }
 #if os(macOS)
         .frame(minWidth: 500, minHeight: 420)
@@ -121,22 +121,7 @@ struct SettingsView: View {
     }
 
     private func categoryIntro(_ category: Category) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Image(systemName: category.symbol)
-                .font(.title)
-                .foregroundStyle(.primary)
-                .frame(width: 56, height: 56)
-                .background(.fill.tertiary, in: .rect(cornerRadius: 12))
-                .accessibilityHidden(true)
-            Text(category.title)
-                .font(.title.bold())
-            Text(category.description)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 8)
+        PhotoPageIntro(title: category.title, description: category.description, symbol: category.symbol)
     }
 
     private var settingsIntro: some View {
@@ -166,7 +151,7 @@ struct SettingsView: View {
         } header: { Text("workspace.header") }
         footer: { Text("workspace.sharing.description") }
         .tint(.secondary)
-        .toggleStyle(NativeSettingsToggleStyle())
+        .toggleStyle(NativeFormToggleStyle())
     }
 
     @ViewBuilder private var cardSettings: some View {
@@ -243,13 +228,5 @@ struct SettingsView: View {
             Text("about.colors.credit").font(.footnote).foregroundStyle(.secondary)
             Text("settings.apple.notice").font(.footnote).foregroundStyle(.secondary)
         }
-    }
-}
-
-private struct NativeSettingsToggleStyle: ToggleStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        Toggle(isOn: configuration.$isOn) { configuration.label }
-            .toggleStyle(.switch)
-            .tint(.green)
     }
 }

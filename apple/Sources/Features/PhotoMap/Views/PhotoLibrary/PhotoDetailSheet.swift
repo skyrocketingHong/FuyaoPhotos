@@ -50,70 +50,48 @@ struct PhotoDetailContent: View {
     var body: some View {
         content
             .task(id: PhotoDetailLoadKey(id: location.id, attempt: attempt)) { await load() }
-            .alert("photo.open.failed", isPresented: $cannotOpenPhotos) { Button("done", role: .cancel) {} }
+            .alert("photo.open.asset.failed", isPresented: $cannotOpenPhotos) { Button("done", role: .cancel) {} }
     }
 
-    @ViewBuilder private var content: some View {
-#if os(macOS)
-        if !compactLayout {
-            HSplitView {
-                VStack(alignment: .leading, spacing: 12) {
-                    if let document {
-                        OriginalPhotoSummary(document: document)
-                    } else {
-                        preview.aspectRatio(4 / 3, contentMode: .fit)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    private var content: some View {
+        GeometryReader { geometry in
+            let metrics = PhotoPreviewMetrics(available: geometry.size)
+            if metrics.isWide && !compactLayout {
+                HStack(alignment: .top, spacing: 0) {
+                    previewStage(metrics)
+                    Form {
+                        PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
                     }
-
-                    HStack(alignment: .center, spacing: 12) {
-                        Spacer(minLength: 8)
-                        photoActions
-                    }
+                    .photoPageForm().scrollContentBackground(.hidden)
                 }
-                .padding(20)
-                .frame(minWidth: 360)
-
-                List {
+            } else {
+                Form {
                     PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
                 }
-                .listStyle(.inset)
-                .frame(minWidth: 260, idealWidth: 320)
+                .photoPageForm()
+                .scrollContentBackground(.hidden)
+                .safeAreaBar(edge: .top, spacing: 0) { previewStage(metrics).frame(maxWidth: .infinity) }
             }
-        } else {
-            compactContent
         }
-#else
-        compactContent
-#endif
+        .background { PhotoWorkspaceBackdrop(sourceURL: document?.sourceURL) }
     }
 
-    private var compactContent: some View {
-        List {
-            Section {
-                if let document {
-                    OriginalPhotoSummary(document: document)
-                        .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                } else {
-                    preview.aspectRatio(4 / 3, contentMode: .fit)
-                        .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
-                        .listRowSeparator(.hidden).listRowBackground(Color.clear)
-                }
-                photoActions
-                    .listRowSeparator(.hidden)
+    @ViewBuilder private func previewStage(_ metrics: PhotoPreviewMetrics) -> some View {
+        if let document {
+            OriginalPhotoSummary(document: document, metrics: metrics, showsFileSummary: false) { photoActionButtons }
+        } else {
+            PhotoPreviewStage(metrics: metrics,
+                imageAspectRatio: CGFloat(location.asset.pixelWidth) / CGFloat(max(1, location.asset.pixelHeight))) {
+                preview
+            } accessories: {
+                PhotoPreviewActionRow { photoActionButtons }
             }
-            PhotoDetailInformation(asset: location.asset, document: document, coordinate: location.coordinate)
         }
-        .listStyle(.plain)
-        .scrollEdgeEffectStyle(.soft, for: .top)
     }
 
     @ViewBuilder private var preview: some View {
         if location.asset.mediaType == .video {
             LibraryVideoPreview(asset: location.asset)
-        } else if let document {
-            CardPreview(document: document)
         } else if failed {
             ContentUnavailableView {
                 Label("photo.preview.unavailable", systemImage: "photo.badge.exclamationmark")
@@ -124,27 +102,12 @@ struct PhotoDetailContent: View {
         }
     }
 
-    private var photoActions: some View {
-        Group {
-            if compactLayout {
-                VStack(alignment: .leading, spacing: 10) { photoActionButtons }
-            } else {
-                HStack(spacing: 10) { photoActionButtons }
-            }
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-        .frame(minHeight: 44, alignment: .leading)
-    }
-
     @ViewBuilder private var photoActionButtons: some View {
-        Button("photo.open.library", systemImage: "photo.on.rectangle") {
-            Task { cannotOpenPhotos = !(await PhotosApplication.open()) }
+        CircularIconButton("photo.open.library", systemImage: "photo.on.rectangle") {
+            Task { cannotOpenPhotos = !(await PhotosApplication.open(assetIdentifier: location.id)) }
         }
         if location.asset.mediaType == .image {
-            Button("photo.add.card", systemImage: "photo.badge.plus") {
-                addCard(location.id)
-            }
+            CircularIconButton("metadata.open.cards", systemImage: "photo.badge.plus") { addCard(location.id) }
         }
     }
 

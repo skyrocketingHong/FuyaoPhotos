@@ -4,11 +4,12 @@ struct PhotoInformationRow: View {
     let title: LocalizedStringKey
     let value: String
     var monospacedDigits = false
+    var monospaced = false
 
     var body: some View {
         LabeledContent {
             Text(value)
-                .font(monospacedDigits ? .body.monospacedDigit() : .body)
+                .font(monospaced ? .body.monospaced() : monospacedDigits ? .body.monospacedDigit() : .body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.trailing)
                 .fixedSize(horizontal: false, vertical: true)

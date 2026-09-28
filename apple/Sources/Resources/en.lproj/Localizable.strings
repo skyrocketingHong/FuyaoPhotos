@@ -503,3 +503,13 @@
 "map.coordinates.gcj02" = "Amap (GCJ-02)";
 "map.coordinates.wgs84" = "Standard (WGS-84)";
 "map.coordinates.description" = "Match the provider shown at the bottom of the map. Original photo GPS stays unchanged.";
+
+"photo.info.fileName" = "File Name";
+
+"colors.headroom" = "HDR Headroom";
+
+"colors.gainMaps" = "Gain Map";
+
+"photo.open.application" = "Open Photos";
+
+"photo.open.asset.failed" = "Could not open this photo in Photos.";

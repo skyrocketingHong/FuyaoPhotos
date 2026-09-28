@@ -12,7 +12,8 @@ struct ColorsScreen: View {
     @State private var showingCamera = false
     @State private var pendingInput: Input?
     @State private var confirmReplace = false
-    private enum Input { case photos, files, camera }
+    @State private var confirmationUsesMenu = false
+    private enum Input: Equatable { case photos, files, camera }
     private var session: CardSession { workspace.session(for: .colors) }
     private var replacementTitle: LocalizedStringKey {
         session.documents.count == 1 ? "card.replace.confirm.one" : "card.replace.confirm.many"
@@ -21,32 +22,26 @@ struct ColorsScreen: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
-                if session.current == nil {
-                    Form { intro }.photoPageForm()
-                } else if geometry.size.width >= 800 || (geometry.size.width >= 700 && geometry.size.width > geometry.size.height * 1.2) {
-                    HStack(spacing: 0) {
-                        VStack(spacing: 8) {
-                            photo.frame(maxWidth: .infinity, maxHeight: .infinity)
+                let metrics = PhotoPreviewMetrics(available: geometry.size)
+                if let document = session.current {
+                    if metrics.isWide {
+                        HStack(alignment: .top, spacing: 0) {
+                            previewStage(document: document, metrics: metrics)
+                            Form { results }.photoPageForm().scrollContentBackground(.hidden)
                         }
-                        .padding(.horizontal, 20)
-                        .frame(width: geometry.size.width * 0.55)
-                        Form { results }.photoPageForm().scrollContentBackground(.hidden)
+                    } else {
+                        Form { results }
+                            .photoPageForm()
+                            .scrollContentBackground(.hidden)
+                            .safeAreaBar(edge: .top, spacing: 0) {
+                                previewStage(document: document, metrics: metrics).frame(maxWidth: .infinity)
+                            }
                     }
                 } else {
-                    let photoHeight = min((geometry.size.width - 40) * 0.75,
-                        max(72, min(geometry.size.height * 0.43, geometry.size.height - 290)))
-                    VStack(spacing: 8) {
-                        photo.frame(height: photoHeight).padding(.horizontal, 20)
-                        Form { results }.photoPageForm().scrollContentBackground(.hidden).frame(maxHeight: .infinity)
-                    }
+                    Form { intro }.photoPageForm()
                 }
             }
-            .background {
-                if let document = session.current {
-                    PhotoAmbientBackdrop(sourceURL: document.sourceURL, featherEdges: false)
-                        .ignoresSafeArea(edges: .top)
-                }
-            }
+            .background { PhotoWorkspaceBackdrop(sourceURL: session.current?.sourceURL) }
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)
 #endif
@@ -96,38 +91,79 @@ struct ColorsScreen: View {
         }
     }
     @ViewBuilder private var inputButtons: some View {
-        Button("card.open", systemImage: "photo.on.rectangle") { request(.photos) }
-        Button("colors.files", systemImage: "folder") { request(.files) }
+        Button("card.open", systemImage: "photo.badge.plus") { request(.photos, fromMenu: true) }
+        Button("colors.files", systemImage: "folder") { request(.files, fromMenu: true) }
 #if os(iOS)
         if UIImagePickerController.isSourceTypeAvailable(.camera) {
-            Button("colors.camera", systemImage: "camera") { request(.camera) }
+            Button("colors.camera", systemImage: "camera") { request(.camera, fromMenu: true) }
         }
 #endif
     }
-    private var photoNavigation: some View {
-        HStack {
+    private func previewStage(document: CardDocument, metrics: PhotoPreviewMetrics) -> some View {
+        PhotoPreviewStage(metrics: metrics,
+            imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
+            photo
+        } accessories: {
+            let actionCount = (cameraAvailable ? 3 : 2) + (hasHDR ? 2 : 1)
+            Group {
+                if metrics.width - PhotoPageLayout.margin * 2 >= CGFloat(actionCount) * 64 {
+                    PhotoPreviewActionRow {
+                        if session.documents.count > 1 { inputMenu }
+                        else { inputAction(.photos, title: "card.open", symbol: "photo.badge.plus") }
+                        inputAction(.files, title: "colors.files", symbol: "folder")
+#if os(iOS)
+                        if cameraAvailable { inputAction(.camera, title: "colors.camera", symbol: "camera") }
+#endif
+                        colorTools
+                    }
+                } else {
+                    PhotoPreviewActionRow { inputMenu; colorTools }
+                }
+            }
+            .disabled(session.busy)
+        }
+    }
+
+    private var cameraAvailable: Bool {
+#if os(iOS)
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+#else
+        false
+#endif
+    }
+
+    private var hasHDR: Bool { session.current?.metadata.hdr == true || (sampling.information?.headroom ?? 1) > 1 }
+
+    @ViewBuilder private var colorTools: some View {
+        if hasHDR {
+            CircularIconToggle("HDR", imageAsset: "HDR", isOn: $sampling.hdr)
+        }
+        CircularIconButton("colors.source", systemImage: "info.circle") { showingInfo = true }
+            .disabled(sampling.information == nil)
+    }
+
+    private func inputAction(_ input: Input, title: LocalizedStringKey, symbol: String) -> some View {
+        CircularIconButton(title, systemImage: symbol) { request(input) }
+            .confirmationDialog(replacementTitle, isPresented: Binding(
+                get: { confirmReplace && !confirmationUsesMenu && pendingInput == input },
+                set: { value in if !confirmationUsesMenu && pendingInput == input { confirmReplace = value } }), titleVisibility: .visible) {
+                    Button("card.replace", role: .destructive) { present(input) }
+                    Button("card.cancel", role: .cancel) { pendingInput = nil }
+                }
+    }
+
+    private var inputMenu: some View {
+        PhotoPreviewMenu(title: "card.open", systemImage: "photo.badge.plus") {
+            inputButtons
             if session.documents.count > 1 {
-                let index = session.documents.firstIndex(where: { $0.id == session.selectedID }) ?? 0
-                Button("card.previous", systemImage: "chevron.left") { session.selectedID = session.documents[index - 1].id }
-                    .labelStyle(.iconOnly).disabled(index == 0)
-                Text("card.photo.position \(index + 1) \(session.documents.count)").font(.caption.monospacedDigit())
-                Button("card.next", systemImage: "chevron.right") { session.selectedID = session.documents[index + 1].id }
-                    .labelStyle(.iconOnly).disabled(index >= session.documents.count - 1)
+                Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
+                    ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
+                }
             }
         }
-        .frame(minHeight: 44)
-        .disabled(session.busy)
-    }
-    private var inputMenu: some View {
-        Menu("card.open", systemImage: "photo.badge.plus") {
-            inputButtons
-            Divider()
-            Button("colors.source", systemImage: "info.circle") { showingInfo = true }
-        }
-        .labelStyle(.iconOnly)
-        .frame(minWidth: 44, minHeight: 44)
-        .disabled(session.busy)
-        .confirmationDialog(replacementTitle, isPresented: $confirmReplace, titleVisibility: .visible) {
+        .confirmationDialog(replacementTitle, isPresented: Binding(
+            get: { confirmReplace && confirmationUsesMenu },
+            set: { if confirmationUsesMenu { confirmReplace = $0 } }), titleVisibility: .visible) {
             Button("card.replace", role: .destructive) { if let pendingInput { present(pendingInput) } }
             Button("card.cancel", role: .cancel) { pendingInput = nil }
         }
@@ -139,18 +175,16 @@ struct ColorsScreen: View {
                     ColorPhotoViewport(image: image, hdr: sampling.hdr, point: sampling.point, hex: sampling.sample?.color.srgb.hex) {
                         sampling.sample(at: $0, document: document)
                     }
-                    .background { PhotoImageShadow(aspectRatio: CGFloat(image.width) / CGFloat(image.height)) }
                 }
             }
             if sampling.busy || session.busy { ProgressView() }
             if let error = sampling.error { Text(error).foregroundStyle(.secondary).padding() }
         }
-        .overlay(alignment: .bottom) { if session.documents.count > 1 { photoNavigation } }
     }
     @ViewBuilder private var results: some View {
         if let sample = sampling.sample, let document = session.current {
             ColorResultsPanel(sample: sample, information: sampling.information, space: $space,
-                hdr: $sampling.hdr, photoActions: { inputMenu }, movePixel: { x, y in
+                movePixel: { x, y in
                     sampling.sample(at: CGPoint(x: (Double(x) + 0.5) / Double(document.metadata.width),
                         y: (Double(y) + 0.5) / Double(document.metadata.height)), document: document)
                 })
@@ -165,12 +199,12 @@ struct ColorsScreen: View {
                     .frame(width: 72, height: 72)
                     .accessibilityLabel(Text("colors.magnifier"))
                     Spacer(minLength: 0)
-                    inputMenu
                 }
             }
         }
     }
-    private func request(_ input: Input) {
+    private func request(_ input: Input, fromMenu: Bool = false) {
+        confirmationUsesMenu = fromMenu
         if session.current != nil {
             pendingInput = input; confirmReplace = true
         } else { present(input) }
@@ -193,14 +227,14 @@ private struct ColorInformationSheet: View {
             Form {
                 if let information {
                     Section("colors.source") {
-                        LabeledContent("colors.dimensions", value: "\(information.width) × \(information.height)")
-                        LabeledContent("colors.profile", value: information.colorSpace)
-                        LabeledContent("colors.bitDepth", value: "\(information.bits)")
-                        LabeledContent("colors.gamut") { Text(information.wideGamut ? "colors.wide" : "sRGB") }
+                        PhotoInformationRow(title: "colors.dimensions", value: "\(information.width) × \(information.height)", monospacedDigits: true)
+                        PhotoInformationRow(title: "colors.profile", value: information.colorSpace)
+                        PhotoInformationRow(title: "colors.bitDepth", value: "\(information.bits)", monospacedDigits: true)
+                        PhotoInformationRow(title: "colors.gamut", value: information.wideGamut ? String.localized("colors.wide") : "sRGB")
                     }
                     Section("HDR") {
-                        LabeledContent("Headroom", value: "\(information.headroom.formatted())×")
-                        LabeledContent("Gain Map", value: information.gainMaps.isEmpty ? String.localized("colors.none") : information.gainMaps.joined(separator: ", "))
+                        PhotoInformationRow(title: "colors.headroom", value: "\(information.headroom.formatted())×")
+                        PhotoInformationRow(title: "colors.gainMaps", value: information.gainMaps.isEmpty ? String.localized("colors.none") : information.gainMaps.joined(separator: ", "))
                     }
                 }
                 Section { Text("colors.sample.definition").foregroundStyle(.secondary) }

@@ -72,7 +72,7 @@ struct PhotoCardScreen: View {
                     Button("done") { session.dismissError() }
                 } message: { Text(session.errorMessage ?? "") }
                 .alert("card.save.complete", isPresented: savedShown) {
-                    Button("photo.open.library") {
+                    Button("photo.open.application") {
                         Task {
                             if !(await PhotosApplication.open()) { session.errorMessage = String.localized("photo.open.failed") }
                         }
@@ -113,7 +113,7 @@ struct PhotoCardScreen: View {
 #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-        .scrollEdgeEffectHidden(true, for: .top)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .toolbarVisibility(.hidden, for: .navigationBar)
         .toolbarColorScheme(forcedDarkroom ? .dark : nil, for: .navigationBar)
 #endif

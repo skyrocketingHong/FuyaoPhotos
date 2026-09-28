@@ -13,14 +13,13 @@ struct MapOptionsView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 18)
             Form { optionSections }
-                .formStyle(.columns)
-                .padding(.horizontal, 20)
+                .photoPageForm()
         }
         .frame(width: 390, height: session.displayMode == .heatmap ? 580 : 500)
 #else
         NavigationStack {
             Form { optionSections }
-            .formStyle(.grouped)
+            .photoPageForm()
             .navigationTitle("map.options")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

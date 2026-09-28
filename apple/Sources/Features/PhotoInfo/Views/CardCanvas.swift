@@ -11,54 +11,29 @@ struct CardCanvas: View {
     let confirmClose: () -> Void
     @State private var preview = CardPreviewState()
     @State private var textEditingActive = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
             if let document = session.current {
+                let metrics = PhotoPreviewMetrics(available: geometry.size)
                 Group {
-                let wide = geometry.size.width >= 800 ||
-                    (geometry.size.width >= 700 && geometry.size.width > geometry.size.height * 1.2)
-                let sidebarWidth = min(460, max(310, geometry.size.width * 0.44))
-                if wide {
-                    HStack(spacing: 0) {
+                    if metrics.isWide {
+                        HStack(alignment: .top, spacing: 0) {
+                            stage(document: document, metrics: metrics)
+                            CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
+                                .frame(maxWidth: 460, maxHeight: .infinity)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    } else {
                         VStack(spacing: 8) {
-                            CardFilmstrip(session: session, preview: preview,
-                                          processing: textEditingActive || preview.isRendering)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .padding(.horizontal, 20)
-                            actionStrip(document: document)
+                            stage(document: document, metrics: metrics)
+                            CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
+                                .frame(maxHeight: .infinity)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background {
-                            PhotoAmbientBackdrop(sourceURL: document.sourceURL, featherEdges: false)
-                                .id(document.id)
-                                .ignoresSafeArea(edges: .top)
-                        }
-                        CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
-                            .frame(width: sidebarWidth)
+                        .frame(maxWidth: .infinity)
                     }
-                } else {
-                    let photoHeight = min((geometry.size.width - 40) * 0.75,
-                                          max(72, min(geometry.size.height * 0.43, geometry.size.height - 290)))
-                    VStack(spacing: 8) {
-                        CardFilmstrip(session: session, preview: preview,
-                                      processing: textEditingActive || preview.isRendering)
-                            .frame(height: photoHeight)
-                            .padding(.horizontal, 20)
-                        actionStrip(document: document)
-                        CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
-                            .frame(maxHeight: .infinity)
-                    }
-                    .padding(.top, 4)
-                    .background {
-                        PhotoAmbientBackdrop(sourceURL: document.sourceURL, featherEdges: false)
-                            .id(document.id)
-                            .ignoresSafeArea(edges: .top)
-                    }
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.28), value: photoHeight)
                 }
-                }
+                .background { PhotoWorkspaceBackdrop(sourceURL: document.sourceURL) }
                 .onChange(of:session.selectedID) { _,_ in
                     preview.playing=false; preview.original=false; textEditingActive=false
                 }
@@ -66,14 +41,20 @@ struct CardCanvas: View {
         }
     }
 
-    private func actionStrip(document: CardDocument) -> some View {
-        CardActionStrip(document: document, preview: preview, photoCount: session.documents.count,
-                        replaceConfirmation: $replaceConfirmation, closeConfirmation: $closeConfirmation,
-                        open: open, save: save, close: close,
-                        confirmReplace: confirmReplace, confirmClose: confirmClose,
-                        saved: session.savedCount != nil && session.errorMessage == nil)
-            .padding(.horizontal, 20)
+    private func stage(document: CardDocument, metrics: PhotoPreviewMetrics) -> some View {
+        PhotoPreviewStage(metrics: metrics,
+            imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
+            CardFilmstrip(session: session, preview: preview,
+                          processing: textEditingActive || preview.isRendering)
+        } accessories: {
+            CardActionStrip(document: document, preview: preview, photoCount: session.documents.count,
+                            replaceConfirmation: $replaceConfirmation, closeConfirmation: $closeConfirmation,
+                            open: open, save: save, close: close,
+                            confirmReplace: confirmReplace, confirmClose: confirmClose,
+                            saved: session.savedCount != nil && session.errorMessage == nil)
+        }
     }
+
 }
 
 private struct CardActionStrip: View {
@@ -141,43 +122,12 @@ private struct CardActionStrip: View {
     @ViewBuilder private func control(for tool: Tool, width: CGFloat) -> some View {
         switch tool {
         case .live:
-            Toggle(isOn: $preview.playing) {
-                CardLivePlaybackIndicator(controls: preview)
-                    .frame(width: 24, height: 24)
-            }
-            .toggleStyle(.button)
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .accessibilityLabel(Text("card.live.preview"))
-            .help(Text("card.live.preview"))
-            .padding(6)
+            CircularIconToggle("card.live.preview", systemImage: preview.playing ? "stop.circle" : "livephoto",
+                               isOn: $preview.playing)
         case .hdr:
-            Toggle(isOn: $preview.hdr) {
-                Label { Text("HDR") } icon: { Image("HDR") }
-                    .labelStyle(.iconOnly)
-                    .frame(width: 20, height: 20)
-            }
-            .toggleStyle(.button)
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .accessibilityLabel(Text("HDR"))
-            .help(Text("HDR"))
-            .padding(6)
+            CircularIconToggle("HDR", imageAsset: "HDR", isOn: $preview.hdr)
         case .compare:
-            Toggle(isOn: $preview.original) {
-                Label("card.compare", systemImage: "square.on.square")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 20, height: 20)
-            }
-            .toggleStyle(.button)
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
-            .accessibilityLabel(Text("card.compare"))
-            .help(Text("card.compare"))
-            .padding(6)
+            CircularIconToggle("card.compare", systemImage: "square.on.square", isOn: $preview.original)
         case .full:
             CircularIconButton("card.preview.full", systemImage: "arrow.up.left.and.arrow.down.right") {
                 preview.playing = false
@@ -206,7 +156,7 @@ private struct CardActionStrip: View {
     }
 
     private func moreMenu(for width: CGFloat) -> some View {
-        Menu {
+        PhotoPreviewMenu(title: "card.more") {
             ForEach(overflowTools(for: width), id: \.self) { menuAction(for: $0) }
             if let url = document.exportURL, !document.isLive || document.exportIsMotionPhoto {
                 ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
@@ -215,15 +165,7 @@ private struct CardActionStrip: View {
                 document.card.style = PhotoCardStyle()
             }
             Button(closeLabel, systemImage: "xmark", action: close)
-        } label: {
-            Image(systemName: "ellipsis").frame(width: 20, height: 20)
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.circle)
-        .controlSize(.large)
-        .accessibilityLabel(Text("card.more"))
-        .help(Text("card.more"))
-        .padding(6)
         .confirmationDialog(closePrompt, isPresented: $closeConfirmation, titleVisibility: .visible) {
             Button(closeLabel, role: .destructive, action: confirmClose)
             Button("card.cancel", role: .cancel) { }
@@ -259,7 +201,7 @@ private struct CardFilmstrip: View {
         ZStack {
 #if os(macOS)
             if let document=session.current {
-                CardPreviewSurface(document:document,controls:preview,showsBackdrop:false).id(document.id)
+                CardPreviewSurface(document:document,controls:preview).id(document.id)
                     .modifier(ProcessingVeil(active: processing, pulse: preview.isRendering))
                     .aspectRatio(CGFloat(document.metadata.width)/CGFloat(document.metadata.height),contentMode:.fit)
                     .frame(maxWidth:.infinity,maxHeight:.infinity)
@@ -270,7 +212,7 @@ private struct CardFilmstrip: View {
                 ForEach(session.documents) { document in
                     Group {
                         if document.id==session.selectedID {
-                            CardPreviewSurface(document:document,controls:preview,showsBackdrop:false)
+                            CardPreviewSurface(document:document,controls:preview)
                         } else if abs((session.documents.firstIndex { $0.id==document.id } ?? 0)-selectedIndex)<=1 {
                             CardNeighborPreview(document:document,hdr:preview.hdr)
                         } else { Color.clear }

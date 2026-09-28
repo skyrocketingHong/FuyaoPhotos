@@ -123,7 +123,8 @@ actor CardImageProcessor {
             normalizedRadius: layout.radius / source.extent.width)
     }
 
-    func previewCardDetail(_ url: URL, card: PhotoCard, maxDimension: CGFloat = 1600) throws -> CardDetailRender {
+    func previewCardDetail(_ url: URL, card: PhotoCard, maxDimension: CGFloat = 1600,
+                           aspectRatio: CGFloat? = nil) throws -> CardDetailRender {
         try Task.checkCancellation()
         guard !card.rows.isEmpty,
               var image = CIImage(contentsOf: url, options: [.applyOrientationProperty: true, .expandToHDR: false, .toneMapHDRtoSDR: true])
@@ -132,16 +133,32 @@ actor CardImageProcessor {
         image = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         let layout = try CardLayout(size: image.extent.size, card: card)
         let margin = max(6, min(layout.rect.width, layout.rect.height) * 0.08)
-        let crop = layout.rect.insetBy(dx: -margin, dy: -margin).integral.intersection(image.extent)
+        var crop = layout.rect.insetBy(dx: -margin, dy: -margin).integral.intersection(image.extent)
+        if let aspectRatio {
+            guard aspectRatio.isFinite, (0.1...12).contains(aspectRatio) else { throw CardError.invalidImage }
+            let subject = layout.rect.insetBy(dx: -margin, dy: -margin)
+            let height = ceil(max(subject.height, subject.width / aspectRatio))
+            let width = ceil(height * aspectRatio)
+            crop = CGRect(x: floor(subject.midX - width / 2), y: floor(subject.midY - height / 2),
+                          width: width, height: height)
+        }
         guard crop.width > 0, crop.height > 0 else { throw CardError.invalidImage }
         let rendered = try CardRenderer.render(image, card: card)
+            .composited(over: image.clampedToExtent())
+            .cropped(to: crop)
         try Task.checkCancellation()
-        guard let detail = context.createCGImage(rendered, from: crop, format: .RGBA8,
+        let detailScale = min(1, maxDimension / max(crop.width, crop.height))
+        let transform = CGAffineTransform(scaleX: detailScale, y: detailScale)
+        let output = rendered.transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
+            .transformed(by: transform)
+        let outputRect = CGRect(x: 0, y: 0, width: (crop.width * detailScale).rounded(),
+                                height: (crop.height * detailScale).rounded())
+        guard let detail = context.createCGImage(output, from: outputRect, format: .RGBA8,
             colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!, deferred: false)
         else { throw CardError.exportFailed }
         let cardRect = CGRect(x: layout.rect.minX - crop.minX,
                               y: crop.maxY - layout.rect.maxY,
-                              width: layout.rect.width, height: layout.rect.height)
+                              width: layout.rect.width, height: layout.rect.height).applying(transform)
         let textRects = Dictionary(uniqueKeysWithValues: CardField.allCases.map { field in
             (field, layout.normalizedTextRects(for: field).map { rect in
                 CGRect(x: cardRect.minX + rect.minX * cardRect.width,

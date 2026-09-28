@@ -9,15 +9,16 @@ struct PhotoInformationHeading: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(name)
-                .font(.title3)
-                .bold()
+                .font(.headline)
+                .lineLimit(1)
+                .truncationMode(.middle)
                 .textSelection(.enabled)
             HStack(spacing: 5) {
                 Text(UTType(filenameExtension: fileExtension)?.localizedDescription ?? fileExtension.uppercased())
                 Text("·")
                 Text(Int64(fileSize), format: .byteCount(style: .file))
             }
-            .font(.subheadline)
+            .font(.caption)
             .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

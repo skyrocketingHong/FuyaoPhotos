@@ -1,8 +1,10 @@
 import SwiftUI
 
-struct OriginalPhotoSummary: View {
+struct OriginalPhotoSummary<Actions: View>: View {
     let document: CardDocument
-    var showsBackdrop = true
+    let metrics: PhotoPreviewMetrics
+    var showsFileSummary = true
+    @ViewBuilder var actions: Actions
     @State private var preview: CardPreviewState = {
         let value = CardPreviewState()
         value.original = true
@@ -13,35 +15,48 @@ struct OriginalPhotoSummary: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            GeometryReader { geometry in
-                ZStack {
-                    if showsDepth, let depthImage {
-                        Image(decorative: depthImage, scale: 1)
-                            .resizable().scaledToFit()
-                            .accessibilityLabel(Text("photo.depth.layer"))
-                    } else {
-                        CardPreviewSurface(document: document, controls: preview, showsBackdrop: false)
+        PhotoPreviewStage(metrics: metrics,
+            imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
+            ZStack {
+                if showsDepth, let depthImage {
+                    Image(decorative: depthImage, scale: 1)
+                        .resizable().scaledToFit()
+                        .accessibilityLabel(Text("photo.depth.layer"))
+                } else {
+                    CardPreviewSurface(document: document, controls: preview)
+                }
+            }
+        } accessories: {
+            Group(subviews: actions) { extraActions in
+                let tools = mediaTools
+                let room = metrics.width - PhotoPageLayout.margin * 2 - (showsFileSummary ? 128 : 0)
+                let maximum = max(extraActions.count + 1, Int(room / PhotoPreviewMetrics.inlineToolWidth))
+                let visibleCount = extraActions.count + tools.count <= maximum
+                    ? tools.count : max(0, maximum - extraActions.count - 1)
+                HStack(spacing: 8) {
+                    if showsFileSummary {
+                        PhotoInformationHeading(name: document.originalName,
+                            fileExtension: document.sourceURL.pathExtension, fileSize: document.metadata.fileSize)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    PhotoPreviewActionRow(fillsWidth: !showsFileSummary) {
+                        ForEach(extraActions) { $0 }
+                        ForEach(Array(tools.prefix(visibleCount)), id: \.self) { tool in
+                            mediaControl(tool)
+                        }
+                        if visibleCount < tools.count {
+                            PhotoPreviewMenu(title: "card.more") {
+                                ForEach(Array(tools.dropFirst(visibleCount)), id: \.self) { tool in
+                                    mediaMenuControl(tool)
+                                }
+                            }
+                        }
                     }
                 }
-                .frame(width: geometry.size.width, height: geometry.size.height)
-            }
-            .aspectRatio(4.0 / 3.0, contentMode: .fit)
-            .background { PhotoImageShadow(aspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) }
-
-            PhotoInformationHeading(name: document.originalName,
-                                    fileExtension: document.sourceURL.pathExtension,
-                                    fileSize: document.metadata.fileSize)
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) { mediaButtons }
-                VStack(alignment: .leading, spacing: 8) { mediaButtons }
             }
         }
-        .background { if showsBackdrop { PhotoAmbientBackdrop(sourceURL: document.sourceURL, featherEdges: false) } }
         .task(id: document.sourceURL) {
-            showsDepth = false
-            preview.playing = false
-            depthImage = nil
+            showsDepth = false; preview.playing = false; depthImage = nil
             let layer = await PortraitDepthLayerReader.readAsync(document.sourceURL)
             guard !Task.isCancelled else { return }
             depthImage = layer?.image
@@ -51,34 +66,49 @@ struct OriginalPhotoSummary: View {
             if phase != .active { preview.playing = false }
         }
     }
+    private enum MediaTool: Hashable { case hdr, live, depth }
+    private var mediaTools: [MediaTool] {
+        var result: [MediaTool] = []
+        if document.metadata.hdr { result.append(.hdr) }
+        if document.isLive { result.append(.live) }
+        if depthImage != nil { result.append(.depth) }
+        return result
+    }
 
-    @ViewBuilder private var mediaButtons: some View {
-        if document.metadata.hdr {
-            mediaButton("HDR", symbol: "sun.max", selected: preview.hdr && !showsDepth) {
-                showsDepth = false
-                preview.hdr.toggle()
-            }
-        }
-        if document.isLive {
-            mediaButton("card.live.preview", symbol: "livephoto", selected: preview.playing) {
-                showsDepth = false
-                preview.playing.toggle()
-            }
-        }
-        if depthImage != nil {
-            mediaButton("photo.depth.layer", symbol: "square.3.layers.3d", selected: showsDepth) {
-                preview.playing = false
-                showsDepth.toggle()
-            }
+    private func mediaBinding(_ tool: MediaTool) -> Binding<Bool> {
+        switch tool {
+        case .hdr:
+            Binding(get: { preview.hdr && !showsDepth }, set: { value in
+                showsDepth = false; preview.hdr = value
+            })
+        case .live:
+            Binding(get: { preview.playing }, set: { value in
+                showsDepth = false; preview.playing = value
+            })
+        case .depth:
+            Binding(get: { showsDepth }, set: { value in
+                preview.playing = false; showsDepth = value
+            })
         }
     }
 
-    private func mediaButton(_ title: LocalizedStringKey, symbol: String, selected: Bool,
-                             action: @escaping () -> Void) -> some View {
-        Button(title, systemImage: symbol, action: action)
-            .buttonStyle(.bordered)
-            .tint(selected ? .accentColor : .secondary)
-            .accessibilityAddTraits(selected ? .isSelected : [])
-            .frame(minHeight: 44)
+    @ViewBuilder private func mediaControl(_ tool: MediaTool) -> some View {
+        switch tool {
+        case .hdr: CircularIconToggle("HDR", imageAsset: "HDR", isOn: mediaBinding(tool))
+        case .live: CircularIconToggle("card.live.preview", systemImage: preview.playing ? "stop.circle" : "livephoto", isOn: mediaBinding(tool))
+        case .depth: CircularIconToggle("photo.depth.layer", systemImage: "square.3.layers.3d", isOn: mediaBinding(tool))
+        }
     }
+
+    @ViewBuilder private func mediaMenuControl(_ tool: MediaTool) -> some View {
+        switch tool {
+        case .hdr:
+            Toggle(isOn: mediaBinding(tool)) { Label { Text("HDR") } icon: { Image("HDR") } }
+        case .live:
+            Toggle("card.live.preview", systemImage: "livephoto", isOn: mediaBinding(tool))
+        case .depth:
+            Toggle("photo.depth.layer", systemImage: "square.3.layers.3d", isOn: mediaBinding(tool))
+        }
+    }
+
 }

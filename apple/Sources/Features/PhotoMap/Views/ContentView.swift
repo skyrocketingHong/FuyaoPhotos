@@ -238,7 +238,7 @@ private struct MapActionLabel: View {
         } icon: {
             Image(systemName: symbol)
 #if os(iOS)
-                .resizable().scaledToFit().frame(width: 24, height: 24)
+                .resizable().scaledToFit().frame(width: 22, height: 22)
 #endif
                 .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: symbol)

@@ -30,14 +30,14 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                             } label: {
                                 Text(title(item))
                                     .font(.body.weight(.semibold))
-                                    .foregroundStyle(position == slot ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                                    .foregroundStyle(position == slot ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                                     .multilineTextAlignment(.center)
                                     .frame(maxWidth:.infinity).frame(height:rowHeight)
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .scrollTransition(.interactive,axis:.vertical) { content,phase in
-                                content.opacity(motionIsReduced || phase.isIdentity ? 1 : 0.25)
+                                content.opacity(motionIsReduced || phase.isIdentity ? 1 : 0.65)
                             }
                             .id(slot)
                         }

@@ -12,10 +12,12 @@ struct CardDetailPreview: View {
     @State private var loading = false
     @State private var error: String?
     @State private var retry = 0
+    @State private var viewportAspect = referenceAspect
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var key: CardDetailPreviewKey {
-        CardDetailPreviewKey(documentID: document.id, sourceURL: document.sourceURL, card: document.card, retry: retry)
+        CardDetailPreviewKey(documentID: document.id, sourceURL: document.sourceURL, card: document.card,
+                             retry: retry, aspectRatio: viewportAspect)
     }
 
     var body: some View {
@@ -68,6 +70,10 @@ struct CardDetailPreview: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Text("card.preview"))
         .accessibilityValue(Text(verbatim: document.card.rows.map(\.text).joined(separator: ", ")))
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
+            guard size.width > 0, size.height >= 44 else { return }
+            viewportAspect = min(12, max(0.1, size.width / size.height))
+        }
         .onChange(of: document.id) { _, _ in render = nil; error = nil }
         .task(id: key) {
             let card = document.card
@@ -79,7 +85,8 @@ struct CardDetailPreview: View {
             error = nil
             do {
                 try await Task.sleep(for: .milliseconds(160))
-                let crop = try await CardImageProcessor.shared.previewCardDetail(document.sourceURL, card: card)
+                let crop = try await CardImageProcessor.shared.previewCardDetail(document.sourceURL, card: card,
+                    aspectRatio: viewportAspect)
                 try Task.checkCancellation()
                 render = crop
                 loading = false
@@ -159,4 +166,5 @@ private struct CardDetailPreviewKey: Equatable {
     let sourceURL: URL
     let card: PhotoCard
     let retry: Int
+    let aspectRatio: CGFloat
 }

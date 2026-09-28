@@ -46,6 +46,9 @@ struct NativeTabSelectionStyle: UIViewControllerRepresentable {
                 if let appearance = item.standardAppearance, let updated = update(appearance) {
                     item.standardAppearance = updated
                 }
+                if let appearance = item.scrollEdgeAppearance, let updated = update(appearance) {
+                    item.scrollEdgeAppearance = updated
+                }
                 if (item.titleTextAttributes(for: .selected)?[.foregroundColor] as? UIColor) != color {
                     item.setTitleTextAttributes([.foregroundColor: color], for: .selected)
                 }

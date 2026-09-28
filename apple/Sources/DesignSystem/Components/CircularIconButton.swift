@@ -14,8 +14,7 @@ struct CircularIconButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .frame(width: 20, height: 20)
+            PhotoPreviewActionIcon(image: Image(systemName: systemImage))
                 .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
                 .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: systemImage)
         }

@@ -15,23 +15,9 @@ import UIKit
     }
 }
 
-struct CardPreview: View {
-    let document: CardDocument
-    @State private var controls = CardPreviewState()
-    var body: some View {
-        CardPreviewSurface(document: document, controls: controls)
-            .overlay(alignment: .bottomTrailing) {
-                HStack { CardMediaControls(document: document, controls: controls) }
-                    .buttonStyle(.glass).buttonBorderShape(.circle)
-                    .labelStyle(.iconOnly).padding(12)
-            }
-    }
-}
-
 struct CardPreviewSurface: View {
     let document: CardDocument
     @Bindable var controls: CardPreviewState
-    var showsBackdrop = true
     var body: some View {
         ZStack {
             CardPreviewImage(document: document, hdr: controls.hdr, fullResolution: false,
@@ -42,9 +28,6 @@ struct CardPreviewSurface: View {
                 }
             }
         }
-            .background {
-                if showsBackdrop { PhotoAmbientBackdrop(sourceURL: document.sourceURL) }
-            }
             .sheet(isPresented: $controls.fullScreen) {
                 CardFullPreview(document: document, hdr: controls.hdr, original: controls.original)
             }
@@ -59,43 +42,6 @@ struct CardNeighborPreview: View {
     let document: CardDocument
     let hdr: Bool
     var body: some View { CardPreviewImage(document:document,hdr:hdr,fullResolution:false) }
-}
-
-struct CardMediaControls: View {
-    let document: CardDocument
-    @Bindable var controls: CardPreviewState
-    var body: some View {
-        if document.isLive {
-            Toggle(isOn: $controls.playing) {
-                CardLivePlaybackIndicator(controls: controls)
-            }
-                .toggleStyle(.button).buttonBorderShape(.circle).padding(6)
-                .accessibilityLabel(Text("card.live.preview"))
-                .help(Text("card.live.preview"))
-        }
-        if document.metadata.hdr {
-            Toggle(isOn: $controls.hdr) { Label { Text("HDR") } icon: { Image("HDR") } }
-                .toggleStyle(.button).buttonBorderShape(.circle).padding(6)
-        }
-        Toggle("card.compare",systemImage:"square.on.square",isOn:$controls.original).toggleStyle(.button)
-            .buttonBorderShape(.circle).padding(6)
-        CircularIconButton("card.preview.full", systemImage: "arrow.up.left.and.arrow.down.right") {
-            controls.playing = false
-            controls.fullScreen = true
-        }
-    }
-}
-
-struct CardLivePlaybackIndicator: View {
-    let controls: CardPreviewState
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        Image(systemName: controls.playing ? "stop.circle" : "livephoto")
-            .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
-            .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: controls.playing)
-            .frame(width: 22, height: 22)
-    }
 }
 
 private struct PreviewKey: Equatable {
@@ -264,7 +210,7 @@ private struct CardFullPreview: View {
                 Button("card.preview.reset", systemImage: "1.magnifyingglass", action: resetPreview)
             }
         }
-        .formStyle(.grouped)
+        .photoPageForm()
     }
 
     private func resetPreview() {
@@ -277,7 +223,8 @@ private struct CardFullPreview: View {
 
     private var previewContent: some View {
         zoomableContent
-            .background { PhotoAmbientBackdrop(sourceURL: document.sourceURL) }
+            .background { PhotoImageShadow(aspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) }
+            .background { PhotoWorkspaceBackdrop(sourceURL: document.sourceURL) }
     }
 
     @ViewBuilder private var zoomableContent: some View {

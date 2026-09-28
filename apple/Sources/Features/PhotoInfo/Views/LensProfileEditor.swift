@@ -24,11 +24,11 @@ struct LensProfileEditor: View {
             GeometryReader { geometry in
                 if geometry.size.width >= 820 && !dynamicTypeSize.isAccessibilitySize {
                     HStack(alignment: .top, spacing: 0) {
-                        Form { identity; physical }.formStyle(.grouped)
-                        Form { equivalent; zoom; validation }.formStyle(.grouped)
+                        Form { identity; physical }.photoPageForm()
+                        Form { equivalent; zoom; validation }.photoPageForm()
                     }
                 } else {
-                    Form { identity; equivalent; physical; zoom; validation }.formStyle(.grouped)
+                    Form { identity; equivalent; physical; zoom; validation }.photoPageForm()
                 }
             }
             .navigationTitle(initial.isNew ? "lens.add" : "lens.edit")

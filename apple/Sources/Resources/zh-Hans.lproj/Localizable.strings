@@ -502,3 +502,13 @@
 "map.coordinates.gcj02" = "高德底图（GCJ-02）";
 "map.coordinates.wgs84" = "标准底图（WGS-84）";
 "map.coordinates.description" = "选择与地图底部来源一致的坐标方案。原片 GPS 保持不变。";
+
+"photo.info.fileName" = "文件名";
+
+"colors.headroom" = "HDR 亮度余量";
+
+"colors.gainMaps" = "增益图";
+
+"photo.open.application" = "打开照片 App";
+
+"photo.open.asset.failed" = "无法在照片 App 中打开这张照片。";

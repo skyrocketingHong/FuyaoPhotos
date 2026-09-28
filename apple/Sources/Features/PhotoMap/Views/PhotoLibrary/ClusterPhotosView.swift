@@ -57,6 +57,7 @@ struct ClusterPhotosView: View {
                     ContentUnavailableView("map.cluster.empty", systemImage: "photo.on.rectangle")
                 }
             }
+            .scrollEdgeEffectStyle(.soft, for: .top)
             .navigationTitle("map.cluster.title")
             .navigationSubtitle(Text("map.cluster.member.count \(selection.cluster.count)"))
             .toolbar {
