@@ -60,6 +60,7 @@ struct PhotoDetailContent: View {
             InlinePhotoPreviewPage(sourceURL: document?.sourceURL, metrics: metrics,
                 imageAspectRatio: CGFloat(location.asset.pixelWidth) / CGFloat(max(1, location.asset.pixelHeight))) {
                 summaryMedia
+                    .photoDevelopEffect()
             } accessories: {
                 summaryActions(metrics: metrics)
             } details: {

@@ -10,12 +10,19 @@ struct PhotoPageIntro: View {
     let description: LocalizedStringKey
     let symbol: String
 
+    /// The camera-at-work mark: the page symbol framed by viewfinder brackets —
+    /// every empty workspace reads as a camera waiting for a photo.
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: symbol)
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
+            ZStack {
+                Image(systemName: "viewfinder")
+                    .font(.largeTitle)
+                    .foregroundStyle(.tertiary)
+                Image(systemName: symbol)
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(.tint)
+            }
+            .accessibilityHidden(true)
             Text(title).font(.title2.bold())
             Text(description)
                 .font(.subheadline)

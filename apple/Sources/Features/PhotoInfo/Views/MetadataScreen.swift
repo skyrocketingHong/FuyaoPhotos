@@ -24,8 +24,9 @@ struct MetadataScreen: View {
                 if let document = session.current {
                     PhotoPreviewPage(sourceURL: document.sourceURL, metrics: metrics,
                         imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
-                        OriginalSummaryPhoto(document: document, state: summaryState)
-                    } accessories: {
+                    OriginalSummaryPhoto(document: document, state: summaryState)
+                        .photoDevelopEffect()
+                } accessories: {
                         OriginalSummaryActions(document: document, metrics: metrics, state: summaryState,
                             actions: { openPhotoButton })
                     } content: {

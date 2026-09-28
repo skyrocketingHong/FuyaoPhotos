@@ -26,8 +26,9 @@ struct ColorsScreen: View {
                 if let document = session.current {
                     PhotoPreviewPage(sourceURL: document.sourceURL, metrics: metrics,
                         imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
-                        photo
-                    } accessories: {
+                    photo
+                        .photoDevelopEffect()
+                } accessories: {
                         colorsActions(metrics: metrics)
                     } content: {
                         Form { results }.photoPageForm().scrollContentBackground(.hidden)
