@@ -56,6 +56,7 @@ internal fun ColorResultPanel(
     expandColorValues: Boolean = false,
     modifier: Modifier = Modifier,
     sourceProfile: String? = photoColorInfo?.colorSpaceName,
+    photoActions: (@Composable () -> Unit)? = null,
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(-1) }
     val autoSpaceIndex = SourceColorSpace.fromProfile(sourceProfile).tabIndex
@@ -109,6 +110,7 @@ internal fun ColorResultPanel(
                 onTabSelected = { selectedTabIndex = it },
                 onShowPhotoInfo = onShowPhotoInfo,
                 onHdrDisplayEnabledChange = onHdrDisplayEnabledChange,
+                photoActions = photoActions,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(FuyaoSpacing.extraSmall))
@@ -134,6 +136,7 @@ private fun ResultHeader(
     onTabSelected: (Int) -> Unit,
     onShowPhotoInfo: () -> Unit,
     onHdrDisplayEnabledChange: (Boolean) -> Unit,
+    photoActions: (@Composable () -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
@@ -167,6 +170,7 @@ private fun ResultHeader(
                     hdrStateDescription = hdrStateDescription,
                     onShowPhotoInfo = onShowPhotoInfo,
                     onHdrDisplayEnabledChange = onHdrDisplayEnabledChange,
+                    photoActions = photoActions,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight(),
@@ -191,6 +195,7 @@ private fun SampleCoordinatesAndActions(
     hdrStateDescription: String,
     onShowPhotoInfo: () -> Unit,
     onHdrDisplayEnabledChange: (Boolean) -> Unit,
+    photoActions: (@Composable () -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -243,7 +248,7 @@ private fun SampleCoordinatesAndActions(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            ResultIconAction(
+            if (photoActions != null) photoActions() else ResultIconAction(
                 iconResource = R.drawable.cp_ic_info_square,
                 contentDescription = stringResource(R.string.cp_photo_info_action),
                 enabled = photoColorInfo != null,

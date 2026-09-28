@@ -50,10 +50,10 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
     @Composable fun results(modifier: Modifier) {
         ColorResultPanel(model.bitmap, model.sample, model.info, model.hdr,
             { showingInfo = true }, model::setHDR, expandColorValues = true, modifier = modifier,
-            sourceProfile = photo?.details?.colorSpace ?: model.info?.colorSpaceName)
+            sourceProfile = photo?.details?.colorSpace ?: model.info?.colorSpaceName,
+            photoActions = { ColorPhotoMenu(busy, model.info != null, onGallery, onFiles, onCamera) { showingInfo = true } })
     }
     @Composable fun photoTools() {
-        var showOpen by remember { mutableStateOf(false) }
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
             if (photos.size > 1) {
                 IconButton({ onSelect(photoIndex - 1) }, enabled = !busy && photoIndex > 0) {
@@ -62,16 +62,6 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
                 Text(stringResource(R.string.photo_position, photoIndex + 1, photos.size), Modifier.weight(1f))
                 IconButton({ onSelect(photoIndex + 1) }, enabled = !busy && photoIndex < photos.lastIndex) {
                     Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_chevron), stringResource(R.string.next_photo))
-                }
-            } else Spacer(Modifier.weight(1f))
-            Box {
-                IconButton({ showOpen = true }, enabled = !busy) {
-                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_photo_add), stringResource(R.string.from_gallery))
-                }
-                DropdownMenu(showOpen, { showOpen = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.from_gallery)) }, onClick = { showOpen = false; onGallery() })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.from_file)) }, onClick = { showOpen = false; onFiles() })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.colors_camera)) }, onClick = { showOpen = false; onCamera() })
                 }
             }
         }
@@ -82,13 +72,30 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
         } else Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
             EditorWorkspace(
                 preview = { modifier, _ ->
-                    Column(modifier.padding(horizontal = FuyaoSpacing.content)) {
-                        image(Modifier.fillMaxWidth().weight(1f))
-                        photoTools()
+                    Box(modifier.padding(horizontal = FuyaoSpacing.content)) {
+                        image(Modifier.fillMaxSize())
+                        if (photos.size > 1) Box(Modifier.align(Alignment.BottomCenter)) { photoTools() }
                     }
                 },
                 controls = { modifier -> results(modifier.padding(horizontal = FuyaoSpacing.content)) })
         }
     }
     if (showingInfo) model.info?.let { PhotoInfoSheet(it, model.hdr) { showingInfo = false } }
+}
+
+@Composable
+private fun ColorPhotoMenu(busy: Boolean, hasInfo: Boolean, gallery: () -> Unit, files: () -> Unit, camera: () -> Unit, info: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        IconButton({ expanded = true }, enabled = !busy) {
+            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_photo_add), stringResource(R.string.from_gallery))
+        }
+        DropdownMenu(expanded, { expanded = false }) {
+            DropdownMenuItem(text = { Text(stringResource(R.string.from_gallery)) }, onClick = { expanded = false; gallery() })
+            DropdownMenuItem(text = { Text(stringResource(R.string.from_file)) }, onClick = { expanded = false; files() })
+            DropdownMenuItem(text = { Text(stringResource(R.string.colors_camera)) }, onClick = { expanded = false; camera() })
+            HorizontalDivider()
+            DropdownMenuItem(text = { Text(stringResource(R.string.cp_photo_info_action)) }, enabled = hasInfo, onClick = { expanded = false; info() })
+        }
+    }
 }

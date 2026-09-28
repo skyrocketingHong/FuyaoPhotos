@@ -2,7 +2,7 @@
 <resources>
   <string name="cp_empty_image_title">Waiting for an image</string>
   <string name="cp_empty_image_body">Use Gallery or Camera in the top-right corner to add an image.</string>
-  <string name="cp_image_content_description">Image to sample</string>
+  <string name="cp_image_content_description">Image to sample. Touch and hold, then drag. Use two fingers to zoom or move the photo.</string>
   <string name="cp_sampling_magnifier_description">Magnified sampling point</string>
   <string name="cp_sample_coordinates">(%1$d,%2$d)</string>
   <string name="cp_sample_coordinates_empty">(—,—)</string>

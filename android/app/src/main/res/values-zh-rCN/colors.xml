@@ -2,7 +2,7 @@
 <resources>
   <string name="cp_empty_image_title">等待图片</string>
   <string name="cp_empty_image_body">使用右上角的相册或拍照添加图片。</string>
-  <string name="cp_image_content_description">待取色图片</string>
+  <string name="cp_image_content_description">待取色图片。按住后拖动取色，双指缩放或移动照片。</string>
   <string name="cp_sampling_magnifier_description">采样点放大预览</string>
   <string name="cp_sample_coordinates">(%1$d,%2$d)</string>
   <string name="cp_sample_coordinates_empty">(—,—)</string>

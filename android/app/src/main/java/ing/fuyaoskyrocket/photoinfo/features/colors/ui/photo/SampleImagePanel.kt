@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
@@ -62,6 +63,8 @@ internal fun SampleImagePanel(
 ) {
     val shape = MaterialTheme.shapes.extraLarge
     var viewportSize by remember { mutableStateOf(IntSize.Zero) }
+    var loupeVisible by remember(bitmap) { mutableStateOf(false) }
+    var loupePoint by remember(bitmap) { mutableStateOf(Offset.Zero) }
 
     val layout = layoutFor(
         bitmapSize = IntSize(bitmap.width, bitmap.height),
@@ -115,6 +118,10 @@ internal fun SampleImagePanel(
                     viewportTransform,
                     onViewportTransformChange = onViewportTransformChange,
                     onSampleAt = onSampleAt,
+                    onLoupeChange = { point ->
+                        if (point != null) loupePoint = point
+                        loupeVisible = point != null
+                    },
                 ),
         ) {}
 
@@ -124,6 +131,7 @@ internal fun SampleImagePanel(
                 layout = layout,
             )
         }
+        if (layout != null) ColorLoupe(bitmap, layout, loupePoint, loupeVisible, sampledColor?.sRgb?.hex)
     }
 }
 
