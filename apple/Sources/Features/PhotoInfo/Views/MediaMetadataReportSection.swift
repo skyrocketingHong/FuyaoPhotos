@@ -4,7 +4,6 @@ import SwiftUI
 /// technical strings or localized standard names; labels and section titles are keys.
 struct MediaMetadataReportSection: View {
     let report: MediaMetadataReport?
-    var prominentHeaders = false
     var showsDescriptions = false
 
     var body: some View {
@@ -12,19 +11,17 @@ struct MediaMetadataReportSection: View {
             ForEach(report.sections, id: \.titleKey) { section in
                 Section {
                     ForEach(section.rows, id: \.labelKey) { row in
-                        LabeledContent {
-                            Text(row.value ?? String.localized(row.valueKey ?? ""))
-                                .multilineTextAlignment(.trailing)
-                                .textSelection(.enabled)
-                        } label: {
-                            Text(LocalizedStringKey(row.labelKey))
-                        }
+                        PhotoInformationRow(title: LocalizedStringKey(row.labelKey),
+                            value: row.value ?? String.localized(row.valueKey ?? ""))
                     }
                 } header: {
                     sectionHeader(section.titleKey)
                 } footer: {
                     if showsDescriptions {
                         MetadataReportFooter(titleKey: section.titleKey)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
@@ -38,12 +35,8 @@ struct MediaMetadataReportSection: View {
         }
     }
 
-    @ViewBuilder private func sectionHeader(_ key: String) -> some View {
-        if prominentHeaders {
-            Text(LocalizedStringKey(key)).textCase(nil)
-        } else {
-            Text(LocalizedStringKey(key))
-        }
+    private func sectionHeader(_ key: String) -> some View {
+        Text(LocalizedStringKey(key)).textCase(nil)
     }
 }
 

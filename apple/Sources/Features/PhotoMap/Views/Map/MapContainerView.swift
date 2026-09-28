@@ -7,16 +7,19 @@ struct MapContainerView: View {
     let session: MapSession
     let scope: Namespace.ID
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
             if session.phase == .ready {
                 MapCanvas(session: session, scope: scope)
+                    .transition(.opacity)
                 MapStatusOverlay(session: session)
             } else {
                 MapLoadingState(session: session)
             }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: session.phase)
         .onGeometryChange(for: CGSize.self) { proxy in proxy.size } action: { size in
             session.viewportDidChange(size)
         }
@@ -27,69 +30,77 @@ private struct MapCanvas: View {
     @Bindable var session: MapSession
     let scope: Namespace.ID
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Group {
+        ZStack {
             if session.displayMode == .heatmap {
                 HeatmapView(
                     region: $session.heatmapRegion, clusters: session.clusters,
                     options: session.options, showsUserLocation: session.location.authorized
                 )
+                .transition(.opacity)
             } else {
                 PhotoClusterMap(session: session, scope: scope)
+                    .transition(.opacity)
             }
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: session.displayMode == .heatmap)
         .environment(\.colorScheme, session.options.appearance.colorScheme ?? colorScheme)
-        .ignoresSafeArea()
+        .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
+        .backgroundExtensionEffect()
+        .ignoresSafeArea(edges: .top)
     }
 }
 
 private struct PhotoClusterMap: View {
     @Bindable var session: MapSession
     let scope: Namespace.ID
-    @State private var selectedClusterID: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var presented: [PresentedMapCluster] = []
 
     var body: some View {
-        Map(position: $session.cameraPosition, selection: $selectedClusterID, scope: scope) {
+        Map(position: $session.cameraPosition, scope: scope) {
             if session.location.authorized { UserAnnotation() }
-            ForEach(session.clusters) { cluster in
-                if session.displayMode == .photo {
-                    Annotation("", coordinate: CLLocationCoordinate2D(latitude: cluster.latitude, longitude: cluster.longitude)) {
-                        Button {
-                            session.select(cluster)
-                        } label: {
-                            LightweightPhotoAnnotation(
-                                assetID: cluster.representativeID, count: cluster.count,
-                                indexVersion: session.library.indexVersion,
-                                thumbnails: session.library.thumbnails
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(Text("map.cluster.open \(cluster.count)"))
+            ForEach(presented) { entry in
+                Annotation("", coordinate: CLLocationCoordinate2D(latitude: entry.cluster.latitude,
+                    longitude: entry.cluster.longitude), anchor: entry.mode == .photo ? .center : .bottom) {
+                    Button { session.select(entry.cluster) } label: {
+                        AnimatedMapAnnotation(entry: entry, indexVersion: session.library.indexVersion,
+                            thumbnails: session.library.thumbnails)
                     }
-                } else {
-                    Marker(
-                        "", monogram: Text(cluster.count, format: .number),
-                        coordinate: CLLocationCoordinate2D(latitude: cluster.latitude, longitude: cluster.longitude)
-                    )
-                    .tint(.red)
-                    .tag(cluster.id)
+                    .buttonStyle(.plain)
+                    .disabled(entry.removalTime != nil)
+                    .accessibilityHidden(entry.removalTime != nil)
+                    .accessibilityLabel(Text("map.cluster.open \(entry.cluster.count)"))
                 }
             }
         }
         .mapStyle(session.options.swiftUIStyle)
-        .mapControls {
-            if session.options.compass { MapCompass(scope: scope).mapControlVisibility(.visible) }
-            if session.options.scale { MapScaleView() }
-        }
+        .mapControls { }
         .onMapCameraChange(frequency: .onEnd) { context in
+            guard session.displayMode != .heatmap else { return }
             session.cameraDidSettle(context.region, camera: context.camera)
         }
-        .onChange(of: selectedClusterID) { _, id in
-            if let id, let cluster = session.clusters.first(where: { $0.id == id }) {
-                session.select(cluster)
+        .task(id: MapClusterDisplaySnapshot(clusters: session.clusters, mode: session.displayMode, reduceMotion: reduceMotion)) {
+            guard session.displayMode != .heatmap else { return }
+            let next = session.clusters.map { PresentedMapCluster(cluster: $0, mode: session.displayMode) }
+            let keys = Set(next.map(\.id))
+            let now = ContinuousClock.now
+            let retired = reduceMotion ? [] : presented.compactMap { previous -> PresentedMapCluster? in
+                guard !keys.contains(previous.id) else { return nil }
+                var entry = previous
+                entry.removalTime = entry.removalTime ?? now.advanced(by: .milliseconds(200))
+                return entry.removalTime! > now ? entry : nil
             }
-            selectedClusterID = nil
+            presented = retired + next
+            while let deadline = presented.compactMap(\.removalTime).min() {
+                do { try await ContinuousClock().sleep(until: deadline) }
+                catch { return }
+                guard !Task.isCancelled else { return }
+                let currentTime = ContinuousClock.now
+                presented.removeAll { $0.removalTime.map { $0 <= currentTime } == true }
+            }
         }
     }
 }
@@ -143,8 +154,6 @@ private struct MapStatusOverlay: View {
                         .font(.subheadline)
                     Button("action.retry") { Task { await session.retry() } }
                 }
-            } else if session.hasQueryResult && session.visiblePhotoCount == 0 {
-                Label("map.empty.region", systemImage: "mappin.slash")
             }
             if session.library.authorizationStatus == .limited {
                 Text("permission.photo.library.limited")
@@ -152,7 +161,7 @@ private struct MapStatusOverlay: View {
             }
             }
             .font(.caption)
-            .padding(session.queryFailed || session.visiblePhotoCount == 0 || session.library.authorizationStatus == .limited ? 10 : 0)
+            .padding(session.queryFailed || session.library.errorMessage != nil || session.library.authorizationStatus == .limited ? 10 : 0)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
         .padding()

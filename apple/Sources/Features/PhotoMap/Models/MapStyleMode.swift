@@ -24,10 +24,10 @@ enum MapStyleMode: String, Codable, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
-        case .explore: return "map"
-        case .muted: return "map.circle"
+        case .explore: return "map.fill"
+        case .muted: return "map"
         case .satellite: return "globe.asia.australia.fill"
-        case .hybrid: return "map.fill"
+        case .hybrid: return "square.3.layers.3d"
         }
     }
 

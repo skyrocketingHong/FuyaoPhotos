@@ -64,6 +64,7 @@ final class MapSession {
     var heatmapRegion: MKCoordinateRegion {
         get { currentRegion }
         set {
+            guard displayMode == .heatmap else { return }
             guard !Self.sameRegion(currentRegion, newValue) else { return }
             currentRegion = newValue
             cameraPosition = .region(newValue)

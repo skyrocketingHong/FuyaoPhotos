@@ -49,6 +49,7 @@ struct AssetThumbnail: View {
     let thumbnails: PhotoThumbnailStore
     @Environment(\.displayScale) private var displayScale
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var image: NativeImage?
     @State private var loadedRequest: ThumbnailRequest?
 
@@ -62,6 +63,7 @@ struct AssetThumbnail: View {
             if loadedRequest == request, let image {
                 NativePhotoImage(image: image)
                     .scaledToFill()
+                    .transition(.opacity)
             } else {
                 Image(systemName: "photo")
                     .foregroundStyle(.secondary)
@@ -69,6 +71,7 @@ struct AssetThumbnail: View {
         }
         .frame(width: pointSize, height: pointSize)
         .clipped()
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: loadedRequest)
         .accessibilityHidden(true)
         .task(id: ThumbnailTaskIdentity(request: request, isActive: scenePhase == .active)) {
             guard scenePhase == .active else { return }

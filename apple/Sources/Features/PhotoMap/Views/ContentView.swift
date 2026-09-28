@@ -98,9 +98,22 @@ struct PhotoMapScreen: View {
                         if session.hasQueryResult {
                             Text("photo.count.visible \(session.visiblePhotoCount)")
                                 .font(.caption.monospacedDigit())
+                                .contentTransition(.numericText(value: Double(session.visiblePhotoCount)))
+                                .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: session.visiblePhotoCount)
                                 .padding(.horizontal, 12).padding(.vertical, 8)
                                 .glassEffect(in: .capsule)
                                 .padding(.horizontal, 20).padding(.top, 12)
+                        }
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        if session.phase == .ready && session.displayMode != .heatmap {
+                            VStack(alignment: .trailing, spacing: 8) {
+                                if session.options.scale {
+                                    MapScaleView(anchorEdge: .trailing, scope: mapScope).mapControlVisibility(.visible)
+                                }
+                                if session.options.compass { MapCompass(scope: mapScope).mapControlVisibility(.visible) }
+                            }
+                            .padding(.trailing, 20).padding(.top, 12)
                         }
                     }
                 if showsSelectionPane, let presentation = session.presentation {
@@ -112,8 +125,10 @@ struct PhotoMapScreen: View {
                         .frame(width: selectionPaneWidth)
                         .frame(maxHeight: .infinity)
                         .background(.regularMaterial)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: session.presentation?.id)
             .safeAreaInset(edge: .top, spacing: 0) {
                 if session.phase == .loading {
                     PhotoPageIntro(title: "tab.map", description: "map.intro.description", symbol: "map")
@@ -238,8 +253,18 @@ struct PhotoMapScreen: View {
 private struct MapActionLabel: View {
     let title: LocalizedStringKey
     let symbol: String
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        Label(title, systemImage: symbol)
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: symbol)
+#if os(iOS)
+                .resizable().scaledToFit().frame(width: 24, height: 24)
+#endif
+                .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: symbol)
+        }
 #if os(iOS)
             .frame(width: 52, height: 52)
             .contentShape(Rectangle())

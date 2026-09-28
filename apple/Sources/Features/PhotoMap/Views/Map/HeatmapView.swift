@@ -20,14 +20,16 @@ private struct HeatmapPlatformView: NSViewRepresentable {
     let options: MapOptions
     let showsUserLocation: Bool
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeCoordinator() -> HeatmapCoordinator { HeatmapCoordinator(region: $region) }
     func makeNSView(context: Context) -> MKMapView { context.coordinator.makeMap() }
     func updateNSView(_ map: MKMapView, context: Context) {
         context.coordinator.update(map, region: $region, clusters: clusters, options: options,
-            showsUserLocation: showsUserLocation, animated: context.transaction.animation != nil)
+            showsUserLocation: showsUserLocation, animated: context.transaction.animation != nil,
+            reduceMotion: reduceMotion)
         map.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
     }
-    static func dismantleNSView(_ map: MKMapView, coordinator: HeatmapCoordinator) { map.delegate = nil }
+    static func dismantleNSView(_ map: MKMapView, coordinator: HeatmapCoordinator) { coordinator.stop(); map.delegate = nil }
 }
 #else
 private struct HeatmapPlatformView: UIViewRepresentable {
@@ -36,26 +38,32 @@ private struct HeatmapPlatformView: UIViewRepresentable {
     let options: MapOptions
     let showsUserLocation: Bool
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     func makeCoordinator() -> HeatmapCoordinator { HeatmapCoordinator(region: $region) }
     func makeUIView(context: Context) -> MKMapView { context.coordinator.makeMap() }
     func updateUIView(_ map: MKMapView, context: Context) {
         context.coordinator.update(map, region: $region, clusters: clusters, options: options,
-            showsUserLocation: showsUserLocation, animated: context.transaction.animation != nil)
+            showsUserLocation: showsUserLocation, animated: context.transaction.animation != nil,
+            reduceMotion: reduceMotion)
         map.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
     }
-    static func dismantleUIView(_ map: MKMapView, coordinator: HeatmapCoordinator) { map.delegate = nil }
+    static func dismantleUIView(_ map: MKMapView, coordinator: HeatmapCoordinator) { coordinator.stop(); map.delegate = nil }
 }
 #endif
 
 private final class HeatmapCoordinator: NSObject, MKMapViewDelegate {
     var region: Binding<MKCoordinateRegion>
     private var rendered: [MapCluster] = []
-    private var overlay: HeatmapOverlay?
+    private let densityTransition = HeatmapLayerTransition()
     private var lastInput: MKCoordinateRegion?
     private var applyingRegion = false
     private var interacting = false
     private var lastOptions: MapOptions?
     private var compass: MKCompassButton?
+#if os(iOS)
+    private var scale: MKScaleView?
+    private var compassTop: NSLayoutConstraint?
+#endif
 
     init(region: Binding<MKCoordinateRegion>) { self.region = region }
 
@@ -69,27 +77,48 @@ private final class HeatmapCoordinator: NSObject, MKMapViewDelegate {
         compass.translatesAutoresizingMaskIntoConstraints = false
         map.addSubview(compass)
         NSLayoutConstraint.activate([
-            compass.trailingAnchor.constraint(equalTo: map.safeAreaLayoutGuide.trailingAnchor,constant:-12),
-            compass.topAnchor.constraint(equalTo: map.safeAreaLayoutGuide.topAnchor,constant:12)
+            compass.trailingAnchor.constraint(equalTo: map.safeAreaLayoutGuide.trailingAnchor, constant: -20)
         ])
+#if os(iOS)
+        let scale = MKScaleView(mapView: map)
+        scale.scaleVisibility = .visible
+        scale.legendAlignment = .trailing
+        scale.translatesAutoresizingMaskIntoConstraints = false
+        map.addSubview(scale)
+        NSLayoutConstraint.activate([
+            scale.trailingAnchor.constraint(equalTo: map.safeAreaLayoutGuide.trailingAnchor, constant: -20),
+            scale.topAnchor.constraint(equalTo: map.safeAreaLayoutGuide.topAnchor, constant: 12)
+        ])
+        let top = compass.topAnchor.constraint(equalTo: map.safeAreaLayoutGuide.topAnchor, constant: 52)
+        top.isActive = true
+        compassTop = top
+        self.scale = scale
+#else
+        compass.topAnchor.constraint(equalTo: map.safeAreaLayoutGuide.topAnchor, constant: 12).isActive = true
+#endif
         self.compass = compass
         return map
     }
 
     func update(_ map: MKMapView, region: Binding<MKCoordinateRegion>, clusters: [MapCluster], options: MapOptions,
-                showsUserLocation: Bool, animated: Bool) {
+                showsUserLocation: Bool, animated: Bool, reduceMotion: Bool) {
         map.showsUserLocation = showsUserLocation
+        if reduceMotion { densityTransition.finish() }
         self.region = region // Do not retain an obsolete representable value.
         if lastOptions != options {
             map.preferredConfiguration = options.configuration()
             compass?.isHidden = !options.compass
+#if os(iOS)
+            map.showsScale = false
+            scale?.isHidden = !options.scale
+            compassTop?.constant = options.scale ? 52 : 12
+#else
             map.showsScale = options.scale
+#endif
         }
         if rendered != clusters || lastOptions?.heatRadius != options.heatRadius || lastOptions?.heatOpacity != options.heatOpacity {
-            if let overlay { map.removeOverlay(overlay) }
             rendered = clusters
-            overlay = clusters.isEmpty ? nil : HeatmapOverlay(clusters: clusters, radius: options.heatRadius, opacity: options.heatOpacity)
-            if let overlay { map.addOverlay(overlay, level: .aboveRoads) }
+            densityTransition.replace(on: map, clusters: clusters, options: options, animated: !reduceMotion)
         }
         lastOptions = options
         if !interacting && (lastInput == nil || !Self.same(lastInput!, region.wrappedValue)) {
@@ -102,9 +131,10 @@ private final class HeatmapCoordinator: NSObject, MKMapViewDelegate {
     }
 
     func mapView(_ mapView: MKMapView, rendererFor overlay: any MKOverlay) -> MKOverlayRenderer {
-        guard let density = overlay as? HeatmapOverlay else { return MKOverlayRenderer(overlay: overlay) }
-        return HeatmapRenderer(overlay: density)
+        densityTransition.renderer(for: overlay) ?? MKOverlayRenderer(overlay: overlay)
     }
+
+    func stop() { densityTransition.stop() }
 
     func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
         interacting = !applyingRegion

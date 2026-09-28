@@ -148,7 +148,7 @@
 
 // MARK: - Map Session and Photo Loading
 "display.mode.heatmap" = "热力图";
-"photo.count.visible %lld" = "当前区域 %lld 项";
+"photo.count.visible %lld" = "%lld 项";
 "action.retry" = "重试";
 "action.load.more" = "加载更多";
 "permission.photo.library.description" = "请在系统设置中允许访问照片库，然后重试。地图仅显示包含位置信息的照片。";

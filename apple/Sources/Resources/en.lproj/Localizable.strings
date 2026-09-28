@@ -148,7 +148,7 @@
 
 // MARK: - Map Session and Photo Loading
 "display.mode.heatmap" = "Heatmap";
-"photo.count.visible %lld" = "%lld items in this area";
+"photo.count.visible %lld" = "%lld items";
 "action.retry" = "Retry";
 "action.load.more" = "Load More";
 "permission.photo.library.description" = "Allow photo library access in system settings, then retry. Only photos with location data appear on the map.";
