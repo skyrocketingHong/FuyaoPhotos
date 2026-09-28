@@ -167,7 +167,7 @@
 "media.type.unknown" = "Unknown type";
 
 "tab.map" = "Map";
-"tab.cards" = "Photo Cards";
+"tab.cards" = "Cards";
 "map.options" = "Map Options";
 "map.style.muted" = "Muted";
 "map.appearance" = "Appearance";
@@ -392,7 +392,7 @@
 "metadata.settings.header" = "Metadata";
 "metadata.sharesCards" = "Share Photos with Cards";
 "metadata.sharesCards.footer" = "The metadata page shows the cards page's photos instead of its own.";
-"metadata.open.cards" = "Open in Photo Cards";
+"metadata.open.cards" = "Open in Cards";
 "metadata.open.map" = "Show on Map";
 "metadata.section.openIn" = "Open In";
 "metadata.section.openIn.footer" = "The photo opens in that page's own session; library photos appear there automatically.";
