@@ -9,8 +9,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -58,5 +64,53 @@ fun FuyaoPageList(modifier: Modifier = Modifier, topInset: Dp = LocalPaneTopInse
             contentPadding = PaddingValues(start = FuyaoSpacing.content, end = FuyaoSpacing.content,
                 top = topInset + FuyaoSpacing.content, bottom = bottomInset + FuyaoSpacing.content),
             verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.content), content = content)
+    }
+}
+
+/**
+ * Photo workspace page: the preview component stays pinned at the top and carries its own
+ * backdrop, [bar] floats over the list start, and list rows scroll beneath that bar through the
+ * progressive scroll edge without ever passing the photo.
+ */
+@Composable
+fun FixedPhotoPreviewListPage(
+    modifier: Modifier = Modifier,
+    topInset: Dp = LocalPaneTopInset.current,
+    preview: @Composable () -> Unit,
+    bar: (@Composable () -> Unit)? = null,
+    content: LazyListScope.() -> Unit,
+) {
+    val density = LocalDensity.current
+    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+    var barHeight by remember { mutableIntStateOf(0) }
+    val barSpacing = FuyaoSpacing.content
+    val barArea = with(density) { barHeight.toDp() + barSpacing }
+    val barAreaPx = with(density) { barArea.toPx() }
+    val scroll = rememberLazyListState()
+    Column(modifier) {
+        Column(Modifier.padding(top = topInset + FuyaoSpacing.content,
+            start = FuyaoSpacing.content, end = FuyaoSpacing.content)) {
+            preview()
+        }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            FuyaoScrollEdge(Modifier.fillMaxSize(), topInset = barArea, scrollOffset = {
+                // Padding is part of the first item's offset, so normalize by the pinned bar area:
+                // the blur grows as rows rise into the bar, not only after they pass it.
+                if (scroll.firstVisibleItemIndex > 0) Float.MAX_VALUE
+                else (scroll.firstVisibleItemScrollOffset + barAreaPx).toFloat().coerceAtLeast(0f)
+            }) {
+                LazyColumn(Modifier.fillMaxSize(), state = scroll,
+                    contentPadding = PaddingValues(start = FuyaoSpacing.content, end = FuyaoSpacing.content,
+                        top = barArea, bottom = bottomInset + FuyaoSpacing.content),
+                    verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.content), content = content)
+            }
+            if (bar != null) {
+                Column(Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                    .padding(horizontal = FuyaoSpacing.content)
+                    .onSizeChanged { barHeight = it.height }) {
+                    bar()
+                }
+            }
+        }
     }
 }

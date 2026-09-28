@@ -3,6 +3,7 @@ package ing.fuyaoskyrocket.photoinfo.ui.components
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -18,6 +19,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoDetails
 import ing.fuyaoskyrocket.photoinfo.presentation.OriginalPhoto
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FixedPhotoPreviewListPage
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoPageList
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.SectionHeading
@@ -40,7 +42,7 @@ enum class PhotoInfoDisplay { ALL, SUMMARY, FACTS }
 fun PhotoInfoContent(photo: OriginalPhoto, controls: OriginalPreviewState, hdrAvailable: Boolean,
     busy: Boolean, modifier: Modifier = Modifier, topInset: Dp = LocalPaneTopInset.current,
     display: PhotoInfoDisplay = PhotoInfoDisplay.ALL, header: (@Composable () -> Unit)? = null,
-    afterSummary: (@Composable () -> Unit)? = null) {
+    afterSummary: (@Composable () -> Unit)? = null, belowBar: (@Composable () -> Unit)? = null) {
     val details = photo.details
     val context = LocalContext.current
     val groups = detailGroups(context, details)
@@ -48,27 +50,39 @@ fun PhotoInfoContent(photo: OriginalPhoto, controls: OriginalPreviewState, hdrAv
     val size = details.byteCount?.let { android.text.format.Formatter.formatFileSize(context, it) }
     val subtitle = listOfNotNull(kind, size).joinToString(" · ")
     key(photo.id) {
-    FuyaoPageList(modifier, topInset) {
-        if (header != null) item("page-intro") { header() }
-        if (display != PhotoInfoDisplay.FACTS) item("original-preview") {
-            OriginalPhotoSummary(photo, controls, subtitle, hdrAvailable, busy)
+    if (display == PhotoInfoDisplay.FACTS) {
+        FuyaoPageList(modifier, topInset) {
+            if (header != null) item("page-intro") { header() }
+            detailGroups(groups)
         }
-        if (afterSummary != null) item("preview-controls") { afterSummary() }
-        if (display != PhotoInfoDisplay.SUMMARY) groups.forEach { group ->
-            item(group.title) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionHeading(stringResource(group.title), group.description?.let { stringResource(it) },
-                        Modifier.padding(horizontal = FuyaoSpacing.cardInset))
-                    Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
-                        color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                        Column(Modifier.padding(horizontal = FuyaoSpacing.cardInset, vertical = 8.dp)) {
-                            group.rows.forEachIndexed { index, row -> DetailValueRow(row, index < group.rows.lastIndex) }
-                        }
+    } else {
+        // The preview component is pinned and owns its backdrop; detail rows scroll beneath the
+        // pinned bar through the progressive edge and never pass the photo.
+        FixedPhotoPreviewListPage(modifier, topInset,
+            preview = { OriginalPhotoSummary(photo, controls, subtitle, hdrAvailable, busy) },
+            bar = afterSummary) {
+            if (header != null) item("page-intro") { header() }
+            if (belowBar != null) item("below-bar") { belowBar() }
+            if (display != PhotoInfoDisplay.SUMMARY) detailGroups(groups)
+        }
+    }
+    }
+}
+
+private fun LazyListScope.detailGroups(groups: List<DetailGroup>) {
+    groups.forEach { group ->
+        item(group.title) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionHeading(stringResource(group.title), group.description?.let { stringResource(it) },
+                    Modifier.padding(horizontal = FuyaoSpacing.cardInset))
+                Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                    Column(Modifier.padding(horizontal = FuyaoSpacing.cardInset, vertical = 8.dp)) {
+                        group.rows.forEachIndexed { index, row -> DetailValueRow(row, index < group.rows.lastIndex) }
                     }
                 }
             }
         }
-    }
     }
 }
 

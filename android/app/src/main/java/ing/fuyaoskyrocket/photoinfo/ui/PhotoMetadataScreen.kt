@@ -72,12 +72,10 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
                 single = { modifier ->
                     PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
                         display = if (editing) PhotoInfoDisplay.SUMMARY else PhotoInfoDisplay.ALL,
-                        afterSummary = {
-                            Column(verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.content)) {
-                                modeControls()
-                                if (editing) MetadataEditPanel(photo, edit)
-                            }
-                        })
+                        afterSummary = { modeControls() },
+                        belowBar = if (editing) {
+                            { MetadataEditPanel(photo, edit) }
+                        } else null)
                 },
                 leading = { modifier -> PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
                     display = PhotoInfoDisplay.SUMMARY, afterSummary = modeControls) },
