@@ -192,8 +192,9 @@ actor CardImageProcessor {
         let colorSpace = CGColorSpace(name: CGColorSpace.displayP3)!
         do {
             if hasAuxiliaryData {
-                try writeImageIO(hdr ? representation[.hdrImage] as? CIImage ?? rendered : rendered,
-                    metadata: metadata, source: source, orientation: orientation, options: options, hdr: hdr, to: destination)
+                try writeImageIO(base: rendered,
+                    hdrImage: hdr ? representation[.hdrImage] as? CIImage : nil,
+                    metadata: metadata, source: source, orientation: orientation, options: options, to: destination)
             } else {
                 switch options.format {
                 case .jpeg: try context.writeJPEGRepresentation(of: rendered, to: destination, colorSpace: colorSpace, options: representation)
@@ -207,8 +208,9 @@ actor CardImageProcessor {
             try? FileManager.default.removeItem(at: destination)
             if (error as NSError).code == NSFileWriteOutOfSpaceError { throw CardError.storageFull }
             if hasAuxiliaryData { throw error }
-            try writeImageIO(hdr ? representation[.hdrImage] as? CIImage ?? rendered : rendered,
-                metadata: metadata, source: source, orientation: orientation, options: options, hdr: hdr, to: destination)
+            try writeImageIO(base: rendered,
+                hdrImage: hdr ? representation[.hdrImage] as? CIImage : nil,
+                metadata: metadata, source: source, orientation: orientation, options: options, to: destination)
         }
         guard let output = CGImageSourceCreateWithURL(destination as CFURL, nil),
               let written = CGImageSourceCopyPropertiesAtIndex(output, 0, nil) as? [String: Any],
@@ -234,20 +236,51 @@ actor CardImageProcessor {
     }
 
     // ImageIO handles auxiliary resources explicitly when the device's CI encoder omits them.
-    func writeImageIO(_ image: CIImage, metadata: [String: Any], source: CGImageSource,
-        orientation: CGImagePropertyOrientation, options: CardSaveOptions, hdr: Bool, to url: URL) throws {
-        let space = CGColorSpace(name: hdr ? CGColorSpace.extendedLinearDisplayP3 : CGColorSpace.displayP3)!
-        guard let rendered = context.createCGImage(image, from: image.extent, format: hdr ? .RGBAh : .RGBA8,
-            colorSpace: space, deferred: false, calculateHDRStats: hdr) else { throw CardError.imageEncoding }
+    // HDR must go through a pair encode: handing the encoder the expanded HDR image alone makes it
+    // re-derive an SDR base darker than the photo's own base, and every SDR thumbnail of the
+    // export then shows that darker base. Encoding base and HDR rendition as a pair keeps the
+    // stored base; the derived gain map travels with it when the file is rebuilt around the pair.
+    func writeImageIO(base: CIImage, hdrImage: CIImage?, metadata: [String: Any], source: CGImageSource,
+        orientation: CGImagePropertyOrientation, options: CardSaveOptions, to url: URL) throws {
+        if let hdrImage {
+            let temporary = FileManager.default.temporaryDirectory
+                .appendingPathComponent("FuyaoHDRPair-\(UUID().uuidString)")
+                .appendingPathExtension(options.format.fileExtension)
+            defer { try? FileManager.default.removeItem(at: temporary) }
+            let qualityKey = CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String)
+            let colorSpace = CGColorSpace(name: CGColorSpace.displayP3)!
+            if options.format == .jpeg {
+                try context.writeJPEGRepresentation(of: base, to: temporary, colorSpace: colorSpace,
+                    options: [qualityKey: options.quality / 100, .hdrImage: hdrImage])
+            } else {
+                try context.writeHEIFRepresentation(of: base, to: temporary, format: .RGBA8, colorSpace: colorSpace,
+                    options: [qualityKey: options.quality / 100, .hdrImage: hdrImage])
+            }
+            let type: UTType = options.format == .jpeg ? .jpeg : .heic
+            guard let pair = CGImageSourceCreateWithURL(temporary as CFURL, nil),
+                  let destination = CGImageDestinationCreateWithURL(url as CFURL, type.identifier as CFString, 1, nil),
+                  let gainMap = CGImageSourceCopyAuxiliaryDataInfoAtIndex(pair, 0, kCGImageAuxiliaryDataTypeISOGainMap)
+            else { throw CardError.imageEncoding }
+            var properties = metadata
+            properties[kCGImageDestinationLossyCompressionQuality as String] = options.quality / 100
+            CGImageDestinationAddImageFromSource(destination, pair, 0, properties as CFDictionary)
+            CGImageDestinationAddAuxiliaryDataInfo(destination, kCGImageAuxiliaryDataTypeISOGainMap, gainMap)
+            try PhotoAuxiliaryData.add(to: destination, source: source, orientation: orientation)
+            guard CGImageDestinationFinalize(destination) else { throw CardError.imageEncoding }
+            try verifyImage(url, width: Int(base.extent.width), height: Int(base.extent.height), hdr: true)
+            return
+        }
+        let space = CGColorSpace(name: CGColorSpace.displayP3)!
+        guard let rendered = context.createCGImage(base, from: base.extent, format: .RGBA8,
+            colorSpace: space, deferred: false) else { throw CardError.imageEncoding }
         let type: UTType = options.format == .jpeg ? .jpeg : options.format == .heic ? .heic : .png
         guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type.identifier as CFString, 1, nil) else { throw CardError.imageEncoding }
         var properties = metadata
         properties[kCGImageDestinationLossyCompressionQuality as String] = options.quality / 100
-        if hdr { properties[kCGImageDestinationEncodeRequest as String] = kCGImageDestinationEncodeToISOGainmap }
         CGImageDestinationAddImage(destination, rendered, properties as CFDictionary)
         try PhotoAuxiliaryData.add(to: destination, source: source, orientation: orientation)
         guard CGImageDestinationFinalize(destination) else { throw CardError.imageEncoding }
-        try verifyImage(url, width: Int(image.extent.width), height: Int(image.extent.height), hdr: hdr)
+        try verifyImage(url, width: Int(base.extent.width), height: Int(base.extent.height), hdr: false)
     }
 
     nonisolated static func metadata(_ input: [String: Any], options: CardSaveOptions, live: Bool) -> [String: Any] {
