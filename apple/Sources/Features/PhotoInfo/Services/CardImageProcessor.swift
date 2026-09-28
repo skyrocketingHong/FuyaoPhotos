@@ -47,7 +47,7 @@ actor CardImageProcessor {
         var card = PhotoCard()
         card[.device] = tiff[kCGImagePropertyTIFFModel as String] as? String ?? ""
         card[.author] = tiff[kCGImagePropertyTIFFArtist as String] as? String ?? author
-        card[.camera] = exif[kCGImagePropertyExifLensModel as String] as? String ?? ""
+        card[.camera] = Self.displayLensName(exif[kCGImagePropertyExifLensModel as String] as? String ?? "", device: card[.device])
         card[.imageSize] = Self.number(Double(inspection.width) * Double(inspection.height) / 1_000_000) + "MP"
         let equivalent = (exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] as? NSNumber)?.doubleValue
         let physical = (exif[kCGImagePropertyExifFocalLength as String] as? NSNumber)?.doubleValue
@@ -324,8 +324,25 @@ actor CardImageProcessor {
         return result
     }
 
-    private static func number(_ value: Double, decimals: Int = 1) -> String {
+    nonisolated static func number(_ value: Double, decimals: Int = 1) -> String {
         value.formatted(.number.locale(Locale(identifier: "en_US_POSIX")).precision(.fractionLength(0...decimals)).grouping(.never))
+    }
+
+    /// Apple devices write the EXIF LensModel with the device model as a leading prefix. The card
+    /// already shows that model in the device line, so drop the prefix instead of repeating it.
+    /// The prefix comes from the photo's own EXIF Model, never from a hardcoded device list.
+    nonisolated static func displayLensName(_ lens: String, device: String) -> String {
+        let trimmedDevice = device.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard !trimmedDevice.isEmpty,
+              lens.count >= trimmedDevice.count,
+              lens.lowercased().hasPrefix(trimmedDevice.lowercased()) else { return lens }
+        var remainder = lens.dropFirst(trimmedDevice.count)
+        guard remainder.isEmpty || remainder.first?.isWhitespace == true else { return lens }
+        remainder = remainder.drop(while: \.isWhitespace)
+        // "iPhone 16 Pro" must not half-strip "iPhone 16 Pro Max …": Apple's lens descriptors
+        // continue in lowercase ("back camera …") after the full model name.
+        guard remainder.isEmpty || remainder.first?.isLowercase == true else { return lens }
+        return String(remainder)
     }
 }
 
