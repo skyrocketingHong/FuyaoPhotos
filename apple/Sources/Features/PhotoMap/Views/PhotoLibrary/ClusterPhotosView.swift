@@ -85,7 +85,7 @@ struct ClusterPhotosView: View {
             isLoading = true; failed = false
             do {
                 let page = try await library.locations(in: selection.cluster, region: selection.region,
-                    year: selection.year, offset: request.offset, limit: pageSize)
+                    year: selection.year, offset: request.offset, limit: pageSize, coordinateSystem: selection.coordinateSystem)
                 try Task.checkCancellation()
                 let existing = Set(members.map(\.id))
                 members.append(contentsOf: page.filter { !existing.contains($0.id) })

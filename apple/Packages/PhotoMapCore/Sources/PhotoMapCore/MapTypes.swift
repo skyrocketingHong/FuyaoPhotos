@@ -1,6 +1,7 @@
 import Foundation
 
-/// Raw WGS84 metadata. Display projection never changes the stored coordinates.
+/// Raw WGS84 metadata. An index uses separate projected copies for display;
+/// snapshots, member records and the persisted Photos cache stay unchanged.
 public struct PhotoCoordinate: Identifiable, Codable, Equatable, Sendable {
     public let id: String
     public let latitude: Double

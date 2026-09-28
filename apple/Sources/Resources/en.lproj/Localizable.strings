@@ -496,3 +496,9 @@
 "map.preview.unavailable" = "Preview unavailable";
 
 "colors.gesture" = "Touch or click the photo to sample. Drag to adjust; use two fingers to zoom or move.";
+
+
+"map.coordinates.alignment" = "Map alignment";
+"map.coordinates.gcj02" = "Amap (GCJ-02)";
+"map.coordinates.wgs84" = "Standard (WGS-84)";
+"map.coordinates.description" = "Match the provider shown at the bottom of the map. Original photo GPS stays unchanged.";

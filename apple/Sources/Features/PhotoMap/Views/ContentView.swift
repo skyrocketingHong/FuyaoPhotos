@@ -285,5 +285,8 @@ private struct MapLifecycleModifier: ViewModifier {
             .onChange(of: session.library.indexVersion) { _, _ in session.indexDidChange() }
             .onChange(of: session.library.authorizationStatus) { _, _ in session.authorizationDidChange() }
             .onChange(of: AppSettings.shared.customStartYear) { _, _ in session.applySettings() }
+            .onChange(of: AppSettings.shared.mapCoordinateSystem) { previous, _ in
+                session.coordinateSystemDidChange(from: previous)
+            }
     }
 }

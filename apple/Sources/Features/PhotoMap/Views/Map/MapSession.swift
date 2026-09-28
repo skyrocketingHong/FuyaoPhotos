@@ -24,6 +24,10 @@ final class MapSession {
         get { AppSettings.shared.mapOptions }
         set { AppSettings.shared.mapOptions = newValue }
     }
+    var coordinateSystem: MapCoordinateSystem {
+        get { AppSettings.shared.mapCoordinateSystem }
+        set { AppSettings.shared.mapCoordinateSystem = newValue }
+    }
     var selectedYear = AppSettings.shared.defaultSelectedYear {
         didSet {
             guard oldValue != selectedYear else { return }
@@ -49,6 +53,7 @@ final class MapSession {
         let region: MKCoordinateRegion
         let year: Int?
         let indexVersion: UInt64
+        let coordinateSystem: MapCoordinateSystem
     }
 
     @ObservationIgnored private var resultContext: ResultContext?
@@ -106,7 +111,7 @@ final class MapSession {
             return
         }
         if !didSetInitialCamera {
-            if let region = await library.initialRegion(year: selectedYear) {
+            if let region = await library.initialRegion(year: selectedYear, coordinateSystem: coordinateSystem) {
                 guard !Task.isCancelled else { return }
                 currentRegion = region
                 cameraPosition = .region(region)
@@ -146,14 +151,27 @@ final class MapSession {
         refreshAvailableYears()
     }
 
+    func coordinateSystemDidChange(from previous: MapCoordinateSystem) {
+        guard previous != coordinateSystem else { return }
+        let center = currentRegion.center
+        if let original = GeographicCoordinate(latitude: center.latitude, longitude: center.longitude) {
+            let converted = original.converted(from: previous, to: coordinateSystem)
+            currentRegion.center = CLLocationCoordinate2D(latitude: converted.latitude, longitude: converted.longitude)
+            cameraPosition = .region(currentRegion)
+        }
+        invalidateResults()
+    }
+
     func fitPhotos(animated: Bool = true) async {
-        guard let region = await library.initialRegion(year: selectedYear) else { return }
+        guard let region = await library.initialRegion(year: selectedYear, coordinateSystem: coordinateSystem) else { return }
         moveCamera(to: region, animated: animated)
     }
 
     func locateUser(animated: Bool) {
         location.request { [weak self] coordinate in
-            self?.moveCamera(to: MKCoordinateRegion(center: coordinate,
+            guard let self, let original = GeographicCoordinate(latitude: coordinate.latitude, longitude: coordinate.longitude) else { return }
+            let displayed = original.converted(from: .wgs84, to: coordinateSystem)
+            moveCamera(to: MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: displayed.latitude, longitude: displayed.longitude),
                 span: MKCoordinateSpan(latitudeDelta: 0.012, longitudeDelta: 0.012)), animated: animated)
         }
     }
@@ -182,6 +200,7 @@ final class MapSession {
 
     func select(_ cluster: MapCluster) {
         guard let context = resultContext, context.indexVersion == library.indexVersion,
+              context.coordinateSystem == coordinateSystem,
               clusters.contains(cluster) else {
             requestQuery(immediate: true)
             return
@@ -189,7 +208,7 @@ final class MapSession {
         if cluster.count > 1 {
             presentation = .cluster(ClusterSelection(
                 cluster: cluster, region: context.region, year: context.year,
-                indexVersion: context.indexVersion
+                indexVersion: context.indexVersion, coordinateSystem: context.coordinateSystem
             ))
         } else if let location = library.location(for: cluster.representativeID) {
             presentation = .photo(location)
@@ -203,6 +222,7 @@ final class MapSession {
         let region = currentRegion
         let year = selectedYear
         let mode = displayMode
+        let coordinateSystem = self.coordinateSystem
         let size = viewportSize
         let indexVersion = library.indexVersion
         isQuerying = true
@@ -211,11 +231,14 @@ final class MapSession {
             do {
                 if !immediate { try await Task.sleep(for: .milliseconds(150)) }
                 guard let self else { return }
-                let result = try await library.query(in: region, year: year, viewportSize: size, mode: mode)
+                let result = try await library.query(in: region, year: year, viewportSize: size, mode: mode,
+                    coordinateSystem: coordinateSystem)
                 try Task.checkCancellation()
-                guard generation == requestGeneration, library.indexVersion == indexVersion else { return }
+                guard generation == requestGeneration, library.indexVersion == indexVersion,
+                      self.coordinateSystem == coordinateSystem else { return }
                 // Publish context and markers in the same uninterrupted main-actor turn.
-                resultContext = ResultContext(region: region, year: year, indexVersion: indexVersion)
+                resultContext = ResultContext(region: region, year: year, indexVersion: indexVersion,
+                    coordinateSystem: coordinateSystem)
                 clusters = result.clusters
                 visiblePhotoCount = result.totalCount
                 resultRevision = result.revision
@@ -279,6 +302,7 @@ struct ClusterSelection: Identifiable {
     let region: MKCoordinateRegion
     let year: Int?
     let indexVersion: UInt64
+    let coordinateSystem: MapCoordinateSystem
     var id: String { cluster.id }
 }
 

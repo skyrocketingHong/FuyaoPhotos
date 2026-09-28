@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotoMapCore
 
 struct MapOptionsView: View {
     @Bindable var session: MapSession
@@ -15,7 +16,7 @@ struct MapOptionsView: View {
                 .formStyle(.columns)
                 .padding(.horizontal, 20)
         }
-        .frame(width: 390, height: session.displayMode == .heatmap ? 500 : 420)
+        .frame(width: 390, height: session.displayMode == .heatmap ? 580 : 500)
 #else
         NavigationStack {
             Form { optionSections }
@@ -49,6 +50,15 @@ struct MapOptionsView: View {
                         .accessibilityLabel(Text("map.heat.opacity"))
                 }
             }
+        }
+        Section {
+            Picker("map.coordinates.alignment", selection: $session.coordinateSystem) {
+                Text("map.coordinates.gcj02").tag(MapCoordinateSystem.gcj02)
+                Text("map.coordinates.wgs84").tag(MapCoordinateSystem.wgs84)
+            }
+            .tint(.secondary)
+        } footer: {
+            Text("map.coordinates.description")
         }
         Section("sidebar.map.style") {
             Picker("map.appearance", selection: $session.options.appearance) {

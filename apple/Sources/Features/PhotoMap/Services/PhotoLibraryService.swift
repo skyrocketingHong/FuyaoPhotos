@@ -24,6 +24,7 @@ final class PhotoLibraryService: NSObject, PHPhotoLibraryChangeObserver {
     private(set) var authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
     let thumbnails = PhotoThumbnailStore()
     @ObservationIgnored private let index = PhotoSpatialIndex()
+    @ObservationIgnored private let amapIndex = PhotoSpatialIndex(coordinateSystem: .gcj02)
     @ObservationIgnored private let worker = PhotoLibraryIndexWorker()
     @ObservationIgnored private var loaded = false
     @ObservationIgnored private var permissionGeneration: UInt64 = 0
@@ -54,6 +55,7 @@ final class PhotoLibraryService: NSObject, PHPhotoLibraryChangeObserver {
             loadTask = nil; changeTask = nil; loaded = false
             thumbnails.invalidate()
             try? await index.replace(with: [])
+            try? await amapIndex.replace(with: [])
             await worker.clear()
             photoCount = 0; videoCount = 0; photosEarliestYear = nil
             authorizationStatus = status
@@ -81,6 +83,7 @@ final class PhotoLibraryService: NSObject, PHPhotoLibraryChangeObserver {
                 try Task.checkCancellation()
                 guard generation == self.permissionGeneration else { return }
                 try await self.index.replace(with: update.upserts)
+                try await self.amapIndex.replace(with: update.upserts)
                 try Task.checkCancellation()
                 guard generation == self.permissionGeneration else { return }
                 self.publish(update)
@@ -113,8 +116,10 @@ final class PhotoLibraryService: NSObject, PHPhotoLibraryChangeObserver {
             do {
                 guard let update = try await self.worker.changes(change) else { return }
                 try Task.checkCancellation()
-                if update.replacesAll { try await self.index.replace(with: update.upserts) }
-                else { await self.index.apply(upserting: update.upserts, removing: update.removals) }
+                for target in [self.index, self.amapIndex] {
+                    if update.replacesAll { try await target.replace(with: update.upserts) }
+                    else { await target.apply(upserting: update.upserts, removing: update.removals) }
+                }
                 guard !Task.isCancelled, generation == self.permissionGeneration else { return }
                 self.thumbnails.invalidate(ids: update.replacesAll ? nil : Set(update.removals + update.upserts.map(\.id)))
                 self.publish(update)
@@ -132,11 +137,14 @@ final class PhotoLibraryService: NSObject, PHPhotoLibraryChangeObserver {
         indexVersion &+= 1; errorMessage = nil
     }
 
-    func query(in region: MKCoordinateRegion, year: Int?, viewportSize: CGSize, mode: MapDisplayMode) async throws -> MapQueryResult {
+    func query(in region: MKCoordinateRegion, year: Int?, viewportSize: CGSize, mode: MapDisplayMode,
+               coordinateSystem: MapCoordinateSystem) async throws -> MapQueryResult {
         if let pending = authorizationTask { await pending.value }
+        await loadTask?.value
+        await changeTask?.value
         guard hasAccess else { return MapQueryResult(revision: indexVersion) }
         let generation = indexVersion
-        let result = try await index.query(viewport: Self.viewport(region), width: viewportSize.width,
+        let result = try await spatialIndex(for: coordinateSystem).query(viewport: Self.viewport(region), width: viewportSize.width,
                                      height: viewportSize.height, year: year,
                                      cellSize: mode == .heatmap ? 24 : 64, limit: mode == .heatmap ? 1200 : 300)
         try Task.checkCancellation()
@@ -144,14 +152,16 @@ final class PhotoLibraryService: NSObject, PHPhotoLibraryChangeObserver {
         return result
     }
 
-    func initialRegion(year: Int?) async -> MKCoordinateRegion? {
-        guard let bounds = try? await index.bounds(year: year) else { return nil }
+    func initialRegion(year: Int?, coordinateSystem: MapCoordinateSystem) async -> MKCoordinateRegion? {
+        guard let bounds = try? await spatialIndex(for: coordinateSystem).bounds(year: year) else { return nil }
         return MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: bounds.latitude, longitude: bounds.longitude),
                                   span: MKCoordinateSpan(latitudeDelta: bounds.latitudeDelta, longitudeDelta: bounds.longitudeDelta))
     }
 
-    func locations(in cluster: MapCluster, region: MKCoordinateRegion, year: Int?, offset: Int, limit: Int) async throws -> [PhotoLocation] {
-        let members = try await index.members(of: cluster.cell, viewport: Self.viewport(region), year: year, offset: offset, limit: limit)
+    func locations(in cluster: MapCluster, region: MKCoordinateRegion, year: Int?, offset: Int, limit: Int,
+                   coordinateSystem: MapCoordinateSystem) async throws -> [PhotoLocation] {
+        let members = try await spatialIndex(for: coordinateSystem).members(of: cluster.cell, viewport: Self.viewport(region),
+            year: year, offset: offset, limit: limit)
         try Task.checkCancellation()
         let assets = PHAsset.fetchAssets(withLocalIdentifiers: members.map(\.id), options: nil)
         var byID: [String: PHAsset] = [:]
@@ -171,5 +181,9 @@ final class PhotoLibraryService: NSObject, PHPhotoLibraryChangeObserver {
     private static func viewport(_ region: MKCoordinateRegion) -> MapViewport {
         MapViewport(latitude: region.center.latitude, longitude: region.center.longitude,
                     latitudeDelta: region.span.latitudeDelta, longitudeDelta: region.span.longitudeDelta)
+    }
+
+    private func spatialIndex(for system: MapCoordinateSystem) -> PhotoSpatialIndex {
+        system == .gcj02 ? amapIndex : index
     }
 }

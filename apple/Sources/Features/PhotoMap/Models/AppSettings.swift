@@ -7,10 +7,16 @@
 
 import Foundation
 import SwiftUI
+import PhotoMapCore
 
 @Observable
 class AppSettings {
     static let shared = AppSettings()
+
+    var mapCoordinateSystem = UserDefaults.standard.string(forKey: "mapCoordinateSystem")
+        .flatMap(MapCoordinateSystem.init(rawValue:)) ?? .gcj02 {
+        didSet { UserDefaults.standard.set(mapCoordinateSystem.rawValue, forKey: "mapCoordinateSystem") }
+    }
 
     var mapOptions: MapOptions = {
         guard let data = UserDefaults.standard.data(forKey: "mapOptions"),

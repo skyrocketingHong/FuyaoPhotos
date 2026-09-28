@@ -89,3 +89,13 @@ combined work remains distributable under this project's AGPL-3.0-only license
 because GPL-2.0-or-later is one-way compatible with AGPL-3.0. Binaries carry
 the x265 static library; the complete corresponding source lives in this
 repository.
+
+Photo map coordinate conversion
+-------------------------------
+WGS-84/GCJ-02 display conversion is ported from FuyaoHomepage,
+Copyright (C) 2026 skyrocketingHong (AGPL-3.0-only), whose conversion equations
+are adapted from wandergis/coordtransform, Copyright (c) 2015 记忆的残骸 (MIT).
+The Swift implementation keeps source GPS separate from display coordinates.
+See LICENSES/CoordTransform-MIT.txt.
+https://github.com/skyrocketingHong/FuyaoHomepage
+https://github.com/wandergis/coordtransform

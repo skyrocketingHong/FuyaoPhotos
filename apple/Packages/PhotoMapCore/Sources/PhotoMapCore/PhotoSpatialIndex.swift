@@ -5,18 +5,19 @@ import Foundation
 public actor PhotoSpatialIndex {
     private var records: [String: PhotoCoordinate] = [:]
     private var root = Node(level: 0, x: 0, y: 0)
+    private let coordinateSystem: MapCoordinateSystem
     public private(set) var revision: UInt64 = 0
 
-    public init() {}
+    public init(coordinateSystem: MapCoordinateSystem = .wgs84) { self.coordinateSystem = coordinateSystem }
 
     public func replace(with photos: [PhotoCoordinate]) throws {
         let newRoot = Node(level: 0, x: 0, y: 0)
         var newRecords: [String: PhotoCoordinate] = [:]
-        for (offset, photo) in photos.enumerated() {
+        for (offset, original) in photos.enumerated() {
             if offset.isMultiple(of: 256) { try Task.checkCancellation() }
-            guard photo.isValid else { continue }
-            if let old = newRecords[photo.id] { newRoot.remove(old) }
-            newRecords[photo.id] = photo
+            guard let photo = original.projected(to: coordinateSystem) else { continue }
+            if let old = newRecords[photo.id]?.projected(to: coordinateSystem) { newRoot.remove(old) }
+            newRecords[photo.id] = original
             newRoot.insert(photo)
         }
         try Task.checkCancellation()
@@ -30,23 +31,25 @@ public actor PhotoSpatialIndex {
         // Large library edits rebuild once, rather than repeatedly reducing a dense leaf.
         if photos.count + identifiers.count > 64 {
             for id in identifiers { records.removeValue(forKey: id) }
-            for photo in photos {
-                records.removeValue(forKey: photo.id)
-                if photo.isValid { records[photo.id] = photo }
+            for original in photos {
+                records.removeValue(forKey: original.id)
+                if original.isValid { records[original.id] = original }
             }
             let replacement = Node(level: 0, x: 0, y: 0)
-            for photo in records.values { replacement.insert(photo) }
+            for original in records.values {
+                if let photo = original.projected(to: coordinateSystem) { replacement.insert(photo) }
+            }
             root = replacement
             revision &+= 1
             return
         }
         for id in identifiers {
-            if let old = records.removeValue(forKey: id) { root.remove(old) }
+            if let old = records.removeValue(forKey: id)?.projected(to: coordinateSystem) { root.remove(old) }
         }
-        for photo in photos {
-            if let old = records.removeValue(forKey: photo.id) { root.remove(old) }
-            if photo.isValid {
-                records[photo.id] = photo
+        for original in photos {
+            if let old = records.removeValue(forKey: original.id)?.projected(to: coordinateSystem) { root.remove(old) }
+            if let photo = original.projected(to: coordinateSystem) {
+                records[photo.id] = original
                 root.insert(photo)
             }
         }
@@ -88,7 +91,7 @@ public actor PhotoSpatialIndex {
         let rectangles = viewport.rectangles
         matches.removeAll { photo in !rectangles.contains { $0.contains(photo.point) } }
         matches.sort { $0.id < $1.id }
-        return Array(matches.dropFirst(max(0, offset)).prefix(max(0, min(200, limit))))
+        return matches.dropFirst(max(0, offset)).prefix(max(0, min(200, limit))).compactMap { records[$0.id] }
     }
 
     public func snapshot() -> [PhotoCoordinate] { Array(records.values) }
@@ -99,9 +102,9 @@ public actor PhotoSpatialIndex {
         var longitudes: [Double] = []
         for (offset, photo) in records.values.enumerated() {
             if offset.isMultiple(of: 256) { try Task.checkCancellation() }
-            if year == nil || photo.year == year {
-                latitudes.append(photo.latitude)
-                longitudes.append(photo.longitude)
+            if (year == nil || photo.year == year), let displayed = photo.projected(to: coordinateSystem) {
+                latitudes.append(displayed.latitude)
+                longitudes.append(displayed.longitude)
             }
         }
         guard let south = latitudes.min(), let north = latitudes.max() else { return nil }

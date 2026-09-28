@@ -4,6 +4,7 @@ import PhotoMapCore
 @main struct Benchmarks {
     static func main() async throws {
         let clock = ContinuousClock()
+        let coordinateSystem: MapCoordinateSystem = CommandLine.arguments.contains("--gcj02") ? .gcj02 : .wgs84
         print("count,distribution,index_ms,query_p50_ms,query_p95_ms,max_markers")
         for count in [1_000, 10_000, 50_000, 100_000] {
             for dense in [false, true] {
@@ -17,7 +18,7 @@ import PhotoMapCore
                                     longitude: dense ? 120 + next() * 0.1 : next() * 360 - 180,
                                     creationDate: nil, year: i % 2 == 0 ? 2025 : 2026)
                 }
-                let index = PhotoSpatialIndex()
+                let index = PhotoSpatialIndex(coordinateSystem: coordinateSystem)
                 let begin = clock.now
                 try await index.replace(with: photos)
                 let build = milliseconds(begin.duration(to: clock.now))
