@@ -13,12 +13,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
@@ -32,6 +35,7 @@ internal fun CardStyleSlider(
     referenceValue: Float,
     label: String,
     valueText: String,
+    maxValueText: String,
     enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -55,7 +59,10 @@ internal fun CardStyleSlider(
         Slider(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.weight(1f).semantics { contentDescription = label },
+            modifier = Modifier.weight(1f).semantics {
+                contentDescription = label
+                stateDescription = valueText
+            },
             enabled = enabled,
             valueRange = valueRange,
             track = { sliderState ->
@@ -78,7 +85,13 @@ internal fun CardStyleSlider(
             Modifier.size(20.dp).scale(maxScale),
             tint = if (atMaximum) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(valueText, Modifier.padding(start = 8.dp).widthIn(min = 44.dp),
-            style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        // The slot reserves the widest formatted value so a changing digit count never
+        // moves the track endpoints; only a font or window change re-lays it out.
+        Box(Modifier.padding(start = 8.dp), contentAlignment = Alignment.CenterEnd) {
+            Text(maxValueText, Modifier.alpha(0f).clearAndSetSemantics { },
+                style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+            Text(valueText, Modifier.clearAndSetSemantics { },
+                style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
+        }
     }
 }

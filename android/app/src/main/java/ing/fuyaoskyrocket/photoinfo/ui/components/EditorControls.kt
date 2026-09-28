@@ -157,7 +157,8 @@ private fun CompactEditorControl(state: EditorState, tab: Int, fieldIndex: Int, 
             else if (setting == null) FontControl(state, onImportFont)
             else CardStyleSlider(setting.value(state.style), { onStyle(setting.update(state.style, it)) },
                 setting.minimum..setting.maximum, setting.value(CardStyle()), stringResource(setting.label),
-                styleValue(setting.percentage, setting.value(state.style)), !state.busy, Modifier.fillMaxWidth())
+                styleValue(setting.percentage, setting.value(state.style)),
+                styleValue(setting.percentage, setting.maximum), !state.busy, Modifier.fillMaxWidth())
         }
     }
 }
@@ -243,7 +244,8 @@ private fun EditorInspector(
                     val value = setting.value(state.style)
                     CardStyleSlider(value, { onStyle(setting.update(state.style, it)) },
                         setting.minimum..setting.maximum, setting.value(CardStyle()), stringResource(setting.label),
-                        styleValue(setting.percentage, value), !state.busy, Modifier.fillMaxWidth())
+                        styleValue(setting.percentage, value),
+                        styleValue(setting.percentage, setting.maximum), !state.busy, Modifier.fillMaxWidth())
                 }
                 }
             }
