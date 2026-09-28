@@ -78,29 +78,20 @@ struct PhotoMapScreen: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 #if !os(macOS)
                     .overlay(alignment: .bottomTrailing) {
-                        VStack(alignment: .trailing, spacing: 12) {
-                            if session.displayMode != .heatmap && session.options.compass { MapCompass(scope: mapScope) }
-                            VStack(spacing: 0) {
-                                mapStyleMenu.frame(width: 52, height: 52)
-                                mapOptionsButton.frame(width: 52, height: 52)
-                                fitPhotosButton.frame(width: 52, height: 52)
-                                Divider().padding(.horizontal, 12)
-                                locationButton.frame(width: 52, height: 52)
-                            }
-                            .glassEffect(.regular.interactive(), in: .capsule)
+                        VStack(spacing: 0) {
+                            mapStyleMenu.frame(width: 52, height: 52)
+                            mapOptionsButton.frame(width: 52, height: 52)
+                            fitPhotosButton.frame(width: 52, height: 52)
+                            Divider().frame(width: 28)
+                            locationButton.frame(width: 52, height: 52)
                         }
+                        .frame(width: 52)
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                        .fixedSize(horizontal: true, vertical: true)
                         .labelStyle(.iconOnly)
                         .buttonStyle(.plain)
-                        .font(.title3)
                         .foregroundStyle(.primary)
                         .padding(20)
-                    }
-#else
-                    .overlay(alignment: .topTrailing) {
-                        if session.displayMode != .heatmap && session.options.compass {
-                            MapCompass(scope: mapScope)
-                                .padding(20)
-                        }
                     }
 #endif
                     .overlay(alignment: .topLeading) {
@@ -192,9 +183,12 @@ struct PhotoMapScreen: View {
     }
 
     private var mapStyleMenu: some View {
-        Button("map.modes", systemImage: session.options.style.icon) { showingModes = true }
+        Button { showingModes = true } label: {
+            MapActionLabel(title: "map.modes", symbol: session.options.style.icon)
+        }
             .popover(isPresented: $showingModes) {
                 MapModesView(session: session)
+                    .modifier(NativePresentationDefaults())
 #if os(iOS)
                     .presentationCompactAdaptation(.sheet)
                     .presentationDetents([.medium, .large])
@@ -207,7 +201,7 @@ struct PhotoMapScreen: View {
             session.locateUser(animated: !reduceMotion)
         } label: {
             if session.location.locating { ProgressView().controlSize(.small) }
-            else { Label("map.location", systemImage: "location.fill") }
+            else { MapActionLabel(title: "map.location", symbol: "location.fill") }
         }
         .disabled(session.location.locating)
         .accessibilityLabel(Text("map.location"))
@@ -215,13 +209,15 @@ struct PhotoMapScreen: View {
             set: { if !$0 { session.location.errorMessage = nil } })) {
                 Button("done", role: .cancel) { }
             } message: { Text(session.location.errorMessage ?? "") }
-        .accessibilityLabel(Text("sidebar.map.style"))
     }
 
     private var mapOptionsButton: some View {
-        Button("map.options", systemImage: "slider.horizontal.3") { showingOptions = true }
+        Button { showingOptions = true } label: {
+            MapActionLabel(title: "map.options", symbol: "slider.horizontal.3")
+        }
             .popover(isPresented: $showingOptions) {
                 MapOptionsView(session: session)
+                    .modifier(NativePresentationDefaults())
 #if !os(macOS)
                     .presentationCompactAdaptation(.sheet)
                     .presentationDetents([.medium, .large])
@@ -230,10 +226,24 @@ struct PhotoMapScreen: View {
     }
 
     private var fitPhotosButton: some View {
-        Button("map.fit.photos", systemImage: "arrow.up.left.and.arrow.down.right") {
+        Button {
             Task { await session.fitPhotos(animated: !reduceMotion) }
+        } label: {
+            MapActionLabel(title: "map.fit.photos", symbol: "arrow.up.left.and.arrow.down.right")
         }
         .disabled(!session.hasQueryResult)
+    }
+}
+
+private struct MapActionLabel: View {
+    let title: LocalizedStringKey
+    let symbol: String
+    var body: some View {
+        Label(title, systemImage: symbol)
+#if os(iOS)
+            .frame(width: 52, height: 52)
+            .contentShape(Rectangle())
+#endif
     }
 }
 

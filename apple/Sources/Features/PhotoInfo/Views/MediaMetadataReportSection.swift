@@ -40,7 +40,7 @@ struct MediaMetadataReportSection: View {
 
     @ViewBuilder private func sectionHeader(_ key: String) -> some View {
         if prominentHeaders {
-            Text(LocalizedStringKey(key)).font(.title3).bold().textCase(nil)
+            Text(LocalizedStringKey(key)).textCase(nil)
         } else {
             Text(LocalizedStringKey(key))
         }

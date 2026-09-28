@@ -79,6 +79,7 @@ private struct PhotoClusterMap: View {
         }
         .mapStyle(session.options.swiftUIStyle)
         .mapControls {
+            if session.options.compass { MapCompass(scope: scope).mapControlVisibility(.visible) }
             if session.options.scale { MapScaleView() }
         }
         .onMapCameraChange(frequency: .onEnd) { context in

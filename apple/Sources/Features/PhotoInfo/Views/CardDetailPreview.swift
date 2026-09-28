@@ -26,16 +26,17 @@ struct CardDetailPreview: View {
                     .foregroundStyle(.secondary)
             } else if let render {
                 GeometryReader { geometry in
-                    let scale = geometry.size.width / CGFloat(render.image.width)
+                    let scale = min(geometry.size.width / CGFloat(render.image.width),
+                                    geometry.size.height / CGFloat(render.image.height))
+                    let imageWidth = CGFloat(render.image.width) * scale
                     let imageHeight = CGFloat(render.image.height) * scale
-                    let offset = min(0, (geometry.size.height - imageHeight) / 2)
                     ZStack {
                         Image(decorative: render.image, scale: 1, orientation: .up)
                             .resizable()
                         CardSelectionHighlight(render: render, field: highlightedField, style: highlightedStyle)
                     }
-                    .frame(width: geometry.size.width, height: imageHeight)
-                    .offset(y: offset)
+                    .frame(width: imageWidth, height: imageHeight)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
                 }
                 .modifier(ProcessingVeil(active: processing || loading, pulse: loading && !processing))
             } else if let error {

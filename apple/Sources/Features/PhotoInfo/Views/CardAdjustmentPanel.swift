@@ -197,7 +197,7 @@ private struct MobileCardInspector: View {
                         .padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .frame(height: controlHeight, alignment: .top)
-                        .glassEffect(.clear.interactive(), in: .rect(cornerRadius: 12))
+                        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12))
                         .focused($editingText)
                         .accessibilityLabel(Text(LocalizedStringKey(field.titleKey)))
                         .id(selectionID)

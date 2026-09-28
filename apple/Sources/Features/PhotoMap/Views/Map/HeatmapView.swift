@@ -65,6 +65,7 @@ private final class HeatmapCoordinator: NSObject, MKMapViewDelegate {
         map.showsUserLocation = false
         map.showsCompass = false
         let compass = MKCompassButton(mapView: map)
+        compass.compassVisibility = .visible
         compass.translatesAutoresizingMaskIntoConstraints = false
         map.addSubview(compass)
         NSLayoutConstraint.activate([

@@ -35,9 +35,6 @@ internal fun Modifier.photoSamplingGestures(
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             var pointer = down.position
-            var timestamp = down.uptimeMillis
-            var picking = false
-            var cancelled = down.isConsumed
             var multiPointerStarted = false
             var localTransform = transformState.value
             var lastSample = IntSize(-1, -1)
@@ -54,22 +51,17 @@ internal fun Modifier.photoSamplingGestures(
                 }
                 if (showLoupe) loupeChanged.value(pointer)
             }
+            var picking = !down.isConsumed && layout()?.imageBounds?.contains(pointer) == true
             try {
+                if (picking) {
+                    sample(showLoupe = true)
+                    down.consume()
+                }
                 while (true) {
-                    val event = if (!picking && !cancelled && !multiPointerStarted) {
-                        withTimeoutOrNull((200L - (timestamp - down.uptimeMillis)).coerceAtLeast(1L)) {
-                            awaitPointerEvent(PointerEventPass.Main)
-                        }
-                    } else awaitPointerEvent(PointerEventPass.Main)
-                    if (event == null) {
-                        picking = true
-                        sample(showLoupe = true)
-                        continue
-                    }
-                    timestamp = event.changes.maxOf { it.uptimeMillis }
+                    val event = awaitPointerEvent(PointerEventPass.Main)
                     val active = event.changes.filter { it.pressed }
                     if (active.isEmpty()) {
-                        if (!cancelled && !multiPointerStarted) sample(showLoupe = false)
+                        if (picking && !multiPointerStarted) sample(showLoupe = false)
                         break
                     }
                     if (active.size >= 2) {
@@ -92,8 +84,6 @@ internal fun Modifier.photoSamplingGestures(
                         if (picking) {
                             sample(showLoupe = true)
                             change.consume()
-                        } else if (change.isConsumed || (pointer - down.position).getDistance() > viewConfiguration.touchSlop) {
-                            cancelled = true
                         }
                     }
                 }

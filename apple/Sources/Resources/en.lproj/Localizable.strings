@@ -495,4 +495,4 @@
 
 "map.preview.unavailable" = "Preview unavailable";
 
-"colors.gesture" = "Touch and hold, then drag to sample. Use two fingers to zoom or move the photo.";
+"colors.gesture" = "Touch or click the photo to sample. Drag to adjust; use two fingers to zoom or move.";

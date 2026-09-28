@@ -33,6 +33,8 @@ final class ColorPhotoScrollView: UIView, UIScrollViewDelegate, UIGestureRecogni
     var onSample: ((CGPoint) -> Void)?
     var onLoupe: ((ColorLoupeContact?) -> Void)?
     private var samplingPress: UILongPressGestureRecognizer?
+    private var panning = false
+    private var zooming = false
     private let marker = CAShapeLayer()
     private var previousSize = CGSize.zero
 
@@ -57,13 +59,11 @@ final class ColorPhotoScrollView: UIView, UIScrollViewDelegate, UIGestureRecogni
         marker.actions = ["path": NSNull(), "lineWidth": NSNull()]
         photo.layer.addSublayer(marker)
         let sample = UILongPressGestureRecognizer(target: self, action: #selector(sampleGesture(_:)))
-        sample.minimumPressDuration = 0.2
+        sample.minimumPressDuration = 0
         sample.allowableMovement = 10
         sample.delegate = self
         samplingPress = sample
         scroll.addGestureRecognizer(sample)
-        let tap = UITapGestureRecognizer(target: self, action: #selector(sampleGesture(_:)))
-        scroll.addGestureRecognizer(tap)
         accessibilityLabel = String.localized("colors.photo")
         accessibilityHint = String.localized("colors.gesture")
     }
@@ -88,15 +88,31 @@ final class ColorPhotoScrollView: UIView, UIScrollViewDelegate, UIGestureRecogni
         scroll.contentInset = UIEdgeInsets(top: max(0, (bounds.height - photo.frame.height) / 2), left: max(0, (bounds.width - photo.frame.width) / 2), bottom: 0, right: 0)
     }
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
-        other === scroll.pinchGestureRecognizer
+        other === scroll.pinchGestureRecognizer || other === scroll.panGestureRecognizer
     }
-    func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        gestureRecognizer.numberOfTouches == 1 && photo.bounds.contains(gestureRecognizer.location(in: photo))
+    }
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        panning = true
         samplingPress?.isEnabled = false
         onLoupe?(nil)
     }
-    func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) { samplingPress?.isEnabled = true }
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        panning = false
+        samplingPress?.isEnabled = !zooming
+    }
+    func scrollViewWillBeginZooming(_ scrollView: UIScrollView, with view: UIView?) {
+        zooming = true
+        samplingPress?.isEnabled = false
+        onLoupe?(nil)
+    }
+    func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
+        zooming = false
+        samplingPress?.isEnabled = !panning
+    }
     @objc private func sampleGesture(_ gesture: UIGestureRecognizer) {
-        if gesture is UILongPressGestureRecognizer, gesture.state != .began && gesture.state != .changed {
+        guard (gesture.state == .began || gesture.state == .changed), gesture.numberOfTouches == 1 else {
             onLoupe?(nil)
             return
         }
@@ -104,10 +120,8 @@ final class ColorPhotoScrollView: UIView, UIScrollViewDelegate, UIGestureRecogni
         let location = gesture.location(in: photo)
         let normalized = CGPoint(x: min(1, max(0, location.x / photo.bounds.width)), y: min(1, max(0, location.y / photo.bounds.height)))
         onSample?(normalized)
-        if gesture is UILongPressGestureRecognizer {
-            onLoupe?(ColorLoupeContact(location: gesture.location(in: self), normalizedPoint: normalized,
-                imageSize: CGSize(width: photo.bounds.width * scroll.zoomScale, height: photo.bounds.height * scroll.zoomScale)))
-        }
+        onLoupe?(ColorLoupeContact(location: gesture.location(in: self), normalizedPoint: normalized,
+            imageSize: CGSize(width: photo.bounds.width * scroll.zoomScale, height: photo.bounds.height * scroll.zoomScale)))
     }
     func updateMarker() {
         let p = CGPoint(x: point.x * photo.bounds.width, y: point.y * photo.bounds.height)
@@ -181,11 +195,7 @@ final class SamplingNSImageView: NSImageView {
     var point = CGPoint(x: 0.5, y: 0.5)
     var onSample: ((CGPoint) -> Void)?
     var onLoupe: ((CGPoint?) -> Void)?
-    private var hold: Task<Void, Never>?
-    private var pressOrigin: CGPoint?
-    private var pointer = CGPoint.zero
     private var holding = false
-    private var cancelled = false
     var imageRect: CGRect {
         guard let image, image.size.width > 0, image.size.height > 0 else { return bounds }
         let scale = min(bounds.width / image.size.width, bounds.height / image.size.height)
@@ -193,35 +203,27 @@ final class SamplingNSImageView: NSImageView {
         return CGRect(x: (bounds.width - size.width) / 2, y: (bounds.height - size.height) / 2, width: size.width, height: size.height)
     }
     override func mouseDown(with event: NSEvent) {
-        hold?.cancel()
-        pointer = convert(event.locationInWindow, from: nil)
-        pressOrigin = pointer
-        cancelled = false
-        hold = Task { @MainActor [weak self] in
-            do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
-            guard let self, !cancelled, window?.isKeyWindow == true,
-                  NSApp.isActive, !isHiddenOrHasHiddenAncestor else { return }
-            holding = true
-            sample(pointer)
-            onLoupe?(pointer)
-        }
+        let pointer = convert(event.locationInWindow, from: nil)
+        guard imageRect.contains(pointer) else { return }
+        holding = true
+        sample(pointer)
+        onLoupe?(pointer)
     }
     override func mouseDragged(with event: NSEvent) {
-        pointer = convert(event.locationInWindow, from: nil)
-        if holding { sample(pointer); onLoupe?(pointer) }
-        else if let origin = pressOrigin, hypot(pointer.x - origin.x, pointer.y - origin.y) > 10 {
-            hold?.cancel(); cancelled = true
-        }
+        guard holding else { return }
+        let pointer = convert(event.locationInWindow, from: nil)
+        sample(pointer)
+        onLoupe?(pointer)
     }
     override func mouseUp(with event: NSEvent) {
-        hold?.cancel()
-        if !cancelled { sample(convert(event.locationInWindow, from: nil)) }
-        holding = false; pressOrigin = nil
+        guard holding else { return }
+        sample(convert(event.locationInWindow, from: nil))
+        holding = false
         onLoupe?(nil)
     }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        if window == nil { hold?.cancel(); holding = false; onLoupe?(nil) }
+        if window == nil { holding = false; onLoupe?(nil) }
     }
     private func sample(_ p: CGPoint) {
         let rect = imageRect

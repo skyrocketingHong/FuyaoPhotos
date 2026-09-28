@@ -39,7 +39,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -88,7 +87,7 @@ internal fun ColorLoupe(bitmap: Bitmap, layout: ImageLayout, finger: Offset, vis
                 drawLine(stroke.first, center - Offset(0f, 6.dp.toPx()), center + Offset(0f, 6.dp.toPx()), stroke.second)
             }
         }
-        if (hex != null) Text(hex, fontSize = 12.sp, fontFamily = FontFamily.Monospace,
+        if (hex != null) Text(hex, style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp)
                 .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f), CircleShape)

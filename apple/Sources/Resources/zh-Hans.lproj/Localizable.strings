@@ -494,4 +494,4 @@
 
 "map.preview.unavailable" = "预览暂不可用";
 
-"colors.gesture" = "按住照片后拖动取色，双指缩放或移动照片。";
+"colors.gesture" = "触摸或点击照片即可取色，拖动调整，双指缩放或移动。";

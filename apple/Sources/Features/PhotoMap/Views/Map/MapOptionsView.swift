@@ -31,11 +31,12 @@ struct MapOptionsView: View {
 
     @ViewBuilder
     private var optionSections: some View {
-        Section("year.filter.title") {
+        Section {
             Picker("year.filter.title", selection: $session.selectedYear) {
                 Text(L10n.YearFilter.all).tag(nil as Int?)
                 ForEach(session.availableYears, id: \.self) { Text($0, format: .number.grouping(.never)).tag(Optional($0)) }
             }
+            .tint(.secondary)
         }
         if session.displayMode == .heatmap {
             Section("sidebar.display.mode") {
@@ -53,11 +54,17 @@ struct MapOptionsView: View {
             Picker("map.appearance", selection: $session.options.appearance) {
                 ForEach(MapAppearance.allCases) { Text($0.title).tag($0) }
             }
-            Toggle("map.traffic", isOn: $session.options.traffic)
-            Toggle("map.points", isOn: $session.options.pointsOfInterest)
-            Toggle("map.elevation", isOn: $session.options.realisticElevation)
-            Toggle("map.compass", isOn: $session.options.compass)
-            Toggle("map.scale", isOn: $session.options.scale)
+            .tint(.secondary)
+            Group {
+                Toggle("map.traffic", isOn: $session.options.traffic)
+                Toggle("map.points", isOn: $session.options.pointsOfInterest)
+                Toggle("map.elevation", isOn: $session.options.realisticElevation)
+                Toggle("map.compass", isOn: $session.options.compass)
+                Toggle("map.scale", isOn: $session.options.scale)
+            }
+#if os(iOS)
+            .tint(.green)
+#endif
         }
     }
 }

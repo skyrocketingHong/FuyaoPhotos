@@ -70,12 +70,12 @@ private struct ColorSamplingLens: View {
             .clipShape(.circle)
             .overlay { Circle().strokeBorder(.white.opacity(0.95), lineWidth: 2.5) }
             .overlay {
-                Image(systemName: "plus").font(.system(size: 16, weight: .medium))
+                Image(systemName: "plus").font(.body.weight(.medium))
                     .foregroundStyle(.white).shadow(color: .black, radius: 1)
             }
             .overlay(alignment: .bottom) {
                 if let hex {
-                    Text(verbatim: hex).font(.system(size: 12, weight: .medium, design: .monospaced))
+                    Text(verbatim: hex).font(.caption.monospaced().weight(.medium))
                         .foregroundStyle(.primary).padding(.horizontal, 5).padding(.vertical, 2)
                         .background(.regularMaterial, in: .capsule).padding(.bottom, 10)
                 }
