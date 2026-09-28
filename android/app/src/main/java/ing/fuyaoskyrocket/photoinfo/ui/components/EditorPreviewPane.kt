@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoIconButton
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.DevelopVeil
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 import ing.fuyaoskyrocket.photoinfo.platform.MotionClipSource
 import kotlinx.coroutines.launch
@@ -57,7 +58,7 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                         if(page!=selectedIndex) { focus.clearFocus(force=true);keyboard?.hide();onSelectPhoto(page) }
                     }
                 }
-                Box(Modifier.fillMaxSize()) {
+                DevelopVeil(Modifier.fillMaxSize()) {
                 HorizontalPager(state=pager,key={ state.photos[it].id },modifier=Modifier.fillMaxSize().semantics {
                     stateDescription=position
                     customActions=buildList {

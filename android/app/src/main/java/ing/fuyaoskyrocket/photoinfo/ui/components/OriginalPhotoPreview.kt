@@ -14,6 +14,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.presentation.OriginalPhoto
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.DevelopVeil
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 
 enum class OriginalPreviewMode { PHOTO, MOTION, DEPTH }
@@ -41,7 +42,7 @@ internal fun OriginalPhotoSummary(photo: OriginalPhoto, controls: OriginalPrevie
     Box(Modifier.fillMaxWidth()) {
         PhotoAmbientBackdrop(photo.bitmap, modifier = Modifier.matchParentSize())
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.fillMaxWidth().aspectRatio(4f / 3f), contentAlignment = Alignment.Center) {
+            DevelopVeil(Modifier.fillMaxWidth().aspectRatio(4f / 3f), contentAlignment = Alignment.Center) {
                 val displayed = if (controls.mode == OriginalPreviewMode.DEPTH) depth else photo.bitmap
                 if (displayed != null) Image(displayed.asImageBitmap(),
                     stringResource(if (controls.mode == OriginalPreviewMode.DEPTH) R.string.portrait_depth_preview else R.string.original_preview),

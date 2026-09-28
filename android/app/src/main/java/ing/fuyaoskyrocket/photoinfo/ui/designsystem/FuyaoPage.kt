@@ -1,6 +1,7 @@
 package ing.fuyaoskyrocket.photoinfo.ui.designsystem
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -16,6 +17,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
@@ -29,11 +33,33 @@ fun FuyaoPageIntro(title: String, description: String, @DrawableRes icon: Int,
     Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.padding(FuyaoSpacing.cardInset), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(painterResource(icon), null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
+            ViewfinderMark(painterResource(icon))
             Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
             Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             actions()
         }
+    }
+}
+
+/** Camera-viewfinder framing for page intros: bracket corners around the page symbol. */
+@Composable
+private fun ViewfinderMark(icon: Painter, modifier: Modifier = Modifier) {
+    val bracket = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(modifier.size(44.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val inset = 2.dp.toPx()
+            val arm = 11.dp.toPx()
+            val stroke = 2.dp.toPx()
+            fun corner(x: Float, y: Float, dx: Float, dy: Float) {
+                drawLine(bracket, Offset(x, y), Offset(x + dx * arm, y), stroke, StrokeCap.Round)
+                drawLine(bracket, Offset(x, y), Offset(x, y + dy * arm), stroke, StrokeCap.Round)
+            }
+            corner(inset, inset, 1f, 1f)
+            corner(size.width - inset, inset, -1f, 1f)
+            corner(inset, size.height - inset, 1f, -1f)
+            corner(size.width - inset, size.height - inset, -1f, -1f)
+        }
+        Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
     }
 }
 
