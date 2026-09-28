@@ -44,4 +44,31 @@ import SwiftUI
         pendingMetadataAssetIDs = ids
         selectedTab = .metadata
     }
+
+    /// The page whose photo picker the macOS File > Open command should present; consumed by that page.
+    var openPickerRequest: Tab?
+    /// The page whose save sheet the macOS File > Save command should present; consumed by that page.
+    var saveSheetRequest: Tab?
+
+    /// Menu-bar Open: route to the selected photo page, falling back to cards.
+    func requestOpenPhotos() {
+        let tab = Tab.photoTabs.contains(selectedTab) ? selectedTab : .cards
+        if tab != selectedTab { selectedTab = tab }
+        openPickerRequest = tab
+    }
+
+    /// Menu-bar Save: prefer the selected page when it can save, else cards, else metadata.
+    func requestSave() {
+        let savable: [Tab] = [.cards, .metadata]
+        let candidate = savable.contains(selectedTab) ? selectedTab : nil
+        let tab = ([candidate].compactMap { $0 } + savable).first { session(for: $0).current != nil }
+        guard let tab else { return }
+        if tab != selectedTab { selectedTab = tab }
+        saveSheetRequest = tab
+    }
+
+    /// Whether any page that offers saving currently has a photo, for the menu-bar Save command.
+    var hasOpenPhotos: Bool {
+        [.cards, .metadata].contains { session(for: $0).current != nil }
+    }
 }

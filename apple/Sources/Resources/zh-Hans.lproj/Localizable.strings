@@ -182,6 +182,8 @@
 "map.heat.radius" = "热区范围";
 "map.heat.opacity" = "热区强度";
 "card.open" = "打开照片";
+"menu.open.photos" = "打开照片…";
+"menu.save.photos" = "保存照片…";
 "card.save" = "全部保存";
 "card.close" = "关闭照片";
 "card.close.one" = "关闭照片";

@@ -51,6 +51,14 @@ struct PhotoCardScreen: View {
         .sensoryFeedback(.success, trigger: session.savedCount) { (_: Int?, newValue: Int?) in newValue != nil }
         .onChange(of: workspace.pendingAssetIDs) { (_: [String]?, _: [String]?) in handlePendingImport() }
         .onChange(of: session.busy) { (_: Bool, busy: Bool) in if !busy { handlePendingImport() } }
+        .onChange(of: workspace.openPickerRequest) { _, requested in
+            if requested == .cards { workspace.openPickerRequest = nil; choosePhotos() }
+        }
+        .onChange(of: workspace.saveSheetRequest) { _, requested in
+            if requested == .cards, session.current != nil {
+                workspace.saveSheetRequest = nil; presentSaveOptions()
+            }
+        }
         .onChange(of: CardPreferences.shared.resolveLocation) { (_: Bool, enabled: Bool) in
             if !enabled { session.cancelLocationLookup() }
         }
@@ -107,7 +115,9 @@ struct PhotoCardScreen: View {
                     Section {
                         PhotoPageIntro(title: "tab.cards", description: "card.empty.description", symbol: "photo.badge.plus")
                         Button("card.open", action: choosePhotos)
+#if os(iOS)
                             .keyboardShortcut("o")
+#endif
                     }
                 }
                 .photoPageForm()
@@ -126,7 +136,9 @@ struct PhotoCardScreen: View {
             ToolbarItem(placement: .primaryAction) {
                 Button("card.open", systemImage: "photo.badge.plus", action: choosePhotosFromToolbar)
                     .labelStyle(.iconOnly).buttonBorderShape(.circle)
+#if os(iOS)
                     .keyboardShortcut("o")
+#endif
                     .confirmationDialog(replaceTitle, isPresented: $showingToolbarReplace, titleVisibility: .visible) {
                         Button("card.replace", role: .destructive, action: replacePhotos)
                         Button("card.cancel", role: .cancel) { replacementIDs = nil }
@@ -135,7 +147,9 @@ struct PhotoCardScreen: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button(saveActionTitle, systemImage: "checkmark", action: presentSaveOptions)
                     .labelStyle(.iconOnly).buttonBorderShape(.circle)
+#if os(iOS)
                     .keyboardShortcut("s")
+#endif
             }
             ToolbarItem(placement: .secondaryAction) {
                 Menu("card.more", systemImage: "ellipsis") {

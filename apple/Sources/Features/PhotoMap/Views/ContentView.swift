@@ -2,7 +2,7 @@ import SwiftUI
 import MapKit
 
 struct ContentView: View {
-    @State private var workspace = PhotoWorkspace()
+    @Bindable var workspace: PhotoWorkspace
     @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
     private var darkroomCards: Bool { cardAppearance == CardAppearance.darkroom.rawValue }
     var body: some View {

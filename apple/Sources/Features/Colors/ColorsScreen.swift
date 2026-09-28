@@ -41,6 +41,12 @@ struct ColorsScreen: View {
 #endif
         }
         .task(id: session.current?.sourceURL) { await sampling.load(session.current) }
+        .onChange(of: workspace.openPickerRequest) { _, requested in
+            if requested == .colors { workspace.openPickerRequest = nil; request(.photos) }
+        }
+        .onChange(of: workspace.saveSheetRequest) { _, requested in
+            if requested == .colors { workspace.saveSheetRequest = nil }
+        }
         .sheet(isPresented: $showingPicker) {
             NativePhotoPicker { results in
                 showingPicker = false

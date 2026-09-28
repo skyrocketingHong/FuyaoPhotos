@@ -48,6 +48,14 @@ struct MetadataScreen: View {
         .task(id: session.current?.id) { state.refresh(document: session.current) }
         .onChange(of: workspace.pendingMetadataAssetIDs) { _, _ in handleHandoff() }
         .onChange(of: session.busy) { _, busy in if !busy { handleHandoff() } }
+        .onChange(of: workspace.openPickerRequest) { _, requested in
+            if requested == .metadata { workspace.openPickerRequest = nil; choosePhoto() }
+        }
+        .onChange(of: workspace.saveSheetRequest) { _, requested in
+            guard requested == .metadata else { return }
+            workspace.saveSheetRequest = nil
+            if let document = session.current, state.hasPendingAdd(document) { showingSave = true }
+        }
         .onAppear(perform: handleHandoff)
         .sheet(isPresented: $showingPicker) {
             NativePhotoPicker { results in
