@@ -31,5 +31,6 @@ struct YearFilterMenu: View {
                 .font(DesignConstants.FontSize.body)
                 .symbolRenderingMode(.hierarchical)
         }
+        .accessibilityLabel(Text("year.filter.title"))
     }
 }
