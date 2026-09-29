@@ -157,6 +157,14 @@ internal data class HeifImageContainer(
         val toneTargets = listOf(primary) + items.filter { it.type == "tmap" }.map { it.id }
         val mainProperties = items.single { it.id == primary }.properties
         fun propertyType(index: Int) = String(properties[index - 1], 4, 4, Charsets.US_ASCII)
+        // Read before this function attaches its own empty sky placeholder; the Xiaomi
+        // portrait conversion has already written its real portrait matte into the file.
+        fun auxUrn(item: Item): String? = item.properties.mapNotNull { property ->
+            val raw = properties[property.index - 1]
+            if (String(raw, 4, 4, Charsets.US_ASCII) == "auxC")
+                String(raw, 12, raw.size - 12, Charsets.US_ASCII).trimEnd('\u0000') else null
+        }.singleOrNull()
+        val personMasksValid = items.any { auxUrn(it) in AppleStyleMetadata.SEMANTIC_MATTE_URNS }
         val colrIndex = mainProperties.firstOrNull { propertyType(it.index) == "colr" }?.index
         val irotIndex = mainProperties.firstOrNull { propertyType(it.index) == "irot" }?.index
         var next = items.maxOf { it.id } + 1
@@ -222,7 +230,7 @@ internal data class HeifImageContainer(
         newItems += Item(styleID, "uri ",
             // Apple's own files name this item "metadata" and identify it by content type.
             ("metadata\u0000" + AppleStyleMetadata.STYLES_CONTENT_TYPE + "\u0000").toByteArray(),
-            AppleStyleMetadata.styleMetadata(scene), hidden = true)
+            AppleStyleMetadata.styleMetadata(scene, personMasksValid), hidden = true)
         newReferences += Reference("cdsc", styleID, toneTargets)
         return copy(items = newItems, properties = props, references = newReferences)
     }
