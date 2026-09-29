@@ -19,7 +19,7 @@ struct AppleStyleMetadataTests {
         let payload = AppleStyleMetadata.styleMetadata(scene: .init(
             blackPoint: 0.002, p02: 0.01, p10: 0.03, p25: 0.08, p50: 0.2, p75: 0.45, p98: 0.9, whitePoint: 0.99,
             lightMapC: [UInt8](repeating: 0xfc, count: 2048),
-            lightMapD: [UInt8](repeating: 0x4e, count: 2048)), personMasksValid: false)
+            lightMapD: [UInt8](repeating: 0x4e, count: 2048)))
         #expect(String(decoding: payload[0..<8], as: UTF8.self) == "bplist00")
         let trailer = payload.count - 32
         let offsetSize = Int(payload[trailer + 6])
@@ -56,7 +56,7 @@ struct AppleStyleMetadataTests {
         let scene = AppleStyleMetadata.SceneSample(
             blackPoint: 0.001, p02: 0.02, p10: 0.1, p25: 0.25, p50: 0.5, p75: 0.75, p98: 0.98, whitePoint: 0.999,
             lightMapC: [UInt8](repeating: 1, count: 2048), lightMapD: [UInt8](repeating: 2, count: 2048))
-        let payload = AppleStyleMetadata.styleMetadata(scene: scene, personMasksValid: false)
+        let payload = AppleStyleMetadata.styleMetadata(scene: scene)
         let plist = try PropertyListSerialization.propertyList(from: Data(payload), options: [], format: nil) as! [String: Any]
         let stats = plist["6"] as! [String: Any]
         let tone = stats["ToneMappedImage"] as! [String: Any]
@@ -74,11 +74,60 @@ struct AppleStyleMetadataTests {
         let masks = plist["7"] as! [String: Any]
         #expect(masks["PersonMasksValidHint"] as! Double == -1.0)
         #expect(masks["SkinRatio"] as! Double == 0.0 && masks["PeopleRatio"] as! Double == 0.0)
+    }
 
-        let announced = try PropertyListSerialization.propertyList(
-            from: Data(AppleStyleMetadata.styleMetadata(scene: scene, personMasksValid: true)),
-            options: [], format: nil) as! [String: Any]
-        #expect((announced["7"] as! [String: Any])["PersonMasksValidHint"] as! Double == 1.0)
+    @Test func neutralizedHintPatchesOurOwnPayloadAndStaysLengthPreserving() throws {
+        // Our payload carries exactly one -1.0 real (the hint); flip it to +1.0 to
+        // imitate a "person masks valid" announcement, then neutralize.
+        let payload = AppleStyleMetadata.styleMetadata(scene: testSceneValues())
+        let negative: [UInt8] = [0x23, 0xbf, 0xf0, 0, 0, 0, 0, 0, 0]
+        let at = try #require(Data(payload).range(of: Data(negative))).lowerBound
+        var announced = payload
+        announced[at + 1] = 0x3f
+        let patched = try AppleStyleMetadata.neutralizedPersonMasksHint(announced)
+        #expect(patched == payload)
+        #expect(try AppleStyleMetadata.neutralizedPersonMasksHint(patched) == patched)
+    }
+
+    @Test func neutralizedHintPatchesNative32BitReals() throws {
+        // Minimal binary plist {"7": {"PersonMasksValidHint": 1.0f32}} using the
+        // 4-byte reals Apple's own writer emits.
+        var hintKey = [0x5f, 0x10, UInt8("PersonMasksValidHint".utf8.count)]
+        hintKey.append(contentsOf: Array("PersonMasksValidHint".utf8))
+        let objects: [[UInt8]] = [
+            [0xd1, 1, 2],                 // 0: top dict {"7"(1): inner(2)}
+            [0x51, UInt8(ascii: "7")],    // 1
+            [0xd1, 3, 4],                 // 2: inner dict {hint(3): value(4)}
+            hintKey,                      // 3
+            [0x22, 0x3f, 0x80, 0x00, 0x00], // 4: 1.0f32
+        ]
+        var payload: [UInt8] = Array("bplist00".utf8)
+        var offsets: [Int] = []
+        for object in objects {
+            offsets.append(payload.count)
+            payload.append(contentsOf: object)
+        }
+        let tableAt = payload.count
+        for offset in offsets { payload.append(UInt8(offset)) }
+        var trailer = [UInt8](repeating: 0, count: 32)
+        trailer[6] = 1; trailer[7] = 1
+        trailer.replaceSubrange(8..<16, with: [0, 0, 0, 0, 0, 0, 0, UInt8(objects.count)])
+        trailer.replaceSubrange(24..<32, with: [0, 0, 0, 0, 0, 0, 0, UInt8(tableAt)])
+        payload.append(contentsOf: trailer)
+
+        let patched = try AppleStyleMetadata.neutralizedPersonMasksHint(payload)
+        #expect(patched.count == payload.count)
+        #expect(Array(patched[(offsets[4] + 1)...(offsets[4] + 4)]) == [0xbf, 0x80, 0x00, 0x00])
+        var unknown = payload
+        unknown[offsets[4] + 1] = 0x40
+        #expect(throws: (any Error).self) {
+            _ = try AppleStyleMetadata.neutralizedPersonMasksHint(unknown)
+        }
+    }
+
+    private func testSceneValues() -> AppleStyleMetadata.SceneSample {
+        .init(blackPoint: 0.001, p02: 0.02, p10: 0.1, p25: 0.25, p50: 0.5, p75: 0.75, p98: 0.98, whitePoint: 0.999,
+              lightMapC: [UInt8](repeating: 1, count: 2048), lightMapD: [UInt8](repeating: 2, count: 2048))
     }
 
     @Test func stylesNoteKeepsAppleEntryLayout() {

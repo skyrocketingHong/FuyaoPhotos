@@ -166,7 +166,7 @@ struct StyleInjectionTests {
         #expect(container.items.contains { $0.type == "Exif" })
     }
 
-    @Test func portraitMatteSourceAnnouncesUsablePersonMasks() throws {
+    @Test func portraitMatteUpgradeNeutralizesTheNativePersonMasksHint() throws {
         let folder = try temporaryFolder()
         let source = folder.appendingPathComponent("portrait-matte.heic")
         let image = CIImage(color: CIColor(red: 0.3, green: 0.5, blue: 0.7)).cropped(to: CGRect(x: 0, y: 0, width: 256, height: 192))
@@ -174,19 +174,29 @@ struct StyleInjectionTests {
         try CIContext().writeHEIFRepresentation(of: image, to: source, format: .RGBA8,
                                                 colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!,
                                                 options: [.portraitEffectsMatteImage: matte])
-        let loaded = try HeifContainer.load(fileURL: source)
-        #expect(loaded.items.contains {
-            loaded.auxCURN(of: $0.id) == "urn:com:apple:photo:2018:aux:portraiteffectsmatte"
-        })
-
-        let output = folder.appendingPathComponent("styled.heic")
+        // Stand in for a native styled photo: our own styles item with the hint
+        // byte-patched to +1.0 (the state native captures ship).
+        let styled = folder.appendingPathComponent("styled.heic")
         try StyleInjection.inject(source: source, kind: .heicWithAuxiliaryData, hdr: false, addPhotographic: true,
-                                  addTexture: false, grainSeedName: "IMG_7.jpg", destination: output)
+                                  addTexture: false, grainSeedName: "IMG_7.jpg", destination: styled)
+        let styledContainer = try HeifContainer.load(fileURL: styled)
+        let styledItem = try #require(styledContainer.items.first { $0.type == "uri " })
+        var announced = try styledContainer.payload(of: styledItem.id)
+        let at = try #require(Data(announced).range(of: Data([0x23, 0xbf, 0xf0, 0, 0, 0, 0, 0, 0]))).lowerBound
+        announced[at + 1] = 0x3f
+
+        let output = folder.appendingPathComponent("textured.heic")
+        try StyleInjection.inject(source: styled, kind: .heicWithAuxiliaryData, hdr: false, addPhotographic: false,
+                                  addTexture: true, grainSeedName: "IMG_7.jpg", destination: output)
         let container = try HeifContainer.load(fileURL: output)
+        #expect(container.stylesCoverage.texture)
         let styleItem = try #require(container.items.first { $0.type == "uri " })
-        let plist = try PropertyListSerialization.propertyList(from: Data(try container.payload(of: styleItem.id)),
-                                                               options: [], format: nil) as! [String: Any]
-        #expect((plist["7"] as! [String: Any])["PersonMasksValidHint"] as! Double == 1.0)
+        let payload = try container.payload(of: styleItem.id)
+        #expect(payload.count == announced.count)
+        #expect(payload[at + 1] == 0xbf, "hint must flip back to -1.0")
+        var expected = announced
+        expected[at + 1] = 0xbf
+        #expect(payload == expected, "only the hint sign byte may change")
         // The capture matte itself survives the surgical pass untouched.
         #expect(container.items.contains {
             container.auxCURN(of: $0.id) == "urn:com:apple:photo:2018:aux:portraiteffectsmatte"

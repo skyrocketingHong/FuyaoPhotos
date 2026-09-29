@@ -102,15 +102,18 @@ nonisolated enum StyleInjection {
         }
         if applyTexture, let matte {
             applyTextureStyles(&container, textureInfo: AppleTextureStyles.textureInfoPayload(
-                grainSeed: AppleTextureStyles.grainSeedFor(grainSeedName)), matte: matte,
-                               shared: orientation.shared)
+                grainSeed: AppleTextureStyles.grainSeedFor(grainSeedName)), matte: matte)
         }
         // A photo that already carries a (native) 2023 style stack keeps its MakerNote
-        // byte-identical when only the texture layer is added: tag 84's runtime plist
-        // must stay consistent with the photo's real style item, or the iOS Photos
-        // editor crashes reconciling the two (macOS tolerates the mismatch).
+        // and styles payload byte-identical when only the texture layer is added, the
+        // add-texture contract of nathanatgit/Shalielie: tag 84's runtime plist stays
+        // consistent with the photo's real style item. The one exception is the person
+        // mask hint below, which the blank mattes make unsafe.
         if applyPhotographic {
             try applyStyleMakerNote(&container, styleIdentifier: AppleStyleMetadata.newIdentifier())
+        }
+        if !applyPhotographic, applyTexture {
+            try neutralizePersonMasksHint(&container)
         }
 
         do {
@@ -175,8 +178,6 @@ nonisolated enum StyleInjection {
                                                 sky: HevcAuxStill.EncodedStill, scene: AppleStyleMetadata.SceneSample,
                                                 shared: [HeifContainer.PropertyAssociation]) {
         let toneTargets = container.toneTargets
-        // Read before this function adds its own empty sky placeholder.
-        let personMasksValid = carriesSemanticMattes(container)
         let primaryAssociations = container.associations(of: container.primary)
         let colrIndex = primaryAssociations.first { container.propertyType($0.index) == "colr" }?.index
 
@@ -218,21 +219,15 @@ nonisolated enum StyleInjection {
         let styleID = container.addHiddenItem(
             type: "uri ",
             infoSuffix: Array("metadata\0\(AppleStyleMetadata.stylesContentType)\0".utf8),
-            payload: AppleStyleMetadata.styleMetadata(scene: scene, personMasksValid: personMasksValid),
-            properties: [])
+            payload: AppleStyleMetadata.styleMetadata(scene: scene), properties: [])
         container.addReference(type: "cdsc", from: styleID, to: toneTargets)
     }
 
-    private static func carriesSemanticMattes(_ container: HeifContainer) -> Bool {
-        container.items.contains { item in
-            guard let urn = container.auxCURN(of: item.id) else { return false }
-            return AppleStyleMetadata.semanticMatteURNs.contains(urn)
-        }
-    }
-
+    // The blank mattes stay at the device-validated property shape without irot: they
+    // carry no orientation information of their own, and unlike native mattes their
+    // content never needs to register with the photo.
     private static func applyTextureStyles(_ container: inout HeifContainer, textureInfo: [UInt8],
-                                           matte: HevcAuxStill.EncodedStill,
-                                           shared: [HeifContainer.PropertyAssociation]) {
+                                           matte: HevcAuxStill.EncodedStill) {
         let toneTargets = container.toneTargets
         let ispe = container.appendProperty(HeifContainer.ispeBox(AppleTextureStyles.matteWidth,
                                                                   AppleTextureStyles.matteHeight))
@@ -242,7 +237,7 @@ nonisolated enum StyleInjection {
             let auxC = container.appendProperty(HeifContainer.auxCBox(urn))
             let id = container.addHiddenItem(type: "hvc1", infoSuffix: [0], payload: matte.payload, properties: [
                 .init(index: ispe, essential: false), .init(index: pixi, essential: false),
-                .init(index: auxC, essential: true), .init(index: hvcc, essential: true)] + shared)
+                .init(index: auxC, essential: true), .init(index: hvcc, essential: true)])
             container.addReference(type: "auxl", from: id, to: toneTargets)
         }
         let textureID = container.addHiddenItem(
@@ -292,6 +287,26 @@ nonisolated enum StyleInjection {
             }
         }
         return (angle, mirror, shared)
+    }
+
+    /// Flips the existing styles item's PersonMasksValidHint to -1.0: the blank 2026
+    /// mattes this injector adds cannot back a "valid" announcement, and Photos' style
+    /// V2 pipeline aborts on the combination (device-verified editor crash on both
+    /// platforms). Length-preserving, so every other payload byte stays identical.
+    private static func neutralizePersonMasksHint(_ container: inout HeifContainer) throws {
+        guard let styleItem = container.items.first(where: { item in
+            item.type == "uri " && container.contentType(of: item) == AppleStyleMetadata.stylesContentType
+        }) else { return }
+        let payload = (try? container.payload(of: styleItem.id)) ?? []
+        let patched: [UInt8]
+        do {
+            patched = try AppleStyleMetadata.neutralizedPersonMasksHint(payload)
+        } catch let error as AppleStylePayloadError {
+            throw StyleInjectionError.encodingFailed("\(error)")
+        }
+        if patched != payload {
+            try container.rehomeItemPayload(id: styleItem.id, newPayload: patched)
+        }
     }
 
     /// The style MakerNote rides the merged Apple MakerNote; native captures keep their

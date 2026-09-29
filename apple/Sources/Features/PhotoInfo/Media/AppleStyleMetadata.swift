@@ -16,20 +16,6 @@ nonisolated enum AppleStyleMetadata {
     static let skyMatteVersion = 65536
     private static let styleBlocks = 864
 
-    /// The Apple capture pipeline's 2018-2020 semantic matte family. A container that
-    /// already carries one of these holds real segmentation data, so the styles plist
-    /// announces usable person masks (PersonMasksValidHint = 1.0); native captures
-    /// without segmentation keep the -1.0 the reference ships. Detection must run before
-    /// this injector adds its own empty sky placeholder.
-    static let semanticMatteURNs: Set<String> = [
-        "urn:com:apple:photo:2018:aux:portraiteffectsmatte",
-        "urn:com:apple:photo:2019:aux:semanticskinmatte",
-        "urn:com:apple:photo:2019:aux:semantichairmatte",
-        "urn:com:apple:photo:2019:aux:semanticteethmatte",
-        "urn:com:apple:photo:2020:aux:semanticglassesmatte",
-        "urn:com:apple:photo:2020:aux:semanticskymatte",
-    ]
-
     /// Scene fields derived from one photo: key '6' percentiles of the linearized display
     /// luma (ToneMappedImage; LinearImage is the same signal scaled by linearImageScale)
     /// and the 32x32 little-endian FP16 c/d light maps, stored rotated 180 degrees from
@@ -126,10 +112,78 @@ nonisolated enum AppleStyleMetadata {
 
     static func newIdentifier() -> String { UUID().uuidString.uppercased() }
 
+    /// Flips PersonMasksValidHint to -1.0 inside an existing styles payload, in place
+    /// and length-preserving. A photo whose native style announces usable person masks
+    /// (hint 1.0) crashes the Photos style V2 pipeline once this injector adds its blank
+    /// 2026 mattes; the honest state for placeholder mattes is "unusable". Native files
+    /// write 32-bit reals, this writer 64-bit; both are patched. Returns the payload
+    /// unchanged when there is no hint to fix; throws when a hint exists but is neither
+    /// +1.0 nor -1.0 (an unknown state this patcher must not guess about).
+    static func neutralizedPersonMasksHint(_ payload: [UInt8]) throws -> [UInt8] {
+        func fail(_ reason: String) -> AppleStylePayloadError { .invalid("styles key 7: \(reason)") }
+        guard payload.count > 40, Array(payload.prefix(8)) == Array("bplist00".utf8) else {
+            throw fail("not a binary plist")
+        }
+        let trailer = payload.count - 32
+        let offsetSize = Int(payload[trailer + 6])
+        let refSize = Int(payload[trailer + 7])
+        guard [1, 2, 4].contains(offsetSize), [1, 2].contains(refSize) else { throw fail("trailer") }
+        func u(_ at: Int, _ size: Int) -> Int {
+            (0..<size).reduce(0) { ($0 << 8) | Int(payload[at + $1]) }
+        }
+        let topRef = u(trailer + 16, 8)
+        let tableAt = u(trailer + 24, 8)
+        func objectOffset(_ ref: Int) -> Int { u(tableAt + ref * offsetSize, offsetSize) }
+        func refAt(_ at: Int) -> Int { u(at, refSize) }
+        func count(marker: Int, at: Int) -> (count: Int, body: Int) {
+            let low = payload[marker] & 0x0f
+            if low != 15 { return (Int(low), at) }
+            let sizeMarker = payload[at] & 0x0f
+            return (u(at + 1, 1 << sizeMarker), at + 1 + (1 << sizeMarker))
+        }
+        func string(_ ref: Int) -> String? {
+            let at = objectOffset(ref)
+            guard payload[at] & 0xf0 == 0x50 else { return nil }
+            let parsed = count(marker: at, at: at + 1)
+            guard parsed.body + parsed.count <= payload.count else { return nil }
+            return String(decoding: payload[parsed.body..<(parsed.body + parsed.count)], as: UTF8.self)
+        }
+        func dict(_ ref: Int) -> [(key: Int, value: Int)]? {
+            let at = objectOffset(ref)
+            guard payload[at] & 0xf0 == 0xd0 else { return nil }
+            let parsed = count(marker: at, at: at + 1)
+            var entries: [(Int, Int)] = []
+            for index in 0..<parsed.count {
+                entries.append((refAt(parsed.body + index * refSize),
+                                refAt(parsed.body + (parsed.count + index) * refSize)))
+            }
+            return entries
+        }
+        guard let top = dict(topRef),
+              let seven = top.first(where: { string($0.key) == "7" })?.value,
+              let sevenDict = dict(seven),
+              let hintRef = sevenDict.first(where: { string($0.key) == "PersonMasksValidHint" })?.value else {
+            return payload
+        }
+        let at = objectOffset(hintRef)
+        let width = payload[at] & 0x0f
+        guard payload[at] & 0xf0 == 0x20, width == 2 || width == 3 else { throw fail("hint marker") }
+        let bytes = 1 << width
+        guard at + 1 + bytes <= payload.count else { throw fail("hint bounds") }
+        var out = payload
+        let positive: [UInt8] = width == 2 ? [0x3f, 0x80, 0x00, 0x00] : [0x3f, 0xf0, 0, 0, 0, 0, 0, 0]
+        let negative: [UInt8] = width == 2 ? [0xbf, 0x80, 0x00, 0x00] : [0xbf, 0xf0, 0, 0, 0, 0, 0, 0]
+        let current = Array(payload[(at + 1)..<(at + 1 + bytes)])
+        if current == negative { return payload }
+        guard current == positive else { throw fail("hint value \(current.map { String(format: "%02x", $0) }.joined())") }
+        out.replaceSubrange((at + 1)..<(at + 1 + bytes), with: negative)
+        return out
+    }
+
     /// The styleMetadata binary plist describing an identity (Standard) photographic style.
     /// Object creation order must match the Android port; the scene values themselves are
     /// measured from the photo being styled, so the two ports agree on layout, not bytes.
-    static func styleMetadata(scene: SceneSample, personMasksValid: Bool) -> [UInt8] {
+    static func styleMetadata(scene: SceneSample) -> [UInt8] {
         var writer = BplistWriter()
         let k0 = writer.addStr("0"); let v0 = writer.addInt(15)
         let kf = writer.addStr("f"); let vf = writer.addInt(32)
@@ -151,7 +205,10 @@ nonisolated enum AppleStyleMetadata {
         let k3 = writer.addStr("3"); let v3 = writer.addData(AppleStyleGolden.FIELD_3)
         let ke = writer.addStr("e"); let ve = writer.addInt(32)
         let k7 = writer.addStr("7")
-        let a7 = writer.addStr("PersonMasksValidHint"); let av7 = writer.addReal(personMasksValid ? 1.0 : -1.0)
+        // The injected person mattes are empty placeholders, so the hint must stay -1.0:
+        // a 1.0 announcement makes Photos' style V2 pipeline connect its person-aware
+        // stage and abort on the blank 2026 mattes (device-verified editor crash).
+        let a7 = writer.addStr("PersonMasksValidHint"); let av7 = writer.addReal(-1.0)
         let b7 = writer.addStr("SkinRatio"); let bv7 = writer.addReal(0.0)
         let c7 = writer.addStr("PeopleRatio"); let cv7 = writer.addReal(0.0)
         let v7 = writer.addDict([(a7, av7), (b7, bv7), (c7, cv7)])
