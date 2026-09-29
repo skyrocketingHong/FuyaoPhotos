@@ -2,7 +2,6 @@ package ing.fuyaoskyrocket.photoinfo
 
 import ing.fuyaoskyrocket.photoinfo.domain.media.AppleStyleMetadata
 import ing.fuyaoskyrocket.photoinfo.domain.media.HeifImageContainer
-import ing.fuyaoskyrocket.photoinfo.domain.media.IsoBmff
 import java.io.File
 import java.nio.ByteBuffer
 import org.junit.Assert.*
@@ -22,7 +21,7 @@ class AppleStyleMetadataTest {
     }
 
     @Test fun styleMetadataCarriesTheGoldenContract() {
-        val payload = AppleStyleMetadata.styleMetadata(testScene(), personMasksValid = false)
+        val payload = AppleStyleMetadata.styleMetadata(testScene())
         assertEquals("bplist00", String(payload, 0, 8, Charsets.US_ASCII))
         val trailer = payload.size - 32
         val offsetSize = payload[trailer + 6].toInt()
@@ -78,36 +77,14 @@ class AppleStyleMetadataTest {
         assertTrue(516 in dataLengths)
     }
 
-    @Test fun styleMetadataAnnouncesPersonMasksOnlyThroughTheHintSign() {
-        // 1.0 and -1.0 share every payload byte except the sign of one 8-byte real.
-        val plain = AppleStyleMetadata.styleMetadata(testScene(), personMasksValid = false)
-        val announced = AppleStyleMetadata.styleMetadata(testScene(), personMasksValid = true)
-        assertEquals(plain.size, announced.size)
-        val diffs = (plain.indices).filter { plain[it] != announced[it] }
-        assertEquals(1, diffs.size)
-        assertEquals(0xbf, plain[diffs[0]].toInt() and 255)
-        assertEquals(0x3f, announced[diffs[0]].toInt() and 255)
-    }
-
-    @Test fun styleLayerDetectsCarriedSemanticMattes() {
-        val base = HeifImageContainer.read(fixture("base"))
-        val urn = "urn:com:apple:photo:2018:aux:portraiteffectsmatte"
-        val auxC = IsoBmff.full("auxC", payload = (urn + "\u0000").toByteArray())
-        val matte = HeifImageContainer.Item(
-            base.items.maxOf { it.id } + 1, "hvc1", byteArrayOf(0), ByteArray(8),
-            listOf(HeifImageContainer.Property(base.properties.size + 1, true)))
-        val withMatte = base.copy(items = base.items + matte, properties = base.properties + auxC)
-
-        fun stylePayload(container: HeifImageContainer): ByteArray =
-            container.withPhotographicStyles(2880, 2470, true, null, null, testScene())
-                .items.single { it.type == "uri " }.payload
-        val plain = stylePayload(base)
-        val announced = stylePayload(withMatte)
-        assertEquals(plain.size, announced.size)
-        val diffs = (plain.indices).filter { plain[it] != announced[it] }
-        assertEquals(1, diffs.size)
-        assertEquals(0xbf, plain[diffs[0]].toInt() and 255)
-        assertEquals(0x3f, announced[diffs[0]].toInt() and 255)
+    @Test fun styleMetadataAlwaysAnnouncesPlaceholderPersonMasksAsUnusable() {
+        // The 2026 mattes this app writes are blank placeholders; a "valid" announcement
+        // crashes Photos' style V2 pipeline on them (device finding), so the hint real
+        // must stay the -1.0 reference in every payload this app emits.
+        val payload = AppleStyleMetadata.styleMetadata(testScene())
+        val pattern = "23bff00000000000"
+        val hex = StringBuilder(payload.size * 2).also { b -> for (byte in payload) b.append("%02x".format(byte)) }.toString()
+        assertTrue(hex.contains(pattern))
     }
 
     @Test fun stylesNoteKeepsAppleEntryLayout() {

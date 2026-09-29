@@ -18,21 +18,6 @@ internal object AppleStyleMetadata {
     const val SKY_MATTE_VERSION = 65536
     private const val STYLE_BLOCKS = 864
 
-    /**
-     * The Apple capture pipeline's 2018-2020 semantic matte family. A container that
-     * already carries one of these holds real segmentation data, so the styles plist
-     * announces usable person masks (PersonMasksValidHint = 1.0); re-encoded sources
-     * without segmentation keep the -1.0 the reference ships.
-     */
-    val SEMANTIC_MATTE_URNS = setOf(
-        "urn:com:apple:photo:2018:aux:portraiteffectsmatte",
-        "urn:com:apple:photo:2019:aux:semanticskinmatte",
-        "urn:com:apple:photo:2019:aux:semantichairmatte",
-        "urn:com:apple:photo:2019:aux:semanticteethmatte",
-        "urn:com:apple:photo:2020:aux:semanticglassesmatte",
-        "urn:com:apple:photo:2020:aux:semanticskymatte",
-    )
-
     /** AF Measured Depth donor value from the device-verified reference (millimetres). */
     private const val AF_DEPTH_DONOR_MM = 54
 
@@ -78,7 +63,7 @@ internal object AppleStyleMetadata {
      * Object creation order matches the Apple port; the scene values themselves are
      * measured from the photo being styled, so the two ports agree on layout, not bytes.
      */
-    fun styleMetadata(scene: StyleSceneSample, personMasksValid: Boolean): ByteArray {
+    fun styleMetadata(scene: StyleSceneSample): ByteArray {
         val writer = BplistWriter()
         val top = writer.run {
             val k0 = addStr("0"); val v0 = addInt(15)
@@ -104,7 +89,10 @@ internal object AppleStyleMetadata {
             val ke = addStr("e"); val ve = addInt(32)
             val k7 = addStr("7")
             val v7 = run {
-                val a = addStr("PersonMasksValidHint"); val av = addReal(if (personMasksValid) 1.0 else -1.0)
+                // The injected person mattes are empty placeholders, so the hint stays -1.0:
+                // a 1.0 announcement makes Photos' style V2 pipeline connect its
+                // person-aware stage and abort on the blank 2026 mattes (device crash).
+                val a = addStr("PersonMasksValidHint"); val av = addReal(-1.0)
                 val b = addStr("SkinRatio"); val bv = addReal(0.0)
                 val c = addStr("PeopleRatio"); val cv = addReal(0.0)
                 addDict(listOf(a to av, b to bv, c to cv))
