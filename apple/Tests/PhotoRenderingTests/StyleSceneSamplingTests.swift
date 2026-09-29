@@ -156,6 +156,15 @@ struct StyleSceneSamplingTests {
         try verifyDecodable(output, width: 240, height: 320)
     }
 
+    @Test func halfFloatBitsMatchesTheFloat16API() {
+        let values: [Float] = [0, 0.5, 1, 2, -0.5, 0.3115234375, 0.040741, 0.4181,
+                               1.00048828125, 1.00146484375, 6.1e-5, 3.0e-5, 0.999, 65504]
+        for value in values {
+            #expect(AppleStyleMetadata.SceneSample.halfFloatBits(value) == Float16(value).bitPattern,
+                    "value \(value)")
+        }
+    }
+
     // MARK: Helpers
 
     private func temporaryFolder() throws -> URL {

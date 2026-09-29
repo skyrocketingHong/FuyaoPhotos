@@ -61,11 +61,39 @@ nonisolated enum AppleStyleMetadata {
             out.reserveCapacity(storedLinearLumaReversed.count * 2)
             for value in storedLinearLumaReversed {
                 let clamped = min(max(slope * value + intercept, lightMapFloor), 1.0)
-                let bits = Float16(clamped).bitPattern
+                let bits = halfFloatBits(Float(clamped))
                 out.append(UInt8(truncatingIfNeeded: bits))
                 out.append(UInt8(truncatingIfNeeded: bits >> 8))
             }
             return out
+        }
+
+        /// IEEE 754 binary16 with round-to-nearest-even, mirroring the Android port.
+        /// Written in integer math: the app target's isolation flags fail to type the
+        /// Float16 API even though the package build accepts it.
+        static func halfFloatBits(_ value: Float) -> UInt16 {
+            let bits = value.bitPattern
+            let sign = UInt16((bits >> 16) & 0x8000)
+            let exponent = Int((bits >> 23) & 0xff)
+            let mantissa = bits & 0x007fffff
+            if exponent == 0xff { return sign | 0x7c00 | (mantissa != 0 ? 0x0200 : 0) }
+            let biased = exponent - 127 + 15
+            if biased >= 0x1f { return sign | 0x7c00 }
+            if biased <= 0 {
+                if biased < -10 { return sign }
+                let m = mantissa | 0x00800000
+                let shift = 14 - biased
+                var half = m >> shift
+                let roundBit = (m >> (shift - 1)) & 1
+                let sticky = (m & ((1 << (shift - 1)) - 1)) != 0
+                if roundBit == 1 && (sticky || (half & 1) == 1) { half += 1 }
+                return sign | UInt16(half)
+            }
+            var half = (UInt16(biased) << 10) | UInt16(mantissa >> 13)
+            let roundBit = (mantissa >> 12) & 1
+            let sticky = (mantissa & 0xfff) != 0
+            if roundBit == 1 && (sticky || (half & 1) == 1) { half += 1 }
+            return sign | half
         }
     }
 
