@@ -39,12 +39,14 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             context.getString(R.string.image_encoder_unavailable)
         }
         require(media.bitDepth<=8 || format in setOf(ExportFormat.AVIF,ExportFormat.HEIC)) { context.getString(R.string.avif_precision_required) }
-        val paired = options.separateLivePhoto && media.motion != null
         val convertPortrait = options.applePortrait && media.portraitTail != null
         require(!convertPortrait || format==ExportFormat.HEIC) { context.getString(R.string.portrait_heic_required) }
         // HDR, live pairing, portrait conversion and style injection are independent;
         // each only constrains the format (HDR-capable, pairing-capable, HEIC).
         val injectStyle = options.appleStyle && format == ExportFormat.HEIC
+        // A styled photo saves as a still: Photos crashes editing a Live pair whose
+        // still carries the style layers (the video side has no matching style state).
+        val paired = options.separateLivePhoto && media.motion != null && !injectStyle
         require(!options.appleStyle || format==ExportFormat.HEIC) { context.getString(R.string.style_heic_required) }
         // The native texture-styles contract keeps the 2023 styles item alongside it.
         val injectStyle3 = options.appleStyle3 && format == ExportFormat.HEIC
