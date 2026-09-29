@@ -105,7 +105,13 @@ nonisolated enum StyleInjection {
                 grainSeed: AppleTextureStyles.grainSeedFor(grainSeedName)), matte: matte,
                                shared: orientation.shared)
         }
-        try applyStyleMakerNote(&container, styleIdentifier: AppleStyleMetadata.newIdentifier())
+        // A photo that already carries a (native) 2023 style stack keeps its MakerNote
+        // byte-identical when only the texture layer is added: tag 84's runtime plist
+        // must stay consistent with the photo's real style item, or the iOS Photos
+        // editor crashes reconciling the two (macOS tolerates the mismatch).
+        if applyPhotographic {
+            try applyStyleMakerNote(&container, styleIdentifier: AppleStyleMetadata.newIdentifier())
+        }
 
         do {
             try container.write(to: destination)

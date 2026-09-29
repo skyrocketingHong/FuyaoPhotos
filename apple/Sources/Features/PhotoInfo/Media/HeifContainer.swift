@@ -65,6 +65,13 @@ nonisolated struct HeifContainer {
 
     private var maxItemID: UInt32 { items.map(\.id).max() ?? 0 }
 
+    /// Entity-to-group ids share the item-id space: a group id that equals an item id
+    /// is a parse error for MediaToolbox. Apple's own writer picks max item id + 1 for
+    /// its altr group, so appended items must clear the reserved group ids too.
+    private var nextAvailableID: UInt32 {
+        max(maxItemID, reservedGroupIDs().max() ?? 0) + 1
+    }
+
     // MARK: Loading
 
     nonisolated static func load(fileURL: URL) throws -> HeifContainer {
@@ -435,7 +442,7 @@ nonisolated struct HeifContainer {
     @discardableResult
     mutating func addHiddenItem(type: String, infoSuffix: [UInt8], payload: [UInt8],
                                 properties newProperties: [PropertyAssociation]) -> UInt32 {
-        let id = maxItemID + 1
+        let id = nextAvailableID
         items.append(Item(id: id, type: type, infoSuffix: infoSuffix, hidden: true,
                           constructionMethod: 0, baseOffset: 0, extents: []))
         associations[id] = newProperties
@@ -581,7 +588,7 @@ nonisolated struct HeifContainer {
                 if let tone = tmapIDs.first, !hasAltrGroup(containing: tone) {
                     body.append(contentsOf: Self.box("grpl", versioned: false) { out in
                         out.append(contentsOf: Self.box("altr", versioned: true) { group in
-                            appendBE(maxItemID + 1, into: &group)
+                            appendBE(nextAvailableID, into: &group)
                             appendBE(2, into: &group)
                             appendBE(tone, into: &group)
                             appendBE(primary, into: &group)
@@ -736,20 +743,49 @@ nonisolated struct HeifContainer {
         return bytes
     }
 
-    private func hasAltrGroup(containing id: UInt32) -> Bool {
-        guard let grpl = metaChildren.first(where: { $0.type == "grpl" }) else { return false }
+    /// Entity-to-group entries of one grpl box, or nil when neither the FullBox nor the
+    /// plain-children interpretation parses cleanly. Each entry body is the layout Apple
+    /// and this writer both use: FullBox version/flags, group id, entity count, u32 ids.
+    private func groupEntries(_ grpl: RawBox) -> [(id: UInt32, members: [UInt32])]? {
         for offset in [4, 0] {
             let start = grpl.payload + offset
-            guard start <= grpl.end, let groups = try? Self.boxes(in: original, from: start, to: grpl.end) else { continue }
-            for group in groups where group.type == "altr" {
+            guard start <= grpl.end,
+                  let groups = try? Self.boxes(in: original, from: start, to: grpl.end),
+                  let last = groups.last, !groups.isEmpty, last.end == grpl.end else { continue }
+            var entries: [(UInt32, [UInt32])] = []
+            var valid = true
+            for group in groups {
+                let length = group.end - group.payload
+                guard length >= 12, (length - 12) % 4 == 0 else { valid = false; break }
                 var reader = Reader(original, group.payload, group.end)
-                guard let _ = try? reader.u32(), let count = try? Int(reader.u32()), count <= 4096 else { continue }
+                guard let _ = try? reader.u32(), let id = try? reader.u32(),
+                      let count = try? Int(reader.u32()), count <= 4096,
+                      length == 12 + count * 4, id <= 0xFFFF else { valid = false; break }
                 var members: [UInt32] = []
                 for _ in 0..<count {
-                    guard let member = try? reader.u32() else { break }
+                    guard let member = try? reader.u32() else { valid = false; break }
                     members.append(member)
                 }
-                if members.contains(id) { return true }
+                if !valid { break }
+                entries.append((id, members))
+            }
+            if valid { return entries }
+        }
+        return nil
+    }
+
+    private func reservedGroupIDs() -> Set<UInt32> {
+        var reserved = Set<UInt32>()
+        for grpl in metaChildren where grpl.type == "grpl" {
+            reserved.formUnion((groupEntries(grpl) ?? []).map(\.id))
+        }
+        return reserved
+    }
+
+    private func hasAltrGroup(containing id: UInt32) -> Bool {
+        for grpl in metaChildren where grpl.type == "grpl" {
+            for entry in groupEntries(grpl) ?? [] where entry.members.contains(id) {
+                return true
             }
         }
         return false

@@ -248,6 +248,36 @@ struct StyleInjectionTests {
         #expect(readU32(linearIspe, 16) == 768)
     }
 
+    @Test func textureUpgradeKeepsGroupIDsApartAndTheMakerNoteByteIdentical() throws {
+        let folder = try temporaryFolder()
+        let source = folder.appendingPathComponent("hdr.heic")
+        try writeSDRHEIC(to: source, width: 256, height: 256, hdr: true)
+        let standard = folder.appendingPathComponent("standard.heic")
+        try StyleInjection.inject(source: source, kind: .heicWithAuxiliaryData, hdr: true, addPhotographic: true,
+                                  addTexture: false, grainSeedName: "IMG_1.jpg", destination: standard)
+
+        let first = try HeifContainer.load(fileURL: standard)
+        let exifBefore = try #require(first.items.first { $0.type == "Exif" })
+        let noteBefore = try first.payload(of: exifBefore.id)
+        // The first pass writes the altr group one id past the last item; the second
+        // pass's new items must not reuse it (a group id equal to an item id fails
+        // MediaToolbox parsing, which is how Xiaomi-transferred HEICs broke verify).
+        let standardBytes = try Data(contentsOf: standard)
+        let altrAt = try #require(standardBytes.range(of: Data("altr".utf8))).lowerBound
+        let groupID = (0..<4).reduce(UInt32(0)) { ($0 << 8) | UInt32(standardBytes[altrAt + 8 + $1]) }
+        #expect(groupID > 0 && !first.items.contains { $0.id == groupID })
+
+        let output = folder.appendingPathComponent("textured.heic")
+        try StyleInjection.inject(source: standard, kind: .heicWithAuxiliaryData, hdr: true, addPhotographic: false,
+                                  addTexture: true, grainSeedName: "IMG_2.jpg", destination: output)
+        let second = try HeifContainer.load(fileURL: output)
+        #expect(second.stylesCoverage.texture)
+        #expect(!second.items.contains { $0.id == groupID })
+        let exifAfter = try #require(second.items.first { $0.type == "Exif" })
+        #expect(try second.payload(of: exifAfter.id) == noteBefore)
+        try verifyDecodable(output, width: 256, height: 256)
+    }
+
     // MARK: Helpers
 
     private func temporaryFolder() throws -> URL {
