@@ -134,7 +134,8 @@ import Observation
             let metadata = try await CardImageProcessor.shared.read(output, author: "")
             try await MetadataPhotoLibrary.save(photo: output, document: document,
                                                 updateOriginal: updateOriginal,
-                                                textureStyles: addTexture, options: options)
+                                                textureStyles: addTexture,
+                                                styled: addPhotographic || addTexture, options: options)
             if updateOriginal {
                 document.applyMetadataUpdate(source: output, metadata: metadata)
                 try? FileManager.default.removeItem(at: source)

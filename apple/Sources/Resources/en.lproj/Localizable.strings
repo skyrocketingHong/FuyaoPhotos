@@ -352,7 +352,7 @@
 "metadata.styles.value.unavailable" = "Unavailable";
 "metadata.styles.standard" = "Add Photographic Styles (Standard)";
 "metadata.styles.texture" = "Add Texture Styles (Texture and Grain)";
-"metadata.styles.footer" = "Texture styles require the Standard layer. Tap Save to Photos to choose a new copy or, when available, update the original. The result is HEIC; a Live Photo keeps its pairing when saved as a new copy.";
+"metadata.styles.footer" = "Texture styles require the Standard layer. Tap Save to Photos to choose a new copy or, when available, update the original. The result is HEIC; adding style layers saves a Live Photo as a still image.";
 
 "metadata.report.section.container" = "Container";
 "metadata.report.section.container.description" = "File format and container details that can be read from this photo.";

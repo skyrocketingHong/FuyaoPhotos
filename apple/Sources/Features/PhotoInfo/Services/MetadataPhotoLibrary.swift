@@ -4,10 +4,11 @@ import UniformTypeIdentifiers
 import ImageIO
 
 /// Library writes for metadata-only changes: the injected HEIC becomes a new asset, or
-/// replaces the rendered content of the original through content-editing output. Live
-/// Photo pairing rides along on save-as-new because the injected photo keeps tag 17.
+/// replaces the rendered content of the original through content-editing output.
+/// Metadata-only saves keep the Live pairing; style-layer saves drop it (still).
 @MainActor enum MetadataPhotoLibrary {
     static func save(photo: URL, document: CardDocument, updateOriginal: Bool, textureStyles: Bool,
+                     styled: Bool = false,
                      options: CardSaveOptions = CardSaveOptions(keepLocation: true)) async throws {
         guard let imageSource = CGImageSourceCreateWithURL(photo as CFURL, nil),
               let identifier = CGImageSourceGetType(imageSource), let type = UTType(identifier as String) else { throw CardError.invalidImage }
@@ -33,9 +34,12 @@ import ImageIO
                 if !options.keepCaptureTime { request.creationDate = Date() }
             }
         } else {
+            // Style layers save the photo as a still: Photos crashes editing a Live
+            // pair whose still carries the style layers, because the video side has
+            // no matching style state.
             var movie: URL?
             defer { if let movie { try? FileManager.default.removeItem(at: movie) } }
-            if let original = document.sourceMovieURL {
+            if !styled, let original = document.sourceMovieURL {
                 let target = photo.deletingPathExtension().appendingPathExtension("mov")
                 try await LivePhotoMovie.copy(from: original, to: target, options: options)
                 movie = target

@@ -352,7 +352,7 @@
 "metadata.styles.value.unavailable" = "不可用";
 "metadata.styles.standard" = "添加摄影风格（Standard）";
 "metadata.styles.texture" = "添加质感风格（纹理与颗粒）";
-"metadata.styles.footer" = "质感风格依赖摄影风格（Standard）层。点按“保存到照片图库”后，可选择另存为新照片，或在支持时更新原照片。输出为 HEIC；另存 Live Photo 时会保留配对。";
+"metadata.styles.footer" = "质感风格依赖摄影风格（Standard）层。点按“保存到照片图库”后，可选择另存为新照片，或在支持时更新原照片。输出为 HEIC；添加风格层的 Live Photo 会另存为静态照片。";
 
 "metadata.report.section.container" = "容器";
 "metadata.report.section.container.description" = "显示可从这张照片读取的文件格式与封装信息。";
