@@ -169,6 +169,8 @@ nonisolated enum StyleInjection {
                                                 sky: HevcAuxStill.EncodedStill, scene: AppleStyleMetadata.SceneSample,
                                                 shared: [HeifContainer.PropertyAssociation]) {
         let toneTargets = container.toneTargets
+        // Read before this function adds its own empty sky placeholder.
+        let personMasksValid = carriesSemanticMattes(container)
         let primaryAssociations = container.associations(of: container.primary)
         let colrIndex = primaryAssociations.first { container.propertyType($0.index) == "colr" }?.index
 
@@ -210,8 +212,16 @@ nonisolated enum StyleInjection {
         let styleID = container.addHiddenItem(
             type: "uri ",
             infoSuffix: Array("metadata\0\(AppleStyleMetadata.stylesContentType)\0".utf8),
-            payload: AppleStyleMetadata.styleMetadata(scene: scene), properties: [])
+            payload: AppleStyleMetadata.styleMetadata(scene: scene, personMasksValid: personMasksValid),
+            properties: [])
         container.addReference(type: "cdsc", from: styleID, to: toneTargets)
+    }
+
+    private static func carriesSemanticMattes(_ container: HeifContainer) -> Bool {
+        container.items.contains { item in
+            guard let urn = container.auxCURN(of: item.id) else { return false }
+            return AppleStyleMetadata.semanticMatteURNs.contains(urn)
+        }
     }
 
     private static func applyTextureStyles(_ container: inout HeifContainer, textureInfo: [UInt8],

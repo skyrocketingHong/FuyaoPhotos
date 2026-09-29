@@ -16,6 +16,20 @@ nonisolated enum AppleStyleMetadata {
     static let skyMatteVersion = 65536
     private static let styleBlocks = 864
 
+    /// The Apple capture pipeline's 2018-2020 semantic matte family. A container that
+    /// already carries one of these holds real segmentation data, so the styles plist
+    /// announces usable person masks (PersonMasksValidHint = 1.0); native captures
+    /// without segmentation keep the -1.0 the reference ships. Detection must run before
+    /// this injector adds its own empty sky placeholder.
+    static let semanticMatteURNs: Set<String> = [
+        "urn:com:apple:photo:2018:aux:portraiteffectsmatte",
+        "urn:com:apple:photo:2019:aux:semanticskinmatte",
+        "urn:com:apple:photo:2019:aux:semantichairmatte",
+        "urn:com:apple:photo:2019:aux:semanticteethmatte",
+        "urn:com:apple:photo:2020:aux:semanticglassesmatte",
+        "urn:com:apple:photo:2020:aux:semanticskymatte",
+    ]
+
     /// Scene fields derived from one photo: key '6' percentiles of the linearized display
     /// luma (ToneMappedImage; LinearImage is the same signal scaled by linearImageScale)
     /// and the 32x32 little-endian FP16 c/d light maps, stored rotated 180 degrees from
@@ -87,7 +101,7 @@ nonisolated enum AppleStyleMetadata {
     /// The styleMetadata binary plist describing an identity (Standard) photographic style.
     /// Object creation order must match the Android port; the scene values themselves are
     /// measured from the photo being styled, so the two ports agree on layout, not bytes.
-    static func styleMetadata(scene: SceneSample) -> [UInt8] {
+    static func styleMetadata(scene: SceneSample, personMasksValid: Bool) -> [UInt8] {
         var writer = BplistWriter()
         let k0 = writer.addStr("0"); let v0 = writer.addInt(15)
         let kf = writer.addStr("f"); let vf = writer.addInt(32)
@@ -109,7 +123,7 @@ nonisolated enum AppleStyleMetadata {
         let k3 = writer.addStr("3"); let v3 = writer.addData(AppleStyleGolden.FIELD_3)
         let ke = writer.addStr("e"); let ve = writer.addInt(32)
         let k7 = writer.addStr("7")
-        let a7 = writer.addStr("PersonMasksValidHint"); let av7 = writer.addReal(-1.0)
+        let a7 = writer.addStr("PersonMasksValidHint"); let av7 = writer.addReal(personMasksValid ? 1.0 : -1.0)
         let b7 = writer.addStr("SkinRatio"); let bv7 = writer.addReal(0.0)
         let c7 = writer.addStr("PeopleRatio"); let cv7 = writer.addReal(0.0)
         let v7 = writer.addDict([(a7, av7), (b7, bv7), (c7, cv7)])

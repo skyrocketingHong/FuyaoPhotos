@@ -19,7 +19,7 @@ struct AppleStyleMetadataTests {
         let payload = AppleStyleMetadata.styleMetadata(scene: .init(
             blackPoint: 0.002, p02: 0.01, p10: 0.03, p25: 0.08, p50: 0.2, p75: 0.45, p98: 0.9, whitePoint: 0.99,
             lightMapC: [UInt8](repeating: 0xfc, count: 2048),
-            lightMapD: [UInt8](repeating: 0x4e, count: 2048)))
+            lightMapD: [UInt8](repeating: 0x4e, count: 2048)), personMasksValid: false)
         #expect(String(decoding: payload[0..<8], as: UTF8.self) == "bplist00")
         let trailer = payload.count - 32
         let offsetSize = Int(payload[trailer + 6])
@@ -53,9 +53,10 @@ struct AppleStyleMetadataTests {
     }
 
     @Test func styleMetadataCarriesMeasuredSceneStatistics() throws {
-        let payload = AppleStyleMetadata.styleMetadata(scene: .init(
+        let scene = AppleStyleMetadata.SceneSample(
             blackPoint: 0.001, p02: 0.02, p10: 0.1, p25: 0.25, p50: 0.5, p75: 0.75, p98: 0.98, whitePoint: 0.999,
-            lightMapC: [UInt8](repeating: 1, count: 2048), lightMapD: [UInt8](repeating: 2, count: 2048)))
+            lightMapC: [UInt8](repeating: 1, count: 2048), lightMapD: [UInt8](repeating: 2, count: 2048))
+        let payload = AppleStyleMetadata.styleMetadata(scene: scene, personMasksValid: false)
         let plist = try PropertyListSerialization.propertyList(from: Data(payload), options: [], format: nil) as! [String: Any]
         let stats = plist["6"] as! [String: Any]
         let tone = stats["ToneMappedImage"] as! [String: Any]
@@ -70,6 +71,14 @@ struct AppleStyleMetadataTests {
         #expect((plist["c"] as! Data).count == 2048)
         #expect((plist["d"] as! Data).count == 2048)
         #expect((plist["e"] as! Int) == 32 && (plist["f"] as! Int) == 32)
+        let masks = plist["7"] as! [String: Any]
+        #expect(masks["PersonMasksValidHint"] as! Double == -1.0)
+        #expect(masks["SkinRatio"] as! Double == 0.0 && masks["PeopleRatio"] as! Double == 0.0)
+
+        let announced = try PropertyListSerialization.propertyList(
+            from: Data(AppleStyleMetadata.styleMetadata(scene: scene, personMasksValid: true)),
+            options: [], format: nil) as! [String: Any]
+        #expect((announced["7"] as! [String: Any])["PersonMasksValidHint"] as! Double == 1.0)
     }
 
     @Test func stylesNoteKeepsAppleEntryLayout() {

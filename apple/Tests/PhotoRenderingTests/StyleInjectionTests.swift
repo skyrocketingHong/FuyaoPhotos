@@ -166,6 +166,47 @@ struct StyleInjectionTests {
         #expect(container.items.contains { $0.type == "Exif" })
     }
 
+    @Test func portraitMatteSourceAnnouncesUsablePersonMasks() throws {
+        let folder = try temporaryFolder()
+        let source = folder.appendingPathComponent("portrait-matte.heic")
+        let image = CIImage(color: CIColor(red: 0.3, green: 0.5, blue: 0.7)).cropped(to: CGRect(x: 0, y: 0, width: 256, height: 192))
+        let matte = CIImage(color: .white).cropped(to: CGRect(x: 0, y: 0, width: 64, height: 48))
+        try CIContext().writeHEIFRepresentation(of: image, to: source, format: .RGBA8,
+                                                colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!,
+                                                options: [.portraitEffectsMatteImage: matte])
+        let loaded = try HeifContainer.load(fileURL: source)
+        #expect(loaded.items.contains {
+            loaded.auxCURN(of: $0.id) == "urn:com:apple:photo:2018:aux:portraiteffectsmatte"
+        })
+
+        let output = folder.appendingPathComponent("styled.heic")
+        try StyleInjection.inject(source: source, kind: .heicWithAuxiliaryData, hdr: false, addPhotographic: true,
+                                  addTexture: false, grainSeedName: "IMG_7.jpg", destination: output)
+        let container = try HeifContainer.load(fileURL: output)
+        let styleItem = try #require(container.items.first { $0.type == "uri " })
+        let plist = try PropertyListSerialization.propertyList(from: Data(try container.payload(of: styleItem.id)),
+                                                               options: [], format: nil) as! [String: Any]
+        #expect((plist["7"] as! [String: Any])["PersonMasksValidHint"] as! Double == 1.0)
+        // The capture matte itself survives the surgical pass untouched.
+        #expect(container.items.contains {
+            container.auxCURN(of: $0.id) == "urn:com:apple:photo:2018:aux:portraiteffectsmatte"
+        })
+    }
+
+    @Test func plainSourcesKeepTheReferencePersonMasksHint() throws {
+        let folder = try temporaryFolder()
+        let source = folder.appendingPathComponent("source.heic")
+        try writeSDRHEIC(to: source, width: 256, height: 192, hdr: false)
+        let output = folder.appendingPathComponent("styled.heic")
+        try StyleInjection.inject(source: source, kind: .stillHEIC, hdr: false, addPhotographic: true,
+                                  addTexture: false, grainSeedName: "IMG_7.jpg", destination: output)
+        let container = try HeifContainer.load(fileURL: output)
+        let styleItem = try #require(container.items.first { $0.type == "uri " })
+        let plist = try PropertyListSerialization.propertyList(from: Data(try container.payload(of: styleItem.id)),
+                                                               options: [], format: nil) as! [String: Any]
+        #expect((plist["7"] as! [String: Any])["PersonMasksValidHint"] as! Double == -1.0)
+    }
+
     @Test func motionSourcesAreRefusedWithAReason() throws {
         let folder = try temporaryFolder()
         do {
