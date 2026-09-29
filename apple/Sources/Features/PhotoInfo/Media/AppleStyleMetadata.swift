@@ -6,6 +6,8 @@ nonisolated enum AppleStylePayloadError: Error {
 
 /// Apple Photographic Styles payload, ported from the device-verified layout of
 /// BeetMan/XDRemux-Flutter (Apache-2.0): an identity Standard style injected into HEIF.
+/// The scene statistics and c/d light maps are measured from the photo being styled,
+/// following the phone-validated calibration of nathanatgit/Shalielie (MIT).
 nonisolated enum AppleStyleMetadata {
     static let stylesContentType = "tag:apple.com,2023:photo:metadata:styles"
     static let deltaMapURN = "tag:apple.com,2023:photo:aux:styledeltamap"
@@ -13,6 +15,45 @@ nonisolated enum AppleStyleMetadata {
     static let skyMatteURN = "urn:com:apple:photo:2020:aux:semanticskymatte"
     static let skyMatteVersion = 65536
     private static let styleBlocks = 864
+
+    /// Scene fields derived from one photo: key '6' percentiles of the linearized display
+    /// luma (ToneMappedImage; LinearImage is the same signal scaled by linearImageScale)
+    /// and the 32x32 little-endian FP16 c/d light maps, stored rotated 180 degrees from
+    /// the primary's stored orientation and floored at lightMapFloor.
+    nonisolated struct SceneSample {
+        static let linearImageScale = 0.166
+        static let lightMapFloor = 0.040741
+        static let cSlope = 0.7774
+        static let cIntercept = 0.0294
+        static let dSlope = 0.6542
+        static let dIntercept = -0.0128
+        // highKey is not scene-derived; the reference values travel with every style file.
+        static let toneMappedHighKey = 0.5505164861679077
+        static let linearHighKey = 0.9925689101216177
+
+        var blackPoint: Double
+        var p02: Double
+        var p10: Double
+        var p25: Double
+        var p50: Double
+        var p75: Double
+        var p98: Double
+        var whitePoint: Double
+        var lightMapC: [UInt8]
+        var lightMapD: [UInt8]
+
+        static func fittedLightMap(storedLinearLumaReversed: [Double], slope: Double, intercept: Double) -> [UInt8] {
+            var out = [UInt8]()
+            out.reserveCapacity(storedLinearLumaReversed.count * 2)
+            for value in storedLinearLumaReversed {
+                let clamped = min(max(slope * value + intercept, lightMapFloor), 1.0)
+                let bits = Float16(clamped).bitPattern
+                out.append(UInt8(truncatingIfNeeded: bits))
+                out.append(UInt8(truncatingIfNeeded: bits >> 8))
+            }
+            return out
+        }
+    }
 
     static var skyMatteXMP: String {
         """
@@ -44,8 +85,9 @@ nonisolated enum AppleStyleMetadata {
     static func newIdentifier() -> String { UUID().uuidString.uppercased() }
 
     /// The styleMetadata binary plist describing an identity (Standard) photographic style.
-    /// Object creation order must match the Android port byte for byte.
-    static func styleMetadata() -> [UInt8] {
+    /// Object creation order must match the Android port; the scene values themselves are
+    /// measured from the photo being styled, so the two ports agree on layout, not bytes.
+    static func styleMetadata(scene: SceneSample) -> [UInt8] {
         var writer = BplistWriter()
         let k0 = writer.addStr("0"); let v0 = writer.addInt(15)
         let kf = writer.addStr("f"); let vf = writer.addInt(32)
@@ -58,8 +100,8 @@ nonisolated enum AppleStyleMetadata {
         let bI = writer.addStr("OriginalRangeMax"); let bvI = writer.addReal(0.0762939453125)
         let cI = writer.addStr("Gain"); let cvI = writer.addReal(7.353515625)
         let vi = writer.addDict([(aI, avI), (bI, bvI), (cI, cvI)])
-        let k6 = writer.addStr("6"); let v6 = addStats(&writer)
-        let kc = writer.addStr("c"); let vc = writer.addData(AppleStyleGolden.FIELD_C)
+        let k6 = writer.addStr("6"); let v6 = addStats(&writer, scene: scene)
+        let kc = writer.addStr("c"); let vc = writer.addData(scene.lightMapC)
         let kk = writer.addStr("k"); let vk = writer.addBool(false)
         let kh = writer.addStr("h"); let vh = writer.addReal(1.8384023904800415)
         let k2 = writer.addStr("2"); let v2 = writer.addBool(true)
@@ -71,13 +113,13 @@ nonisolated enum AppleStyleMetadata {
         let b7 = writer.addStr("SkinRatio"); let bv7 = writer.addReal(0.0)
         let c7 = writer.addStr("PeopleRatio"); let cv7 = writer.addReal(0.0)
         let v7 = writer.addDict([(a7, av7), (b7, bv7), (c7, cv7)])
-        let kd = writer.addStr("d"); let vd = writer.addData(AppleStyleGolden.FIELD_D)
+        let kd = writer.addStr("d"); let vd = writer.addData(scene.lightMapD)
         let top = writer.addDict([(k0, v0), (kf, vf), (k1, v1), (kj, vj), (kg, vg), (k4, v4), (ki, vi), (k6, v6),
                                   (kc, vc), (kk, vk), (kh, vh), (k2, v2), (k5, v5), (k3, v3), (ke, ve), (k7, v7), (kd, vd)])
         return writer.finish(top: top)
     }
 
-    private static func addStats(_ writer: inout BplistWriter) -> Int {
+    private static func addStats(_ writer: inout BplistWriter, scene: SceneSample) -> Int {
         func zero(_ writer: inout BplistWriter) -> Int {
             var entries: [(Int, Int)] = []
             for key in ["highKey", "p75", "p25", "blackPoint", "p02", "p50", "whitePoint", "p10", "p98"] {
@@ -85,21 +127,18 @@ nonisolated enum AppleStyleMetadata {
             }
             return writer.addDict(entries)
         }
-        func toneMapped(_ writer: inout BplistWriter) -> Int {
-            let values: [(String, Double)] = [("p02", 0.0055912993848323805), ("p98", 1.0064338445663452),
-                                              ("p10", 0.016773898154497147), ("blackPoint", 0.0), ("p75", 0.24042586982250214),
-                                              ("highKey", 0.5505164861679077), ("whitePoint", 0.0), ("p50", 0.08946079015731809),
-                                              ("p25", 0.0279564969241619)]
+        func measured(_ writer: inout BplistWriter, scale: Double, highKey: Double) -> Int {
+            let values: [(String, Double)] = [("p02", scene.p02 * scale), ("p98", scene.p98 * scale),
+                                              ("p10", scene.p10 * scale), ("blackPoint", scene.blackPoint * scale),
+                                              ("p75", scene.p75 * scale), ("highKey", highKey),
+                                              ("whitePoint", scene.whitePoint * scale), ("p50", scene.p50 * scale),
+                                              ("p25", scene.p25 * scale)]
             return writer.addDict(values.map { (writer.addStr($0.0), writer.addReal($0.1)) })
         }
-        func linear(_ writer: inout BplistWriter) -> Int {
-            let values: [(String, Double)] = [("blackPoint", 0.0), ("whitePoint", 0.0), ("p02", 0.00032384536461904645),
-                                              ("p50", 0.0032384535297751427), ("highKey", 0.9925689101216177), ("p98", 0.04630988836288451),
-                                              ("p75", 0.009391515515744686), ("p25", 0.0009715360938571393), ("p10", 0.0006476907292380929)]
-            return writer.addDict(values.map { (writer.addStr($0.0), writer.addReal($0.1)) })
-        }
-        let values = [zero(&writer), zero(&writer), zero(&writer), zero(&writer), toneMapped(&writer),
-                      zero(&writer), linear(&writer), zero(&writer), zero(&writer), zero(&writer)]
+        let toneMapped = measured(&writer, scale: 1.0, highKey: SceneSample.toneMappedHighKey)
+        let linear = measured(&writer, scale: SceneSample.linearImageScale, highKey: SceneSample.linearHighKey)
+        let values = [zero(&writer), zero(&writer), zero(&writer), zero(&writer), toneMapped,
+                      zero(&writer), linear, zero(&writer), zero(&writer), zero(&writer)]
         let names = ["LinearImagePersonSegmentBased", "ToneMappedImageRedChannelSkinBased", "ToneMappedImagePersonSegmentBased",
                      "LinearGTCImage", "ToneMappedImage", "ToneMappedImageGreenChannelSkinBased", "LinearImage",
                      "LinearImageSkinBased", "ToneMappedImageBlueChannelSkinBased", "ToneMappedImageSkinBased"]

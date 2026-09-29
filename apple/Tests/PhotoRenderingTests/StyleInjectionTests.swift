@@ -194,7 +194,7 @@ struct StyleInjectionTests {
             | Int(AppleStyleGolden.textureMattePayload[2]) << 8 | Int(AppleStyleGolden.textureMattePayload[3])
         #expect(sliceLength == 108)
         #expect(AppleStyleGolden.textureMattePayload.count == 4 + sliceLength)
-        let linear = try HevcAuxStill.linearThumbnail(source: makeColorJPEG())
+        let linear = try HevcAuxStill.styleSceneSample(source: makeColorJPEG(), angle: 0, mirror: nil).thumbnail
         let linearHvcc = try #require(linear.properties.first {
             $0.count >= 8 && String(decoding: $0[4..<8], as: UTF8.self) == "hvcC"
         })

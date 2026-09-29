@@ -16,7 +16,10 @@ struct AppleStyleMetadataTests {
     }
 
     @Test func styleMetadataCarriesTheGoldenContract() throws {
-        let payload = AppleStyleMetadata.styleMetadata()
+        let payload = AppleStyleMetadata.styleMetadata(scene: .init(
+            blackPoint: 0.002, p02: 0.01, p10: 0.03, p25: 0.08, p50: 0.2, p75: 0.45, p98: 0.9, whitePoint: 0.99,
+            lightMapC: [UInt8](repeating: 0xfc, count: 2048),
+            lightMapD: [UInt8](repeating: 0x4e, count: 2048)))
         #expect(String(decoding: payload[0..<8], as: UTF8.self) == "bplist00")
         let trailer = payload.count - 32
         let offsetSize = Int(payload[trailer + 6])
@@ -47,6 +50,26 @@ struct AppleStyleMetadataTests {
         #expect(dataLengths.contains(51840))
         #expect(dataLengths.contains(2048))
         #expect(dataLengths.contains(516))
+    }
+
+    @Test func styleMetadataCarriesMeasuredSceneStatistics() throws {
+        let payload = AppleStyleMetadata.styleMetadata(scene: .init(
+            blackPoint: 0.001, p02: 0.02, p10: 0.1, p25: 0.25, p50: 0.5, p75: 0.75, p98: 0.98, whitePoint: 0.999,
+            lightMapC: [UInt8](repeating: 1, count: 2048), lightMapD: [UInt8](repeating: 2, count: 2048)))
+        let plist = try PropertyListSerialization.propertyList(from: Data(payload), options: [], format: nil) as! [String: Any]
+        let stats = plist["6"] as! [String: Any]
+        let tone = stats["ToneMappedImage"] as! [String: Any]
+        #expect(tone["p50"] as! Double == 0.5 && tone["blackPoint"] as! Double == 0.001
+                && tone["whitePoint"] as! Double == 0.999)
+        #expect(tone["highKey"] as! Double == AppleStyleMetadata.SceneSample.toneMappedHighKey)
+        let linear = stats["LinearImage"] as! [String: Any]
+        #expect(abs((linear["p50"] as! Double) - 0.5 * AppleStyleMetadata.SceneSample.linearImageScale) < 1e-12)
+        #expect(linear["highKey"] as! Double == AppleStyleMetadata.SceneSample.linearHighKey)
+        let zeroed = stats["LinearGTCImage"] as! [String: Any]
+        #expect(zeroed["p50"] as! Double == 0.0 && zeroed["highKey"] as! Double == 1.0)
+        #expect((plist["c"] as! Data).count == 2048)
+        #expect((plist["d"] as! Data).count == 2048)
+        #expect((plist["e"] as! Int) == 32 && (plist["f"] as! Int) == 32)
     }
 
     @Test func stylesNoteKeepsAppleEntryLayout() {

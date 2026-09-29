@@ -84,19 +84,26 @@ nonisolated enum StyleInjection {
                          HeifContainer.pixiBox(channels: [8]),
                          AppleStyleGolden.textureMatteHvcc])
         let matte: HevcAuxStill.EncodedStill? = applyTexture ? blackPlaceholder : nil
-        do {
-            if applyPhotographic {
-                let linear = try HevcAuxStill.linearThumbnail(source: source)
-                applyPhotographicStyles(&container, deltaWidth: fitted(dimensions.width),
-                                        deltaHeight: fitted(dimensions.height),
-                                        landscape: landscape, linear: linear, sky: blackPlaceholder)
+        // The style aux items live in the primary's stored frame; scene data and the
+        // thumbnail are un-rotated by the primary's own irot/imir before encoding.
+        let orientation = primaryOrientation(container)
+        if applyPhotographic {
+            let scene: (sample: AppleStyleMetadata.SceneSample, thumbnail: HevcAuxStill.EncodedStill)
+            do {
+                scene = try HevcAuxStill.styleSceneSample(source: source, angle: orientation.angle,
+                                                          mirror: orientation.mirror)
+            } catch let error as HevcAuxStillError {
+                throw StyleInjectionError.encodingFailed("\(error)")
             }
-        } catch let error as HevcAuxStillError {
-            throw StyleInjectionError.encodingFailed("\(error)")
+            applyPhotographicStyles(&container, deltaWidth: fitted(dimensions.width),
+                                    deltaHeight: fitted(dimensions.height),
+                                    landscape: landscape, linear: scene.thumbnail, sky: blackPlaceholder,
+                                    scene: scene.sample, shared: orientation.shared)
         }
         if applyTexture, let matte {
             applyTextureStyles(&container, textureInfo: AppleTextureStyles.textureInfoPayload(
-                grainSeed: AppleTextureStyles.grainSeedFor(grainSeedName)), matte: matte)
+                grainSeed: AppleTextureStyles.grainSeedFor(grainSeedName)), matte: matte,
+                               shared: orientation.shared)
         }
         try applyStyleMakerNote(&container, styleIdentifier: AppleStyleMetadata.newIdentifier())
 
@@ -159,11 +166,11 @@ nonisolated enum StyleInjection {
 
     private static func applyPhotographicStyles(_ container: inout HeifContainer, deltaWidth: Int, deltaHeight: Int,
                                                 landscape: Bool, linear: HevcAuxStill.EncodedStill,
-                                                sky: HevcAuxStill.EncodedStill) {
+                                                sky: HevcAuxStill.EncodedStill, scene: AppleStyleMetadata.SceneSample,
+                                                shared: [HeifContainer.PropertyAssociation]) {
         let toneTargets = container.toneTargets
         let primaryAssociations = container.associations(of: container.primary)
         let colrIndex = primaryAssociations.first { container.propertyType($0.index) == "colr" }?.index
-        let irotIndex = primaryAssociations.first { container.propertyType($0.index) == "irot" }?.index
 
         let ispe512 = container.appendProperty(HeifContainer.ispeBox(512, 512))
         let deltaHvcc = container.appendProperty(AppleStyleGolden.DELTA_HVCC)
@@ -184,7 +191,7 @@ nonisolated enum StyleInjection {
         gridProperties.append(.init(index: ispeDelta, essential: false))
         gridProperties.append(.init(index: pixiDelta, essential: false))
         gridProperties.append(.init(index: auxDelta, essential: true))
-        if let irotIndex { gridProperties.append(.init(index: irotIndex, essential: true)) }
+        gridProperties.append(contentsOf: shared)
         let rows = landscape ? 5 : 6
         let columns = landscape ? 6 : 5
         var gridPayload: [UInt8] = [0, 0, UInt8(rows - 1), UInt8(columns - 1)]
@@ -195,19 +202,21 @@ nonisolated enum StyleInjection {
         container.addReference(type: "dimg", from: gridID, to: tileIDs)
         container.addReference(type: "auxl", from: gridID, to: toneTargets)
 
-        attachEncoded(&container, linear, urn: AppleStyleMetadata.linearThumbnailURN, xmp: nil, toneTargets: toneTargets)
+        attachEncoded(&container, linear, urn: AppleStyleMetadata.linearThumbnailURN, xmp: nil,
+                      toneTargets: toneTargets, shared: shared)
         attachEncoded(&container, sky, urn: AppleStyleMetadata.skyMatteURN, xmp: AppleStyleMetadata.skyMatteXMP,
-                      toneTargets: toneTargets)
+                      toneTargets: toneTargets, shared: shared)
 
         let styleID = container.addHiddenItem(
             type: "uri ",
             infoSuffix: Array("metadata\0\(AppleStyleMetadata.stylesContentType)\0".utf8),
-            payload: AppleStyleMetadata.styleMetadata(), properties: [])
+            payload: AppleStyleMetadata.styleMetadata(scene: scene), properties: [])
         container.addReference(type: "cdsc", from: styleID, to: toneTargets)
     }
 
     private static func applyTextureStyles(_ container: inout HeifContainer, textureInfo: [UInt8],
-                                           matte: HevcAuxStill.EncodedStill) {
+                                           matte: HevcAuxStill.EncodedStill,
+                                           shared: [HeifContainer.PropertyAssociation]) {
         let toneTargets = container.toneTargets
         let ispe = container.appendProperty(HeifContainer.ispeBox(AppleTextureStyles.matteWidth,
                                                                   AppleTextureStyles.matteHeight))
@@ -217,7 +226,7 @@ nonisolated enum StyleInjection {
             let auxC = container.appendProperty(HeifContainer.auxCBox(urn))
             let id = container.addHiddenItem(type: "hvc1", infoSuffix: [0], payload: matte.payload, properties: [
                 .init(index: ispe, essential: false), .init(index: pixi, essential: false),
-                .init(index: auxC, essential: true), .init(index: hvcc, essential: true)])
+                .init(index: auxC, essential: true), .init(index: hvcc, essential: true)] + shared)
             container.addReference(type: "auxl", from: id, to: toneTargets)
         }
         let textureID = container.addHiddenItem(
@@ -228,11 +237,13 @@ nonisolated enum StyleInjection {
     }
 
     private static func attachEncoded(_ container: inout HeifContainer, _ still: HevcAuxStill.EncodedStill,
-                                      urn: String, xmp: String?, toneTargets: [UInt32]) {
+                                      urn: String, xmp: String?, toneTargets: [UInt32],
+                                      shared: [HeifContainer.PropertyAssociation]) {
         var imported: [HeifContainer.PropertyAssociation] = still.properties.map {
             .init(index: container.appendProperty($0), essential: false)
         }
         imported.append(.init(index: container.appendProperty(HeifContainer.auxCBox(urn)), essential: true))
+        imported.append(contentsOf: shared)
         let encodedID = container.addHiddenItem(type: "hvc1", infoSuffix: [0], payload: still.payload,
                                                 properties: imported)
         container.addReference(type: "auxl", from: encodedID, to: toneTargets)
@@ -242,6 +253,29 @@ nonisolated enum StyleInjection {
                                                     payload: Array(xmp.utf8), properties: [])
             container.addReference(type: "cdsc", from: sidecarID, to: [encodedID])
         }
+    }
+
+    /// The primary's irot/imir as display angle/mirror plus the property associations
+    /// every style aux item shares, so the whole style graph renders in one frame.
+    private static func primaryOrientation(_ container: HeifContainer)
+        -> (angle: Int, mirror: Int?, shared: [HeifContainer.PropertyAssociation]) {
+        var angle = 0
+        var mirror: Int?
+        var shared: [HeifContainer.PropertyAssociation] = []
+        for association in container.associations(of: container.primary) {
+            guard let type = container.propertyType(association.index),
+                  let raw = container.properties.indices.contains(association.index - 1)
+                      ? container.properties[association.index - 1] : nil, raw.count >= 9 else { continue }
+            if type == "irot" {
+                angle = Int(raw[8] & 3) * 90
+                shared.append(.init(index: association.index, essential: true))
+            }
+            if type == "imir" {
+                mirror = Int(raw[8] & 1)
+                shared.append(.init(index: association.index, essential: true))
+            }
+        }
+        return (angle, mirror, shared)
     }
 
     /// The style MakerNote rides the merged Apple MakerNote; native captures keep their

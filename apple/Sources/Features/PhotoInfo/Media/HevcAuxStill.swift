@@ -19,34 +19,181 @@ nonisolated enum HevcAuxStill {
         var properties: [[UInt8]]
     }
 
-    /// 4:3 center crop of the source's SDR rendition, scaled to 1024x768, matching the
-    /// Android linear thumbnail. The SDR tone map keeps HDR sources from dragging their
-    /// gain map into an aux image that must stay tone-map free.
-    static func linearThumbnail(source: URL) throws -> EncodedStill {
+    /// Measures the styles scene data from the source's SDR rendition and encodes the
+    /// linear thumbnail in one decode. Apple's style renderer reads every style aux image
+    /// in the primary's STORED frame, so `angle`/`mirror` (the primary's irot/imir) must
+    /// un-rotate the displayed decode before the thumbnail and light maps are derived.
+    /// The 4:3 thumbnail stays at the validated 1024x768 stored shape; the histogram is
+    /// orientation-free and the 32x32 light-map grid follows the stored orientation.
+    static func styleSceneSample(source: URL, angle: Int, mirror: Int?)
+        throws -> (sample: AppleStyleMetadata.SceneSample, thumbnail: EncodedStill) {
         guard let image = CIImage(contentsOf: source,
                                   options: [.applyOrientationProperty: true, .expandToHDR: false,
                                             .toneMapHDRtoSDR: true]) else {
-            throw HevcAuxStillError.encodingFailed("linear thumbnail decode")
+            throw HevcAuxStillError.encodingFailed("scene sample decode")
         }
         let extent = image.extent
-        let target: CGFloat = 4 / 3
+        guard extent.width > 0, extent.height > 0 else {
+            throw HevcAuxStillError.encodingFailed("scene sample extent")
+        }
+
+        let histogram = linearLumaValues(try rgba8Raster(image, width: 256, height: 192), channelsBGRA: true).sorted()
+        let gridRaster = unRotate(try rgba8Raster(image, width: 32, height: 32), width: 32, height: 32,
+                                  angle: angle, mirror: mirror, channels: 4)
+        let gridLuma = linearLumaValues(gridRaster, channelsBGRA: true)
+        let storedGridReversed = gridLuma.reversed()
+        let sample = AppleStyleMetadata.SceneSample(
+            blackPoint: percentile(histogram, 0.001),
+            p02: percentile(histogram, 0.02),
+            p10: percentile(histogram, 0.10),
+            p25: percentile(histogram, 0.25),
+            p50: percentile(histogram, 0.50),
+            p75: percentile(histogram, 0.75),
+            p98: percentile(histogram, 0.98),
+            whitePoint: percentile(histogram, 0.999),
+            lightMapC: AppleStyleMetadata.SceneSample.fittedLightMap(
+                storedLinearLumaReversed: Array(storedGridReversed),
+                slope: AppleStyleMetadata.SceneSample.cSlope,
+                intercept: AppleStyleMetadata.SceneSample.cIntercept),
+            lightMapD: AppleStyleMetadata.SceneSample.fittedLightMap(
+                storedLinearLumaReversed: Array(storedGridReversed),
+                slope: AppleStyleMetadata.SceneSample.dSlope,
+                intercept: AppleStyleMetadata.SceneSample.dIntercept))
+
+        let quarterTurn = ((angle % 360) + 360) % 360 % 180 == 90
+        let thumbnail = try storedThumbnail(image, quarterTurn: quarterTurn, angle: angle, mirror: mirror)
+        return (sample, thumbnail)
+    }
+
+    /// 4:3 center crop of the displayed SDR rendition, rendered at swapped dims for a
+    /// quarter turn and un-rotated back into the 1024x768 stored frame.
+    private static func storedThumbnail(_ image: CIImage, quarterTurn: Bool, angle: Int, mirror: Int?) throws -> EncodedStill {
+        let extent = image.extent
+        let target: CGFloat = quarterTurn ? 3 / 4 : 4 / 3
         let ratio = extent.width / extent.height
         let cropWidth = ratio > target ? (extent.height * target).rounded(.down) : extent.width
         let cropHeight = ratio > target ? extent.height : (extent.width / target).rounded(.down)
-        let cropX = (extent.width - cropWidth) / 2
-        let cropY = (extent.height - cropHeight) / 2
-        let cropped = image.cropped(to: CGRect(x: cropX, y: cropY, width: cropWidth, height: cropHeight))
-        let scaled = cropped.transformed(by: CGAffineTransform(scaleX: 1024 / cropWidth, y: 768 / cropHeight))
-        let context = CIContext(options: [.cacheIntermediates: false])
-        guard let rendered = context.createCGImage(scaled, from: CGRect(x: 0, y: 0, width: 1024, height: 768),
-                                                   format: .RGBA8,
-                                                   colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!,
-                                                   deferred: false) else {
-            throw HevcAuxStillError.encodingFailed("linear thumbnail render")
+        let cropped = image.cropped(to: CGRect(x: extent.origin.x + (extent.width - cropWidth) / 2,
+                                               y: extent.origin.y + (extent.height - cropHeight) / 2,
+                                               width: cropWidth, height: cropHeight))
+        let renderWidth = quarterTurn ? 768 : 1024
+        let renderHeight = quarterTurn ? 1024 : 768
+        let scaled = cropped.transformed(by: CGAffineTransform(scaleX: CGFloat(renderWidth) / cropWidth,
+                                                               y: CGFloat(renderHeight) / cropHeight))
+        var raster = try rgba8Raster(scaled, width: renderWidth, height: renderHeight)
+        if quarterTurn || mirror != nil {
+            raster = unRotate(raster, width: renderWidth, height: renderHeight,
+                              angle: angle, mirror: mirror, channels: 4)
         }
         let encoder = try bitmapContext(width: 1024, height: 768)
-        encoder.draw(rendered, in: CGRect(x: 0, y: 0, width: 1024, height: 768))
+        raster.withUnsafeBytes { raw in
+            memcpy(encoder.data!, raw.baseAddress, min(raster.count, 1024 * 768 * 4))
+        }
         return try encodedFrame(in: encoder, width: 1024, height: 768, monochrome: false)
+    }
+
+    /// Renders a CIImage into a top-down BGRA raster (row 0 = visual top), the same
+    /// orientation the encoder bitmap context uses.
+    private static func rgba8Raster(_ image: CIImage, width: Int, height: Int) throws -> [UInt8] {
+        let extent = image.extent
+        let scaled = extent.width == CGFloat(width) && extent.height == CGFloat(height)
+            ? image
+            : image.transformed(by: CGAffineTransform(scaleX: CGFloat(width) / extent.width,
+                                                      y: CGFloat(height) / extent.height))
+        let context = CIContext(options: [.cacheIntermediates: false])
+        guard let cg = context.createCGImage(scaled, from: scaled.extent) else {
+            throw HevcAuxStillError.encodingFailed("raster \(width)x\(height)")
+        }
+        guard let bitmap = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+                                     bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.displayP3)!,
+                                     bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+                                         | CGImageByteOrderInfo.order32Little.rawValue) else {
+            throw HevcAuxStillError.encodingFailed("raster context \(width)x\(height)")
+        }
+        bitmap.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return Array(UnsafeBufferPointer(start: bitmap.data!.assumingMemoryBound(to: UInt8.self),
+                                         count: width * height * 4))
+    }
+
+    /// Rec.709 luma in linear light; Display P3 shares the sRGB transfer function, so the
+    /// sRGB decode of the 8-bit samples is exact. Apple's scene statistics are measured
+    /// on this signal, not on gamma-encoded code values.
+    static func linearLumaValues(_ raster: [UInt8], channelsBGRA: Bool) -> [Double] {
+        let linear = (0...255).map { srgbToLinear(Double($0) / 255.0) }
+        var out = [Double]()
+        out.reserveCapacity(raster.count / 4)
+        var at = 0
+        while at + 3 < raster.count {
+            let r = Int(raster[at + (channelsBGRA ? 2 : 0)])
+            let g = Int(raster[at + 1])
+            let b = Int(raster[at + (channelsBGRA ? 0 : 2)])
+            out.append(0.2126 * linear[r] + 0.7152 * linear[g] + 0.0722 * linear[b])
+            at += 4
+        }
+        return out
+    }
+
+    static func srgbToLinear(_ value: Double) -> Double {
+        value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+    }
+
+    /// Linear interpolation on a pre-sorted array, the percentile definition the
+    /// calibration was fitted against.
+    static func percentile(_ sorted: [Double], _ q: Double) -> Double {
+        guard !sorted.isEmpty else { return 0 }
+        let position = q * Double(sorted.count - 1)
+        let low = Int(position.rounded(.down))
+        let high = min(low + 1, sorted.count - 1)
+        let fraction = position - Double(low)
+        return sorted[low] * (1 - fraction) + sorted[high] * fraction
+    }
+
+    /// Inverse of the HEIF display transform (irot applied first, then imir), returning
+    /// the stored-orientation raster: un-mirror first, then rotate back.
+    static func unRotate(_ raster: [UInt8], width: Int, height: Int, angle: Int, mirror: Int?, channels: Int) -> [UInt8] {
+        var pixels = raster
+        if let mirror {
+            pixels = flip(pixels, width: width, height: height, vertical: mirror == 1, channels: channels)
+        }
+        switch ((angle % 360) + 360) % 360 {
+        case 90:
+            return rotateQuarter(pixels, width: width, height: height, clockwise: false, channels: channels)
+        case 180:
+            return flip(flip(pixels, width: width, height: height, vertical: true, channels: channels),
+                        width: width, height: height, vertical: false, channels: channels)
+        case 270:
+            return rotateQuarter(pixels, width: width, height: height, clockwise: true, channels: channels)
+        default:
+            return pixels
+        }
+    }
+
+    static func rotateQuarter(_ raster: [UInt8], width: Int, height: Int, clockwise: Bool, channels: Int) -> [UInt8] {
+        var out = [UInt8](repeating: 0, count: raster.count)
+        for row in 0..<height {
+            for column in 0..<width {
+                let newRow = clockwise ? column : width - 1 - column
+                let newColumn = clockwise ? height - 1 - row : row
+                let source = (row * width + column) * channels
+                let target = (newRow * height + newColumn) * channels
+                for channel in 0..<channels { out[target + channel] = raster[source + channel] }
+            }
+        }
+        return out
+    }
+
+    static func flip(_ raster: [UInt8], width: Int, height: Int, vertical: Bool, channels: Int) -> [UInt8] {
+        var out = [UInt8](repeating: 0, count: raster.count)
+        for row in 0..<height {
+            for column in 0..<width {
+                let source = (row * width + column) * channels
+                let targetRow = vertical ? height - 1 - row : row
+                let targetColumn = vertical ? column : width - 1 - column
+                let target = (targetRow * width + targetColumn) * channels
+                for channel in 0..<channels { out[target + channel] = raster[source + channel] }
+            }
+        }
+        return out
     }
 
     private static func bitmapContext(width: Int, height: Int) throws -> CGContext {
