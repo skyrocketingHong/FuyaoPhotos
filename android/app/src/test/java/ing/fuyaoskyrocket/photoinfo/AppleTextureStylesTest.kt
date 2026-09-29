@@ -88,7 +88,7 @@ class AppleTextureStylesTest {
                     FloatArray(3) { 0f }, FloatArray(3) { 0f }, 1f, 4f))
 
         val matte = ByteArray(64) { (it * 7).toByte() }
-        val styled = base.withPhotographicStyles(2880, 2160, true, null, null)
+        val styled = base.withPhotographicStyles(2880, 2160, true, null, null, testScene())
             .withTextureStyles(AppleTextureStyles.textureInfoPayload(7), hvc(), matte)
         val file = File.createTempFile("texture-", ".heic")
         try {

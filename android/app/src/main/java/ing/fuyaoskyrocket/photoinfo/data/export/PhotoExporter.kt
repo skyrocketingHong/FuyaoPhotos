@@ -258,7 +258,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 var container=HeifImageContainer.read(assembled)
                 styleAssets?.let { assets ->
                     container=container.withPhotographicStyles(assets.deltaWidth,assets.deltaHeight,
-                        assets.landscape,assets.linear,assets.sky)
+                        assets.landscape,assets.linear,assets.sky,assets.scene)
                 }
                 if(injectStyle3) {
                     // One shared black frame backs all twelve part mattes; the seed is a
@@ -377,10 +377,14 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
     }
 
     private class StyleAssets(val deltaWidth:Int,val deltaHeight:Int,val landscape:Boolean,
-        val linear:HeifImageContainer,val sky:HeifImageContainer)
+        val linear:HeifImageContainer,val sky:HeifImageContainer,
+        val scene:ing.fuyaoskyrocket.photoinfo.domain.media.StyleSceneSample)
 
     /** Encodes the linear thumbnail and sky placeholder the style layer refers to. */
     private fun encodeStyleAssets(bitmap:Bitmap):StyleAssets {
+        // Scene statistics and light maps come from the same upright bitmap the thumbnail
+        // uses; the export has no irot, so stored orientation equals the bitmap.
+        val scene=ing.fuyaoskyrocket.photoinfo.platform.StyleSceneSampler.sample(bitmap)
         val landscape=bitmap.width>=bitmap.height
         val maxWidth=if(landscape)2880 else 2560
         val maxHeight=if(landscape)2560 else 2880
@@ -403,7 +407,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 IsoBmff.full("ispe", payload = IsoBmff.data { writeInt(skyWidth);writeInt(skyHeight) }),
                 IsoBmff.full("pixi", payload = IsoBmff.data { write(1);write(8) }),sky.hvcC),emptyList())
             return StyleAssets(fitted(bitmap.width),fitted(bitmap.height),landscape,
-                HeifImageContainer.read(linearFile),skyContainer)
+                HeifImageContainer.read(linearFile),skyContainer,scene)
         } finally { linearFile.delete() }
     }
 

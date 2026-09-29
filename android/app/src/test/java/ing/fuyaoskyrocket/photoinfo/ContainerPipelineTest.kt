@@ -82,7 +82,7 @@ class ContainerPipelineTest {
             container = container.withAuxiliary(plainGain(),
                 "urn:mpeg:hevc:2015:auxid:2", "<x/>")
             checkStage("disparity", container)
-            container = container.withPhotographicStyles(2160, 2880, true, null, null)
+            container = container.withPhotographicStyles(2160, 2880, true, null, null, testScene())
             checkStage("styles", container)
             container = container.withMotionDirectory(5000, "video/mp4", 1000)
             checkStage("motion", container)

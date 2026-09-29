@@ -21,7 +21,7 @@ class AppleStyleMetadataTest {
     }
 
     @Test fun styleMetadataCarriesTheGoldenContract() {
-        val payload = AppleStyleMetadata.styleMetadata()
+        val payload = AppleStyleMetadata.styleMetadata(testScene())
         assertEquals("bplist00", String(payload, 0, 8, Charsets.US_ASCII))
         val trailer = payload.size - 32
         val offsetSize = payload[trailer + 6].toInt()
@@ -120,7 +120,7 @@ class AppleStyleMetadataTest {
 
     @Test fun photographicStylesLayerAttachesToTheContainer() {
         val base = HeifImageContainer.read(fixture("base"))
-        val styled = base.withPhotographicStyles(2880, 2470, true, null, null)
+        val styled = base.withPhotographicStyles(2880, 2470, true, null, null, testScene())
         val style = styled.items.single { it.type == "uri " }
         val declaration = String(style.infoSuffix, Charsets.ISO_8859_1)
         assertTrue(declaration.startsWith("metadata\u0000tag:apple.com,2023:photo:metadata:styles\u0000"))

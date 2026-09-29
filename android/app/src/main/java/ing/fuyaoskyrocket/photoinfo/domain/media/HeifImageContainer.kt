@@ -142,7 +142,8 @@ internal data class HeifImageContainer(
 
     /**
      * Attaches the Apple photographic style layer: styleMetadata (uri item, cdsc to primary and
-     * the tone map), a fixed identity delta-map grid, and optional encoded linear/sky images.
+     * the tone map, with scene statistics measured from the exported bitmap), a fixed identity
+     * delta-map grid, and optional encoded linear/sky images.
      */
     fun withPhotographicStyles(
         deltaWidth: Int,
@@ -150,6 +151,7 @@ internal data class HeifImageContainer(
         landscape: Boolean,
         linear: HeifImageContainer?,
         sky: HeifImageContainer?,
+        scene: StyleSceneSample,
     ): HeifImageContainer {
         require(!avif && deltaWidth in 2..65535 && deltaHeight in 2..65535)
         val toneTargets = listOf(primary) + items.filter { it.type == "tmap" }.map { it.id }
@@ -220,7 +222,7 @@ internal data class HeifImageContainer(
         newItems += Item(styleID, "uri ",
             // Apple's own files name this item "metadata" and identify it by content type.
             ("metadata\u0000" + AppleStyleMetadata.STYLES_CONTENT_TYPE + "\u0000").toByteArray(),
-            AppleStyleMetadata.styleMetadata(), hidden = true)
+            AppleStyleMetadata.styleMetadata(scene), hidden = true)
         newReferences += Reference("cdsc", styleID, toneTargets)
         return copy(items = newItems, properties = props, references = newReferences)
     }
