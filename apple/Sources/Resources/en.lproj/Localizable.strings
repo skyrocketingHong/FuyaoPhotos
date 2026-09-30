@@ -524,11 +524,11 @@
 
 "cancel" = "Cancel";
 
-"lens.file.import" = "Import configuration";
+"lens.file.import" = "Import from file";
 
-"lens.file.export" = "Export configuration";
+"lens.file.export" = "Save to file";
 
-"lens.file.description" = "One JSON file per camera model. Imported changes take effect when you save.";
+"lens.file.description" = "Share one camera model as a single-line JSON using the clipboard or a file. Save to apply imported changes.";
 
 "lens.file.invalid" = "Cannot read this lens configuration. Choose a supported Fuyao Photos JSON file with valid lens parameters.";
 
@@ -569,3 +569,17 @@
 "package.import.save" = "Save to Photos";
 
 "package.import.saved" = "Live Photo saved to Photos";
+
+"lens.clipboard.import" = "Import from clipboard";
+
+"lens.clipboard.copy" = "Copy to clipboard";
+
+"lens.clipboard.copied" = "Copied the configuration for %@";
+
+"lens.clipboard.copy.failed" = "Could not copy this configuration. Check the lens parameters and try again.";
+
+"lens.clipboard.invalid" = "The clipboard does not contain a supported lens configuration. Copy one complete JSON configuration and try again.";
+
+"lens.group.one" = "1 lens";
+
+"lens.group.count" = "%d lenses";

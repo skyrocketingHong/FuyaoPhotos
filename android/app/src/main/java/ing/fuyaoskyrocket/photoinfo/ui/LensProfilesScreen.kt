@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.data.camera.*
@@ -127,25 +129,40 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                     Text(stringResource(R.string.no_lens_profiles),style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick={ onEdit(draft()) },enabled=productName!=null) { Text(stringResource(R.string.add_lens)) }
                 }
-                items(profiles,key={ it.id }) { profile ->
-                    Row(Modifier.fillMaxWidth().animateItem().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                            Text(profile.name,style=MaterialTheme.typography.titleMedium)
-                            Text(stringResource(R.string.profile_summary,profile.device,profile.exifModel,profile.equivalentMin.toString(),profile.equivalentMax.toString()),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                            if(profile.cameraId.isNotBlank()) Text(stringResource(R.string.bound_camera_id,profile.cameraId),style=MaterialTheme.typography.bodySmall)
-                            if(inventory!=null && profile.hardwareDevice==hardwareDevice && inventory?.lenses?.any { it.id==profile.cameraId }==true)
-                                Text(stringResource(R.string.hardware_linked),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary)
+                profiles.groupBy { LensProfile.normalize(it.exifModel) }.forEach { (model, lenses) ->
+                    item(key = "device-$model") {
+                        val device = lenses.first()
+                        Column(Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(device.device, modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.titleLarge)
+                            if (LensProfile.normalize(device.device) != model) Text(device.exifModel,
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(if (lenses.size == 1) stringResource(R.string.lens_group_one) else stringResource(R.string.lens_group_count, lenses.size),
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        FuyaoIconButton(R.drawable.ic_edit,stringResource(R.string.lens_action,stringResource(R.string.edit_lens),profile.name),{ onEdit(profile) })
-                        FuyaoIconButton(R.drawable.ic_delete,stringResource(R.string.lens_action,stringResource(R.string.delete_lens),profile.name),{
-                            val index=profiles.indexOfFirst { it.id==profile.id }
-                            profiles=profiles.filterNot { it.id==profile.id }
-                            scope.launch {
-                                if(snackbar.showSnackbar(removedText,actionLabel=undoText,withDismissAction=true,duration=SnackbarDuration.Long)==SnackbarResult.ActionPerformed && profiles.none { it.id==profile.id }) {
-                                    profiles=profiles.toMutableList().apply { add(index.coerceIn(0,size),profile) }
-                                }
+                    }
+                    items(lenses,key={ "lens-${it.id}" }) { profile ->
+                        Row(Modifier.fillMaxWidth().animateItem().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                                Text(profile.name,style=MaterialTheme.typography.titleMedium)
+                                val low = ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting.number(profile.equivalentMin, 2)
+                                val high = ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting.number(profile.equivalentMax, 2)
+                                Text(if (profile.equivalentMin == profile.equivalentMax) "$low mm" else stringResource(R.string.lens_group_range,low,high),
+                                    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                                if(profile.cameraId.isNotBlank()) Text(stringResource(R.string.bound_camera_id,profile.cameraId),style=MaterialTheme.typography.bodySmall)
+                                if(inventory!=null && profile.hardwareDevice==hardwareDevice && inventory?.lenses?.any { it.id==profile.cameraId }==true)
+                                    Text(stringResource(R.string.hardware_linked),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary)
                             }
-                        })
+                            FuyaoIconButton(R.drawable.ic_edit,stringResource(R.string.lens_action,stringResource(R.string.edit_lens),profile.name),{ onEdit(profile) })
+                            FuyaoIconButton(R.drawable.ic_delete,stringResource(R.string.lens_action,stringResource(R.string.delete_lens),profile.name),{
+                                val index=profiles.indexOfFirst { it.id==profile.id }
+                                profiles=profiles.filterNot { it.id==profile.id }
+                                scope.launch {
+                                    if(snackbar.showSnackbar(removedText,actionLabel=undoText,withDismissAction=true,duration=SnackbarDuration.Long)==SnackbarResult.ActionPerformed && profiles.none { it.id==profile.id }) {
+                                        profiles=profiles.toMutableList().apply { add(index.coerceIn(0,size),profile) }
+                                    }
+                                }
+                            })
+                        }
                     }
                 }
     }

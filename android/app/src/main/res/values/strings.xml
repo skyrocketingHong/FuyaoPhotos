@@ -403,9 +403,9 @@
   <string name="colors_camera_failed">Camera unavailable. Allow camera access or choose a photo from your library.</string>
   <string name="about_features">Create information cards, inspect and edit metadata, and sample colors across color spaces. Photo Map is not yet available on Android.</string>
   <string name="about_colors_credit">Color tools come from FuyaoColorPicker. The original Color Picker reference materials retain their GPL-3.0-only license.</string>
-  <string name="lens_file_import">Import configuration</string>
-  <string name="lens_file_export">Export configuration</string>
-  <string name="lens_file_description">One JSON file per camera model. Local camera bindings are not shared. Save to apply imported changes.</string>
+  <string name="lens_file_import">Import from file</string>
+  <string name="lens_file_export">Save to file</string>
+  <string name="lens_file_description">Share one camera model as a single-line JSON using the clipboard or a file. Save to apply imported changes.</string>
   <string name="lens_file_invalid">Cannot read this lens configuration. Choose a supported Fuyao Photos JSON file with valid lens parameters.</string>
   <string name="lens_file_export_failed">Could not export the configuration. Choose another location and try again.</string>
   <string name="lens_file_replace_title">Replace this model’s configuration?</string>
@@ -419,4 +419,12 @@
   <string name="package_export_action">Export photo package</string>
   <string name="package_export_success">Photo package exported</string>
   <string name="package_style_unsupported">This video has no matching Apple style data. Turn off style injection to export a Live Photo package.</string>
+  <string name="lens_clipboard_import">Import from clipboard</string>
+  <string name="lens_clipboard_copy">Copy to clipboard</string>
+  <string name="lens_clipboard_copied">Copied the configuration for %1$s</string>
+  <string name="lens_clipboard_copy_failed">Could not copy this configuration. Check the lens parameters and try again.</string>
+  <string name="lens_clipboard_invalid">The clipboard does not contain a supported lens configuration. Copy one complete JSON configuration and try again.</string>
+  <string name="lens_group_one">1 lens</string>
+  <string name="lens_group_count">%1$d lenses</string>
+  <string name="lens_group_range">%1$s–%2$s mm</string>
 </resources>

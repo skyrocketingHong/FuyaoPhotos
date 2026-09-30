@@ -523,11 +523,11 @@
 
 "cancel" = "取消";
 
-"lens.file.import" = "导入配置";
+"lens.file.import" = "从文件导入";
 
-"lens.file.export" = "导出配置";
+"lens.file.export" = "保存到文件";
 
-"lens.file.description" = "每个 JSON 文件对应一个机型。导入后点击“保存”生效。";
+"lens.file.description" = "按机型通过剪贴板或文件交换单行 JSON。导入后点击“保存”生效。";
 
 "lens.file.invalid" = "无法读取此镜头配置。请选择有效的 Fuyao Photos JSON 配置文件，并检查镜头参数。";
 
@@ -568,3 +568,17 @@
 "package.import.save" = "存入照片图库";
 
 "package.import.saved" = "Live Photo 已存入照片图库";
+
+"lens.clipboard.import" = "从剪贴板导入";
+
+"lens.clipboard.copy" = "复制到剪贴板";
+
+"lens.clipboard.copied" = "已复制 %@ 的配置";
+
+"lens.clipboard.copy.failed" = "无法复制此配置。请检查镜头参数后重试。";
+
+"lens.clipboard.invalid" = "剪贴板中没有有效的镜头配置。请复制一份完整的 JSON 配置后重试。";
+
+"lens.group.one" = "1 个镜头";
+
+"lens.group.count" = "%d 个镜头";
