@@ -596,3 +596,7 @@
 "lens.hardware.manualDescription" = "选择本设备镜头，绑定前会校验可用的焦距、朝向和已有绑定。保存配置后生效。";
 "lens.hardware.unbind" = "解除绑定";
 "lens.hardware.invalid" = "无法绑定此镜头。请重新扫描，并检查朝向、焦距及已有绑定。";
+
+"lens.stylePrefix" = "摄影风格前缀";
+"lens.stylePrefix.footer" = "在卡片的摄影风格名称前添加此文字，留空则使用原名称。";
+"lens.validation.stylePrefix" = "前缀请保持在 64 个字符以内，不使用换行或控制字符。";

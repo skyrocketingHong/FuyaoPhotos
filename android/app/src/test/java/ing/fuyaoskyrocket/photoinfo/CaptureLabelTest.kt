@@ -11,6 +11,15 @@ import org.junit.Test
 import java.nio.ByteBuffer
 
 class CaptureLabelTest {
+    @Test fun configurableStylePrefixDoesNotDuplicateOrInventAName() {
+        assertEquals("Leica Standard", PhotographicStyleReader.displayName("Standard", "Leica"))
+        assertEquals("Other Brand Standard", PhotographicStyleReader.displayName("Standard", "Other Brand"))
+        assertEquals("Standard", PhotographicStyleReader.displayName("Standard", ""))
+        assertEquals("Leica Standard", PhotographicStyleReader.displayName("Leica Standard", "Leica"))
+        assertEquals("leica Natural", PhotographicStyleReader.displayName("leica Natural", "Leica"))
+        assertEquals("", PhotographicStyleReader.displayName(null, "Leica"))
+        assertEquals("", PhotographicStyleReader.displayName("", "Leica"))
+    }
     @Test fun physicalLensNamesSurviveDigitalCrops() {
         val tele = AppleCameraNames.resolve("Apple", "iPhone 17 Pro Max", "back triple camera 16.891mm f/2.8", null)!!
         assertEquals("Fusion Telephoto", tele.name)
@@ -62,6 +71,7 @@ class CaptureLabelTest {
     @Test fun namedLeicaStyleIsReadButNumericFiltersAreNotGuessed() {
         fun xmp(value: String) = """<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:camera="http://ns.xiaomi.com/photos/1.0/camera/" camera:LeicaStyle="$value"/></rdf:RDF></x:xmpmeta>"""
         assertEquals("Leica Authentic", PhotographicStyleReader.name(CaptureMakerNote.Facts(), xmp("Leica Authentic")))
+        assertEquals("Leica Authentic", PhotographicStyleReader.name(CaptureMakerNote.Facts(), xmp("Leica Authentic"), "Standard"))
         assertNull(PhotographicStyleReader.name(CaptureMakerNote.Facts(), xmp("66048")))
         assertNull(PhotographicStyleReader.name(CaptureMakerNote.Facts(), "<!DOCTYPE x [<!ENTITY s SYSTEM 'file:///missing'>]><x>&s;</x>"))
     }

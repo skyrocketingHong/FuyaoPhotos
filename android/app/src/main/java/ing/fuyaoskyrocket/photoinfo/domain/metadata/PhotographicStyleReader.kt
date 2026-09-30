@@ -5,7 +5,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.media.MotionPhoto
 object PhotographicStyleReader {
     private val nameKeys = setOf("PhotographicStyle", "PhotographicStyleName", "SmartStyleName", "CameraStyle", "LeicaStyle", "LeicaColorMode")
 
-    fun name(makerNote: CaptureMakerNote.Facts, xmp: String?): String? {
+    fun name(makerNote: CaptureMakerNote.Facts, xmp: String?, vendorName: String? = null): String? {
         val names = if (xmp != null && xmp.length <= 1_048_576) runCatching {
             val root = MotionPhoto.parseXmp(xmp).documentElement
             val found = mutableSetOf<String>()
@@ -24,7 +24,7 @@ object PhotographicStyleReader {
             found
         }.getOrDefault(emptySet()) else emptySet()
         return when (names.size) {
-            0 -> makerNote.photographicStyle
+            0 -> readableName(vendorName) ?: makerNote.photographicStyle
             1 -> names.single()
             else -> null
         }
@@ -45,5 +45,13 @@ object PhotographicStyleReader {
 
     internal fun readableName(value: String?): String? = value?.trim()?.takeIf {
         it.length in 1..128 && it.any(Char::isLetter) && it.none(Character::isISOControl)
+    }
+
+    fun displayName(value: String?, prefix: String?): String {
+        val name = readableName(value) ?: return ""
+        val cleanPrefix = prefix?.trim().orEmpty()
+        if (cleanPrefix.isBlank() || cleanPrefix.length > 64 || cleanPrefix.any(Char::isISOControl)) return name
+        if (name.equals(cleanPrefix, ignoreCase = true) || name.startsWith("$cleanPrefix ", ignoreCase = true)) return name
+        return "$cleanPrefix $name"
     }
 }

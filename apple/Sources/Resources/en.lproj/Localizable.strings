@@ -597,3 +597,7 @@
 "lens.hardware.manualDescription" = "Choose a lens from this device. Available focal lengths, facing and existing links are checked before linking. Save the configuration to apply changes.";
 "lens.hardware.unbind" = "Remove link";
 "lens.hardware.invalid" = "Could not link this lens. Scan again and check its facing, focal length and existing links.";
+
+"lens.stylePrefix" = "Style Prefix";
+"lens.stylePrefix.footer" = "Add this text before the style name on photo cards. Leave empty to use the original name.";
+"lens.validation.stylePrefix" = "Keep the style prefix within 64 characters, without line breaks or control characters.";

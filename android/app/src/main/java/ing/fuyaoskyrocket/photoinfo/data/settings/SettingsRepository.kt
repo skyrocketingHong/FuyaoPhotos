@@ -53,7 +53,7 @@ class SettingsRepository(context: Context) {
                 j.getDouble("equivalentMin"), j.getDouble("equivalentMax"), optional("zoomMin"), optional("zoomMax"), optional("physicalMin"), optional("physicalMax"))
             if (!j.has("exifModel")) lens.upgradeLegacy(LocalCameraDevice.hardwareKey)
             else lens.copy(exifModel=j.getString("exifModel"), hardwareDevice=j.optString("hardwareDevice"),
-                digitalZoomMax=optional("digitalZoomMax"), facing=j.optString("facing"), hardwareModel=j.optString("hardwareModel"))
+                digitalZoomMax=optional("digitalZoomMax"), facing=j.optString("facing"), hardwareModel=j.optString("hardwareModel"), stylePrefix=j.optString("stylePrefix"))
         }.filter { it.valid() }
     }.getOrDefault(emptyList())
 
@@ -65,6 +65,7 @@ class SettingsRepository(context: Context) {
             put("physicalMin",lens.physicalMin ?: JSONObject.NULL); put("physicalMax",lens.physicalMax ?: JSONObject.NULL)
             put("exifModel",lens.exifModel); put("hardwareDevice",lens.hardwareDevice)
             put("hardwareModel",lens.hardwareModel)
+            put("stylePrefix",lens.stylePrefix)
             put("digitalZoomMax",lens.digitalZoomMax ?: JSONObject.NULL); put("facing",lens.facing)
         }) }
     }.toString()

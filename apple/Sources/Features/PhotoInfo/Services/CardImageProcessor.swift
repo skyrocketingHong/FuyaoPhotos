@@ -70,8 +70,9 @@ actor CardImageProcessor {
         }
         if let aperture = exif[kCGImagePropertyExifFNumber as String] as? NSNumber { card[.aperture] = Self.number(aperture.doubleValue, decimals: 2) }
         if let iso = (exif[kCGImagePropertyExifISOSpeedRatings as String] as? [NSNumber])?.first { card[.iso] = iso.stringValue }
-        card[.photographicStyle] = PhotographicStyleReader.name(properties: properties,
-            metadata: CGImageSourceCopyMetadataAtIndex(source, 0, nil)) ?? ""
+        let photographicStyle = PhotographicStyleReader.name(properties: properties,
+            metadata: CGImageSourceCopyMetadataAtIndex(source, 0, nil), vendorName: inspection.vendorPhotographicStyle)
+        card[.photographicStyle] = PhotographicStyleReader.displayName(photographicStyle, prefix: lens?.profile.stylePrefix)
         let latitude = (gps[kCGImagePropertyGPSLatitude as String] as? NSNumber)?.doubleValue.mapSign(gps[kCGImagePropertyGPSLatitudeRef as String] as? String == "S")
         let longitude = (gps[kCGImagePropertyGPSLongitude as String] as? NSNumber)?.doubleValue.mapSign(gps[kCGImagePropertyGPSLongitudeRef as String] as? String == "W")
         let hdr = CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil ||

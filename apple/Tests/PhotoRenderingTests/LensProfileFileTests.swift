@@ -12,16 +12,19 @@ struct LensProfileFileTests {
         let file = try LensProfileFile.decode(bytes)
         let profiles = try file.profiles()
         #expect(profiles.map(\.cameraID) == ["0", "2"])
+        #expect(profiles.allSatisfy { $0.stylePrefix == "Example" })
         #expect(profiles.allSatisfy { $0.hardwareDevice == nil && $0.hardwareModel == "Example|Model" })
         let again = try LensProfileFile.decode(LensProfileFile(profiles: profiles).encoded())
         #expect(again == file)
         let old = try LensProfileFile.decode(Data(contentsOf: Self.root.appendingPathComponent("shared/fixtures/lenses-v1.json")))
-        #expect(try old.profiles().allSatisfy { $0.cameraID == nil && $0.hardwareDevice == nil })
+        #expect(try old.profiles().allSatisfy { $0.cameraID == nil && $0.hardwareDevice == nil && $0.stylePrefix == nil })
         let text = try #require(String(data: bytes, encoding: .utf8))
         for invalid in [text.replacingOccurrences(of: #""id":"0""#, with: #""id":0"#),
                         text.replacingOccurrences(of: #""id":"0""#, with: #""id":"bad\nID""#)] {
             #expect(throws: LensProfileFileError.self) { try LensProfileFile.decode(Data(invalid.utf8)) }
         }
+        let tooLong = text.replacingOccurrences(of: "\"stylePrefix\":\"Example\"", with: "\"stylePrefix\":\"" + String(repeating: "A", count: 65) + "\"")
+        #expect(throws: LensProfileFileError.self) { try LensProfileFile.decode(Data(tooLong.utf8)) }
     }
     @Test func deviceFileIsCompactPortableAndReplacesOnlyThatModel() throws {
         let bytes = try Data(contentsOf: Self.root.appendingPathComponent("shared/fixtures/lenses-v1.json"))

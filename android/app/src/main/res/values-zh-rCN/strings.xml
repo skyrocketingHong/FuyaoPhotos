@@ -439,4 +439,7 @@
   <string name="lens_hardware_mismatch">朝向或焦距不匹配</string>
   <string name="lens_hardware_unbind">解除绑定</string>
   <string name="lens_hardware_invalid">无法绑定此镜头。请重新扫描，并检查朝向、焦距及已有绑定。</string>
+  <string name="lens_style_prefix">摄影风格前缀</string>
+  <string name="lens_style_prefix_hint">在卡片的摄影风格名称前添加此文字，留空则使用原名称。</string>
+  <string name="lens_style_prefix_invalid">前缀最多 64 个字符，不使用换行或控制字符。</string>
 </resources>

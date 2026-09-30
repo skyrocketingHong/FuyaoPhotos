@@ -3,6 +3,14 @@ package ing.fuyaoskyrocket.photoinfo
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfileFile
 import ing.fuyaoskyrocket.photoinfo.domain.media.*
 import ing.fuyaoskyrocket.photoinfo.domain.model.ExportOptions
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.CaptureMakerNote
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.PhotographicStyleReader
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.AndroidLensMetadata
+import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfile
+import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
+import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoInfo
+import org.json.JSONObject
+import java.security.MessageDigest
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -10,10 +18,60 @@ import java.io.File
 
 /** Runs in testAndroidDom, with Android's real JSON/DOM implementation. */
 class PortableFormatsTest {
+    @Test fun xiaomiPrivatePacketReadsOnlyAnExplicitStyleName() {
+        val json = File(root(), "shared/fixtures/xiaomi-style-standard.json").readBytes()
+        val packet = XiaomiPhotographicStyleReader.prefix + byteArrayOf(1, 1) + json
+        assertEquals("Standard", XiaomiPhotographicStyleReader.name(listOf(packet)))
+        assertEquals("Leica Natural", XiaomiPhotographicStyleReader.name(listOf(stylePacket("""{"filterName":"Leica Natural"}"""))))
+    }
+
+    @Test fun xiaomiStyleRejectsUnknownNumbersMalformedOrAmbiguousPackets() {
+        for (auxiliary in listOf("""{"filterId":66048}""", """{"filterName":66048}""", """{"filterName":"66048"}""",
+            """{"filterName":"Style\nname"}""", "invalid", """["Standard"]""")) {
+            assertNull(XiaomiPhotographicStyleReader.name(listOf(stylePacket(auxiliary))))
+        }
+        assertNull(XiaomiPhotographicStyleReader.name(listOf(stylePacket(JSONObject().put("filterName", "Standard")))))
+        val complete = stylePacket("""{"filterName":"Standard"}""")
+        assertNull(XiaomiPhotographicStyleReader.name(listOf(complete, complete)))
+        assertNull(XiaomiPhotographicStyleReader.name(listOf(complete.copyOf(complete.size-1))))
+        val multipart = complete.copyOf().apply { this[XiaomiPhotographicStyleReader.prefix.size+1]=2 }
+        assertNull(XiaomiPhotographicStyleReader.name(listOf(multipart)))
+        assertNull(XiaomiPhotographicStyleReader.name(listOf(XiaomiPhotographicStyleReader.prefix + byteArrayOf(1,1) + ByteArray(65_534))))
+        assertNull(XiaomiPhotographicStyleReader.name(listOf(XiaomiPhotographicStyleReader.prefix + byteArrayOf(1,1,-1))))
+    }
+
+    @Test fun originalXiaomiPhotoSuppliesStyleWithoutChangingItsBytes() {
+        val source = System.getenv("FUYAO_LEICA_SAMPLE")?.let(::File)
+            ?: File(root(), "docs/samples/leica-style-20261001/MVIMG_20260928_200322.jpg")
+        assumeTrue(source.isFile)
+        fun hash() = MessageDigest.getInstance("SHA-256").digest(source.readBytes())
+        val before = hash()
+        val media = MotionPhoto.inspect(source, "image/jpeg")
+        assertFalse(media.blocked)
+        assertEquals("Standard", media.photographicStyle)
+        val name = PhotographicStyleReader.name(CaptureMakerNote.Facts(), null, media.photographicStyle)
+        val card = PhotoInfo(mapOf(FieldId.PHOTOGRAPHIC_STYLE to requireNotNull(name)))
+        assertEquals("STYLE: STANDARD", card.displayRows().last().text)
+        val profile = LensProfile("sample", "Xiaomi 17 Ultra by Leica", "Telephoto", equivalentMin=100.0,
+            equivalentMax=100.0, physicalMin=26.5, physicalMax=26.5, facing="BACK", stylePrefix="Leica")
+        val imported = LensProfileFile.decode(LensProfileFile.from(listOf(profile)).encoded()).lenses
+        val lens = AndroidLensMetadata.resolve("Xiaomi", profile.exifModel, "", 100.0, profiles=imported, physicalMm=26.5)
+        assertEquals("Leica", lens.stylePrefix)
+        assertEquals("Leica Standard", PhotographicStyleReader.displayName(name, lens.stylePrefix))
+        val ambiguous = AndroidLensMetadata.resolve("Xiaomi", profile.exifModel, "", 100.0,
+            profiles=imported+profile.copy(id="other",stylePrefix="Other"), physicalMm=26.5)
+        assertEquals("", ambiguous.stylePrefix)
+        assertArrayEquals(before, hash())
+    }
+
+    private fun stylePacket(auxiliary: Any) = XiaomiPhotographicStyleReader.prefix + byteArrayOf(1,1) +
+        JSONObject().put("version", "32").put("889e", auxiliary).toString().toByteArray(Charsets.UTF_8)
+
     @Test fun hardwareIdsRoundTripWithoutBecomingLocalBindings() {
         val bytes = File(root(), "shared/fixtures/lenses-v1-with-ids.json").readBytes()
         val file = LensProfileFile.decode(bytes)
         assertEquals(listOf("0", "2"), file.lenses.map { it.cameraId })
+        assertTrue(file.lenses.all { it.stylePrefix == "Example" })
         assertTrue(file.lenses.all { it.hardwareDevice.isBlank() && it.hardwareModel == "Example|Model" })
         val again = LensProfileFile.decode(file.encoded())
         assertEquals(listOf("0", "2"), again.lenses.map { it.cameraId })
@@ -21,6 +79,9 @@ class PortableFormatsTest {
         val text = bytes.toString(Charsets.UTF_8)
         for (invalid in listOf(text.replace("\"id\":\"0\"", "\"id\":0"), text.replace("\"id\":\"0\"", "\"id\":\"bad\\nID\""))) {
             assertThrows(Exception::class.java) { LensProfileFile.decode(invalid.toByteArray()) }
+        }
+        assertThrows(Exception::class.java) {
+            LensProfileFile.decode(text.replace("\"stylePrefix\":\"Example\"", "\"stylePrefix\":\""+"A".repeat(65)+"\"").toByteArray())
         }
     }
     private fun root(): File = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }.take(6)

@@ -12,7 +12,7 @@ data class MotionVideo(val offset: Long, val length: Long, val timestampUs: Long
 data class MediaEnvelope(val jpeg: Boolean, val hdrHint: Boolean = false, val motion: MotionVideo? = null,
     val portraitTail: JpegContainer.Part? = null, val blocked: Boolean = false,
     val bitDepth: Int = 8, val hdrTransfer: Boolean = false, val hdrTransferCode: Int = 0,
-    val blockReason: String? = null, val portraitDepthDegrees: Int = -1)
+    val blockReason: String? = null, val portraitDepthDegrees: Int = -1, val photographicStyle: String? = null)
 
 /** Only recognized, structurally valid containers may be rewritten. Unknown auxiliary data fails closed. */
 object MotionPhoto {
@@ -157,7 +157,8 @@ object MotionPhoto {
             } else null
             require(portraitTail!=null || end+(if(auxiliary.isEmpty() && video!=null)primaryPadding else 0L)==
                 trailingEnd) { "Unrecognized trailing photo data" }
-            MediaEnvelope(true,hdr,video,portraitTail,portraitDepthDegrees=portraitDepthDegrees)
+            MediaEnvelope(true,hdr,video,portraitTail,portraitDepthDegrees=portraitDepthDegrees,
+                photographicStyle=XiaomiPhotographicStyleReader.name(layout.segments.filter { it.marker==0xe4 }.map { it.data }))
         } catch(failure:Exception) { MediaEnvelope(true,blocked=true,blockReason=failure.message) }
     }
 

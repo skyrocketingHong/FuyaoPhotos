@@ -7,7 +7,7 @@ nonisolated enum PhotographicStyleReader {
         "LeicaStyle", "LeicaColorMode"
     ]
 
-    static func name(properties: [String: Any], metadata: CGImageMetadata? = nil) -> String? {
+    static func name(properties: [String: Any], metadata: CGImageMetadata? = nil, vendorName: String? = nil) -> String? {
         if let metadata {
             var names = Set<String>()
             CGImageMetadataEnumerateTagsUsingBlock(metadata, nil, [kCGImageMetadataEnumerateRecursively: true] as CFDictionary) { _, tag in
@@ -18,6 +18,7 @@ nonisolated enum PhotographicStyleReader {
             if names.count == 1 { return names.first }
             if names.count > 1 { return nil }
         }
+        if let vendorName = readableName(vendorName) { return vendorName }
         let maker = properties[kCGImagePropertyMakerAppleDictionary as String] as? [String: Any] ?? [:]
         if let modern = maker["84"] {
             return dictionary(modern).flatMap(modernName)
@@ -50,6 +51,16 @@ nonisolated enum PhotographicStyleReader {
               name.rangeOfCharacter(from: .letters) != nil,
               name.rangeOfCharacter(from: .controlCharacters) == nil else { return nil }
         return name
+    }
+
+    static func displayName(_ name: String?, prefix: String?) -> String {
+        guard let name = readableName(name) else { return "" }
+        let prefix = prefix?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !prefix.isEmpty, prefix.count <= 64,
+              prefix.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else { return name }
+        if name.caseInsensitiveCompare(prefix) == .orderedSame ||
+            name.range(of: prefix + " ", options: [.anchored, .caseInsensitive]) != nil { return name }
+        return prefix + " " + name
     }
 
     private static func dictionary(_ value: Any?) -> [String: Any]? {

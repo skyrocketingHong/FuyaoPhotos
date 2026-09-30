@@ -64,6 +64,8 @@ struct LensProfileEditor: View {
             identityField("lens.device", text: $draft.device)
             identityField("lens.exifModel", text: $draft.exifModel)
             identityField("lens.name", text: $draft.name)
+            identityField("lens.stylePrefix", text: $draft.stylePrefix)
+            Text("lens.stylePrefix.footer").font(.footnote).foregroundStyle(.secondary)
             Picker("lens.facing", selection: $draft.facing) {
                 ForEach(LensProfile.Facing.allCases) { direction in
                     Text(LocalizedStringKey(direction.titleKey)).tag(direction)
@@ -145,6 +147,7 @@ struct LensProfileDraft: Equatable, Identifiable {
     var device = ""
     var exifModel = ""
     var name = ""
+    var stylePrefix = ""
     var facing = LensProfile.Facing.unspecified
     var equivalentMin = ""
     var equivalentMax = ""
@@ -162,6 +165,7 @@ struct LensProfileDraft: Equatable, Identifiable {
         isNew = profile == nil
         guard let profile else { return }
         device = profile.device; exifModel = profile.exifModel; name = profile.name; facing = profile.facing
+        stylePrefix = profile.stylePrefix ?? ""
         equivalentMin = Self.number(profile.equivalentMin); equivalentMax = Self.number(profile.equivalentMax)
         physicalMin = Self.number(profile.physicalMin); physicalMax = Self.number(profile.physicalMax)
         zoomMin = Self.number(profile.zoomMin); zoomMax = Self.number(profile.zoomMax)
@@ -177,12 +181,15 @@ struct LensProfileDraft: Equatable, Identifiable {
                            equivalentMin: low, equivalentMax: high,
                            physicalMin: Self.parse(physicalMin), physicalMax: Self.parse(physicalMax),
                            zoomMin: Self.parse(zoomMin), zoomMax: Self.parse(zoomMax), digitalZoomMax: Self.parse(digitalZoomMax),
-                           cameraID: cameraID, hardwareDevice: hardwareDevice, hardwareModel: hardwareModel)
+                           cameraID: cameraID, hardwareDevice: hardwareDevice, hardwareModel: hardwareModel,
+                           stylePrefix: stylePrefix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil
+                                : stylePrefix.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     var validationKey: String? {
         if [device, exifModel, name].contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { return "lens.validation.identity" }
         if [device, exifModel, name].contains(where: { $0.count > 256 }) { return "lens.validation.length" }
+        if stylePrefix.count > 64 || stylePrefix.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) { return "lens.validation.stylePrefix" }
         if !Self.validRange(equivalentMin, equivalentMax, limit: 2_000, optional: false) { return "lens.validation.equivalent" }
         if !Self.validRange(physicalMin, physicalMax, limit: 1_000) { return "lens.validation.physical" }
         if !Self.validRange(zoomMin, zoomMax, limit: 200) { return "lens.validation.zoom" }

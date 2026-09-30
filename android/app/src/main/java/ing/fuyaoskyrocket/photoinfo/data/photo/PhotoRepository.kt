@@ -132,21 +132,6 @@ class PhotoRepository(private val context: Context, kind: PhotoSessionKind = Pho
             text(ExifInterface.TAG_LENS_MODEL), number(ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM),
             settings.mainFocalMm, settings.lenses, number(ExifInterface.TAG_FOCAL_LENGTH), capture.cameraType)
         val coordinates = runCatching { exif?.latLong }.getOrNull()?.let { PhotoCoordinates.from(it[0], it[1]) }
-        val info = PhotoInfo(mapOf(
-            FieldId.DEVICE to lens.deviceName.ifBlank { Format.device(text(ExifInterface.TAG_MAKE), text(ExifInterface.TAG_MODEL)) },
-            FieldId.AUTHOR to text(ExifInterface.TAG_ARTIST),
-            // Place names are resolved asynchronously so a slow geocoder never blocks importing.
-            FieldId.LOCATION to "",
-            FieldId.CAMERA to lens.camera,
-            FieldId.IMAGE_SIZE to Format.megapixels(width, height),
-            FieldId.FOCAL_LENGTH to lens.focalLength,
-            FieldId.EXPOSURE to Format.exposure(number(ExifInterface.TAG_EXPOSURE_TIME)),
-            FieldId.APERTURE to Format.number(number(ExifInterface.TAG_F_NUMBER)),
-            FieldId.ISO to exif?.getAttributeInt(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY, 0)
-                ?.takeIf { it > 0 }?.toString().orEmpty(),
-            FieldId.PHOTOGRAPHIC_STYLE to PhotographicStyleReader.name(capture,
-                exif?.getAttribute(ExifInterface.TAG_XMP)).orEmpty(),
-        ))
         val tags = ing.fuyaoskyrocket.photoinfo.domain.metadata.ExportMetadata.readableTags.mapNotNull { tag -> text(tag).takeIf { it.isNotEmpty() }?.let { tag to it } }.toMap()
         val media = if (mime in setOf("image/heic", "image/heif", "image/avif")) {
             val motion = graph?.motionPayload?.let { payload ->
@@ -162,6 +147,21 @@ class PhotoRepository(private val context: Context, kind: PhotoSessionKind = Pho
                 blocked = !accepted,bitDepth=still?.bitDepth ?: 8,hdrTransfer=still?.hdrTransfer==true,
                 hdrTransferCode=still?.hdrTransferCode ?: 0)
         } else MotionPhoto.inspect(file, mime, exif?.getAttribute(ExifInterface.TAG_XMP))
+        val photographicStyle = PhotographicStyleReader.name(capture, exif?.getAttribute(ExifInterface.TAG_XMP), media.photographicStyle)
+        val info = PhotoInfo(mapOf(
+            FieldId.DEVICE to lens.deviceName.ifBlank { Format.device(text(ExifInterface.TAG_MAKE), text(ExifInterface.TAG_MODEL)) },
+            FieldId.AUTHOR to text(ExifInterface.TAG_ARTIST),
+            // Place names are resolved asynchronously so a slow geocoder never blocks importing.
+            FieldId.LOCATION to "",
+            FieldId.CAMERA to lens.camera,
+            FieldId.IMAGE_SIZE to Format.megapixels(width, height),
+            FieldId.FOCAL_LENGTH to lens.focalLength,
+            FieldId.EXPOSURE to Format.exposure(number(ExifInterface.TAG_EXPOSURE_TIME)),
+            FieldId.APERTURE to Format.number(number(ExifInterface.TAG_F_NUMBER)),
+            FieldId.ISO to exif?.getAttributeInt(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY, 0)
+                ?.takeIf { it > 0 }?.toString().orEmpty(),
+            FieldId.PHOTOGRAPHIC_STYLE to PhotographicStyleReader.displayName(photographicStyle, lens.stylePrefix),
+        ))
         val detailTags = listOf(
             ExifInterface.TAG_DATETIME_ORIGINAL, ExifInterface.TAG_DATETIME,
             ExifInterface.TAG_MAKE, ExifInterface.TAG_MODEL,
@@ -176,7 +176,7 @@ class PhotoRepository(private val context: Context, kind: PhotoSessionKind = Pho
         ).mapNotNull { tag -> text(tag).takeIf(String::isNotEmpty)?.let { tag to it } }.toMap()
         val report = runCatching {
             ing.fuyaoskyrocket.photoinfo.domain.media.MediaMetadataReportReader.read(
-                mime, file, media, graph, exif?.getAttribute(ExifInterface.TAG_XMP), info[FieldId.PHOTOGRAPHIC_STYLE]) { value ->
+                mime, file, media, graph, exif?.getAttribute(ExifInterface.TAG_XMP), photographicStyle) { value ->
                 android.text.format.Formatter.formatShortFileSize(context, value)
             }
         }.getOrNull()

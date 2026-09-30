@@ -46,9 +46,11 @@ class LensBindingsTest {
     }
 
     @Test fun savedEditorStateKeepsHintsAndReadsPreviousVersion() {
-        val value = wide.copy(hardwareModel="local-model")
+        val value = wide.copy(hardwareModel="local-model",stylePrefix="Leica")
         assertEquals(value, LensProfileFields.decode(LensProfileFields.encode(value)))
-        val old = LensProfileFields.encode(value).dropLast(1).toMutableList().apply { this[0]="lens-v2" }
-        assertEquals(value.copy(hardwareModel=""), LensProfileFields.decodeList(old).single())
+        val v3 = LensProfileFields.encode(value).dropLast(1).toMutableList().apply { this[0]="lens-v3" }
+        assertEquals(value.copy(stylePrefix=""), LensProfileFields.decodeList(v3).single())
+        val v2 = LensProfileFields.encode(value).dropLast(2).toMutableList().apply { this[0]="lens-v2" }
+        assertEquals(value.copy(hardwareModel="",stylePrefix=""), LensProfileFields.decodeList(v2).single())
     }
 }

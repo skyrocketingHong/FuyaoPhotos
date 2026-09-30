@@ -18,6 +18,7 @@ nonisolated struct PhotoMediaInspection: Sendable {
     let kind: PhotoMediaKind
     let width: Int
     let height: Int
+    var vendorPhotographicStyle: String? = nil
 }
 
 nonisolated struct PhotoJPEGScan: Sendable {
@@ -26,6 +27,7 @@ nonisolated struct PhotoJPEGScan: Sendable {
     let xmp: String
     let primaryEnd: Int
     let fileSize: Int
+    var vendorPhotographicStyle: String? = nil
     var trailingBytes: Int { fileSize - primaryEnd }
 }
 
@@ -54,8 +56,11 @@ nonisolated enum PhotoMediaInspector {
             throw PhotoMediaInspectionError.invalidImage
         }
         let kind: PhotoMediaKind
+        var vendorPhotographicStyle: String?
         if type.conforms(to: .jpeg) {
-            kind = try inspectJPEG(url)
+            let scan = try scanJPEG(url)
+            kind = inspectJPEG(scan)
+            vendorPhotographicStyle = scan.vendorPhotographicStyle
         } else if type.conforms(to: .png) {
             kind = .stillPNG
         } else if type.conforms(to: .heic) || type.conforms(to: .heif) {
@@ -67,11 +72,10 @@ nonisolated enum PhotoMediaInspector {
         } else {
             kind = .unsupported
         }
-        return PhotoMediaInspection(kind: kind, width: width, height: height)
+        return PhotoMediaInspection(kind: kind, width: width, height: height, vendorPhotographicStyle: vendorPhotographicStyle)
     }
 
-    private static func inspectJPEG(_ url: URL) throws -> PhotoMediaKind {
-        let scan = try scanJPEG(url)
+    private static func inspectJPEG(_ scan: PhotoJPEGScan) -> PhotoMediaKind {
         let packet = scan.xmp
         let mpf = scan.mpf
         let hdr = packet.range(of: "hdr-gain-map", options: .caseInsensitive) != nil ||
@@ -101,6 +105,7 @@ nonisolated enum PhotoMediaInspector {
             var mpf = false
             var isoGainMapSegment = false
             var xmp = Data()
+            var xiaomiPackets: [Data] = []
             let prefix = Data("http://ns.adobe.com/xap/1.0/\0".utf8)
             let isoPrefix = Data("urn:iso:std:iso:ts:21496".utf8)
             while cursor + 4 <= bytes.count && cursor <= 4 * 1024 * 1024 {
@@ -120,6 +125,10 @@ nonisolated enum PhotoMediaInspector {
                 }
                 let payloadStart = cursor + 2
                 let payloadEnd = cursor + length
+                if marker == 0xe4, payloadEnd - payloadStart >= XiaomiPhotographicStyleReader.prefix.count,
+                   XiaomiPhotographicStyleReader.prefix.indices.allSatisfy({ bytes[payloadStart + $0] == XiaomiPhotographicStyleReader.prefix[$0] }) {
+                    xiaomiPackets.append(Data(bytes[payloadStart..<payloadEnd]))
+                }
                 if marker == 0xe2, payloadEnd - payloadStart >= 4,
                    bytes[payloadStart] == 0x4d, bytes[payloadStart + 1] == 0x50,
                    bytes[payloadStart + 2] == 0x46, bytes[payloadStart + 3] == 0 {
@@ -145,7 +154,8 @@ nonisolated enum PhotoMediaInspector {
                 throw PhotoMediaInspectionError.malformedJPEG
             }
             return PhotoJPEGScan(mpf: mpf, isoGainMapSegment: isoGainMapSegment, xmp: packet,
-                                 primaryEnd: primaryEnd, fileSize: bytes.count)
+                                 primaryEnd: primaryEnd, fileSize: bytes.count,
+                                 vendorPhotographicStyle: XiaomiPhotographicStyleReader.name(in: xiaomiPackets))
         }
     }
 

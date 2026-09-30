@@ -67,7 +67,7 @@ nonisolated enum MediaMetadataReportReader {
         }
         let context = Context(uti: uti, properties: properties, container: container, scan: scan,
             photographicStyle: PhotographicStyleReader.name(properties: properties ?? [:],
-                metadata: source.flatMap { CGImageSourceCopyMetadataAtIndex($0, 0, nil) }))
+                metadata: source.flatMap { CGImageSourceCopyMetadataAtIndex($0, 0, nil) }, vendorName: scan?.vendorPhotographicStyle))
 
         var sections: [MediaMetadataReport.Section] = []
         let groups: [(String, [MediaMetadataReport.Row])] = [

@@ -439,4 +439,7 @@
   <string name="lens_hardware_mismatch">Facing or focal length does not match</string>
   <string name="lens_hardware_unbind">Remove link</string>
   <string name="lens_hardware_invalid">Could not link this lens. Scan again and check its facing, focal length and existing links.</string>
+  <string name="lens_style_prefix">Style prefix</string>
+  <string name="lens_style_prefix_hint">Add this text before the style name on photo cards. Leave empty to use the original name.</string>
+  <string name="lens_style_prefix_invalid">Use up to 64 characters without line breaks or control characters.</string>
 </resources>

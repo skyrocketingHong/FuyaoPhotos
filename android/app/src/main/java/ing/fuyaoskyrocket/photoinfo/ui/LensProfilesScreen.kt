@@ -42,7 +42,7 @@ import kotlinx.coroutines.withContext
 internal fun LensProfile.fields() = LensProfileFields.encode(this)
 internal fun lensFromFields(fields: List<String>): LensProfile {
     val lens = LensProfileFields.decode(fields)
-    return if (fields.firstOrNull() !in setOf(LensProfileFields.VERSION, "lens-v2") && lens.cameraId.isNotBlank()) lens.copy(hardwareDevice=LocalCameraDevice.hardwareKey) else lens
+    return if (LensProfileFields.sizeFor(fields.firstOrNull()) == 10 && lens.cameraId.isNotBlank()) lens.copy(hardwareDevice=LocalCameraDevice.hardwareKey) else lens
 }
 internal val ProfilesSaver = Saver<List<LensProfile>, ArrayList<String>>(
     save = { ArrayList(it.flatMap { lens -> lens.fields() }) },
