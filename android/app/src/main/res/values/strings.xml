@@ -78,8 +78,8 @@
   <string name="location_retry">Look up location again</string>
   <string name="manage_lenses">Lens profiles (%1$d)</string>
   <string name="lens_profiles">Lens profiles</string>
-  <string name="inventory_hint">Camera access is needed to identify this device’s lenses. No photos are taken. You can also add a lens manually.</string>
-  <string name="scan_lenses">Find device lenses</string>
+  <string name="inventory_hint">Camera access is needed to scan and link matching lenses on this device. No photos are taken. Save to apply changes.</string>
+  <string name="scan_lenses">Scan and match lenses</string>
   <string name="inventory_failed">Lens details could not be read. Try again or add a lens manually.</string>
   <string name="inventory_count">Visible lenses: %1$d · Logical cameras: %2$d</string>
   <string name="inventory_incomplete">Some characteristics could not be read. This is not a complete hardware inventory.</string>
@@ -427,4 +427,16 @@
   <string name="lens_group_one">1 lens</string>
   <string name="lens_group_count">%1$d lenses</string>
   <string name="lens_group_range">%1$s–%2$s mm</string>
+  <string name="lens_group_current">This device</string>
+  <string name="lens_group_expanded">Expanded</string>
+  <string name="lens_group_collapsed">Collapsed</string>
+  <string name="lens_hardware_this_device">Use as this device’s configuration</string>
+  <string name="lens_hardware_bind">Link a hardware lens</string>
+  <string name="lens_hardware_id_hint">Imported ID: %1$s · Not linked</string>
+  <string name="lens_hardware_manual_description">Choose a lens from this device. Available focal lengths, facing and existing links are checked before linking. Save the configuration to apply changes.</string>
+  <string name="lens_hardware_empty">No hardware lenses are available. Allow camera access and scan again on the device that uses this configuration.</string>
+  <string name="lens_hardware_occupied">Already linked to another lens</string>
+  <string name="lens_hardware_mismatch">Facing or focal length does not match</string>
+  <string name="lens_hardware_unbind">Remove link</string>
+  <string name="lens_hardware_invalid">Could not link this lens. Scan again and check its facing, focal length and existing links.</string>
 </resources>

@@ -13,6 +13,9 @@ nonisolated struct LensProfile: Codable, Equatable, Identifiable, Sendable {
     var zoomMin: Double?
     var zoomMax: Double?
     var digitalZoomMax: Double?
+    var cameraID: String?
+    var hardwareDevice: String?
+    var hardwareModel: String?
 
     enum Facing: String, Codable, CaseIterable, Identifiable, Sendable {
         case unspecified, back, front, external
@@ -21,6 +24,9 @@ nonisolated struct LensProfile: Codable, Equatable, Identifiable, Sendable {
     }
 
     var isValid: Bool {
+        guard [cameraID, hardwareDevice, hardwareModel].compactMap({ $0 }).allSatisfy({ value in
+            value.count <= 512 && value.unicodeScalars.allSatisfy { !CharacterSet.controlCharacters.contains($0) }
+        }), (cameraID?.count ?? 0) <= 256 else { return false }
         guard [device, exifModel, name].allSatisfy({ !Self.normalize($0).isEmpty && $0.count <= 256 })
             && Self.validRange(equivalentMin, equivalentMax, limit: 2_000)
             && Self.optionalRange(physicalMin, physicalMax, limit: 1_000)

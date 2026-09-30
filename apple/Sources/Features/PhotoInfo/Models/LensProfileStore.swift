@@ -20,7 +20,7 @@ import Observation
 
     func save(_ draft: [LensProfile]) throws {
         // ASVS 2.2.1/2.2.3: validate finite ranges and related endpoints at persistence.
-        guard draft.allSatisfy(\.isValid), Set(draft.map(\.id)).count == draft.count else {
+        guard draft.allSatisfy(\.isValid), Set(draft.map(\.id)).count == draft.count, !LensBindings.hasDuplicates(draft) else {
             throw CocoaError(.coderInvalidValue)
         }
         let data = try JSONEncoder().encode(draft)

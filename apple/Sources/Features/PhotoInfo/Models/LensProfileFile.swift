@@ -7,6 +7,7 @@ nonisolated struct LensProfileFile: Codable, Equatable, Sendable {
     var device: String
     var exifModel: String
     var lenses: [Lens]
+    var hardwareModel: String?
 
     struct Lens: Codable, Equatable, Sendable {
         var name: String
@@ -18,6 +19,7 @@ nonisolated struct LensProfileFile: Codable, Equatable, Sendable {
         var zoomMin: Double?
         var zoomMax: Double?
         var digitalZoomMax: Double?
+        var id: String?
     }
 
     init(profiles: [LensProfile]) throws {
@@ -26,10 +28,12 @@ nonisolated struct LensProfileFile: Codable, Equatable, Sendable {
             throw LensProfileFileError.invalid
         }
         device = first.device; exifModel = first.exifModel
+        let models = Set(profiles.compactMap { $0.hardwareDevice ?? $0.hardwareModel }.filter { !$0.isEmpty })
+        hardwareModel = models.count == 1 ? models.first : nil
         lenses = profiles.map { Lens(name: $0.name, facing: $0.facing,
             equivalentMin: $0.equivalentMin, equivalentMax: $0.equivalentMax,
             physicalMin: $0.physicalMin, physicalMax: $0.physicalMax,
-            zoomMin: $0.zoomMin, zoomMax: $0.zoomMax, digitalZoomMax: $0.digitalZoomMax) }
+            zoomMin: $0.zoomMin, zoomMax: $0.zoomMax, digitalZoomMax: $0.digitalZoomMax, id: $0.cameraID) }
     }
 
     func profiles() throws -> [LensProfile] {
@@ -39,7 +43,7 @@ nonisolated struct LensProfileFile: Codable, Equatable, Sendable {
         let values = lenses.map { LensProfile(device: device, exifModel: exifModel, name: $0.name,
             facing: $0.facing, equivalentMin: $0.equivalentMin, equivalentMax: $0.equivalentMax,
             physicalMin: $0.physicalMin, physicalMax: $0.physicalMax, zoomMin: $0.zoomMin,
-            zoomMax: $0.zoomMax, digitalZoomMax: $0.digitalZoomMax) }
+            zoomMax: $0.zoomMax, digitalZoomMax: $0.digitalZoomMax, cameraID: $0.id, hardwareModel: hardwareModel) }
         guard values.allSatisfy({ $0.isValid && Self.validText($0.name) }) else { throw LensProfileFileError.invalid }
         return values
     }

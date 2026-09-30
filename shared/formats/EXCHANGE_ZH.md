@@ -27,4 +27,8 @@ Apple 与 Android 共用本格式，目前支持版本 1。不支持的版本明
 
 镜头包含 `name`、`facing`（`unspecified`、`back`、`front`、`external`）、`equivalentMin`、`equivalentMax`。可选成对端点为 `physicalMin` / `physicalMax` 与 `zoomMin` / `zoomMax`；`digitalZoomMax` 单独表示数码覆盖上限。数字必须有限且满足两端 LensProfile 范围约束。缺失值保持缺失，不在导入时估算。
 
-不导出本地 UUID、Camera2 ID 或硬件绑定。导入仅在草稿中替换规范化 EXIF 型号相同的配置，必要时在应用内确认替换；点击保存后才持久化，不修改原照片元数据。
+镜头可选字段 `id` 保留源硬件镜头 ID，类型为不超过 256 字符的字符串；根级可选字段 `hardwareModel` 保留不超过 512 字符的机型标识，不包含序列号或单台设备标识。导入时它们仅作提示，本地配置 UUID 重新生成，已验证的本机绑定不从文件恢复。新增可选字段保持版本 1 兼容，旧文件可以全部省略。参见[带 ID 的共享样例](../fixtures/lenses-v1-with-ids.json)。
+
+自动绑定须检查本机型号、扫描到的朝向、可用焦距标定及一对一唯一性，不得仅凭 ID 选择镜头或消除歧义。ID 缺失、错误或来自另一平台时，仍可依靠已核验的本机参数识别。手动绑定同样检查真实扫描结果、已知朝向/焦距约束及已有绑定。Apple 使用 AVFoundation，Android 使用 Camera2；系统型号无法与产品名称对应时，可由用户明确指定哪组配置属于本设备。
+
+导入仅在草稿中替换规范化 EXIF 型号相同的配置，必要时在应用内确认替换；点击保存后才持久化，不修改原照片元数据。

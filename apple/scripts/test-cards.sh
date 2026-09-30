@@ -7,6 +7,7 @@ xcrun swiftc -parse-as-library -swift-version 6 \
   -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   "$ROOT/Sources/Features/PhotoInfo/Models/PhotoCard.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Models/LensProfile.swift" \
+  "$ROOT/Sources/Features/PhotoInfo/Models/LensBindings.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Media/"*.swift \
   "$ROOT/Sources/Features/PhotoInfo/Rendering/CardTypography.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Rendering/CardRenderer.swift" \

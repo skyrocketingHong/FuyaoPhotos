@@ -15,6 +15,11 @@ struct LensProfilesView: View {
     @State private var incoming: LensProfileFile?
     @State private var transferMessage: String?
     @State private var copiedDevice: String?
+    @State private var expandedDevices = Set<String>()
+    @State private var inventory: LensCameraInventory?
+    @State private var scanning = false
+    @State private var bindingProfile: LensProfile?
+    private let hardwareDevice = LensCameraInventory.localHardwareDevice
     private let initial: [LensProfile]
     private let store: LensProfileStore
 
@@ -25,20 +30,8 @@ struct LensProfilesView: View {
     }
 
     private var hasChanges: Bool { draft != initial }
-    private struct DeviceGroup: Identifiable {
-        let id: String
-        let profiles: [LensProfile]
-        var device: String { profiles[0].device }
-        var exifModel: String { profiles[0].exifModel }
-    }
-    private var deviceGroups: [DeviceGroup] {
-        let grouped = Dictionary(grouping: draft) { LensProfile.normalize($0.exifModel) }
-        var seen = Set<String>()
-        return draft.compactMap { profile in
-            let key = LensProfile.normalize(profile.exifModel)
-            guard seen.insert(key).inserted, let profiles = grouped[key] else { return nil }
-            return DeviceGroup(id: key, profiles: profiles)
-        }
+    private var deviceGroups: [LensBindings.DeviceGroup] {
+        LensBindings.groups(draft, hardwareDevice: hardwareDevice, aliases: inventory?.aliases ?? [])
     }
 
     var body: some View {
@@ -66,6 +59,10 @@ struct LensProfilesView: View {
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                     Text("lens.file.description").font(.footnote).foregroundStyle(.secondary)
+                    Button("lens.hardware.scan", systemImage: "camera") { Task { await scanCameras() } }
+                        .disabled(scanning)
+                    if scanning { ProgressView() }
+                    Text("lens.hardware.description").font(.footnote).foregroundStyle(.secondary)
                 }
                 if draft.isEmpty {
                     ContentUnavailableView("lens.empty.title", systemImage: "camera.aperture",
@@ -73,19 +70,36 @@ struct LensProfilesView: View {
                 } else {
                     ForEach(deviceGroups) { group in
                         Section {
-                            ForEach(group.profiles) { profile in lensRow(profile) }
-                                .onDelete { offsets in
-                                    let ids = Set(offsets.compactMap { group.profiles.indices.contains($0) ? group.profiles[$0].id : nil })
-                                    draft.removeAll { ids.contains($0.id) }
+                            DisclosureGroup(isExpanded: Binding(get: { expandedDevices.contains(group.id) }, set: { expanded in
+                                if expanded { expandedDevices.insert(group.id) } else { expandedDevices.remove(group.id) }
+                            })) {
+                                if LensProfile.normalize(group.device) != group.id {
+                                    Text(group.exifModel).font(.subheadline).foregroundStyle(.secondary)
                                 }
-                        } header: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(group.device).font(.headline)
-                                if LensProfile.normalize(group.device) != group.id { Text(group.exifModel) }
-                                Text(group.profiles.count == 1 ? String.localized("lens.group.one")
-                                    : String(format: String.localized("lens.group.count"), group.profiles.count))
+                                ForEach(group.profiles) { profile in lensRow(profile) }
+                                    .onDelete { offsets in
+                                        let ids = Set(offsets.compactMap { group.profiles.indices.contains($0) ? group.profiles[$0].id : nil })
+                                        draft.removeAll { ids.contains($0.id) }
+                                    }
+                                if !group.isCurrent {
+                                    Button("lens.hardware.thisDevice") {
+                                        draft = draft.map { value in
+                                            var value = value
+                                            if value.acceptsExif(group.exifModel) { value.hardwareModel = hardwareDevice; value.hardwareDevice = nil }
+                                            return value
+                                        }
+                                        reconcile()
+                                    }.disabled(hardwareDevice.isEmpty)
+                                }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(group.device).font(.headline).foregroundStyle(.primary)
+                                    if group.isCurrent { Text("lens.group.current").font(.subheadline).foregroundStyle(.secondary) }
+                                    Text(group.profiles.count == 1 ? String.localized("lens.group.one")
+                                        : String(format: String.localized("lens.group.count"), group.profiles.count))
+                                        .font(.footnote).foregroundStyle(.secondary)
+                                }.fixedSize(horizontal: false, vertical: true)
                             }
-                            .textCase(nil).fixedSize(horizontal: false, vertical: true)
                         } footer: {
                             if group.id == deviceGroups.last?.id { Text("lens.profiles.footer") }
                         }
@@ -94,6 +108,7 @@ struct LensProfilesView: View {
             }
             .scrollEdgeEffectStyle(.soft, for: .top)
             .onChange(of: draft) { _, _ in copiedDevice = nil }
+            .task { await scanCameras() }
             .navigationTitle("lens.profiles.title")
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -105,14 +120,35 @@ struct LensProfilesView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("lens.save") { save() }
-                        .disabled(!hasChanges)
+                        .disabled(!hasChanges || LensBindings.hasDuplicates(draft))
                         .keyboardShortcut("s", modifiers: .command)
                 }
             }
             .sheet(item: $editor) { value in
                 LensProfileEditor(draft: value) { profile in
-                    if let index = draft.firstIndex(where: { $0.id == profile.id }) { draft[index] = profile }
+                    if let index = draft.firstIndex(where: { $0.id == profile.id }) {
+                        var profile = profile
+                        if !draft[index].acceptsExif(profile.exifModel) { profile.hardwareDevice = nil; profile.hardwareModel = nil }
+                        draft[index] = profile
+                    }
                     else { draft.append(profile) }
+                    reconcile()
+                }
+            }
+            .sheet(item: $bindingProfile) { profile in
+                LensHardwareBindingView(profile: profile, profiles: draft, hardware: inventory?.lenses ?? [], hardwareDevice: hardwareDevice) { cameraID in
+                    do {
+                        if let cameraID {
+                            draft = try LensBindings.bind(draft, profileID: profile.id, cameraID: cameraID,
+                                hardware: inventory?.lenses ?? [], hardwareDevice: hardwareDevice)
+                        } else {
+                            draft = draft.map { value in
+                                var value = value
+                                if value.id == profile.id { value.cameraID = nil; value.hardwareDevice = nil }
+                                return value
+                            }
+                        }
+                    } catch { transferMessage = String.localized("lens.hardware.invalid") }
                 }
             }
             .confirmationDialog("lens.discard.title", isPresented: $confirmDiscard, titleVisibility: .visible) {
@@ -156,18 +192,25 @@ struct LensProfilesView: View {
     }
 
     private func lensRow(_ profile: LensProfile) -> some View {
-        Button { editor = LensProfileDraft(profile: profile) } label: {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(profile.name).font(.headline).foregroundStyle(.primary)
-                    Text(equivalentRange(profile)).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
-                }
-                .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.forward").font(.caption).foregroundStyle(.tertiary).accessibilityHidden(true)
-            }.contentShape(.rect)
+        VStack(alignment: .leading, spacing: 8) {
+            Button { editor = LensProfileDraft(profile: profile) } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(profile.name).font(.headline).foregroundStyle(.primary)
+                        Text(equivalentRange(profile)).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.forward").font(.caption).foregroundStyle(.tertiary).accessibilityHidden(true)
+                }.contentShape(.rect)
+            }.buttonStyle(.plain)
+            Button("lens.hardware.bind", systemImage: "link") { bindingProfile = profile }
+                .buttonStyle(.borderless).disabled(scanning)
+            if let id = profile.cameraID, !id.isEmpty {
+                Text(String(format: String.localized(profile.hardwareDevice == hardwareDevice ? "lens.hardware.bound" : "lens.hardware.hint"), id))
+                    .font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
+            }
         }
-        .buttonStyle(.plain)
         .contextMenu {
             Button("lens.edit", systemImage: "pencil") { editor = LensProfileDraft(profile: profile) }
             Button("lens.delete", systemImage: "trash", role: .destructive) { remove(profile) }
@@ -234,8 +277,21 @@ struct LensProfilesView: View {
     }
 
     private func apply(_ file: LensProfileFile) {
-        do { draft = try file.merging(into: draft); transferMessage = String.localized("lens.file.imported") }
+        do { draft = try file.merging(into: draft); reconcile(); transferMessage = String.localized("lens.file.imported") }
         catch { transferMessage = String.localized("lens.file.invalid") }
+    }
+
+    private func reconcile() {
+        guard let inventory, !hardwareDevice.isEmpty else { return }
+        draft = LensBindings.reconcile(draft, hardware: inventory.lenses, hardwareDevice: hardwareDevice, aliases: inventory.aliases)
+    }
+
+    private func scanCameras() async {
+        scanning = true
+        let result = await Task.detached(priority: .utility) { LensCameraInventory.scan() }.value
+        guard !Task.isCancelled else { scanning = false; return }
+        inventory = result; scanning = false
+        reconcile()
     }
 }
 

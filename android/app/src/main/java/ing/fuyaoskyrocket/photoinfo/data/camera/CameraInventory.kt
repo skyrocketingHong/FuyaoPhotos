@@ -5,7 +5,7 @@ import android.hardware.camera2.CameraCharacteristics as C
 import android.hardware.camera2.CameraManager
 import android.os.Build
 
-data class HardwareLens(val id: String, val facing: String, val physicalFocals: List<Double>, val apertures: List<Double>)
+typealias HardwareLens = ing.fuyaoskyrocket.photoinfo.domain.lens.HardwareLens
 data class CameraInventory(val lenses: List<HardwareLens>, val logicalCount: Int, val incomplete: Boolean)
 
 class CameraInventoryReader(context: Context) {

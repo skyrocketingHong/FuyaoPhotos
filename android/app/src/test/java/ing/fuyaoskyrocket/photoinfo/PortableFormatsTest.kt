@@ -10,6 +10,19 @@ import java.io.File
 
 /** Runs in testAndroidDom, with Android's real JSON/DOM implementation. */
 class PortableFormatsTest {
+    @Test fun hardwareIdsRoundTripWithoutBecomingLocalBindings() {
+        val bytes = File(root(), "shared/fixtures/lenses-v1-with-ids.json").readBytes()
+        val file = LensProfileFile.decode(bytes)
+        assertEquals(listOf("0", "2"), file.lenses.map { it.cameraId })
+        assertTrue(file.lenses.all { it.hardwareDevice.isBlank() && it.hardwareModel == "Example|Model" })
+        val again = LensProfileFile.decode(file.encoded())
+        assertEquals(listOf("0", "2"), again.lenses.map { it.cameraId })
+        assertTrue(again.lenses.all { it.hardwareDevice.isBlank() })
+        val text = bytes.toString(Charsets.UTF_8)
+        for (invalid in listOf(text.replace("\"id\":\"0\"", "\"id\":0"), text.replace("\"id\":\"0\"", "\"id\":\"bad\\nID\""))) {
+            assertThrows(Exception::class.java) { LensProfileFile.decode(invalid.toByteArray()) }
+        }
+    }
     private fun root(): File = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }.take(6)
         .first { File(it, "shared/fixtures/lenses-v1.json").isFile }
     private fun output() = File(root(), ".local/portable-exchange").apply { mkdirs() }

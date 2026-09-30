@@ -39,7 +39,9 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
     var physicalMax by rememberSaveable(lens.id) { mutableStateOf(number(lens.physicalMax)) }
     val draft=lens.copy(device=device.trim(),name=name.trim(),equivalentMin=min.toDoubleOrNull() ?: 0.0,equivalentMax=max.toDoubleOrNull() ?: 0.0,
         zoomMin=zoomMin.toDoubleOrNull(),zoomMax=zoomMax.toDoubleOrNull(),physicalMin=physicalMin.toDoubleOrNull(),physicalMax=physicalMax.toDoubleOrNull(),
-        exifModel=exifModel.trim(),digitalZoomMax=digitalMax.toDoubleOrNull())
+        exifModel=exifModel.trim(),digitalZoomMax=digitalMax.toDoubleOrNull(),
+        hardwareDevice=if(lens.valid() && !lens.acceptsExif(exifModel)) "" else lens.hardwareDevice,
+        hardwareModel=if(lens.valid() && !lens.acceptsExif(exifModel)) "" else lens.hardwareModel)
     val numeric=listOf(zoomMin,zoomMax,physicalMin,physicalMax,digitalMax).all { it.isBlank() || it.toDoubleOrNull()?.isFinite()==true }
     val valid=draft.valid()&&numeric
     val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
@@ -57,7 +59,9 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
             OutlinedTextField(exifModel,{ if(it.length<=256)exifModel=it },Modifier.fillMaxWidth(),label={ Text(stringResource(R.string.profile_exif_model)) },
                 supportingText={ Text(stringResource(R.string.profile_exif_hint)) },singleLine=true)
             TextButton(onClick={ exifModel=currentExifModel },enabled=currentExifModel.isNotBlank()) { Text(stringResource(R.string.read_photo_model)) }
-            if(lens.cameraId.isNotBlank()) Text(stringResource(R.string.bound_camera_id,lens.cameraId),style=MaterialTheme.typography.bodySmall)
+            if(lens.cameraId.isNotBlank()) Text(stringResource(
+                if(lens.hardwareDevice == ing.fuyaoskyrocket.photoinfo.data.camera.LocalCameraDevice.hardwareKey) R.string.bound_camera_id else R.string.lens_hardware_id_hint,
+                lens.cameraId),style=MaterialTheme.typography.bodySmall)
             OutlinedTextField(name,{ if(it.length<=256)name=it },Modifier.fillMaxWidth(),label={ Text(stringResource(R.string.profile_name)) },maxLines=3)
     }
     val rangeContent: @Composable ColumnScope.() -> Unit = {

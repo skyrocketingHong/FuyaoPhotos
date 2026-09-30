@@ -582,3 +582,17 @@
 "lens.group.one" = "1 个镜头";
 
 "lens.group.count" = "%d 个镜头";
+
+"lens.group.current" = "本设备";
+"lens.hardware.scan" = "扫描并识别镜头";
+"lens.hardware.description" = "自动绑定本设备中能唯一识别的镜头。型号未识别时，展开对应配置并设为本设备。所有修改保存后生效。";
+"lens.hardware.thisDevice" = "设为本设备的配置";
+"lens.hardware.bind" = "手动绑定镜头";
+"lens.hardware.bound" = "已绑定镜头 ID：%@";
+"lens.hardware.hint" = "导入 ID：%@ · 未绑定";
+"lens.hardware.empty" = "暂未读取到硬件镜头。请在使用此配置的设备上重新扫描。";
+"lens.hardware.occupied" = "已绑定其他镜头配置";
+"lens.hardware.mismatch" = "朝向或焦距不匹配";
+"lens.hardware.manualDescription" = "选择本设备镜头，绑定前会校验可用的焦距、朝向和已有绑定。保存配置后生效。";
+"lens.hardware.unbind" = "解除绑定";
+"lens.hardware.invalid" = "无法绑定此镜头。请重新扫描，并检查朝向、焦距及已有绑定。";

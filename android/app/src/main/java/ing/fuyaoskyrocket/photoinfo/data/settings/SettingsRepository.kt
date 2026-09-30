@@ -4,6 +4,7 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfile
+import ing.fuyaoskyrocket.photoinfo.domain.lens.LensBindings
 import ing.fuyaoskyrocket.photoinfo.data.camera.LocalCameraDevice
 import androidx.core.content.edit
 import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
@@ -52,7 +53,7 @@ class SettingsRepository(context: Context) {
                 j.getDouble("equivalentMin"), j.getDouble("equivalentMax"), optional("zoomMin"), optional("zoomMax"), optional("physicalMin"), optional("physicalMax"))
             if (!j.has("exifModel")) lens.upgradeLegacy(LocalCameraDevice.hardwareKey)
             else lens.copy(exifModel=j.getString("exifModel"), hardwareDevice=j.optString("hardwareDevice"),
-                digitalZoomMax=optional("digitalZoomMax"), facing=j.optString("facing"))
+                digitalZoomMax=optional("digitalZoomMax"), facing=j.optString("facing"), hardwareModel=j.optString("hardwareModel"))
         }.filter { it.valid() }
     }.getOrDefault(emptyList())
 
@@ -63,6 +64,7 @@ class SettingsRepository(context: Context) {
             put("zoomMin",lens.zoomMin ?: JSONObject.NULL); put("zoomMax",lens.zoomMax ?: JSONObject.NULL)
             put("physicalMin",lens.physicalMin ?: JSONObject.NULL); put("physicalMax",lens.physicalMax ?: JSONObject.NULL)
             put("exifModel",lens.exifModel); put("hardwareDevice",lens.hardwareDevice)
+            put("hardwareModel",lens.hardwareModel)
             put("digitalZoomMax",lens.digitalZoomMax ?: JSONObject.NULL); put("facing",lens.facing)
         }) }
     }.toString()
@@ -70,6 +72,7 @@ class SettingsRepository(context: Context) {
     fun save(settings: EditorSettings) {
         require(settings.validFocal && settings.defaultAuthor.length <= 512)
         require(settings.lenses.size <= 64 && settings.lenses.all { it.valid() })
+        require(!LensBindings.hasDuplicates(settings.lenses))
         val defaults = settings.exportDefaults.sanitized()
         preferences.edit {
             putString("workspace.startup", settings.workspace.startPage.name)

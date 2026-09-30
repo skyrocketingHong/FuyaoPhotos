@@ -153,6 +153,9 @@ struct LensProfileDraft: Equatable, Identifiable {
     var zoomMin = ""
     var zoomMax = ""
     var digitalZoomMax = ""
+    var cameraID: String?
+    var hardwareDevice: String?
+    var hardwareModel: String?
 
     init(profile: LensProfile? = nil) {
         id = profile?.id ?? UUID()
@@ -163,6 +166,7 @@ struct LensProfileDraft: Equatable, Identifiable {
         physicalMin = Self.number(profile.physicalMin); physicalMax = Self.number(profile.physicalMax)
         zoomMin = Self.number(profile.zoomMin); zoomMax = Self.number(profile.zoomMax)
         digitalZoomMax = Self.number(profile.digitalZoomMax)
+        cameraID = profile.cameraID; hardwareDevice = profile.hardwareDevice; hardwareModel = profile.hardwareModel
     }
 
     var profile: LensProfile? {
@@ -172,7 +176,8 @@ struct LensProfileDraft: Equatable, Identifiable {
                            name: name.trimmingCharacters(in: .whitespacesAndNewlines), facing: facing,
                            equivalentMin: low, equivalentMax: high,
                            physicalMin: Self.parse(physicalMin), physicalMax: Self.parse(physicalMax),
-                           zoomMin: Self.parse(zoomMin), zoomMax: Self.parse(zoomMax), digitalZoomMax: Self.parse(digitalZoomMax))
+                           zoomMin: Self.parse(zoomMin), zoomMax: Self.parse(zoomMax), digitalZoomMax: Self.parse(digitalZoomMax),
+                           cameraID: cameraID, hardwareDevice: hardwareDevice, hardwareModel: hardwareModel)
     }
 
     var validationKey: String? {

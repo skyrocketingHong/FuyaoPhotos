@@ -78,8 +78,8 @@
   <string name="location_retry">重新查找地点</string>
   <string name="manage_lenses">镜头配置（%1$d）</string>
   <string name="lens_profiles">镜头配置</string>
-  <string name="inventory_hint">识别本机镜头需要相机权限，不会拍摄照片。也可手动添加镜头。</string>
-  <string name="scan_lenses">识别本机镜头</string>
+  <string name="inventory_hint">需要相机权限扫描并绑定本设备的匹配镜头，不会拍摄照片。修改后保存生效。</string>
+  <string name="scan_lenses">扫描并识别镜头</string>
   <string name="inventory_failed">未能读取镜头参数。请重试，或手动添加镜头。</string>
   <string name="inventory_count">可见镜头：%1$d · 逻辑相机：%2$d</string>
   <string name="inventory_incomplete">部分参数无法读取，此结果不代表设备全部硬件。</string>
@@ -427,4 +427,16 @@
   <string name="lens_group_one">1 个镜头</string>
   <string name="lens_group_count">%1$d 个镜头</string>
   <string name="lens_group_range">%1$s–%2$s mm</string>
+  <string name="lens_group_current">本设备</string>
+  <string name="lens_group_expanded">已展开</string>
+  <string name="lens_group_collapsed">已折叠</string>
+  <string name="lens_hardware_this_device">设为本设备的配置</string>
+  <string name="lens_hardware_bind">手动绑定镜头</string>
+  <string name="lens_hardware_id_hint">导入 ID：%1$s · 未绑定</string>
+  <string name="lens_hardware_manual_description">选择本设备镜头，绑定前会校验可用的焦距、朝向和已有绑定。保存配置后生效。</string>
+  <string name="lens_hardware_empty">暂未读取到硬件镜头。请允许相机访问，并在使用此配置的设备上重新扫描。</string>
+  <string name="lens_hardware_occupied">已绑定其他镜头配置</string>
+  <string name="lens_hardware_mismatch">朝向或焦距不匹配</string>
+  <string name="lens_hardware_unbind">解除绑定</string>
+  <string name="lens_hardware_invalid">无法绑定此镜头。请重新扫描，并检查朝向、焦距及已有绑定。</string>
 </resources>

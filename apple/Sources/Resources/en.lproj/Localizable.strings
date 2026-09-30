@@ -583,3 +583,17 @@
 "lens.group.one" = "1 lens";
 
 "lens.group.count" = "%d lenses";
+
+"lens.group.current" = "This device";
+"lens.hardware.scan" = "Scan and match lenses";
+"lens.hardware.description" = "Uniquely matched lenses on this device are linked automatically. If the model is not recognized, expand its configuration and mark it as this device. Save to apply changes.";
+"lens.hardware.thisDevice" = "Use as this device’s configuration";
+"lens.hardware.bind" = "Link a hardware lens";
+"lens.hardware.bound" = "Linked lens ID: %@";
+"lens.hardware.hint" = "Imported ID: %@ · Not linked";
+"lens.hardware.empty" = "No hardware lenses are available. Scan again on the device that uses this configuration.";
+"lens.hardware.occupied" = "Already linked to another lens";
+"lens.hardware.mismatch" = "Facing or focal length does not match";
+"lens.hardware.manualDescription" = "Choose a lens from this device. Available focal lengths, facing and existing links are checked before linking. Save the configuration to apply changes.";
+"lens.hardware.unbind" = "Remove link";
+"lens.hardware.invalid" = "Could not link this lens. Scan again and check its facing, focal length and existing links.";

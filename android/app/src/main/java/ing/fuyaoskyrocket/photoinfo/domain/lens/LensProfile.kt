@@ -18,9 +18,11 @@ data class LensProfile(
     val hardwareDevice: String = "",
     val digitalZoomMax: Double? = null,
     val facing: String = "",
+    val hardwareModel: String = "",
 ) {
     fun valid(): Boolean = id.isNotBlank() && device.isNotBlank() && device.length <= 256 && name.isNotBlank() && name.length <= 256 &&
-        exifModel.isNotBlank() && exifModel.length <= 256 && cameraId.length <= 256 && hardwareDevice.length <= 512 &&
+        exifModel.isNotBlank() && exifModel.length <= 256 && cameraId.length <= 256 && hardwareDevice.length <= 512 && hardwareModel.length <= 512 &&
+        listOf(cameraId, hardwareDevice, hardwareModel).none { value -> value.any(Char::isISOControl) } &&
         facing in listOf("", "BACK", "FRONT", "EXTERNAL") &&
         range(equivalentMin, equivalentMax, 2000.0) && optionalRange(zoomMin, zoomMax, 200.0) && optionalRange(physicalMin, physicalMax, 1000.0) &&
         (equivalentMin != equivalentMax || zoomMin == null || zoomMin == zoomMax) &&

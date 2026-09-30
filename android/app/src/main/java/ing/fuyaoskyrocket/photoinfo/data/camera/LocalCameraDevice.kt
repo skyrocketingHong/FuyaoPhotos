@@ -10,6 +10,8 @@ object LocalCameraDevice {
     @Volatile private var cachedName: String? = null
     // Model-scoped Camera2 namespace; never an Android ID, IMEI or serial number.
     val hardwareKey: String get() = listOf(Build.MANUFACTURER, Build.MODEL, Build.DEVICE).joinToString("|")
+    fun aliases(productName: String?) = setOfNotNull(productName, Build.MODEL,
+        MetadataFormatting.device(Build.MANUFACTURER, Build.MODEL)).filter(String::isNotBlank).toSet()
 
     suspend fun productName(): String = cachedName ?: withContext(Dispatchers.IO) {
         // Some vendors expose a marketing name separately from Build.MODEL.
