@@ -45,14 +45,11 @@ actor CardImageProcessor {
         let exif = properties[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
         let tiff = properties[kCGImagePropertyTIFFDictionary as String] as? [String: Any] ?? [:]
         let gps = properties[kCGImagePropertyGPSDictionary as String] as? [String: Any] ?? [:]
-        let maker = properties[kCGImagePropertyMakerAppleDictionary as String] as? [String: Any] ?? [:]
         var card = PhotoCard()
         card[.device] = tiff[kCGImagePropertyTIFFModel as String] as? String ?? ""
         card[.author] = tiff[kCGImagePropertyTIFFArtist as String] as? String ?? author
         let rawLens = exif[kCGImagePropertyExifLensModel as String] as? String ?? ""
-        let namedCamera = AppleCameraNames.resolve(make: tiff[kCGImagePropertyTIFFMake as String] as? String ?? "",
-            model: card[.device], lens: rawLens, cameraType: (maker["46"] as? NSNumber)?.intValue)
-        card[.camera] = namedCamera?.name ?? Self.displayLensName(rawLens, device: card[.device])
+        card[.camera] = Self.displayLensName(rawLens, device: card[.device])
         card[.imageSize] = Self.number(Double(inspection.width) * Double(inspection.height) / 1_000_000) + "MP"
         let equivalent = (exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] as? NSNumber)?.doubleValue
         let physical = (exif[kCGImagePropertyExifFocalLength as String] as? NSNumber)?.doubleValue
@@ -60,12 +57,11 @@ actor CardImageProcessor {
                                                 physical: physical, profiles: profiles)
         if let lens {
             card[.device] = lens.profile.device
-            if card[.camera].isEmpty { card[.camera] = lens.profile.name }
+            card[.camera] = lens.profile.name
         }
         if let focal = equivalent.flatMap({ $0.isFinite && $0 > 0 ? $0 : nil }) ?? lens?.equivalent {
             card[.focalLength] = Self.number(focal) + " MM"
-            if let zoom = LensProfileResolver.explicitZoom(in: rawLens) ?? lens?.profile.zoom(for: focal)
-                ?? namedCamera?.zoom(at: focal) {
+            if let zoom = LensProfileResolver.explicitZoom(in: rawLens) ?? lens?.profile.zoom(for: focal) {
                 card[.focalLength] += " (\(Self.number(zoom, decimals: 1))X)"
             }
         }

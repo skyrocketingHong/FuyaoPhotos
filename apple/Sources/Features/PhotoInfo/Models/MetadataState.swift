@@ -148,7 +148,7 @@ import Observation
                     if let sourceMovie { try await LivePhotoMovie.copy(from: sourceMovie, to: movieOutput, options: options) }
                 }
             }.value
-            let metadata = try await CardImageProcessor.shared.read(output, author: "")
+            let metadata = try await CardImageProcessor.shared.read(output, author: "", profiles: LensProfileStore.shared.profiles)
             try await MetadataPhotoLibrary.save(photo: output, document: document,
                                                 updateOriginal: updateOriginal,
                                                 textureStyles: addTexture,

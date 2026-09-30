@@ -245,6 +245,13 @@ tasks.register<Test>("testAndroidDom") {
     testClassesDirs = hostTests.testClassesDirs
     classpath = files(androidDomRuntime, hostTests.classpath)
     systemProperty("javax.xml.parsers.DocumentBuilderFactory", "org.apache.harmony.xml.parsers.DocumentBuilderFactoryImpl")
-    filter { includeTestsMatching("ing.fuyaoskyrocket.photoinfo.MediaContainerTest") }
+    filter {
+        includeTestsMatching("ing.fuyaoskyrocket.photoinfo.MediaContainerTest")
+        includeTestsMatching("ing.fuyaoskyrocket.photoinfo.PortableFormatsTest")
+    }
     maxHeapSize = "768m"
+}
+
+tasks.withType<Test>().configureEach {
+    if (name != "testAndroidDom") filter { excludeTestsMatching("ing.fuyaoskyrocket.photoinfo.PortableFormatsTest") }
 }

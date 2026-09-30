@@ -11,7 +11,8 @@ fi
 python3 scripts/check-localizations.py
 python3 scripts/test-build-number.py
 swift test --package-path Packages/PhotoMapCore -c release
-swift test --package-path .
+# AVFoundation readers contend for system media resources when the media suites run together.
+swift test --package-path . --no-parallel
 bash scripts/test-cards.sh
 read -r BUILD_NUMBER BUILD_TRAIN MARKETING_VERSION < <(python3 scripts/reserve-build-number.py)
 printf 'Building Fuyao Photos %s (%s, build %s) for macOS and iOS Simulator.\n' \

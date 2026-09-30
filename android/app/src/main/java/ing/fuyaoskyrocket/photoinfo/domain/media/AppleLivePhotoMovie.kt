@@ -14,7 +14,7 @@ internal object AppleLivePhotoMovie {
     private const val STILL_TIME = "com.apple.quicktime.still-image-time"
     private val one = "\u0000\u0000\u0000\u0001"
 
-    fun write(source: File, output: File, identifier: String, timestampUs: Long) {
+    fun write(source: File, output: File, identifier: String, timestampUs: Long): Long {
         require(source.length() in 16..IsoBmff.MAX_BYTES.toLong())
         require(UUID.fromString(identifier).toString().equals(identifier, true))
         val bytes = source.readBytes()
@@ -75,6 +75,7 @@ internal object AppleLivePhotoMovie {
                 .contentEquals(MotionPhoto.digest(output, part.payload.toLong(), (part.end - part.payload).toLong())))
         }
         MotionPhoto.validateVideo(output, 0, output.length())
+        return ((seconds * timescale).roundToLong().toDouble() / timescale * 1_000_000).roundToLong()
     }
 
     private fun markerTrack(id: Int, videoID: Int, movieScale: Long, seconds: Double, offset: Int, sampleBytes: Int): ByteArray {
@@ -102,13 +103,11 @@ internal object AppleLivePhotoMovie {
             writeShort(0x40); repeat(3) { writeShort(0x8000) }; writeInt(0)
         }))
         val dinf = box("dinf", full("dref", payload = data { writeInt(1); write(full("url ", flags = 1, payload = byteArrayOf())) }))
-        // Reference layout: keys{count, keyd{mdta+name}, dtyp{reserved, wellKnown=65}},
-        // with sdpd alongside; dtyp 65 marks the still-image-time well-known key.
+        // mebx keys contain indexed boxes, unlike the count-prefixed global mdta key table.
         val key = box("keyd", ("mdta$STILL_TIME").toByteArray())
         val dtyp = box("dtyp", data { writeInt(0); writeInt(65) })
-        val sdpd = box("sdpd", data { writeInt(0) })
         val mebx = box("mebx", ByteArray(6), byteArrayOf(0, 1),
-            box("keys", data { writeInt(1); write(key); write(dtyp); write(sdpd) }))
+            box("keys", box(one, key, dtyp)))
         val stbl = box("stbl", full("stsd", payload = data { writeInt(1); write(mebx) }),
             full("stts", payload = data { writeInt(1); writeInt(1); writeInt(1) }),
             full("stsc", payload = data { repeat(4) { writeInt(1) } }),
@@ -121,6 +120,7 @@ internal object AppleLivePhotoMovie {
     private fun movieMetadata(identifier: String, existing: ByteArray?): ByteArray {
         val previousKeys = mutableListOf<ByteArray>()
         val previousValues = mutableListOf<ByteArray>()
+        var existingIdentifier: Int? = null
         if (existing != null) {
             val parent = IsoBmff.boxes(existing).single()
             val fullOffset = if (IsoBmff.uint(existing, parent.payload) == 0L) 4 else 0
@@ -129,22 +129,25 @@ internal object AppleLivePhotoMovie {
             require(keys != null) { "Unsupported movie metadata" }
             val entries = IsoBmff.boxes(existing, keys.payload + 8, keys.end)
             require(entries.size.toLong() == IsoBmff.uint(existing, keys.payload + 4))
-            require(entries.none { String(existing, it.payload, it.end - it.payload, Charsets.UTF_8) == IDENTIFIER })
+            val matches = entries.indices.filter { String(existing, entries[it].payload, entries[it].end - entries[it].payload, Charsets.UTF_8) == IDENTIFIER }
+            require(matches.size <= 1)
+            existingIdentifier = matches.singleOrNull()?.plus(1)
             previousKeys += entries.map { it.raw(existing) }
             children.singleOrNull { it.type == "ilst" }?.let { list ->
-                previousValues += IsoBmff.boxes(existing, list.payload, list.end).map { it.raw(existing) }
+                previousValues += IsoBmff.boxes(existing, list.payload, list.end)
+                    .filterNot { IsoBmff.uint(existing, it.start + 4) == existingIdentifier?.toLong() }.map { it.raw(existing) }
             }
         }
-        val index = previousKeys.size + 1
+        val index = existingIdentifier ?: (previousKeys.size + 1)
         val handler = full("hdlr", payload = data { writeInt(0); writeBytes("mdta"); write(ByteArray(12)); writeByte(0) })
         val keys = full("keys", payload = data {
-            writeInt(index); previousKeys.forEach(::write); write(box("mdta", IDENTIFIER.toByteArray()))
+            writeInt(previousKeys.size + if (existingIdentifier == null) 1 else 0); previousKeys.forEach(::write)
+            if (existingIdentifier == null) write(box("mdta", IDENTIFIER.toByteArray()))
         })
         val name = ByteBuffer.allocate(4).putInt(index).array().toString(Charsets.ISO_8859_1)
-        // The reference movie stores the 36-character identifier plus a NUL terminator;
-        // Photos' matcher compares the full payload, so the trailing byte is load-bearing.
+        // The UTF-8 value is exactly the UUID; a NUL becomes part of AVFoundation's string.
         val value = box(name, box("data", data {
-            writeInt(1); writeInt(0); writeBytes(identifier); writeByte(0) }))
+            writeInt(1); writeInt(0); writeBytes(identifier) }))
         return box("meta", handler, keys, box("ilst", *(previousValues + listOf(value)).toTypedArray()))
     }
 }

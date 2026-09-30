@@ -28,8 +28,7 @@ object AndroidLensMetadata {
         val product = match?.first?.device ?: deviceProfiles.map { it.device }.distinct().singleOrNull().orEmpty()
         val focal = MetadataFormatting.equivalentFocalLength(mm)
         val namedCamera = AppleCameraNames.resolve(make, model, lensModel, appleCameraType)
-        val camera = namedCamera?.name ?: AppleCameraNames.displayLensName(lensModel, model)
-            .ifBlank { match?.first?.name.orEmpty() }
+        val camera = match?.first?.name ?: namedCamera?.name ?: AppleCameraNames.displayLensName(lensModel, model)
         if (focal.isEmpty()) return Lens(camera, "", product)
         val explicitZoom = Regex("(?i)(?:^|[\\s(])([0-9]+(?:\\.[0-9]+)?)\\s*[x×](?:$|[\\s)])")
             .find(lensModel)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0 }

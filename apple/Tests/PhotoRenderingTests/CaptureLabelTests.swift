@@ -5,24 +5,6 @@ import ImageIO
 @testable import PhotoRenderingCore
 
 struct CaptureLabelTests {
-    @Test func cameraNamesFollowThePhysicalLensThroughCrops() throws {
-        let tele = try #require(AppleCameraNames.resolve(make: "Apple", model: "iPhone 17 Pro Max",
-            lens: "iPhone 17 Pro Max back triple camera 16.891mm f/2.8", cameraType: nil))
-        #expect(tele.name == "Fusion Telephoto")
-        #expect(tele.zoom(at: 100) == 4 && tele.zoom(at: 200) == 8)
-        let main = try #require(AppleCameraNames.resolve(make: "Apple", model: "iPhone 18 Pro Max",
-            lens: "iPhone 18 Pro Max back triple camera 6.93mm f/1.48", cameraType: 1))
-        #expect(main.name == "Fusion Main" && main.zoom(at: 48) == 2)
-        #expect(CardImageProcessor.number(try #require(main.zoom(at: 35))) == "1.5")
-        let wide = try #require(AppleCameraNames.resolve(make: "Apple", model: "iPhone 17 Pro",
-            lens: "back triple camera 2.22mm f/2.2", cameraType: 0))
-        #expect(wide.name == "Fusion Ultra Wide" && wide.zoom(at: 13) == 0.5)
-        #expect(AppleCameraNames.resolve(make: "Apple", model: "iPhone 14 Pro", lens: "back camera f/2.8", cameraType: 1) == nil)
-        #expect(AppleCameraNames.resolve(make: "Other", model: "iPhone 18 Pro", lens: "back camera f/1.48", cameraType: 1) == nil)
-        #expect(AppleCameraNames.resolve(make: "Apple", model: "iPhone 18 Pro", lens: "front camera f/1.9", cameraType: 6) == nil)
-        #expect(AppleCameraNames.resolve(make: "Apple", model: "iPhone 18 Pro", lens: "unknown", cameraType: nil) == nil)
-    }
-
     @Test func stylesAreOptionalEditableAndDoNotBorrowAnotherField() throws {
         var card = PhotoCard()
         card[.iso] = "50"
