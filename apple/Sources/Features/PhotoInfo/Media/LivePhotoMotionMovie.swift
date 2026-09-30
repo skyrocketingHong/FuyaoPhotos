@@ -26,21 +26,25 @@ nonisolated enum LivePhotoMotionMovie {
         } catch { try? FileManager.default.removeItem(at: destination); throw error }
     }
 
-    private static func coverTime(_ asset: AVAsset) async throws -> Int64 {
+    static func coverTime(_ asset: AVAsset) async throws -> Int64 {
         for track in try await asset.loadTracks(withMediaType: .metadata) {
             let formats = try await track.load(.formatDescriptions)
             guard formats.contains(where: { format in
-                guard let names = CMMetadataFormatDescriptionGetIdentifiers(format) as? [String], names.count == 1 else { return false }
-                return names[0].hasSuffix("com.apple.quicktime.still-image-time")
+                let names = CMMetadataFormatDescriptionGetIdentifiers(format) as? [String] ?? []
+                return names.contains { $0.hasSuffix("com.apple.quicktime.still-image-time") }
             }) else { continue }
             let reader = try AVAssetReader(asset: asset)
             let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
-            let provider = reader.outputProvider(for: output)
+            let provider = reader.outputMetadataProvider(for: output)
             try reader.start()
-            if let sample = try await provider.next(), sample.presentationTimeStamp.isNumeric {
-                let time = CMTimeConvertScale(sample.presentationTimeStamp, timescale: 1_000_000, method: .default)
-                reader.cancelReading()
-                return max(0, time.value)
+            defer { if reader.status == .reading { reader.cancelReading() } }
+            while let group = try await provider.next() {
+                try Task.checkCancellation()
+                if group.items.contains(where: { $0.identifier?.rawValue.hasSuffix("com.apple.quicktime.still-image-time") == true }),
+                   group.timeRange.start.isNumeric {
+                    let time = CMTimeConvertScale(group.timeRange.start, timescale: 1_000_000, method: .default)
+                    return max(0, time.value)
+                }
             }
         }
         // The standard uses -1 when a timed cover marker is unavailable.

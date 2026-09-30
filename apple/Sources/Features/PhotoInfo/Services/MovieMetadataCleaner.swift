@@ -44,7 +44,8 @@ nonisolated enum MovieMetadataCleaner {
         let type: String
     }
 
-    static func copy(from source: URL, to destination: URL, options: CardSaveOptions) throws {
+    static func copy(from source: URL, to destination: URL, options: CardSaveOptions,
+                     verifiedRenderingTracks: Bool = false) throws {
         var data = try Data(contentsOf: source)
         guard data.count <= 512 * 1024 * 1024 else { throw CardError.tooLarge }
         if options.keepExif && options.keepLocation && options.keepCaptureTime {
@@ -52,6 +53,7 @@ nonisolated enum MovieMetadataCleaner {
             return
         }
         let original = data
+        var changedRanges: [Range<Int>] = []
         var count = 0
         func uint(_ at: Int) throws -> Int {
             guard at >= 0, at <= data.count - 4 else { throw CardError.videoMetadata }
@@ -77,18 +79,18 @@ nonisolated enum MovieMetadataCleaner {
             }
             return result
         }
-        func zero(_ range: Range<Int>) { data.replaceSubrange(range, with: repeatElement(UInt8(0), count: range.count)) }
+        func zero(_ range: Range<Int>) {
+            guard !range.isEmpty else { return }
+            changedRanges.append(range)
+            data.replaceSubrange(range, with: repeatElement(UInt8(0), count: range.count))
+        }
         func remove(_ box: Box) {
+            changedRanges.append(box.start + 4..<box.start + 8)
             data.replaceSubrange(box.start + 4..<box.start + 8, with: Data("free".utf8))
             zero(box.payload..<box.end)
         }
         func keep(_ key: String) -> Bool {
-            if key == "com.apple.quicktime.content.identifier" || key == "com.apple.quicktime.still-image-time" { return true }
-            let key = key.lowercased()
-            if ["location", "gps", "latitude", "longitude", "altitude", "©xyz", "loci"].contains(where: key.contains) { return options.keepLocation }
-            if ["date", "time", "©day"].contains(where: key.contains) { return options.keepCaptureTime }
-            if ["make", "model", "software", "author", "copyright", "title", "©mak", "©mod", "©swr", "©nam", "©art", "cprt"].contains(where: key.contains) { return options.keepExif }
-            return false
+            LivePhotoMovie.keep(key, options: options)
         }
         func cleanMeta(_ box: Box) throws {
             let children = try boxes(box.payload + (uint(box.payload) == 0 ? 4 : 0), box.end)
@@ -127,7 +129,25 @@ nonisolated enum MovieMetadataCleaner {
                 else if box.type == "udta" {
                     for item in try boxes(box.payload, box.end) {
                         if item.type == "meta" { try cleanMeta(item) }
+                        else if item.type == "tagc", verifiedRenderingTracks {
+                            let value = String(data: data[item.payload..<item.end], encoding: .utf8) ?? ""
+                            guard ["sky", "smart-style-linear-thumbnail", "person", "skin"].contains(where: {
+                                value == "com.apple.quicktime.video-map." + $0
+                            }) else { throw CardError.videoMetadata }
+                        }
                         else if !keep(item.type) { remove(item) }
+                    }
+                } else if box.type == "tref", verifiedRenderingTracks {
+                    for reference in try boxes(box.payload, box.end) {
+                        guard ["vmap", "cdsc", "cdep"].contains(reference.type),
+                              reference.end > reference.payload, (reference.end - reference.payload) % 4 == 0 else {
+                            throw CardError.videoMetadata
+                        }
+                    }
+                } else if box.type == "tapt", verifiedRenderingTracks {
+                    for aperture in try boxes(box.payload, box.end) {
+                        guard ["clef", "prof", "enof"].contains(aperture.type),
+                              aperture.end - aperture.payload == 12 else { throw CardError.videoMetadata }
                     }
                 } else if ["mvhd", "tkhd", "mdhd"].contains(box.type) {
                     guard box.end - box.payload >= 4 else { throw CardError.videoMetadata }
@@ -146,6 +166,14 @@ nonisolated enum MovieMetadataCleaner {
         guard roots.contains(where: { $0.type == "ftyp" }), roots.contains(where: { $0.type == "mdat" }),
               roots.contains(where: { $0.type == "moov" }) else { throw CardError.videoMetadata }
         try walk(0, data.count, depth: 0)
+        var cursor = 0
+        for range in changedRanges.sorted(by: { $0.lowerBound < $1.lowerBound }) {
+            guard range.lowerBound >= cursor, original[cursor..<range.lowerBound] == data[cursor..<range.lowerBound] else {
+                throw CardError.videoMetadata
+            }
+            cursor = range.upperBound
+        }
+        guard original[cursor...] == data[cursor...] else { throw CardError.videoMetadata }
         for box in roots where box.type == "mdat" {
             guard original[box.start..<box.end] == data[box.start..<box.end] else { throw CardError.videoMetadata }
         }

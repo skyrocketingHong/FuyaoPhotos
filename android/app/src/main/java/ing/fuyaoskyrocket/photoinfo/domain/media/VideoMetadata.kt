@@ -12,7 +12,7 @@ object VideoMetadata {
     }
     private data class Patch(val start: Long, val length: Long, val literal: ByteArray? = null)
     private val containers = setOf("moov", "trak", "mdia", "minf", "stbl", "edts", "dinf")
-    private val structural = setOf("ftyp", "mdat", "wide", "iods", "vmhd", "smhd", "dref", "elst",
+    private val structural = setOf("ftyp", "mdat", "wide", "iods", "vmhd", "smhd", "nmhd", "gmhd", "dref", "elst",
         "stsd", "stts", "ctts", "stss", "stsz", "stz2", "stsc", "stco", "co64", "sdtp", "sgpd", "sbgp", "cslg")
 
     fun copy(source: File, offset: Long, length: Long, target: File, options: ExportOptions) {
@@ -72,18 +72,45 @@ object VideoMetadata {
         fun keepKey(key: String): Boolean {
             val normalized = key.lowercase(java.util.Locale.ROOT)
             return when {
+                AppleRenderingMetadata.keepsKey(key) -> true
                 listOf("location", "gps", "latitude", "longitude", "altitude").any { it in normalized } || key in setOf("©xyz", "loci") -> options.keepLocation
-                listOf("date", "time").any { it in normalized } || key == "©day" -> options.keepCaptureTime
-                listOf("manufacturer", "model", "marketname", "version", "make", "software", "file.type", "author", "copyright", "title").any { it in normalized } || key in setOf("©mak", "©mod", "©swr", "©nam", "©ART", "cprt") -> options.keepExif
+                listOf("date", "time").any { it in normalized.substringAfterLast('.') } || key == "©day" -> options.keepCaptureTime
+                listOf("manufacturer", "model", "marketname", "version", "make", "software", "file.type", "author", "copyright", "title",
+                    "camera.focal_length", "camera.lens_irisfnumber").any { it in normalized } || key in setOf("©mak", "©mod", "©swr", "©nam", "©ART", "cprt") -> options.keepExif
                 else -> false // Unknown descriptive metadata may carry location/time; never silently retain it.
             }
         }
         fun cleanHandler(box: Box, track: Boolean) {
             require(box.size - box.header >= 24)
             val handler = bytes(box.payload + 8, 4).toString(Charsets.US_ASCII)
-            // Timed metadata/location tracks cannot be stripped without changing the track graph.
-            if (track) require(handler in setOf("vide", "soun")) { "Unsupported video metadata track" }
+            if (track) require(handler in setOf("vide", "soun", "auxv", "meta")) { "Unsupported video metadata track" }
             zero(box.payload + 24, box.end - box.payload - 24)
+        }
+        fun validateTrack(track: Box) {
+            val mdia = boxes(track.payload, track.end).singleOrNull { it.type == "mdia" }
+                ?: error("Missing video media box")
+            val children = boxes(mdia.payload, mdia.end)
+            val handler = children.singleOrNull { it.type == "hdlr" } ?: error("Missing video handler")
+            require(handler.end - handler.payload >= 24)
+            if (bytes(handler.payload + 8, 4).toString(Charsets.US_ASCII) != "meta") return
+            val minf = requireNotNull(children.singleOrNull { it.type == "minf" }) { "Unsupported video metadata track" }
+            val stbl = requireNotNull(boxes(minf.payload, minf.end).singleOrNull { it.type == "stbl" })
+            val stsd = requireNotNull(boxes(stbl.payload, stbl.end).singleOrNull { it.type == "stsd" })
+            require(stsd.end - stsd.payload >= 8 && uint(stsd.payload) == 0L)
+            val descriptions = boxes(stsd.payload + 8, stsd.end)
+            require(descriptions.isNotEmpty() && descriptions.size.toLong() == uint(stsd.payload + 4))
+            for (description in descriptions) {
+                require(description.type == "mebx" && description.end - description.payload >= 8)
+                val keys = requireNotNull(boxes(description.payload + 8, description.end).singleOrNull { it.type == "keys" })
+                val entries = boxes(keys.payload, keys.end)
+                require(entries.isNotEmpty() && entries.size <= 256)
+                for (entry in entries) {
+                    val key = requireNotNull(boxes(entry.payload, entry.end).singleOrNull { it.type == "keyd" })
+                    require(key.end - key.payload in 5..1024 && bytes(key.payload, 4).toString(Charsets.US_ASCII) == "mdta")
+                    val name = bytes(key.payload + 4, (key.end - key.payload - 4).toInt()).toString(Charsets.UTF_8)
+                    require(AppleRenderingMetadata.keepsKey(name)) { "Unsupported timed metadata key" }
+                }
+            }
         }
         fun cleanMeta(box: Box) {
             require(box.size - box.header >= 8)
@@ -122,12 +149,26 @@ object VideoMetadata {
                 when {
                     box.type == "meta" -> cleanMeta(box)
                     box.type == "udta" -> boxes(box.payload, box.end).forEach { child ->
-                        if (child.type == "meta") cleanMeta(child) else if (!keepKey(child.type)) remove(child)
+                        if (child.type == "meta") cleanMeta(child)
+                        else if (child.type == "tagc") {
+                            require(child.end - child.payload in 1..256)
+                            require(AppleRenderingMetadata.keepsAuxiliaryTag(bytes(child.payload, (child.end - child.payload).toInt()).toString(Charsets.UTF_8)))
+                        } else if (!keepKey(child.type)) remove(child)
+                    }
+                    box.type == "tref" -> boxes(box.payload, box.end).forEach { reference ->
+                        require(reference.type in setOf("vmap", "cdsc", "cdep") &&
+                            reference.end > reference.payload && (reference.end - reference.payload) % 4 == 0L)
+                    }
+                    box.type == "tapt" -> boxes(box.payload, box.end).forEach { aperture ->
+                        require(aperture.type in setOf("clef", "prof", "enof") && aperture.end - aperture.payload == 12L)
                     }
                     box.type == "uuid" -> error("Unknown video UUID metadata")
                     box.type in setOf("XMP_", "xml ") -> remove(box)
                     box.type == "free" || box.type == "skip" -> zero(box.payload, box.size - box.header)
-                    box.type in containers -> walk(box.payload, box.end, depth + 1, box.type)
+                    box.type in containers -> {
+                        if (box.type == "trak") validateTrack(box)
+                        walk(box.payload, box.end, depth + 1, box.type)
+                    }
                     box.type in setOf("mvhd", "tkhd", "mdhd") -> {
                         val version = bytes(box.payload, 1)[0].toInt() and 255
                         require(version in 0..1)

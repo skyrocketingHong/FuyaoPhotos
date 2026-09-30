@@ -17,9 +17,31 @@ nonisolated enum LivePhotoMovie {
             return
         }
         do {
-            let operation = try LivePhotoRemuxSession(source: source, destination: destination)
-            try await operation.write(options: options)
-            for type in [AVMediaType.video, .audio] {
+            let asset = AVURLAsset(url: source)
+            let tracks = try await asset.load(.tracks)
+            var canPreserveTracks = true
+            for track in tracks where track.mediaType == .metadata {
+                let formats = try await track.load(.formatDescriptions)
+                let keys = formats.flatMap { CMMetadataFormatDescriptionGetIdentifiers($0) as? [String] ?? [] }
+                if keys.isEmpty || !keys.allSatisfy({ keep($0, options: options) }) { canPreserveTracks = false }
+            }
+            let types = Set(tracks.map(\.mediaType))
+            guard types.isSubset(of: [.video, .audio, .metadata, AVMediaType(rawValue: "auxv")]) else {
+                throw CardError.videoMetadata
+            }
+            if canPreserveTracks {
+                // All timed keys are retained, so patch descriptive atoms without rewriting the track graph.
+                try MovieMetadataCleaner.copy(from: source, to: destination, options: options, verifiedRenderingTracks: true)
+                let outputTracks = try await AVURLAsset(url: destination).load(.tracks)
+                guard tracks.map({ $0.mediaType.rawValue }).sorted() == outputTracks.map({ $0.mediaType.rawValue }).sorted() else {
+                    throw CardError.videoMetadata
+                }
+            } else {
+                guard types.isSubset(of: [.video, .audio, .metadata]) else { throw CardError.videoMetadata }
+                let operation = try LivePhotoRemuxSession(source: source, destination: destination)
+                try await operation.write(options: options)
+            }
+            for type in canPreserveTracks ? types : Set([AVMediaType.video, .audio]) {
                 let original = try await sampleDigest(source, type: type)
                 let output = try await sampleDigest(destination, type: type)
                 guard original == output else { throw VerificationFailure.samplesChanged(type) }
@@ -33,12 +55,24 @@ nonisolated enum LivePhotoMovie {
 
     static func keep(_ identifier: String, options: CardSaveOptions) -> Bool {
         let key = identifier.lowercased()
-        if key.hasSuffix("com.apple.quicktime.content.identifier") || key.hasSuffix("com.apple.quicktime.still-image-time") { return true }
+        if renderingKeys.contains(key.hasPrefix("mdta/") ? String(key.dropFirst(5)) : key) { return true }
         if ["location", "gps", "latitude", "longitude", "altitude", "©xyz", "loci"].contains(where: key.contains) { return options.keepLocation }
         if ["creationdate", "creation-date", "datetime", "©day"].contains(where: key.contains) { return options.keepCaptureTime }
-        if ["make", "model", "software", "author", "copyright", "title", "©mak", "©mod", "©swr", "©nam", "©art", "cprt"].contains(where: key.contains) { return options.keepExif }
+        if ["make", "model", "software", "author", "copyright", "title", "camera.focal_length", "camera.lens_irisfnumber",
+            "©mak", "©mod", "©swr", "©nam", "©art", "cprt"].contains(where: key.contains) { return options.keepExif }
         return false
     }
+
+    private static let renderingKeys = Set([
+        "content.identifier", "still-image-time", "video-orientation", "live-photo-info",
+        "live-photo-still-image-transform", "live-photo-still-image-transform-reference-dimensions",
+        "live-photo.auto", "full-frame-rate-playback-intent", "live-photo.vitality-score",
+        "live-photo.vitality-scoring-version", "live-photo.subject-relighting-applied-curve-parameter",
+        "smartstyle-info", "smartstyle.rendering-version", "smartstyle.tone", "smartstyle.color",
+        "smartstyle.intensity", "smartstyle.bypassed", "smartstyle.cast",
+        "texturestyle-info", "texturestyle.rendering-version", "texturestyle.preset",
+        "texturestyle.intensity", "texturestyle.grain"
+    ].map { "com.apple.quicktime." + $0 })
 
     static func sampleDigest(_ url: URL, type: AVMediaType) async throws -> String {
         let asset = AVURLAsset(url: url)
