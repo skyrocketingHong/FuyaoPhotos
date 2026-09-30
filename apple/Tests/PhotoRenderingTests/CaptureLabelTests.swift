@@ -74,4 +74,13 @@ struct CaptureLabelTests {
         }
         #expect(fonts.count >= 3)
     }
+
+    @Test func referenceLettersUseCompactRoundedOutlines() throws {
+        let text = CardTypography.text("CGS", size: 40, accent: false)
+        for index in 0..<text.length {
+            let font = try #require(text.attribute(NSAttributedString.Key(kCTFontAttributeName as String),
+                at: index, effectiveRange: nil)) as! CTFont
+            #expect((CTFontCopyFamilyName(font) as String).contains("Compact Rounded"))
+        }
+    }
 }

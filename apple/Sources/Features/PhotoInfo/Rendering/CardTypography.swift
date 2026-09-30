@@ -8,11 +8,38 @@ import AppKit
 #endif
 
 nonisolated enum CardTypography {
+    // Core Text descriptors are immutable; cache the system face without reopening it per line.
+    nonisolated(unsafe) private static let compactDescriptor: CTFontDescriptor? = {
+        var roots = [""]
+#if targetEnvironment(simulator)
+        if let root = ProcessInfo.processInfo.environment["SIMULATOR_ROOT"] { roots.insert(root, at: 0) }
+#endif
+        let paths = ["/System/Library/Fonts/Core/SFCompactRounded.ttf",
+                     "/System/Library/Fonts/Watch/SFCompactRounded.ttf",
+                     "/System/Library/Fonts/SFCompactRounded.ttf"]
+        for root in roots {
+            for path in paths {
+                let url = URL(fileURLWithPath: root + path)
+                guard FileManager.default.isReadableFile(atPath: url.path),
+                      let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor] else { continue }
+                if let descriptor = descriptors.first(where: { descriptor in
+                    let family = CTFontDescriptorCopyAttribute(descriptor, kCTFontFamilyNameAttribute) as? String ?? ""
+                    return family.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: " ", with: "") == "SFCompactRounded"
+                }) { return descriptor }
+            }
+        }
+        return nil
+    }()
+
     static func monoFont(size: CGFloat) -> CTFont {
         referenceFont(size: size, monospaced: true)
     }
 
     private static func referenceFont(size: CGFloat, monospaced: Bool) -> CTFont {
+        // The reference uses Compact Rounded; the platform's UI rounded face has different C/G/S outlines.
+        if !monospaced, let descriptor = compactDescriptor {
+            return fixedWeight(CTFontCreateWithFontDescriptor(descriptor, size, nil), size: size)
+        }
 #if canImport(UIKit)
         var result: CTFont!
         // Card text is image content; Bold Text belongs to the surrounding interface.
