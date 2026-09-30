@@ -26,6 +26,7 @@ nonisolated struct CardPhotoMetadata: Sendable {
     let hasPortraitData: Bool
     let kind: PhotoMediaKind
     let fileSize: Int
+    var nativeEditingData = false
 }
 
 actor CardImageProcessor {
@@ -82,9 +83,14 @@ actor CardImageProcessor {
             (CIImage(contentsOf: url, options: [.expandToHDR: true])?.contentHeadroom ?? 1) > 1
         let portrait = [kCGImageAuxiliaryDataTypeDepth, kCGImageAuxiliaryDataTypeDisparity, kCGImageAuxiliaryDataTypePortraitEffectsMatte]
             .contains { CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, $0) != nil }
+        let nativeEditingData: Bool
+        if [.stillHEIC, .heicWithAuxiliaryData].contains(inspection.kind), let container = try? HeifContainer.load(fileURL: url) {
+            nativeEditingData = NativeHEIFCardExporter.requiresHEIC(container)
+        } else { nativeEditingData = false }
         return CardPhotoMetadata(card: card, width: Int(image.extent.width), height: Int(image.extent.height),
                                  latitude: latitude, longitude: longitude, hdr: hdr, hasPortraitData: portrait, kind: inspection.kind,
-                                 fileSize: (try url.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0)
+                                 fileSize: (try url.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0,
+                                 nativeEditingData: nativeEditingData)
     }
 
     func preview(_ url: URL, card: PhotoCard, hdr: Bool, maxDimension: CGFloat = 1800) throws -> CGImage {
@@ -182,8 +188,35 @@ actor CardImageProcessor {
               let sdr = CIImage(contentsOf: url, options: [.applyOrientationProperty: true, .expandToHDR: false, .toneMapHDRtoSDR: true]) else { throw CardError.invalidImage }
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] ?? [:]
         var metadata = Self.metadata(properties, options: options, live: live)
-        if let liveIdentifier { metadata[kCGImagePropertyMakerAppleDictionary as String] = ["17": liveIdentifier] }
+        if let liveIdentifier {
+            var maker = metadata[kCGImagePropertyMakerAppleDictionary as String] as? [String: Any] ?? [:]
+            maker["17"] = liveIdentifier
+            metadata[kCGImagePropertyMakerAppleDictionary as String] = maker
+        }
         let rendered = try CardRenderer.render(sdr, card: card).settingProperties(metadata)
+        if let identifier = CGImageSourceGetType(source),
+           let type = UTType(identifier as String), type.conforms(to: .heic) || type.conforms(to: .heif) {
+            let container = try HeifContainer.load(fileURL: url)
+            if NativeHEIFCardExporter.requiresHEIC(container) && options.format != .heic { throw CardError.nativeMetadataFormat }
+            if options.format == .heic && NativeHEIFCardExporter.hasEditingPayloads(container) {
+                do {
+                    try NativeHEIFCardExporter.write(sourceURL: url, source: source, upright: rendered,
+                        card: card, options: options, context: context, destination: destination)
+                    try verifyImage(destination, width: Int(sdr.extent.width), height: Int(sdr.extent.height), hdr: hdr)
+                    if live {
+                        let output = CGImageSourceCreateWithURL(destination as CFURL, nil)!
+                        let written = CGImageSourceCopyPropertiesAtIndex(output, 0, nil) as? [String: Any] ?? [:]
+                        let expected = liveIdentifier ?? (properties[kCGImagePropertyMakerAppleDictionary as String] as? [String: Any])?["17"] as? String
+                        let actual = (written[kCGImagePropertyMakerAppleDictionary as String] as? [String: Any])?["17"] as? String
+                        guard expected != nil, expected == actual else { throw CardError.livePairing }
+                    }
+                    return
+                } catch {
+                    try? FileManager.default.removeItem(at: destination)
+                    throw error
+                }
+            }
+        }
         let qualityKey = CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String)
         let orientation = CGImagePropertyOrientation(rawValue: (properties[kCGImagePropertyOrientation as String] as? NSNumber)?.uint32Value ?? 1) ?? .up
         let hasAuxiliaryData = PhotoAuxiliaryData.hasAuxiliaryData(source)
@@ -236,8 +269,12 @@ actor CardImageProcessor {
     private func verifyImage(_ url: URL, width: Int, height: Int, hdr: Bool) throws {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any],
-              (properties[kCGImagePropertyPixelWidth as String] as? NSNumber)?.intValue == width,
-              (properties[kCGImagePropertyPixelHeight as String] as? NSNumber)?.intValue == height else { throw CardError.imageValidation }
+              let storedWidth = (properties[kCGImagePropertyPixelWidth as String] as? NSNumber)?.intValue,
+              let storedHeight = (properties[kCGImagePropertyPixelHeight as String] as? NSNumber)?.intValue else { throw CardError.imageValidation }
+        let orientation = (properties[kCGImagePropertyOrientation as String] as? NSNumber)?.intValue ?? 1
+        let swapped = (5...8).contains(orientation)
+        guard (swapped ? storedHeight : storedWidth) == width,
+              (swapped ? storedWidth : storedHeight) == height else { throw CardError.imageValidation }
         if hdr && CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) == nil &&
             CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeISOGainMap) == nil { throw CardError.imageValidation }
     }

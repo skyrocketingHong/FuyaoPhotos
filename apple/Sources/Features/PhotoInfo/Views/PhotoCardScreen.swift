@@ -212,7 +212,8 @@ struct PhotoCardScreen: View {
         CardSaveSheet(photoCount: session.documents.count,
             canUpdate: session.canUpdateOriginals,
             hasHDR: session.documents.contains { $0.metadata.hdr || $0.metadata.hasPortraitData },
-            hasLive: session.documents.contains { $0.isLive }) { options in
+            hasLive: session.documents.contains { $0.isLive },
+            requiresHEIC: session.documents.contains { $0.metadata.nativeEditingData }) { options in
                 Task { await session.save(options: options) }
             }
 #if !os(macOS)

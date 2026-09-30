@@ -7,14 +7,7 @@ xcrun swiftc -parse-as-library -swift-version 6 \
   -sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   "$ROOT/Sources/Features/PhotoInfo/Models/PhotoCard.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Models/LensProfile.swift" \
-  "$ROOT/Sources/Features/PhotoInfo/Media/PhotoMediaInspector.swift" \
-  "$ROOT/Sources/Features/PhotoInfo/Media/PhotoAuxiliaryData.swift" \
-  "$ROOT/Sources/Features/PhotoInfo/Media/AppleCameraNames.swift" \
-  "$ROOT/Sources/Features/PhotoInfo/Media/PhotographicStyleReader.swift" \
-  "$ROOT/Sources/Features/PhotoInfo/Media/LivePhotoMovie.swift" \
-  "$ROOT/Sources/Features/PhotoInfo/Media/LivePhotoSampleDigest.swift" \
-  "$ROOT/Sources/Features/PhotoInfo/Media/LivePhotoRemuxSession.swift" \
-  "$ROOT/Sources/Features/PhotoInfo/Media/LivePhotoStream.swift" \
+  "$ROOT/Sources/Features/PhotoInfo/Media/"*.swift \
   "$ROOT/Sources/Features/PhotoInfo/Rendering/CardTypography.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Rendering/CardRenderer.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Services/CardImageProcessor.swift" \

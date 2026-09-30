@@ -131,7 +131,7 @@ nonisolated enum MovieMetadataCleaner {
                         if item.type == "meta" { try cleanMeta(item) }
                         else if item.type == "tagc", verifiedRenderingTracks {
                             let value = String(data: data[item.payload..<item.end], encoding: .utf8) ?? ""
-                            guard ["sky", "smart-style-linear-thumbnail", "person", "skin"].contains(where: {
+                            guard ["sky", "smart-style-linear-thumbnail", "smart-style-delta-map", "person", "skin"].contains(where: {
                                 value == "com.apple.quicktime.video-map." + $0
                             }) else { throw CardError.videoMetadata }
                         }

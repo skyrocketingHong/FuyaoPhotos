@@ -303,6 +303,9 @@
 "card.error.imageEncoding" = "系统未能编码这张照片，请尝试另一种图片格式。原片未修改。";
 "card.error.imageValidation" = "编码后的照片未能保留原尺寸或 HDR 数据，因此没有保存。";
 "card.error.auxiliaryEncoding" = "系统未能保留照片的景深或蒙版数据，因此没有保存。";
+"card.error.nativeMetadataFormat" = "请保存为 HEIC，以保留原片的摄影风格和编辑信息。";
+"card.error.liveStyleMetadata" = "这张 Live Photo 缺少可兼容的原生风格视频数据，暂时无法添加此风格。原照片未更改。";
+"card.save.nativeMetadata" = "HEIC 可保留原片的摄影风格、景深及其他编辑信息。";
 "card.error.librarySave" = "图片已生成，但系统相册未能添加。请重试保存。";
 "card.error.libraryResource" = "系统相册未接受生成的照片或实况配对，请尝试 HEIC 格式后重新保存。";
 "card.error.storageFull" = "设备剩余存储空间不足，无法保存照片。";
@@ -354,7 +357,7 @@
 "metadata.styles.value.unavailable" = "不可用";
 "metadata.styles.standard" = "添加摄影风格（Standard）";
 "metadata.styles.texture" = "添加质感风格（纹理与颗粒）";
-"metadata.styles.footer" = "质感风格依赖摄影风格（Standard）层。点按“保存到照片图库”后，可选择另存为新照片，或在支持时更新原照片。输出为 HEIC；添加风格层的 Live Photo 会另存为静态照片。";
+"metadata.styles.footer" = "质感风格依赖摄影风格（Standard）层。点按“保存到照片图库”后，可选择另存为新照片，或在支持时更新原照片。支持的 Live Photo 会保留动态效果；视频风格数据不兼容时会提示，原照片保留。";
 
 "metadata.report.section.container" = "容器";
 "metadata.report.section.container.description" = "显示可从这张照片读取的文件格式与封装信息。";

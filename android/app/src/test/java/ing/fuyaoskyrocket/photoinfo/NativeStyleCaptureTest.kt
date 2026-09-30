@@ -28,6 +28,18 @@ class NativeStyleCaptureTest {
         val directory = System.getenv("FUYAO_STYLE_SAMPLE_DIR")
         assumeNotNull(directory)
         val source = File(directory!!, "IMG_0311.MOV")
+        verifyMoviePreservation(source)
+    }
+
+    @Test fun legacyMovieKeepsDeltaMapWhileClearingLocationAndTime() {
+        val source = generateSequence(File(System.getProperty("user.dir") ?: ".")) { it.parentFile }
+            .take(6).map { File(it, "docs/samples/apple-airdrop-full-IMG_8565/IMG_8565.MOV") }
+            .firstOrNull { it.isFile }
+        assumeNotNull(source)
+        verifyMoviePreservation(source!!)
+    }
+
+    private fun verifyMoviePreservation(source: File) {
         val output = File.createTempFile("native-style-output", ".mov")
         try {
             VideoMetadata.copy(source, 0, source.length(), output,

@@ -5,6 +5,7 @@ struct CardSaveSheet: View {
     let canUpdate: Bool
     let hasHDR: Bool
     let hasLive: Bool
+    var requiresHEIC = false
     let save: (CardSaveOptions) -> Void
     @State private var options = CardPreferences.shared.saveOptions
     @Environment(\.dismiss) private var dismiss
@@ -48,7 +49,7 @@ struct CardSaveSheet: View {
                         Text("card.save.copy.description.many")
                     }
                 }
-                CardSaveControls(options: $options, hasHDR: hasHDR, hasLive: hasLive)
+                CardSaveControls(options: $options, hasHDR: hasHDR, hasLive: hasLive, requiresHEIC: requiresHEIC)
             }
             .photoPageForm()
             .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: options.format)
@@ -77,6 +78,7 @@ struct CardSaveSheet: View {
             if !canUpdate { options.updateOriginal = false }
             if options.exportsMotionPhoto { options.format = .jpeg; options.updateOriginal = false }
             if (hasHDR || hasLive) && options.format == .png { options.format = .jpeg }
+            if requiresHEIC { options.format = .heic; options.exportsMotionPhoto = false }
         }
 #if os(macOS)
         .frame(minWidth: 520, idealWidth: 600, minHeight: 520, idealHeight: 600)
@@ -88,14 +90,16 @@ struct CardSaveControls: View {
     @Binding var options: CardSaveOptions
     var hasHDR = false
     var hasLive = false
+    var requiresHEIC = false
     var body: some View {
         Section {
             Picker("card.save.format", selection: $options.format) {
                 ForEach(CardExportFormat.allCases) { format in
-                    if (!options.exportsMotionPhoto || format == .jpeg) && (format != .png || (!hasHDR && !hasLive)) { Text(format.title).tag(format) }
+                    if (!requiresHEIC || format == .heic) && (!options.exportsMotionPhoto || format == .jpeg)
+                        && (format != .png || (!hasHDR && !hasLive)) { Text(format.title).tag(format) }
                 }
             }
-            if hasLive {
+            if hasLive && !requiresHEIC {
                 Picker("card.save.motion.format", selection: $options.exportsMotionPhoto) {
                     Text("Live Photo").tag(false)
                     Text("Motion Photo").tag(true)
@@ -128,7 +132,7 @@ struct CardSaveControls: View {
         } header: {
             Text("card.save.output.header")
         } footer: {
-            Text("card.save.output.footer")
+            Text(requiresHEIC ? "card.save.nativeMetadata" : "card.save.output.footer")
         }
     }
 }

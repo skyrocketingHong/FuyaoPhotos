@@ -98,5 +98,6 @@ nonisolated struct CardSaveOptions: Codable, Equatable, Sendable {
 nonisolated enum CardError: Error, LocalizedError {
     case invalidImage, tooLarge, overflow, exportFailed, permission, unavailable, unsupportedMedia, hdrFormat, livePairing, videoMetadata
     case imageEncoding, imageValidation, auxiliaryEncoding, librarySave, storageFull, libraryResource
+    case nativeMetadataFormat, liveStyleMetadata
     var errorDescription: String? { NSLocalizedString("card.error.\(self)", comment: "") }
 }

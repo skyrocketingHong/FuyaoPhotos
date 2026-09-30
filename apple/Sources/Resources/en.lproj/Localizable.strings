@@ -303,6 +303,9 @@
 "card.error.imageEncoding" = "The system could not encode this photo. Try the other image format; the original is unchanged.";
 "card.error.imageValidation" = "The encoded photo did not retain its dimensions or HDR data. It was not saved.";
 "card.error.auxiliaryEncoding" = "The system could not preserve the photo’s depth or matte data. It was not saved.";
+"card.error.nativeMetadataFormat" = "Save as HEIC to keep this photo’s Photographic Styles and editing data.";
+"card.error.liveStyleMetadata" = "This Live Photo has no compatible native video style data, so this style cannot be added yet. The original is unchanged.";
+"card.save.nativeMetadata" = "HEIC keeps the original Photographic Styles, depth and other editing data.";
 "card.error.librarySave" = "The photo was created, but Photos could not add it to the library. Try saving again.";
 "card.error.libraryResource" = "Photos did not accept the generated photo or Live Photo pair. Try HEIC, then save again.";
 "card.error.storageFull" = "There is not enough free storage to save this photo.";
@@ -354,7 +357,7 @@
 "metadata.styles.value.unavailable" = "Unavailable";
 "metadata.styles.standard" = "Add Photographic Styles (Standard)";
 "metadata.styles.texture" = "Add Texture Styles (Texture and Grain)";
-"metadata.styles.footer" = "Texture styles require the Standard layer. Tap Save to Photos to choose a new copy or, when available, update the original. The result is HEIC; adding style layers saves a Live Photo as a still image.";
+"metadata.styles.footer" = "Texture styles require the Standard layer. Tap Save to Photos to choose a new copy or, when available, update the original. Supported Live Photos keep their motion. Incompatible video style data produces an error and leaves the original unchanged.";
 
 "metadata.report.section.container" = "Container";
 "metadata.report.section.container.description" = "File format and container details that can be read from this photo.";

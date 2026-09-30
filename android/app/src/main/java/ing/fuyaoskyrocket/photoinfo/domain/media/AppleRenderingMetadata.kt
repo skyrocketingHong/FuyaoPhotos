@@ -17,5 +17,5 @@ internal object AppleRenderingMetadata {
     fun keepsKey(key: String): Boolean = key.lowercase(Locale.ROOT).removePrefix("mdta/") in keys
 
     fun keepsAuxiliaryTag(value: String): Boolean = value.removePrefix("com.apple.quicktime.video-map.") in
-        setOf("sky", "smart-style-linear-thumbnail", "person", "skin") && value.startsWith("com.apple.quicktime.video-map.")
+        setOf("sky", "smart-style-linear-thumbnail", "smart-style-delta-map", "person", "skin") && value.startsWith("com.apple.quicktime.video-map.")
 }

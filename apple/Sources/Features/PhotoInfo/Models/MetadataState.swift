@@ -112,6 +112,9 @@ import Observation
         let output = document.sourceURL.deletingLastPathComponent()
             .appendingPathComponent("Fuyao-\(UUID().uuidString).\(fileExtension)")
         let source = document.sourceURL
+        let sourceMovie = document.sourceMovieURL
+        let movieOutput = output.deletingPathExtension().appendingPathExtension("mov")
+        defer { try? FileManager.default.removeItem(at: movieOutput) }
         let kind = document.metadata.kind
         let hdr = document.metadata.hdr
         let name = document.originalName
@@ -123,19 +126,33 @@ import Observation
                     try StyleInjection.inject(source: source, kind: kind, hdr: hdr,
                                               addPhotographic: addPhotographic, addTexture: addTexture,
                                               grainSeedName: name, destination: output)
+                    if let sourceMovie {
+                        let styledMovie = output.deletingLastPathComponent().appendingPathComponent(UUID().uuidString + ".mov")
+                        defer { try? FileManager.default.removeItem(at: styledMovie) }
+                        if addTexture {
+                            try await LivePhotoTextureMetadata.addIfNeeded(source: sourceMovie, photo: output, destination: styledMovie)
+                            try await LivePhotoMovie.copy(from: styledMovie, to: movieOutput, options: options)
+                        } else {
+                            try await LivePhotoTextureMetadata.requirePhotographicTrack(sourceMovie)
+                            try await LivePhotoMovie.copy(from: sourceMovie, to: movieOutput, options: options)
+                        }
+                    }
                     if cleaning {
                         let cleaned = output.deletingLastPathComponent().appendingPathComponent(UUID().uuidString + ".heic")
                         defer { try? FileManager.default.removeItem(at: cleaned) }
                         try MetadataImageWriter.write(output, to: cleaned, options: options)
                         _ = try FileManager.default.replaceItemAt(output, withItemAt: cleaned)
                     }
-                } else { try MetadataImageWriter.write(source, to: output, options: options) }
+                } else {
+                    try MetadataImageWriter.write(source, to: output, options: options)
+                    if let sourceMovie { try await LivePhotoMovie.copy(from: sourceMovie, to: movieOutput, options: options) }
+                }
             }.value
             let metadata = try await CardImageProcessor.shared.read(output, author: "")
             try await MetadataPhotoLibrary.save(photo: output, document: document,
                                                 updateOriginal: updateOriginal,
                                                 textureStyles: addTexture,
-                                                styled: addPhotographic || addTexture, options: options)
+                                                pairedMovie: sourceMovie == nil ? nil : movieOutput, options: options)
             if updateOriginal {
                 document.applyMetadataUpdate(source: output, metadata: metadata)
                 try? FileManager.default.removeItem(at: source)

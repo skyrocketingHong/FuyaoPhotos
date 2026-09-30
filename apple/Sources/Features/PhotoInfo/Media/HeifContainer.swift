@@ -25,7 +25,7 @@ nonisolated struct HeifContainer {
         var length: UInt64
     }
 
-    nonisolated struct Reference {
+    nonisolated struct Reference: Equatable {
         var type: String
         var from: UInt32
         var to: [UInt32]
@@ -62,6 +62,7 @@ nonisolated struct HeifContainer {
     private var originalPropertyCount: Int
     private var originalReferenceCount: Int
     private var appendedPayloads: [UInt32: [UInt8]] = [:]
+    private var replacesImageGraph = false
 
     private var maxItemID: UInt32 { items.map(\.id).max() ?? 0 }
 
@@ -312,21 +313,24 @@ nonisolated struct HeifContainer {
     }
 
     nonisolated static func boxes(in bytes: [UInt8], from: Int, to: Int) throws -> [RawBox] {
+        guard from >= 0, from <= to, to <= bytes.count else { throw MediaContainerError.invalid("box bounds") }
         var result: [RawBox] = []
         var at = from
         while at < to {
-            guard at + 8 <= to else { throw MediaContainerError.invalid("truncated box header") }
+            guard to - at >= 8, result.count < 100_000 else { throw MediaContainerError.invalid("truncated box header or count") }
             var size = Int(u32(bytes, at))
             var headerSize = 8
             if size == 1 {
-                guard at + 16 <= to else { throw MediaContainerError.invalid("truncated largesize") }
-                size = Int(u64(bytes, at + 8))
+                guard to - at >= 16, let largeSize = Int(exactly: u64(bytes, at + 8)) else {
+                    throw MediaContainerError.invalid("invalid largesize")
+                }
+                size = largeSize
                 headerSize = 16
             } else if size == 0 {
                 size = to - at
             }
             let type = String(decoding: bytes[(at + 4)..<(at + 8)], as: UTF8.self)
-            guard size >= headerSize, at + size <= to else {
+            guard size >= headerSize, size <= to - at else {
                 throw MediaContainerError.invalid("box size \(size) at \(at) (type \(type))")
             }
             result.append(RawBox(type: type, start: at, payload: at + headerSize, end: at + size))
@@ -336,11 +340,17 @@ nonisolated struct HeifContainer {
     }
 
     func payload(of id: UInt32) throws -> [UInt8] {
+        if let appended = appendedPayloads[id] { return appended }
         guard let item = items.first(where: { $0.id == id }) else {
             throw MediaContainerError.invalid("item \(id) missing")
         }
         var out: [UInt8] = []
         for extent in item.extents {
+            let limit = UInt64(original.count)
+            guard item.baseOffset <= limit, extent.offset <= limit - item.baseOffset,
+                  extent.length <= limit - item.baseOffset - extent.offset else {
+                throw MediaContainerError.invalid("item extent out of range")
+            }
             let start: Int
             let end: Int
             if item.constructionMethod == 1 {
@@ -461,6 +471,72 @@ nonisolated struct HeifContainer {
         appendedPayloads[id] = newPayload
     }
 
+    func dimensions(of id: UInt32) -> (width: Int, height: Int)? {
+        for association in associations(of: id) where propertyType(association.index) == "ispe" {
+            let raw = properties[association.index - 1]
+            guard raw.count == 20 else { return nil }
+            return (raw[12..<16].reduce(0) { $0 << 8 | Int($1) }, raw[16..<20].reduce(0) { $0 << 8 | Int($1) })
+        }
+        return nil
+    }
+
+    func imageDependencies(of root: UInt32) throws -> Set<UInt32> {
+        var visited = Set<UInt32>()
+        func visit(_ id: UInt32, ancestors: Set<UInt32>) throws {
+            guard ancestors.count <= 16, !ancestors.contains(id), item(id) != nil else {
+                throw MediaContainerError.invalid("cyclic or missing image dependency")
+            }
+            if !visited.insert(id).inserted { return }
+            for child in references.filter({ $0.type == "dimg" && $0.from == id }).flatMap(\.to) {
+                try visit(child, ancestors: ancestors.union([id]))
+            }
+        }
+        try visit(root, ancestors: [])
+        return visited
+    }
+
+    /// Keep the original root ID, transforms and all non-image relationships.
+    mutating func replaceImage(_ target: UInt32, from replacement: HeifContainer, root: UInt32) throws {
+        guard let index = items.firstIndex(where: { $0.id == target }),
+              ["grid", "hvc1", "av01"].contains(items[index].type),
+              let oldSize = dimensions(of: target), let newSize = replacement.dimensions(of: root),
+              oldSize.width == newSize.width, oldSize.height == newSize.height else {
+            throw MediaContainerError.invalid("replacement image dimensions")
+        }
+        let dependencies = try replacement.imageDependencies(of: root)
+        guard dependencies.allSatisfy({ replacement.item($0).map { ["grid", "hvc1", "av01"].contains($0.type) } == true }) else {
+            throw MediaContainerError.invalid("replacement image type")
+        }
+        let decoderProperties: Set<String> = ["ispe", "hvcC", "av1C", "pixi", "colr"]
+        let retained = associations(of: target).filter { !decoderProperties.contains(propertyType($0.index) ?? "") }
+        var mapping: [UInt32: UInt32] = [root: target]
+        for id in dependencies.sorted() where id != root {
+            let image = replacement.item(id)!
+            var props: [PropertyAssociation] = []
+            for association in replacement.associations(of: id) {
+                props.append(.init(index: appendProperty(replacement.properties[association.index - 1]), essential: association.essential))
+            }
+            mapping[id] = addHiddenItem(type: image.type, infoSuffix: image.infoSuffix,
+                payload: try replacement.payload(of: id), properties: props)
+        }
+        var props: [PropertyAssociation] = []
+        for association in replacement.associations(of: root)
+        where decoderProperties.contains(replacement.propertyType(association.index) ?? "") {
+            props.append(.init(index: appendProperty(replacement.properties[association.index - 1]), essential: association.essential))
+        }
+        associations[target] = props + retained
+        items[index].type = replacement.item(root)!.type
+        try rehomeItemPayload(id: target, newPayload: replacement.payload(of: root))
+        references.removeAll { $0.type == "dimg" && $0.from == target }
+        for reference in replacement.references where reference.type == "dimg" && dependencies.contains(reference.from) {
+            guard let from = mapping[reference.from], reference.to.allSatisfy({ mapping[$0] != nil }) else {
+                throw MediaContainerError.invalid("replacement image reference")
+            }
+            addReference(type: reference.type, from: from, to: reference.to.map { mapping[$0]! })
+        }
+        replacesImageGraph = true
+    }
+
     // MARK: Box builders
 
     nonisolated static func ispeBox(_ width: Int, _ height: Int) -> [UInt8] {
@@ -523,11 +599,11 @@ nonisolated struct HeifContainer {
         // Two passes mirror the Android writer: the meta box is sized with placeholder
         // offsets first, because iloc carries absolute file offsets that depend on the
         // final meta size. Entry widths do not change between passes.
-        let entriesPass1 = ilocEntries(appendedBase: 0, shift: 0)
+        let entriesPass1 = try ilocEntries(appendedBase: 0, shift: 0)
         let metaPass1 = try metaBytes(ilocEntries: entriesPass1)
         let shift = metaPass1.count - metaRange.count
         let appendedBase = UInt64(original.count + shift + 8)
-        let entriesPass2 = ilocEntries(appendedBase: appendedBase, shift: UInt64(shift))
+        let entriesPass2 = try ilocEntries(appendedBase: appendedBase, shift: shift)
         let metaPass2 = try metaBytes(ilocEntries: entriesPass2)
         guard metaPass2.count == metaPass1.count else { throw MediaContainerError.invalid("meta size drift") }
 
@@ -556,7 +632,7 @@ nonisolated struct HeifContainer {
         return out
     }
 
-    private func ilocEntries(appendedBase: UInt64, shift: UInt64) -> [(id: UInt32, construction: Int, extents: [Extent])] {
+    private func ilocEntries(appendedBase: UInt64, shift: Int) throws -> [(id: UInt32, construction: Int, extents: [Extent])] {
         var running = appendedBase
         var entries: [(UInt32, Int, [Extent])] = []
         for item in items {
@@ -564,11 +640,17 @@ nonisolated struct HeifContainer {
                 entries.append((item.id, 0, [Extent(offset: running, length: UInt64(payload.count))]))
                 running += UInt64(payload.count)
             } else {
-                let extents: [Extent] = item.extents.map { extent in
-                    if item.constructionMethod == 0 {
-                        return Extent(offset: item.baseOffset + extent.offset + shift, length: extent.length)
+                let extents: [Extent] = try item.extents.map { extent in
+                    guard item.baseOffset <= UInt64(original.count), extent.offset <= UInt64(original.count) - item.baseOffset else {
+                        throw MediaContainerError.invalid("item offset out of range")
                     }
-                    return Extent(offset: item.baseOffset + extent.offset, length: extent.length)
+                    let originalOffset = item.baseOffset + extent.offset
+                    if item.constructionMethod == 0 {
+                        let adjusted = Int(originalOffset) + (originalOffset >= UInt64(metaRange.upperBound) ? shift : 0)
+                        guard adjusted >= 0 else { throw MediaContainerError.invalid("negative item offset") }
+                        return Extent(offset: UInt64(adjusted), length: extent.length)
+                    }
+                    return Extent(offset: originalOffset, length: extent.length)
                 }
                 entries.append((item.id, item.constructionMethod, extents))
             }
@@ -600,6 +682,7 @@ nonisolated struct HeifContainer {
             default: body.append(contentsOf: original[child.start..<child.end])
             }
         }
+        if !hasIREF && !references.isEmpty { body.append(contentsOf: try rebuiltIREF()) }
         var metaBox: [UInt8] = []
         appendBE(UInt32(8 + body.count), into: &metaBox)
         metaBox.append(contentsOf: Array("meta".utf8))
@@ -656,16 +739,16 @@ nonisolated struct HeifContainer {
     private func rebuiltIREF() throws -> [UInt8] {
         // The version/flags word lives in the box header below; payload holds only entries.
         var payload: [UInt8] = []
-        if let range = irefRangeForWrite {
+        if !replacesImageGraph, let range = irefRangeForWrite {
             // Old entries start after size, type and the FullBox version/flags.
             payload.append(contentsOf: original[range.lowerBound + 12..<range.upperBound])
         }
         let wide = irefVersion == 1
-        for reference in references.dropFirst(originalReferenceCount) {
+        for reference in references.dropFirst(replacesImageGraph ? 0 : originalReferenceCount) {
             var entry: [UInt8] = []
             if wide {
                 appendBE(reference.from, into: &entry)
-                appendBE(UInt32(reference.to.count), into: &entry)
+                entry.append(UInt8((reference.to.count >> 8) & 0xff)); entry.append(UInt8(reference.to.count & 0xff))
                 reference.to.forEach { appendBE($0, into: &entry) }
             } else {
                 guard reference.from <= 65535, reference.to.allSatisfy({ $0 <= 65535 }) else {
@@ -707,7 +790,7 @@ nonisolated struct HeifContainer {
                 bytes.append(contentsOf: Array("ipco".utf8))
                 bytes.append(contentsOf: ipcoPayload)
                 iprpPayload.append(contentsOf: bytes)
-            } else {
+            } else if child.type != "ipma" || !replacesImageGraph {
                 iprpPayload.append(contentsOf: original[child.start..<child.end])
             }
         }
@@ -720,7 +803,7 @@ nonisolated struct HeifContainer {
     }
 
     private func newItemsIPMA() -> [UInt8]? {
-        let newIDs = items.dropFirst(originalItemCount).map(\.id)
+        let newIDs = items.dropFirst(replacesImageGraph ? 0 : originalItemCount).map(\.id)
         guard !newIDs.isEmpty else { return nil }
         var payload: [UInt8] = []
         appendBE(UInt32(newIDs.count), into: &payload)
