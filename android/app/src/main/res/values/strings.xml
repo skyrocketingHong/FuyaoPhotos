@@ -21,6 +21,7 @@
   <string name="field_exposure">Exposure time</string>
   <string name="field_aperture">Aperture</string>
   <string name="field_iso">ISO</string>
+  <string name="field_photographic_style">Photographic style</string>
   <string name="card_scale">Card size</string>
   <string name="text_scale">Text size</string>
   <string name="text_scale_hint">Text size on the card.</string>
@@ -260,6 +261,7 @@
   <string name="card_exposure_hint">Shutter time.</string>
   <string name="card_aperture_hint">Lens aperture.</string>
   <string name="card_iso_hint">Sensor sensitivity.</string>
+  <string name="card_photographic_style_hint">Style recorded in the photo, or your own description. Leave blank to hide it.</string>
   <string name="card_scale_hint">Resize the entire information card.</string>
   <string name="opacity_hint">Card background opacity.</string>
   <string name="blur_hint">Blur photo details behind the card.</string>
@@ -369,6 +371,7 @@
   <string name="media_report_trailing_video">Trailing Video</string>
   <string name="media_report_styles_standard">Photographic Styles</string>
   <string name="media_report_styles_texture">Texture Styles</string>
+  <string name="media_report_texture_preset">Texture preset</string>
   <string name="media_report_xiaomi_depth">Xiaomi Portrait Depth</string>
   <string name="media_report_maker_note">Apple MakerNote Tags</string>
   <string name="media_report_aux_stack">Apple Auxiliary Items</string>

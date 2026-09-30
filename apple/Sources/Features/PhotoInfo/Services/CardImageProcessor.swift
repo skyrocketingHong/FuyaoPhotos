@@ -44,14 +44,18 @@ actor CardImageProcessor {
         let exif = properties[kCGImagePropertyExifDictionary as String] as? [String: Any] ?? [:]
         let tiff = properties[kCGImagePropertyTIFFDictionary as String] as? [String: Any] ?? [:]
         let gps = properties[kCGImagePropertyGPSDictionary as String] as? [String: Any] ?? [:]
+        let maker = properties[kCGImagePropertyMakerAppleDictionary as String] as? [String: Any] ?? [:]
         var card = PhotoCard()
         card[.device] = tiff[kCGImagePropertyTIFFModel as String] as? String ?? ""
         card[.author] = tiff[kCGImagePropertyTIFFArtist as String] as? String ?? author
-        card[.camera] = Self.displayLensName(exif[kCGImagePropertyExifLensModel as String] as? String ?? "", device: card[.device])
+        let rawLens = exif[kCGImagePropertyExifLensModel as String] as? String ?? ""
+        let namedCamera = AppleCameraNames.resolve(make: tiff[kCGImagePropertyTIFFMake as String] as? String ?? "",
+            model: card[.device], lens: rawLens, cameraType: (maker["46"] as? NSNumber)?.intValue)
+        card[.camera] = namedCamera?.name ?? Self.displayLensName(rawLens, device: card[.device])
         card[.imageSize] = Self.number(Double(inspection.width) * Double(inspection.height) / 1_000_000) + "MP"
         let equivalent = (exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] as? NSNumber)?.doubleValue
         let physical = (exif[kCGImagePropertyExifFocalLength as String] as? NSNumber)?.doubleValue
-        let lens = LensProfileResolver.resolve(model: card[.device], lens: card[.camera], equivalent: equivalent,
+        let lens = LensProfileResolver.resolve(model: card[.device], lens: rawLens, equivalent: equivalent,
                                                 physical: physical, profiles: profiles)
         if let lens {
             card[.device] = lens.profile.device
@@ -59,7 +63,8 @@ actor CardImageProcessor {
         }
         if let focal = equivalent.flatMap({ $0.isFinite && $0 > 0 ? $0 : nil }) ?? lens?.equivalent {
             card[.focalLength] = Self.number(focal) + " MM"
-            if let zoom = LensProfileResolver.explicitZoom(in: card[.camera]) ?? lens?.profile.zoom(for: focal) {
+            if let zoom = LensProfileResolver.explicitZoom(in: rawLens) ?? lens?.profile.zoom(for: focal)
+                ?? namedCamera?.zoom(at: focal) {
                 card[.focalLength] += " (\(Self.number(zoom, decimals: 1))X)"
             }
         }
@@ -68,6 +73,8 @@ actor CardImageProcessor {
         }
         if let aperture = exif[kCGImagePropertyExifFNumber as String] as? NSNumber { card[.aperture] = Self.number(aperture.doubleValue, decimals: 2) }
         if let iso = (exif[kCGImagePropertyExifISOSpeedRatings as String] as? [NSNumber])?.first { card[.iso] = iso.stringValue }
+        card[.photographicStyle] = PhotographicStyleReader.name(properties: properties,
+            metadata: CGImageSourceCopyMetadataAtIndex(source, 0, nil)) ?? ""
         let latitude = (gps[kCGImagePropertyGPSLatitude as String] as? NSNumber)?.doubleValue.mapSign(gps[kCGImagePropertyGPSLatitudeRef as String] as? String == "S")
         let longitude = (gps[kCGImagePropertyGPSLongitude as String] as? NSNumber)?.doubleValue.mapSign(gps[kCGImagePropertyGPSLongitudeRef as String] as? String == "W")
         let hdr = CGImageSourceCopyAuxiliaryDataInfoAtIndex(source, 0, kCGImageAuxiliaryDataTypeHDRGainMap) != nil ||

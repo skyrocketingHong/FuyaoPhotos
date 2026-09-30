@@ -22,6 +22,7 @@ object MotionPhoto {
     private const val RDF="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
     private const val XIAOMI_BOKEH="http://ns.xiaomi.com/photos/1.0/camera/bokeh"
     private const val XIAOMI_CAMERA="http://ns.xiaomi.com/photos/1.0/camera/"
+    internal fun parseXmp(xml: String): org.w3c.dom.Document = document(xml)
     private fun document(xml:String):org.w3c.dom.Document {
         require(xml.length<=128*1024 && !xml.contains("<!DOCTYPE",true) && !xml.contains("<!ENTITY",true)) { "Unsafe XMP" }
         val factory=DocumentBuilderFactory.newInstance();factory.isNamespaceAware=true

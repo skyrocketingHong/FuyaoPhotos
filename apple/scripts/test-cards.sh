@@ -9,6 +9,8 @@ xcrun swiftc -parse-as-library -swift-version 6 \
   "$ROOT/Sources/Features/PhotoInfo/Models/LensProfile.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Media/PhotoMediaInspector.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Media/PhotoAuxiliaryData.swift" \
+  "$ROOT/Sources/Features/PhotoInfo/Media/AppleCameraNames.swift" \
+  "$ROOT/Sources/Features/PhotoInfo/Media/PhotographicStyleReader.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Media/LivePhotoMovie.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Media/LivePhotoSampleDigest.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Media/LivePhotoRemuxSession.swift" \

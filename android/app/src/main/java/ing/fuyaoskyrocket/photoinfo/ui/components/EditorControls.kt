@@ -354,6 +354,7 @@ private fun fieldLabel(field: FieldId) = when (field) {
     FieldId.IMAGE_SIZE -> R.string.field_size; FieldId.FOCAL_LENGTH -> R.string.field_focal
     FieldId.EXPOSURE -> R.string.field_exposure; FieldId.APERTURE -> R.string.field_aperture
     FieldId.ISO -> R.string.field_iso
+    FieldId.PHOTOGRAPHIC_STYLE -> R.string.field_photographic_style
 }
 
 private fun fieldHint(field: FieldId) = when (field) {
@@ -362,4 +363,5 @@ private fun fieldHint(field: FieldId) = when (field) {
     FieldId.IMAGE_SIZE -> R.string.card_pixels_hint; FieldId.FOCAL_LENGTH -> R.string.card_focal_hint
     FieldId.EXPOSURE -> R.string.card_exposure_hint; FieldId.APERTURE -> R.string.card_aperture_hint
     FieldId.ISO -> R.string.card_iso_hint
+    FieldId.PHOTOGRAPHIC_STYLE -> R.string.card_photographic_style_hint
 }

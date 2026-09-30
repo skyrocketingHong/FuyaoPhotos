@@ -202,6 +202,7 @@
 "card.field.exposure" = "Exposure time";
 "card.field.aperture" = "Aperture";
 "card.field.iso" = "ISO";
+"card.field.photographicStyle" = "Photographic Style";
 "card.defaultAuthor" = "Default photographer";
 "card.resolveLocation" = "Look Up Photo Locations";
 "card.resolveLocation.description" = "Use the system place service to look up photo GPS coordinates. Your current location is not requested.";
@@ -291,6 +292,7 @@
 "card.field.exposure.hint" = "Shutter time, such as 1/100 or 30SEC.";
 "card.field.aperture.hint" = "Lens aperture, such as 1.8.";
 "card.field.iso.hint" = "ISO sensitivity recorded by the camera.";
+"card.field.photographicStyle.hint" = "Style recorded in the photo, or your own description. Leave blank to hide it.";
 "card.style.scale.hint" = "Resize the entire information card.";
 "card.style.textScale.hint" = "Change text size while keeping the card width.";
 "card.style.opacity.hint" = "Adjust background opacity; text stays opaque.";
@@ -378,6 +380,7 @@
 "metadata.report.trailingVideo" = "Trailing Video";
 "metadata.report.stylesStandard" = "Photographic Styles";
 "metadata.report.stylesTexture" = "Texture Styles";
+"metadata.report.texturePreset" = "Texture Preset";
 "metadata.report.xiaomiDepth" = "Xiaomi Portrait Depth";
 "metadata.report.appleMakerNote" = "Apple MakerNote Tags";
 "metadata.report.appleAuxStack" = "Apple Auxiliary Items";

@@ -202,6 +202,7 @@
 "card.field.exposure" = "曝光时间";
 "card.field.aperture" = "光圈";
 "card.field.iso" = "感光度";
+"card.field.photographicStyle" = "摄影风格";
 "card.defaultAuthor" = "默认拍摄者";
 "card.resolveLocation" = "解析照片地点";
 "card.resolveLocation.description" = "使用系统地名服务查询照片 GPS 对应的地点，不请求当前位置。";
@@ -291,6 +292,7 @@
 "card.field.exposure.hint" = "快门时间，例如 1/100 或 30SEC。";
 "card.field.aperture.hint" = "镜头光圈数值，例如 1.8。";
 "card.field.iso.hint" = "相机记录的 ISO 感光度。";
+"card.field.photographicStyle.hint" = "照片记录的风格，也可手动填写；留空时不显示。";
 "card.style.scale.hint" = "同时调整整张信息卡的大小。";
 "card.style.textScale.hint" = "调整字号，保留卡片宽度。";
 "card.style.opacity.hint" = "调整卡片底色透明度，文字保持不透明。";
@@ -378,6 +380,7 @@
 "metadata.report.trailingVideo" = "尾部视频";
 "metadata.report.stylesStandard" = "摄影风格";
 "metadata.report.stylesTexture" = "质感风格";
+"metadata.report.texturePreset" = "质感预设";
 "metadata.report.xiaomiDepth" = "小米人像景深";
 "metadata.report.appleMakerNote" = "Apple MakerNote 标签";
 "metadata.report.appleAuxStack" = "Apple 辅助条目";

@@ -7,7 +7,8 @@ import kotlin.math.ceil
 object AndroidLensMetadata {
     data class Lens(val camera: String, val focalLength: String, val deviceName: String = "")
     fun resolve(make: String, model: String, lensModel: String, equivalentMm: Double,
-        fallbackMainMm: Double? = null, profiles: List<LensProfile> = emptyList(), physicalMm: Double = 0.0): Lens {
+        fallbackMainMm: Double? = null, profiles: List<LensProfile> = emptyList(), physicalMm: Double = 0.0,
+        appleCameraType: Int? = null): Lens {
         val device = MetadataFormatting.device(make, model)
         val isFront = Regex("(?i)\\b(front|selfie)\\b").containsMatchIn(lensModel)
         val deviceProfiles = profiles.filter { model.isNotBlank() && it.valid() && (it.acceptsExif(model) || it.acceptsExif(device)) }
@@ -26,12 +27,15 @@ object AndroidLensMetadata {
         val mm = equivalentMm.takeIf { it.isFinite() && it > 0 } ?: match?.second ?: 0.0
         val product = match?.first?.device ?: deviceProfiles.map { it.device }.distinct().singleOrNull().orEmpty()
         val focal = MetadataFormatting.equivalentFocalLength(mm)
-        if (focal.isEmpty()) return Lens(lensModel, "", product)
+        val namedCamera = AppleCameraNames.resolve(make, model, lensModel, appleCameraType)
+        val camera = namedCamera?.name ?: AppleCameraNames.displayLensName(lensModel, model)
+            .ifBlank { match?.first?.name.orEmpty() }
+        if (focal.isEmpty()) return Lens(camera, "", product)
         val explicitZoom = Regex("(?i)(?:^|[\\s(])([0-9]+(?:\\.[0-9]+)?)\\s*[x×](?:$|[\\s)])")
             .find(lensModel)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0 }
         val base = fallbackMainMm?.takeIf { !isFront && it.isFinite() && it in 1.0..200.0 }
-        val zoom = explicitZoom ?: match?.first?.zoomFor(mm) ?: base?.let { mm / it }
-        return Lens(lensModel.ifBlank { match?.first?.name.orEmpty() },
+        val zoom = explicitZoom ?: match?.first?.zoomFor(mm) ?: base?.let { mm / it } ?: namedCamera?.zoomAt(mm)
+        return Lens(camera,
             if (zoom == null) focal else "$focal (${MetadataFormatting.number(zoom, 1)}X)", product)
     }
 

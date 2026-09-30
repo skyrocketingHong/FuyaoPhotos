@@ -18,6 +18,8 @@ import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoInfo
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoDetails
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.AndroidLensMetadata
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.CaptureMakerNote
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.PhotographicStyleReader
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.PhotoCoordinates
 import ing.fuyaoskyrocket.photoinfo.domain.media.HeifGraph
 import ing.fuyaoskyrocket.photoinfo.domain.media.MediaEnvelope
@@ -107,9 +109,15 @@ class PhotoRepository(private val context: Context, kind: PhotoSessionKind = Pho
         fun text(tag: String) = exif?.getAttribute(tag).orEmpty().trim()
         fun number(tag: String) = exif?.getAttributeDouble(tag, 0.0) ?: 0.0
         val settings = SettingsRepository(context).read()
+        val mime = bounds.outMimeType.orEmpty()
+        val graph = if (mime in setOf("image/heic", "image/heif", "image/avif")) {
+            runCatching { HeifGraph.inspect(file) }.getOrNull()
+        } else null
+        val capture = CaptureMakerNote.read(exif?.getAttributeBytes(ExifInterface.TAG_MAKER_NOTE)
+            ?: CaptureMakerNote.fromExif(graph?.exifPayload))
         val lens = AndroidLensMetadata.resolve(text(ExifInterface.TAG_MAKE), text(ExifInterface.TAG_MODEL),
             text(ExifInterface.TAG_LENS_MODEL), number(ExifInterface.TAG_FOCAL_LENGTH_IN_35MM_FILM),
-            settings.mainFocalMm, settings.lenses, number(ExifInterface.TAG_FOCAL_LENGTH))
+            settings.mainFocalMm, settings.lenses, number(ExifInterface.TAG_FOCAL_LENGTH), capture.cameraType)
         val coordinates = runCatching { exif?.latLong }.getOrNull()?.let { PhotoCoordinates.from(it[0], it[1]) }
         val info = PhotoInfo(mapOf(
             FieldId.DEVICE to lens.deviceName.ifBlank { Format.device(text(ExifInterface.TAG_MAKE), text(ExifInterface.TAG_MODEL)) },
@@ -123,12 +131,11 @@ class PhotoRepository(private val context: Context, kind: PhotoSessionKind = Pho
             FieldId.APERTURE to Format.number(number(ExifInterface.TAG_F_NUMBER)),
             FieldId.ISO to exif?.getAttributeInt(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY, 0)
                 ?.takeIf { it > 0 }?.toString().orEmpty(),
+            FieldId.PHOTOGRAPHIC_STYLE to PhotographicStyleReader.name(capture,
+                exif?.getAttribute(ExifInterface.TAG_XMP)).orEmpty(),
         ))
         val tags = ing.fuyaoskyrocket.photoinfo.domain.metadata.ExportMetadata.readableTags.mapNotNull { tag -> text(tag).takeIf { it.isNotEmpty() }?.let { tag to it } }.toMap()
-        val mime = bounds.outMimeType.orEmpty()
-        var graph: HeifGraph.Report? = null
         val media = if (mime in setOf("image/heic", "image/heif", "image/avif")) {
-            graph = runCatching { HeifGraph.inspect(file) }.getOrNull()
             val motion = graph?.motionPayload?.let { payload ->
                 runCatching { MotionPhoto.inspectHeif(file, exif?.getAttribute(ExifInterface.TAG_XMP), payload) }.getOrNull()
             }
@@ -156,7 +163,7 @@ class PhotoRepository(private val context: Context, kind: PhotoSessionKind = Pho
         ).mapNotNull { tag -> text(tag).takeIf(String::isNotEmpty)?.let { tag to it } }.toMap()
         val report = runCatching {
             ing.fuyaoskyrocket.photoinfo.domain.media.MediaMetadataReportReader.read(
-                mime, file, media, graph, exif?.getAttribute(ExifInterface.TAG_XMP)) { value ->
+                mime, file, media, graph, exif?.getAttribute(ExifInterface.TAG_XMP), info[FieldId.PHOTOGRAPHIC_STYLE]) { value ->
                 android.text.format.Formatter.formatShortFileSize(context, value)
             }
         }.getOrNull()

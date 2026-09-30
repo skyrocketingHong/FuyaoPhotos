@@ -20,6 +20,7 @@
   <string name="field_exposure">曝光时间</string>
   <string name="field_aperture">光圈</string>
   <string name="field_iso">ISO</string>
+  <string name="field_photographic_style">摄影风格</string>
   <string name="card_scale">卡片大小</string>
   <string name="text_scale">字号</string>
   <string name="text_scale_hint">卡片上的文字大小。</string>
@@ -260,6 +261,7 @@
   <string name="card_exposure_hint">快门时间。</string>
   <string name="card_aperture_hint">镜头光圈。</string>
   <string name="card_iso_hint">ISO 感光度。</string>
+  <string name="card_photographic_style_hint">照片记录的风格，也可手动填写；留空时不显示。</string>
   <string name="card_scale_hint">同时调整整张信息卡的大小。</string>
   <string name="opacity_hint">卡片背景不透明度。</string>
   <string name="blur_hint">模糊卡片背后的照片细节。</string>
@@ -369,6 +371,7 @@
   <string name="media_report_trailing_video">尾部视频</string>
   <string name="media_report_styles_standard">摄影风格</string>
   <string name="media_report_styles_texture">质感风格</string>
+  <string name="media_report_texture_preset">质感预设</string>
   <string name="media_report_xiaomi_depth">小米人像景深</string>
   <string name="media_report_maker_note">Apple MakerNote 标签</string>
   <string name="media_report_aux_stack">Apple 辅助条目</string>

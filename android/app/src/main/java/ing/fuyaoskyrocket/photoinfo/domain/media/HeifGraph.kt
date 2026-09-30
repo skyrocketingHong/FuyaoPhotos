@@ -30,6 +30,7 @@ object HeifGraph {
         val auxiliaryURNs: List<String> = emptyList(),
         val toneMapPayload: ByteArray? = null,
         val exifPayload: ByteArray? = null,
+        val texturePreset: String? = null,
     )
 
     private data class Box(val type: String, val start: Long, val dataStart: Long, val end: Long) {
@@ -115,8 +116,12 @@ object HeifGraph {
             ?.let { runCatching { readPayload(source, it, limit) }.getOrNull() }
         val toneMapPayload = toneMap?.let { payloadOf(it, 4096) }
         val exifPayload = items.firstOrNull { it.type == "Exif" }?.let { payloadOf(it.id, 128 * 1024) }
+        val texturePreset = items.singleOrNull { it.contentType == "tag:apple.com,2026:photo:metadata:texture_styles" }
+            ?.let { payloadOf(it.id, 65_536) }
+            ?.let { ing.fuyaoskyrocket.photoinfo.domain.metadata.CapturePlist.dictionary(it)?.get("Preset") as? String }
+            ?.let(ing.fuyaoskyrocket.photoinfo.domain.metadata.PhotographicStyleReader::readableName)
         Report(primary, toneMap, hasAux && toneMapReference, styles, textureStyles, portrait, unsupportedItems,
-            motionPayload, brandList, primaryBitDepth, colrPrimaries, colrTransfer, auxiliary, toneMapPayload, exifPayload)
+            motionPayload, brandList, primaryBitDepth, colrPrimaries, colrTransfer, auxiliary, toneMapPayload, exifPayload, texturePreset)
     }
 
     private fun readPrimary(source: RandomAccessFile, box: Box): Int {

@@ -17,7 +17,8 @@ data class MediaMetadataReport(val sections: List<Section>) {
 
 object MediaMetadataReportReader {
     fun read(mime: String, file: File, envelope: MediaEnvelope, graph: HeifGraph.Report?,
-             xmp: String?, formatBytes: (Long) -> String = Long::toString): MediaMetadataReport {
+             xmp: String?, photographicStyle: String? = null,
+             formatBytes: (Long) -> String = Long::toString): MediaMetadataReport {
         val heic = mime in setOf("image/heic", "image/heif", "image/avif")
         val jpeg = mime == "image/jpeg"
         val scan = if (jpeg) runCatching { scanJpeg(file) }.getOrNull() else null
@@ -78,14 +79,20 @@ object MediaMetadataReportReader {
             }
         }
 
-        val styleRows = if (!heic) emptyList() else listOf(
+        val styleRows = buildList {
+            photographicStyle?.takeIf(String::isNotBlank)?.let {
+                add(MediaMetadataReport.Row(R.string.field_photographic_style, it))
+            }
+            if (heic) addAll(listOf(
             MediaMetadataReport.Row(R.string.media_report_styles_standard,
                 value = if (graph?.hasStyleMetadata == true) R.string.media_report_value_styles2023
                 else R.string.media_report_value_none),
             MediaMetadataReport.Row(R.string.media_report_styles_texture,
                 value = if (graph?.hasTextureStyles == true) R.string.media_report_value_styles2026
                 else R.string.media_report_value_none),
-        )
+            ))
+            graph?.texturePreset?.let { add(MediaMetadataReport.Row(R.string.media_report_texture_preset, it)) }
+        }
 
         val vendorRows = buildList {
             if (envelope.portraitTail != null) {

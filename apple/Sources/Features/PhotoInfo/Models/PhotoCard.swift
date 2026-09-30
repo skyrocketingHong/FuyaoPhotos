@@ -3,7 +3,7 @@ import CoreGraphics
 import Observation
 
 nonisolated enum CardField: String, CaseIterable, Codable, Identifiable {
-    case device, author, location, camera, imageSize, focalLength, exposure, aperture, iso
+    case device, author, location, camera, imageSize, focalLength, exposure, aperture, iso, photographicStyle
     var id: Self { self }
     var titleKey: String { "card.field.\(rawValue)" }
     var accent: Bool { self == .device || self == .author || self == .location }
@@ -18,6 +18,7 @@ nonisolated enum CardField: String, CaseIterable, Codable, Identifiable {
         case .exposure: "EXPOSURE TIME"
         case .aperture: "APERTURE"
         case .iso: "ISO"
+        case .photographicStyle: "STYLE"
         }
     }
 }

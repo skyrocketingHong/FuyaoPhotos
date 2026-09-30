@@ -6,7 +6,7 @@ enum class FieldId(val label: String, val accent: Boolean) {
     DEVICE("", true), AUTHOR("SHOT BY", true), LOCATION("LOCATION", true),
     CAMERA("CAMERA", false), IMAGE_SIZE("IMAGE SIZE", false),
     FOCAL_LENGTH("FOCAL LENGTH", false), EXPOSURE("EXPOSURE TIME", false),
-    APERTURE("APERTURE", false), ISO("ISO", false),
+    APERTURE("APERTURE", false), ISO("ISO", false), PHOTOGRAPHIC_STYLE("STYLE", false),
 }
 
 data class PhotoInfo(val values: Map<FieldId, String> = emptyMap()) {

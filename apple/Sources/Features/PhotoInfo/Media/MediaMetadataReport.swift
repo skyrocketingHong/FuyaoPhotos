@@ -46,6 +46,7 @@ nonisolated enum MediaMetadataReportReader {
         let properties: [String: Any]?
         let container: HeifContainer?
         let scan: PhotoJPEGScan?
+        let photographicStyle: String?
     }
 
     static func read(url: URL, isLivePhoto: Bool) -> MediaMetadataReport {
@@ -64,7 +65,9 @@ nonisolated enum MediaMetadataReportReader {
         } else {
             uti = source.flatMap { CGImageSourceGetType($0) as String? }.flatMap { UTType($0) }
         }
-        let context = Context(uti: uti, properties: properties, container: container, scan: scan)
+        let context = Context(uti: uti, properties: properties, container: container, scan: scan,
+            photographicStyle: PhotographicStyleReader.name(properties: properties ?? [:],
+                metadata: source.flatMap { CGImageSourceCopyMetadataAtIndex($0, 0, nil) }))
 
         var sections: [MediaMetadataReport.Section] = []
         let groups: [(String, [MediaMetadataReport.Row])] = [
@@ -162,14 +165,23 @@ nonisolated enum MediaMetadataReportReader {
     }
 
     private static func styleRows(_ context: Context) -> [MediaMetadataReport.Row] {
-        guard let container = context.container else { return [] }
+        var rows: [MediaMetadataReport.Row] = []
+        if let name = context.photographicStyle { rows.append(.text("card.field.photographicStyle", name)) }
+        guard let container = context.container else { return rows }
         let coverage = container.stylesCoverage
-        return [
+        rows += [
             .keyed("metadata.report.stylesStandard",
                    coverage.photographic ? MediaMetadataReport.ValueKeys.styles2023 : MediaMetadataReport.ValueKeys.none),
             .keyed("metadata.report.stylesTexture",
                    coverage.texture ? MediaMetadataReport.ValueKeys.styles2026 : MediaMetadataReport.ValueKeys.none),
         ]
+        if let item = container.items.first(where: { container.contentType(of: $0) == AppleTextureStyles.textureStylesContentType }),
+           let payload = try? container.payload(of: item.id), payload.count <= 65_536,
+           let values = (try? PropertyListSerialization.propertyList(from: Data(payload), options: [], format: nil)) as? [String: Any],
+           let name = PhotographicStyleReader.readableName(values["Preset"] as? String) {
+            rows.append(.text("metadata.report.texturePreset", name))
+        }
+        return rows
     }
 
     private static func vendorRows(_ context: Context) -> [MediaMetadataReport.Row] {

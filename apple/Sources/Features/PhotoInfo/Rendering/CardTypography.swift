@@ -9,21 +9,46 @@ import AppKit
 
 nonisolated enum CardTypography {
     static func monoFont(size: CGFloat) -> CTFont {
+        referenceFont(size: size, monospaced: true)
+    }
+
+    private static func referenceFont(size: CGFloat, monospaced: Bool) -> CTFont {
 #if canImport(UIKit)
-        return UIFont.monospacedSystemFont(ofSize: size, weight: .medium) as CTFont
+        var result: CTFont!
+        // Card text is image content; Bold Text belongs to the surrounding interface.
+        UITraitCollection(legibilityWeight: .regular).performAsCurrent {
+            let system = monospaced ? UIFont.monospacedSystemFont(ofSize: size, weight: .medium)
+                : UIFont.systemFont(ofSize: size, weight: .medium)
+            let descriptor = monospaced ? system.fontDescriptor
+                : system.fontDescriptor.withDesign(.rounded) ?? system.fontDescriptor
+            result = fixedWeight(UIFont(descriptor: descriptor, size: size) as CTFont, size: size)
+        }
+        return result
 #else
-        return NSFont.monospacedSystemFont(ofSize: size, weight: .medium) as CTFont
+        let system = monospaced ? NSFont.monospacedSystemFont(ofSize: size, weight: .medium)
+            : NSFont.systemFont(ofSize: size, weight: .medium)
+        let descriptor = monospaced ? system.fontDescriptor
+            : system.fontDescriptor.withDesign(.rounded) ?? system.fontDescriptor
+        return fixedWeight((NSFont(descriptor: descriptor, size: size) ?? system) as CTFont, size: size)
 #endif
     }
 
+    private static func fixedWeight(_ font: CTFont, size: CGFloat) -> CTFont {
+        let weightAxis = NSNumber(value: 0x77676874) // OpenType wght
+        let axes = CTFontCopyVariationAxes(font) as? [[CFString: Any]] ?? []
+        guard axes.contains(where: { ($0[kCTFontVariationAxisIdentifierKey] as? NSNumber) == weightAxis }) else {
+            return font
+        }
+        var variations = CTFontCopyVariation(font) as? [NSNumber: NSNumber] ?? [:]
+        variations[weightAxis] = 500
+        let descriptor = CTFontDescriptorCreateCopyWithAttributes(CTFontCopyFontDescriptor(font), [
+            kCTFontVariationAttribute: variations
+        ] as CFDictionary)
+        return CTFontCreateWithFontDescriptor(descriptor, size, nil)
+    }
+
     static func text(_ text: String, size: CGFloat, accent: Bool) -> NSAttributedString {
-#if canImport(UIKit)
-        let system = UIFont.systemFont(ofSize: size, weight: .medium)
-        let rounded = UIFont(descriptor: system.fontDescriptor.withDesign(.rounded) ?? system.fontDescriptor, size: size) as CTFont
-#else
-        let system = NSFont.systemFont(ofSize: size, weight: .medium)
-        let rounded = (NSFont(descriptor: system.fontDescriptor.withDesign(.rounded) ?? system.fontDescriptor, size: size) ?? system) as CTFont
-#endif
+        let rounded = referenceFont(size: size, monospaced: false)
         let mono = monoFont(size: size)
         let capScale = CTFontGetCapHeight(mono) / max(1, CTFontGetCapHeight(rounded))
         let descriptor = CTFontDescriptorCreateCopyWithAttributes(CTFontCopyFontDescriptor(rounded), [
