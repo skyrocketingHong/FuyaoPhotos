@@ -13,6 +13,7 @@ RESOURCE = SOURCE / "Resources"
 PLACEHOLDER = re.compile(r"%(?:\d+\$)?[-+#0-9. ]*(?:ll|l|h)?[@diufFeEgGsc]")
 INTERPOLATED_LOOKUP = re.compile(r'LocalizedStringKey\(\s*"[^"\n]*\\\(')
 STATIC_LOOKUP = re.compile(r'LocalizedStringKey\(\s*"([a-z][a-z0-9_.]+)"\s*\)')
+VIEW_LOOKUP = re.compile(r'(?:Button|Text|Label|Toggle|Picker|Section|ContentUnavailableView|navigationTitle|alert|confirmationDialog|Menu)\(\s*"([a-z][a-z0-9_.]+)"')
 
 
 def strings(language: str) -> dict[str, str]:
@@ -44,7 +45,7 @@ for path in SOURCE.rglob("*.swift"):
     assert not INTERPOLATED_LOOKUP.search(source), (
         f"{path}: build dynamic resource keys as String before LocalizedStringKey"
     )
-    missing = set(STATIC_LOOKUP.findall(source)) - english.keys()
+    missing = (set(STATIC_LOOKUP.findall(source)) | set(VIEW_LOOKUP.findall(source))) - english.keys()
     assert not missing, f"{path}: missing localized keys {sorted(missing)}"
 
 print(f"PASS: {len(english)} English/Simplified Chinese Apple keys and SwiftUI lookups")

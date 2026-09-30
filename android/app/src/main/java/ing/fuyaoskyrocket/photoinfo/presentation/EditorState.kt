@@ -13,7 +13,9 @@ import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
 
 enum class LocationStatus { IDLE, RESOLVING, RESOLVED, UNAVAILABLE, NO_GPS, DISABLED }
 
-data class ExportedPhoto(val uri: Uri, val format: ExportFormat, val movieUri: Uri? = null)
+data class ExportedPhoto(val uri: Uri, val format: ExportFormat, val movieUri: Uri? = null, val isPackage: Boolean = false) {
+    val mime: String get() = if (isPackage) ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME else format.mime
+}
 data class EditorNotice(val id: Long, val text: String, val photos: List<ExportedPhoto> = emptyList())
 data class PhotoPageItem(val id: String, val width: Int, val height: Int, val path: String = "", val bitDepth: Int = 8)
 data class EditorState(

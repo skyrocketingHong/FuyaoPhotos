@@ -63,6 +63,10 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
     if(showLiveOption) MetadataSwitch(R.string.live_pair,R.string.live_pair_hint,options.separateLivePhoto) {
         onChange(options.copy(separateLivePhoto=it))
     }
+    if (hasMotion && !options.separateLivePhoto) Text(stringResource(R.string.motion_gallery_hint),
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (hasMotion && options.separateLivePhoto && options.appleStyle) Text(stringResource(R.string.package_style_unsupported),
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
     if(editMetadata && showPortraitOption && Build.VERSION.SDK_INT>=34 && ExportFormat.HEIC in supportedFormats) MetadataSwitch(R.string.apple_portrait,R.string.apple_portrait_hint,options.applePortrait) {
         onChange(options.copy(applePortrait=it,
             format=if(it)ExportFormat.HEIC else if(hasPortrait)ExportFormat.JPEG else options.format))

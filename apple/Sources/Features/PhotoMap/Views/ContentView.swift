@@ -53,6 +53,7 @@ struct ContentView: View {
         .frame(minWidth: 760, minHeight: 560)
 #endif
         .environment(workspace)
+        .modifier(PackageImportPresentation(workspace: workspace))
     }
 }
 

@@ -6,7 +6,7 @@
 */
 
 // MARK: - App General
-"app.title" = "Photo Map";
+"app.title" = "Fuyao Photos";
 "done" = "Done";
 "loading" = "Loading...";
 "all" = "All";
@@ -521,3 +521,51 @@
 "photo.open.application" = "Open Photos";
 
 "photo.open.asset.failed" = "Could not open this photo in Photos.";
+
+"cancel" = "Cancel";
+
+"lens.file.import" = "Import configuration";
+
+"lens.file.export" = "Export configuration";
+
+"lens.file.description" = "One JSON file per camera model. Imported changes take effect when you save.";
+
+"lens.file.invalid" = "Cannot read this lens configuration. Choose a supported Fuyao Photos JSON file with valid lens parameters.";
+
+"lens.file.export.failed" = "Could not export the configuration. Choose another location and try again.";
+
+"lens.file.replace.title" = "Replace this model’s configuration?";
+
+"lens.file.replace" = "Replace configuration";
+
+"lens.file.replace.message" = "The lens configuration for %@ will be replaced in this draft. Other models are kept.";
+
+"lens.file.imported" = "Configuration added to the draft. Save to apply it.";
+
+"card.files.export" = "Export to Files";
+
+"card.files.destination" = "Files";
+
+"card.files.description" = "JPEG Motion Photos are exported to Files. To keep motion in Photos, choose Live Photo.";
+
+"card.files.complete" = "Export complete";
+
+"card.files.saved" = "The photos were exported to the selected folder.";
+
+"card.error.fileExport" = "Could not export the files. Check the destination and available storage, then try again.";
+
+"card.error.invalidPackage" = "This photo package is damaged, unsupported, or missing valid Live Photo resources. Export it again with Fuyao Photos.";
+
+"package.import.action" = "Import photo package";
+
+"package.import.file" = "File";
+
+"package.import.description" = "Save this package’s photo and video together as a Live Photo in your photo library.";
+
+"package.import.checking" = "Checking photo package…";
+
+"package.import.saving" = "Saving Live Photo…";
+
+"package.import.save" = "Save to Photos";
+
+"package.import.saved" = "Live Photo saved to Photos";

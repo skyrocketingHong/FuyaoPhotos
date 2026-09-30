@@ -151,6 +151,7 @@ private struct CardActionStrip: View {
 
     private func moreMenu(for width: CGFloat) -> some View {
         PhotoPreviewMenu(title: "card.more") {
+            PackageImportButton()
             ForEach(overflowTools(for: width), id: \.self) { menuAction(for: $0) }
             if let url = document.exportURL, !document.isLive || document.exportIsMotionPhoto {
                 ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }

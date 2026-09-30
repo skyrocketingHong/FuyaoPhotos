@@ -14,6 +14,16 @@ import os
     var total = 0
     var errorMessage: String?
     var savedCount: Int?
+    var showingFileExporter = false
+    private(set) var filesForExport: [PhotoExportFile] = []
+    private(set) var savedToFiles = false
+    private struct FileSave {
+        let document: CardDocument
+        let card: PhotoCard
+        let url: URL
+    }
+    private var fileSaves: [FileSave] = []
+    private var fileExportFailures: [String] = []
     var current: CardDocument? { documents.first { $0.id == selectedID } }
     var hasChanges: Bool { documents.contains { $0.hasChanges } }
     var canUpdateOriginals: Bool { !documents.isEmpty && documents.allSatisfy { $0.assetIdentifier != nil && !$0.isLive } }
@@ -107,8 +117,10 @@ import os
     }
 
     func save(options: CardSaveOptions) async {
-        guard !busy, !documents.isEmpty else { return }
-        cancelLocationLookup(); savedCount = nil
+        guard !busy, !showingFileExporter, !documents.isEmpty else { return }
+        guard !options.exportsMotionPhoto || options.format == .jpeg else { errorMessage = CardError.fileExport.localizedDescription; return }
+        cancelLocationLookup(); savedCount = nil; savedToFiles = false
+        discardFileExport()
         busy = true; total = documents.count; progress = 0
         defer { busy = false }
         var saved = 0
@@ -152,19 +164,17 @@ import os
                     }.value
                     savedPhoto = motion
                 }
-                try await CardPhotoLibrary.save(photo: savedPhoto, movie: options.exportsMotionPhoto ? nil : movie, document: document, options: options)
-                if let previous = document.exportURL {
-                    try? FileManager.default.removeItem(at: previous)
-                    try? FileManager.default.removeItem(at: previous.deletingPathExtension().appendingPathExtension("mov"))
+                if options.exportsMotionPhoto {
+                    fileSaves.append(FileSave(document: document, card: document.card, url: savedPhoto))
+                } else {
+                    try await CardPhotoLibrary.save(photo: savedPhoto, movie: movie, document: document, options: options)
+                    replaceExport(of: document, with: savedPhoto, motion: false, card: document.card)
+                    saved += 1
                 }
-                document.exportURL = savedPhoto
-                document.exportIsMotionPhoto = options.exportsMotionPhoto && document.isLive
                 for url in produced where url != savedPhoto && (options.exportsMotionPhoto || url != movie) {
                     try? FileManager.default.removeItem(at: url)
                 }
-                document.savedCard = document.card
                 completed = true
-                saved += 1
             } catch {
                 let systemError = error as NSError
                 logger.error("Save failed: \(systemError.domain, privacy: .public) / \(systemError.code)")
@@ -176,7 +186,38 @@ import os
         if saved > 0 {
             savedCount = saved
         }
-        if !failures.isEmpty { errorMessage = failures.joined(separator: "\n") }
+        if !fileSaves.isEmpty {
+            fileExportFailures = failures
+            filesForExport = fileSaves.map { PhotoExportFile(url: $0.url) }
+            showingFileExporter = true
+        } else if !failures.isEmpty { errorMessage = failures.joined(separator: "\n") }
+    }
+
+    func completeFileExport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard urls.count == fileSaves.count else { discardFileExport(); errorMessage = CardError.fileExport.localizedDescription; return }
+            for saved in fileSaves { replaceExport(of: saved.document, with: saved.url, motion: saved.document.isLive, card: saved.card) }
+            savedToFiles = true; savedCount = urls.count; fileSaves = []; filesForExport = []
+            if !fileExportFailures.isEmpty { errorMessage = fileExportFailures.joined(separator: "\n") }; fileExportFailures = []
+        case .failure(let error):
+            discardFileExport()
+            if (error as NSError).code != NSUserCancelledError { errorMessage = Self.saveError(error, stage: .fileExport).localizedDescription }
+        }
+    }
+
+    func discardFileExport() {
+        for saved in fileSaves { try? FileManager.default.removeItem(at: saved.url) }
+        fileSaves = []; filesForExport = []
+        if !fileExportFailures.isEmpty { errorMessage = fileExportFailures.joined(separator: "\n") }; fileExportFailures = []
+    }
+
+    private func replaceExport(of document: CardDocument, with url: URL, motion: Bool, card: PhotoCard) {
+        if let previous = document.exportURL {
+            try? FileManager.default.removeItem(at: previous)
+            try? FileManager.default.removeItem(at: previous.deletingPathExtension().appendingPathExtension("mov"))
+        }
+        document.exportURL = url; document.exportIsMotionPhoto = motion; document.savedCard = card
     }
 
     static func saveError(_ error: Error,stage: CardError) -> CardError {
@@ -200,6 +241,7 @@ import os
 
     func clear() {
         cancelLocationLookup()
+        discardFileExport()
         for document in documents { try? FileManager.default.removeItem(at: document.sourceURL.deletingLastPathComponent()) }
         documents = []; selectedID = nil; savedCount = nil
     }

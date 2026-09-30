@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct LensProfilesView: View {
     @Environment(\.dismiss) private var dismiss
@@ -6,6 +7,13 @@ struct LensProfilesView: View {
     @State private var editor: LensProfileDraft?
     @State private var confirmDiscard = false
     @State private var saveFailed = false
+    @State private var importing = false
+    @State private var transferring = false
+    @State private var exporting = false
+    @State private var exportDocument: LensProfileFileDocument?
+    @State private var exportName = "Camera.json"
+    @State private var incoming: LensProfileFile?
+    @State private var transferMessage: String?
     private let initial: [LensProfile]
     private let store: LensProfileStore
 
@@ -24,6 +32,15 @@ struct LensProfilesView: View {
                     Text("lens.profiles.description")
                         .foregroundStyle(.secondary)
                     Button("lens.add", systemImage: "plus") { editor = LensProfileDraft() }
+                    Button("lens.file.import", systemImage: "square.and.arrow.down") { importing = true }
+                        .disabled(transferring)
+                    Menu("lens.file.export", systemImage: "square.and.arrow.up") {
+                        ForEach(Array(Set(draft.map { LensProfile.normalize($0.exifModel) })).sorted(), id: \.self) { model in
+                            Button(draft.first(where: { $0.acceptsExif(model) })?.device ?? model) { exportModel(model) }
+                        }
+                    }
+                    .disabled(draft.isEmpty || transferring)
+                    Text("lens.file.description").font(.footnote).foregroundStyle(.secondary)
                 }
                 if draft.isEmpty {
                     ContentUnavailableView("lens.empty.title", systemImage: "camera.aperture",
@@ -93,6 +110,26 @@ struct LensProfilesView: View {
                 Text("lens.discard.message")
             }
             .alert("lens.save.failed", isPresented: $saveFailed) { Button("done", role: .cancel) { } }
+            .fileImporter(isPresented: $importing, allowedContentTypes: [.json], allowsMultipleSelection: false) { result in
+                if case .success(let urls) = result, let url = urls.first { importModel(url) }
+                else if case .failure(let error) = result, (error as NSError).code != NSUserCancelledError {
+                    transferMessage = String.localized("lens.file.invalid")
+                }
+            }
+            .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: exportName) { result in
+                if case .failure(let error) = result, (error as NSError).code != NSUserCancelledError {
+                    transferMessage = String.localized("lens.file.export.failed")
+                }
+            }
+            .confirmationDialog("lens.file.replace.title", isPresented: Binding(get: { incoming != nil }, set: { if !$0 { incoming = nil } }), titleVisibility: .visible) {
+                Button("lens.file.replace", role: .destructive) { if let incoming { apply(incoming) }; incoming = nil }
+                Button("cancel", role: .cancel) { incoming = nil }
+            } message: {
+                if let incoming { Text(String(format: String.localized("lens.file.replace.message"), incoming.device)) }
+            }
+            .alert("lens.profiles.title", isPresented: Binding(get: { transferMessage != nil }, set: { if !$0 { transferMessage = nil } })) {
+                Button("done", role: .cancel) { transferMessage = nil }
+            } message: { Text(transferMessage ?? "") }
         }
         .interactiveDismissDisabled(hasChanges)
 #if os(macOS)
@@ -111,5 +148,35 @@ struct LensProfilesView: View {
     private func save() {
         do { try store.save(draft); dismiss() }
         catch { saveFailed = true }
+    }
+
+    private func exportModel(_ model: String) {
+        do {
+            let file = try LensProfileFile(profiles: draft.filter { $0.acceptsExif(model) })
+            exportDocument = try LensProfileFileDocument(file); exportName = file.filename; exporting = true
+        } catch { transferMessage = String.localized("lens.file.invalid") }
+    }
+
+    private func importModel(_ url: URL) {
+        transferring = true
+        Task {
+            defer { transferring = false }
+            do {
+                let file = try await Task.detached(priority: .userInitiated) {
+                    let scope = url.startAccessingSecurityScopedResource()
+                    defer { if scope { url.stopAccessingSecurityScopedResource() } }
+                    let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                    guard size > 0 && size <= LensProfileFile.maximumBytes else { throw LensProfileFileError.invalid }
+                    return try LensProfileFile.decode(Data(contentsOf: url))
+                }.value
+                if draft.contains(where: { $0.acceptsExif(file.exifModel) }) { incoming = file }
+                else { apply(file) }
+            } catch { transferMessage = String.localized("lens.file.invalid") }
+        }
+    }
+
+    private func apply(_ file: LensProfileFile) {
+        do { draft = try file.merging(into: draft); transferMessage = String.localized("lens.file.imported") }
+        catch { transferMessage = String.localized("lens.file.invalid") }
     }
 }

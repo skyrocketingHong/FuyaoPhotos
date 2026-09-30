@@ -74,6 +74,7 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
         }
     }
     val inventoryItems: LazyListScope.() -> Unit = {
+                item { ing.fuyaoskyrocket.photoinfo.ui.components.LensProfileTransferControls(profiles) { profiles = it } }
                 item {
                     SectionHeading(stringResource(R.string.scan_lenses),stringResource(R.string.inventory_hint))
                     OutlinedButton(onClick={ permission.launch(Manifest.permission.CAMERA) },enabled=!scanning) { Text(stringResource(R.string.scan_lenses)) }

@@ -40,6 +40,10 @@ class PhotoRepository(private val context: Context, kind: PhotoSessionKind = Pho
     suspend fun import(uri: Uri): PhotoSource {
         val file = storage.newFile()
         try {
+            val name = readDisplayName(uri)
+            val packageFile = resolver.getType(uri) == ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME ||
+                name?.endsWith(".fuyaophotos", true) == true
+            val maximum = if (packageFile) ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MAX_BYTES else 512L * 1024 * 1024
             openPhoto(uri)?.use { input ->
                 file.outputStream().use { output ->
                     val buffer = ByteArray(64 * 1024)
@@ -49,12 +53,21 @@ class PhotoRepository(private val context: Context, kind: PhotoSessionKind = Pho
                         val count = input.read(buffer)
                         if (count < 0) break
                         copied += count
-                        if (copied > 512L * 1024 * 1024) throw IOException("Photo exceeds 512 MB")
+                        if (copied > maximum) throw IOException("Selected file is too large")
                         output.write(buffer, 0, count)
                     }
                 }
             } ?: throw IOException("Cannot open selected photo")
-            val name = readDisplayName(uri)
+            if (packageFile || ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.recognizes(file)) {
+                val directory = File(context.cacheDir, "package-${java.util.UUID.randomUUID()}")
+                require(directory.mkdir())
+                try {
+                    val contents = ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.read(file, directory)
+                    val assembled = File(directory, "motion.photo")
+                    ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPackageMedia.assemble(contents, assembled)
+                    assembled.copyTo(file, overwrite = true)
+                } finally { directory.deleteRecursively() }
+            }
             return inspect(file).let { source ->
                 source.copy(details = source.details.copy(displayName = name))
             }

@@ -34,6 +34,7 @@ import CoreLocation
     }
 
     static func save(photo: URL, movie: URL?, document: CardDocument, options: CardSaveOptions) async throws {
+        guard !options.exportsMotionPhoto else { throw CardError.fileExport }
         let access: PHAccessLevel = options.updateOriginal ? .readWrite : .addOnly
         let status = await PHPhotoLibrary.requestAuthorization(for: access)
         guard status == .authorized || status == .limited else { throw CardError.permission }

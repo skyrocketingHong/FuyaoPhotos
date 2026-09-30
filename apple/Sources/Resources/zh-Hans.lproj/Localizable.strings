@@ -6,7 +6,7 @@
 */
 
 // MARK: - App General
-"app.title" = "照片地图";
+"app.title" = "Fuyao Photos";
 "done" = "完成";
 "loading" = "加载中...";
 "all" = "全部";
@@ -520,3 +520,51 @@
 "photo.open.application" = "打开照片 App";
 
 "photo.open.asset.failed" = "无法在照片 App 中打开这张照片。";
+
+"cancel" = "取消";
+
+"lens.file.import" = "导入配置";
+
+"lens.file.export" = "导出配置";
+
+"lens.file.description" = "每个 JSON 文件对应一个机型。导入后点击“保存”生效。";
+
+"lens.file.invalid" = "无法读取此镜头配置。请选择有效的 Fuyao Photos JSON 配置文件，并检查镜头参数。";
+
+"lens.file.export.failed" = "配置导出失败。请选择其他位置后重试。";
+
+"lens.file.replace.title" = "替换此机型的配置？";
+
+"lens.file.replace" = "替换配置";
+
+"lens.file.replace.message" = "将替换草稿中 %@ 的镜头配置，保留其他机型。";
+
+"lens.file.imported" = "配置已载入草稿，点击“保存”后生效。";
+
+"card.files.export" = "导出到文件";
+
+"card.files.destination" = "文件";
+
+"card.files.description" = "JPEG Motion Photo 导出到文件。需要在照片图库保留动态效果时，请选择 Live Photo。";
+
+"card.files.complete" = "导出完成";
+
+"card.files.saved" = "照片已导出到所选文件夹。";
+
+"card.error.fileExport" = "文件导出失败。请检查目标位置和剩余空间后重试。";
+
+"card.error.invalidPackage" = "照片包损坏、版本不受支持或缺少有效的 Live Photo 资源。请使用 Fuyao Photos 重新导出。";
+
+"package.import.action" = "导入照片包";
+
+"package.import.file" = "文件";
+
+"package.import.description" = "将照片包中的图片和视频合并为 Live Photo，存入照片图库。";
+
+"package.import.checking" = "正在检查照片包…";
+
+"package.import.saving" = "正在保存 Live Photo…";
+
+"package.import.save" = "存入照片图库";
+
+"package.import.saved" = "Live Photo 已存入照片图库";

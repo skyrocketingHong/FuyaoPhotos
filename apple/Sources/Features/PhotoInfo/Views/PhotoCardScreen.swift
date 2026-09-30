@@ -53,6 +53,8 @@ struct PhotoCardScreen: View {
         }
         .sheet(isPresented: $showingPicker) { pickerSheet }
         .sheet(isPresented: $showingSave) { saveSheet }
+        .fileExporter(isPresented: $session.showingFileExporter, items: session.filesForExport, contentTypes: [.jpeg],
+            onCompletion: session.completeFileExport, onCancellation: session.discardFileExport)
         .modifier(SessionAlerts(session: session))
         .sensoryFeedback(.success, trigger: session.savedCount) { (_: Int?, newValue: Int?) in newValue != nil }
         .onChange(of: workspace.pendingAssetIDs) { (_: [String]?, _: [String]?) in handlePendingImport() }
@@ -85,15 +87,19 @@ struct PhotoCardScreen: View {
                 .alert("card.error.title", isPresented: errorShown) {
                     Button("done") { session.dismissError() }
                 } message: { Text(session.errorMessage ?? "") }
-                .alert("card.save.complete", isPresented: savedShown) {
-                    Button("photo.open.application") {
-                        Task {
-                            if !(await PhotosApplication.open()) { session.errorMessage = String.localized("photo.open.failed") }
+                .alert(session.savedToFiles ? "card.files.complete" : "card.save.complete", isPresented: savedShown) {
+                    if !session.savedToFiles {
+                        Button("photo.open.application") {
+                            Task {
+                                if !(await PhotosApplication.open()) { session.errorMessage = String.localized("photo.open.failed") }
+                            }
                         }
                     }
                     Button("done", role: .cancel) { session.savedCount = nil }
                 } message: {
-                    if session.documents.count > 1, let count = session.savedCount {
+                    if session.savedToFiles {
+                        Text("card.files.saved")
+                    } else if session.documents.count > 1, let count = session.savedCount {
                         if count == 1 { Text("card.saved.one") }
                         else { Text("card.saved \(count)") }
                     }
@@ -124,6 +130,7 @@ struct PhotoCardScreen: View {
 #if os(iOS)
                             .keyboardShortcut("o")
 #endif
+                        Button("package.import.action", systemImage: "square.and.arrow.down") { workspace.showingPackagePicker = true }
                     }
                 }
                 .photoPageForm()
@@ -159,6 +166,7 @@ struct PhotoCardScreen: View {
             }
             ToolbarItem(placement: .secondaryAction) {
                 Menu("card.more", systemImage: "ellipsis") {
+                    Button("package.import.action", systemImage: "square.and.arrow.down") { workspace.showingPackagePicker = true }
                     Button("card.style.reset", systemImage: "arrow.counterclockwise") {
                         document.card.style = PhotoCardStyle()
                     }

@@ -32,6 +32,24 @@
         <category android:name="android.intent.category.DEFAULT" />
         <data android:mimeType="image/*" />
       </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="content" android:mimeType="application/vnd.fuyaophotos" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="content" android:host="*" android:mimeType="application/octet-stream" android:pathPattern=".*\\.fuyaophotos" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="application/vnd.fuyaophotos" />
+        <action android:name="android.intent.action.SEND_MULTIPLE" />
+      </intent-filter>
     </activity>
   </application>
 </manifest>

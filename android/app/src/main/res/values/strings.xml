@@ -224,7 +224,7 @@
   <string name="open_photo">Open</string>
   <string name="open_photo_failed">No app could open this photo, or read access expired. Open it from your gallery.</string>
   <string name="share_failed">Could not open the share menu. Share the saved photo from your gallery.</string>
-  <string name="shared_photo_invalid">Cannot read shared content. Share 1–50 images from your gallery, or select the originals in the app.</string>
+  <string name="shared_photo_invalid">Cannot read the shared files. Share photos or Fuyao Photos packages, or choose the originals in the app.</string>
   <string name="play_motion">Play Motion Photo</string>
   <string name="stop_motion">Stop Motion Photo</string>
   <string name="enable_hdr">Enable HDR preview</string>
@@ -235,9 +235,11 @@
   <string name="export_format">File format</string>
   <string name="encoding_quality">Encoding quality</string>
   <string name="avif_requires_android14">AVIF export needs Android 14 or later and an AV1 encoder.</string>
-  <string name="live_pair">Separate Apple Live Photo</string>
-  <string name="live_pair_hint">Save a paired photo and MOV to a folder. Transfer both files together to import as a Live Photo.</string>
-  <string name="live_pair_format">Choose JPEG or HEIC and a destination folder for the Live Photo pair.</string>
+
+  <string name="live_pair">Apple Live Photo package</string>
+
+  <string name="live_pair_hint">Export one .fuyaophotos file. Open it with Fuyao Photos on an Apple device to save it as a Live Photo.</string>
+  <string name="live_pair_format">Choose JPEG or HEIC and a destination folder for the photo package.</string>
   <string name="apple_portrait">Convert Xiaomi portrait to Apple depth</string>
   <string name="apple_style">Apple Photographic Style</string>
   <string name="apple_style_hint">Tags the HEIC export with an identity (Standard) photographic style so Apple devices show the style controls.</string>
@@ -401,4 +403,20 @@
   <string name="colors_camera_failed">Camera unavailable. Allow camera access or choose a photo from your library.</string>
   <string name="about_features">Create information cards, inspect and edit metadata, and sample colors across color spaces. Photo Map is not yet available on Android.</string>
   <string name="about_colors_credit">Color tools come from FuyaoColorPicker. The original Color Picker reference materials retain their GPL-3.0-only license.</string>
+  <string name="lens_file_import">Import configuration</string>
+  <string name="lens_file_export">Export configuration</string>
+  <string name="lens_file_description">One JSON file per camera model. Local camera bindings are not shared. Save to apply imported changes.</string>
+  <string name="lens_file_invalid">Cannot read this lens configuration. Choose a supported Fuyao Photos JSON file with valid lens parameters.</string>
+  <string name="lens_file_export_failed">Could not export the configuration. Choose another location and try again.</string>
+  <string name="lens_file_replace_title">Replace this model’s configuration?</string>
+  <string name="lens_file_replace">Replace configuration</string>
+  <string name="lens_file_replace_message">The lens configuration for %1$s will be replaced in this draft. Other models are kept.</string>
+  <string name="lens_file_imported">Configuration added to the draft. Save to apply it.</string>
+  <string name="lens_file_exported">Configuration exported</string>
+  <string name="motion_gallery_hint">Motion Photo is the default. The photo and motion stay together when saved to the gallery.</string>
+  <string name="package_destination_hint">Destination: Files. Choose a folder for the photo packages.</string>
+  <string name="gallery_destination_hint">Destination: Gallery. Older Android versions use the file picker.</string>
+  <string name="package_export_action">Export photo package</string>
+  <string name="package_export_success">Photo package exported</string>
+  <string name="package_style_unsupported">This video has no matching Apple style data. Turn off style injection to export a Live Photo package.</string>
 </resources>

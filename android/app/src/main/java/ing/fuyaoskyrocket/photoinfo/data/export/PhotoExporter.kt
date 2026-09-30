@@ -28,7 +28,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
 class PhotoExporter(private val context: Context, private val photos: PhotoRepository) {
-    data class Result(val image: Uri, val movie: Uri? = null)
+    data class Result(val image: Uri, val movie: Uri? = null, val isPackage: Boolean = false)
     private val renderer=CardRenderer()
     suspend fun export(source:PhotoSource,info:PhotoInfo,style:CardStyle,typography:CardTypography,
         format:ExportFormat,keepCaptureMetadata:Boolean,destination:Uri?=null,jpegQuality:Int=DEFAULT_JPEG_QUALITY,
@@ -44,9 +44,8 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         // HDR, live pairing, portrait conversion and style injection are independent;
         // each only constrains the format (HDR-capable, pairing-capable, HEIC).
         val injectStyle = options.appleStyle && format == ExportFormat.HEIC
-        // A styled photo saves as a still: Photos crashes editing a Live pair whose
-        // still carries the style layers (the video side has no matching style state).
-        val paired = options.separateLivePhoto && media.motion != null && !injectStyle
+        val paired = options.separateLivePhoto && media.motion != null
+        require(!paired || !injectStyle) { context.getString(R.string.package_style_unsupported) }
         require(!options.appleStyle || format==ExportFormat.HEIC) { context.getString(R.string.style_heic_required) }
         // The native texture-styles contract keeps the 2023 styles item alongside it.
         val injectStyle3 = options.appleStyle3 && format == ExportFormat.HEIC
@@ -80,6 +79,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
         val unblurred=File.createTempFile("unblurred-", ".jpg", context.cacheDir)
         val identifier=if(paired)java.util.UUID.randomUUID().toString().uppercase(Locale.ROOT) else null
         var stage=R.string.export_stage_prepare
+        var pairCoverUs: Long? = null
         try {
             var renderSource=source
             val portrait=if(convertPortrait) {
@@ -122,7 +122,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                     ApplePhotoMetadata.withAppleNotes(captureExif.singleOrNull(),identifier,convertPortrait,styleIdentifier))
                 else -> captureExif
             }
-            if(identifier!=null)AppleLivePhotoMovie.write(videoFile,pairedMovie,identifier,requireNotNull(media.motion).timestampUs)
+            if(identifier!=null) pairCoverUs = AppleLivePhotoMovie.write(videoFile,pairedMovie,identifier,requireNotNull(media.motion).timestampUs)
             var expectedGain:FloatArray?=null
             var expectedColor:String?=null
             // A linear F16 source has no color-space name twin in a re-encoded HEIC/AVIF;
@@ -289,7 +289,7 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             }
             currentCoroutineContext().ensureActive()
             stage=R.string.export_stage_publish
-            if(paired)return publishPair(assembled,pairedMovie,format,requireNotNull(pairDirectory))
+            if(paired)return publishPackage(assembled,pairedMovie,format,requireNotNull(pairDirectory),requireNotNull(identifier),requireNotNull(pairCoverUs))
             return Result(publish(assembled,format,destination,media.motion!=null,
                 if(options.keepCaptureTime) ExportMetadata.capturedAt(selectedTags) else null))
         } catch(failure:Throwable) {
@@ -301,26 +301,24 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
             throw failure
         } finally { encoded.delete();assembled.delete();metadata.delete();videoFile.delete();pairedMovie.delete();unblurred.delete() }
     }
-    private fun publishPair(image:File,movie:File,format:ExportFormat,directory:Uri):Result {
+    private fun publishPackage(image:File,movie:File,format:ExportFormat,directory:Uri,identifier:String,coverUs:Long):Result {
         val resolver=context.contentResolver
         val parent=DocumentsContract.buildDocumentUriUsingTree(directory,DocumentsContract.getTreeDocumentId(directory))
         val stem=filename(format).substringBeforeLast('.')
-        val created=mutableListOf<Uri>()
+        val packed = File.createTempFile("live-photo-", ".fuyaophotos", context.cacheDir)
+        var created: Uri? = null
         try {
-            fun write(file:File,mime:String,name:String):Uri {
-                val uri=DocumentsContract.createDocument(resolver,parent,mime,name) ?: throw IOException("Cannot create Live Photo resource")
-                created+=uri
-                resolver.openOutputStream(uri,"w")?.use { output->file.inputStream().use { it.copyTo(output) } }
-                    ?: throw IOException("Cannot save Live Photo resource")
-                return uri
-            }
-            val photo=write(image,format.mime,"$stem.${format.extension}")
-            val video=write(movie,"video/quicktime","$stem.mov")
-            return Result(photo,video)
+            FuyaoPhotosPackage.write(image,movie,identifier,coverUs,packed)
+            val uri=DocumentsContract.createDocument(resolver,parent,FuyaoPhotosPackage.MIME,"$stem.fuyaophotos")
+                ?: throw IOException("Cannot create photo package")
+            created=uri
+            resolver.openOutputStream(uri,"w")?.use { output->packed.inputStream().use { it.copyTo(output) } }
+                ?: throw IOException("Cannot save photo package")
+            return Result(uri,isPackage=true)
         } catch(failure:Throwable) {
-            created.forEach { runCatching { DocumentsContract.deleteDocument(resolver,it) } }
+            created?.let { runCatching { DocumentsContract.deleteDocument(resolver,it) } }
             throw failure
-        }
+        } finally { packed.delete() }
     }
     private fun writeCaptureExif(file:File,source:PhotoSource,tags:Map<String,String>) {
         ExifInterface(file).apply {

@@ -9,6 +9,16 @@ import SwiftUI
         var title: LocalizedStringKey { self == .settings ? "settings.title" : LocalizedStringKey("tab." + rawValue) }
     }
     var selectedTab: Tab = WorkspacePreferences.shared.startup
+    var showingPackagePicker = false
+    var incomingPackage: PackageImportRequest?
+    private var packageQueue: [URL] = []
+    func importPackage(_ url: URL) {
+        if incomingPackage == nil { incomingPackage = PackageImportRequest(url: url) }
+        else if packageQueue.count < 50 { packageQueue.append(url) }
+    }
+    func nextPackage() {
+        if !packageQueue.isEmpty { incomingPackage = PackageImportRequest(url: packageQueue.removeFirst()) }
+    }
     var pendingAssetIDs: [String]?
     /// Photos handed off from another tab for the metadata page to open.
     var pendingMetadataAssetIDs: [String]?

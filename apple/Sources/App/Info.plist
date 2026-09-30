@@ -10,5 +10,46 @@
 	<string>Take a photo to sample its colors.</string>
 	<key>FuyaoBuildTrain</key>
 	<string>$(FUYAO_BUILD_TRAIN)</string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>ing.fuyaoskyrocket.photos.package</string>
+			<key>UTTypeDescription</key>
+			<string>Fuyao Photos photo package</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>fuyaophotos</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/vnd.fuyaophotos</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Fuyao Photos photo package</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>ing.fuyaoskyrocket.photos.package</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

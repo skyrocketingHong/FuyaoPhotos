@@ -32,19 +32,20 @@ fun MetadataEditPanel(photo: OriginalPhoto, model: MetadataEditViewModel) {
                 avifRequired = photo.bitDepth > 8, editMetadata = true)
             val compatible = ing.fuyaoskyrocket.photoinfo.platform.ImageEncoderSupport.supports(options.format) &&
                 (photo.bitDepth <= 8 || options.format in setOf(ExportFormat.HEIC, ExportFormat.AVIF)) &&
-                (!photo.hasDepth || options.format == if (options.applePortrait) ExportFormat.HEIC else ExportFormat.JPEG)
+                (!photo.hasDepth || options.format == if (options.applePortrait) ExportFormat.HEIC else ExportFormat.JPEG) &&
+                !(photo.motion != null && options.separateLivePhoto && options.appleStyle)
             Button(onClick = {
                 if (options.separateLivePhoto && photo.motion != null) folder.launch(null)
                 else model.save(photo, options)
             }, enabled = !model.busy && compatible && model.hasChanges(photo.id), modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.metadata_save_copy))
+                Text(stringResource(if (photo.motion != null && options.separateLivePhoto) R.string.package_export_action else R.string.metadata_save_copy))
             }
             if (!compatible) Text(stringResource(R.string.export_formats_conflict), color = MaterialTheme.colorScheme.error)
             if (model.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         }
     }
     if (model.error != null || model.saved) AlertDialog(onDismissRequest = model::dismissResult,
-        title = { Text(stringResource(if (model.saved) R.string.export_success else R.string.error_export_title)) },
+        title = { Text(stringResource(if (model.savedPackage && model.saved) R.string.package_export_success else if (model.saved) R.string.export_success else R.string.error_export_title)) },
         text = { if (model.error != null) Text(model.error.orEmpty()) },
         confirmButton = { TextButton(onClick = model::dismissResult) { Text(stringResource(R.string.close)) } })
 }

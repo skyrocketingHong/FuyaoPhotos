@@ -332,7 +332,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                         DropdownMenuItem(text={ Text(stringResource(R.string.from_gallery)) },onClick={
                             showPhotoMenu=false;photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         })
-                        DropdownMenuItem(text={ Text(stringResource(R.string.from_file)) },onClick={ showPhotoMenu=false;filePicker.launch(arrayOf("image/*")) })
+                        DropdownMenuItem(text={ Text(stringResource(R.string.from_file)) },onClick={ showPhotoMenu=false;filePicker.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) })
                     }
                 }
                 val exportNotice=exportBlockingNotice(state)
@@ -355,7 +355,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                             FuyaoPageIntro(stringResource(R.string.photo_cards_title),
                                 stringResource(R.string.empty_hint,PhotoEditSnapshot.MAX_PHOTOS),R.drawable.ic_photo_add) {
                                 FilledTonalButton(onClick={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_gallery)) }
-                                OutlinedButton(onClick={ filePicker.launch(arrayOf("image/*")) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_file)) }
+                                OutlinedButton(onClick={ filePicker.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_file)) }
                                 if(state.busy) {
                                     CircularProgressIndicator(Modifier.size(24.dp),strokeWidth=2.dp)
                                     Text(stringResource(R.string.importing_photos), style=MaterialTheme.typography.bodyMedium)
@@ -392,7 +392,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 controls = metadataControls, hdrAvailable = metadataHdrAvailable,
                 onSelectPhoto = { if (sharesCards) vm.selectPhoto(it) else metadata.selectPhoto(it) },
                 onGallery = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA; metadataGallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                onFiles = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA; metadataFiles.launch(arrayOf("image/*")) },
+                onFiles = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA; metadataFiles.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) },
                 edit = metadataEdits)
         }
         composable(PhotoPage.COLORS.name) {
@@ -404,7 +404,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 if (cardOwner) state.busy else ownerPhotos.busy,
                 onSelect = { if (cardOwner) vm.selectPhoto(it) else if (colorOwner == ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA) metadata.selectPhoto(it) else colors.selectPhoto(it) },
                 onGallery = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.COLORS; metadataGallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                onFiles = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.COLORS; metadataFiles.launch(arrayOf("image/*")) },
+                onFiles = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.COLORS; metadataFiles.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) },
                 onCamera = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.COLORS; captureColorPhoto() },
                 onHDR = { available, enabled -> colorHasHDR = available; colorShowsHDR = enabled })
         }
@@ -592,13 +592,15 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             ExportOptionsControls(options,{ options=it },jpegRequired,hasMotion,hasPortrait,showLiveOption=hasMotion,showPortraitOption=hasPortrait,avifRequired=avifRequired)
             Text(stringResource(R.string.export_temporary_hint),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(if (options.separateLivePhoto && hasMotion) R.string.package_destination_hint else R.string.gallery_destination_hint),
+                style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             if(avifRequired)Text(stringResource(R.string.avif_precision_required),style=MaterialTheme.typography.bodySmall,
                 color=MaterialTheme.colorScheme.onSurfaceVariant)
             val compatible=(!hasPortrait || options.format==(if(options.applePortrait)ExportFormat.HEIC else ExportFormat.JPEG)) &&
                 (!hasMotion || options.format==ExportFormat.JPEG || options.format==ExportFormat.HEIC) &&
                 (!avifRequired || options.format==ExportFormat.AVIF || options.format==ExportFormat.HEIC) &&
                 (!options.appleStyle || options.format==ExportFormat.HEIC) &&
-                (!options.appleStyle3 || options.format==ExportFormat.HEIC)
+                (!options.appleStyle3 || options.format==ExportFormat.HEIC) && !(hasMotion && options.separateLivePhoto && options.appleStyle)
             if(!compatible)Text(stringResource(R.string.export_formats_conflict),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
             Button(enabled = !submitting && compatible && ing.fuyaoskyrocket.photoinfo.platform.ImageEncoderSupport.supports(options.format), onClick = {
                 submitting = true
@@ -608,7 +610,10 @@ private fun ExportDialog(width: Int, height: Int, count: Int, jpegRequired: Bool
                         onExport(options.sanitized(jpegRequired))
                     } finally { submitting = false }
                 }
-            }, modifier = Modifier.fillMaxWidth()) { Text(if(count>1)stringResource(R.string.batch_export,count) else stringResource(R.string.export)) }
+            }, modifier = Modifier.fillMaxWidth()) {
+                Text(if (options.separateLivePhoto && hasMotion) stringResource(R.string.package_export_action)
+                    else if(count>1)stringResource(R.string.batch_export,count) else stringResource(R.string.export))
+            }
             TextButton(enabled = !submitting, onClick = {
                 scope.launch { sheetState.hide(); onDismiss() }
             }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.cancel)) }

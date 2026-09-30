@@ -20,14 +20,16 @@ struct CardSaveSheet: View {
     }
 
     private var saveTitle: LocalizedStringKey {
-        photoCount == 1 ? "card.save.action.one" : "card.save.action.many"
+        options.exportsMotionPhoto ? "card.files.export" : (photoCount == 1 ? "card.save.action.one" : "card.save.action.many")
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    if canUpdate && !options.exportsMotionPhoto {
+                    if options.exportsMotionPhoto {
+                        LabeledContent("card.save.destination", value: String.localized("card.files.destination"))
+                    } else if canUpdate {
                         Picker("card.save.destination", selection: $options.updateOriginal) {
                             Text(copyTitle).tag(false)
                             Text(updateTitle).tag(true)
@@ -38,7 +40,9 @@ struct CardSaveSheet: View {
                         }
                     }
                 } footer: {
-                    if canUpdate && options.updateOriginal {
+                    if options.exportsMotionPhoto {
+                        Text("card.files.description")
+                    } else if canUpdate && options.updateOriginal {
                         if photoCount == 1 { Text("card.save.update.description") }
                         else { Text("card.save.update.description.many") }
                     } else if hasLive {

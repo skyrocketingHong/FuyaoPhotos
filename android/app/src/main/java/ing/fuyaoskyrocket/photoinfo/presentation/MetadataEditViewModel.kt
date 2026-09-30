@@ -27,6 +27,7 @@ class MetadataEditViewModel(application: Application, private val savedState: Sa
     var busy by mutableStateOf(false); private set
     var error by mutableStateOf<String?>(null); private set
     var saved by mutableStateOf(false); private set
+    var savedPackage by mutableStateOf(false); private set
 
     init {
         savedState.get<List<String>>("metadata.edit.ids").orEmpty().takeLast(150).forEach { id ->
@@ -58,6 +59,7 @@ class MetadataEditViewModel(application: Application, private val savedState: Sa
         busy = true
         error = null
         saved = false
+        savedPackage = options.separateLivePhoto && photo.motion != null
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {

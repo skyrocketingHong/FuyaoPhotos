@@ -393,7 +393,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                         }
                         try { fullSizeMutex.withLock {
                             val output=exporter.export(draft.source,info,draft.style,typography,format,keepMetadata,target,jpegQuality,options,directory)
-                            ExportedPhoto(output.image,format,output.movie)
+                            ExportedPhoto(output.image,format,output.movie,output.isPackage)
                         } }
                         catch (failure: Throwable) {
                             if (directory != null && target != null) runCatching { DocumentsContract.deleteDocument(app.contentResolver, target) }
@@ -410,7 +410,8 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                     error = result.failures.takeIf { it.isNotEmpty() }?.map { it.message }?.distinct()?.joinToString("\n"),
                     errorDetail = result.failures.firstOrNull()?.detail,
                     notice = if (result.saved.isEmpty()) null else EditorNotice(++noticeId,
-                        if (snapshot.size == 1) app.getString(R.string.export_success)
+                        if (result.saved.any { it.isPackage }) app.getString(R.string.package_export_success)
+                        else if (snapshot.size == 1) app.getString(R.string.export_success)
                         else app.getString(R.string.batch_saved, result.saved.size, result.failures.size), result.saved))
                 persist(); renderPreview()
             } catch (cancelled: CancellationException) { throw cancelled }

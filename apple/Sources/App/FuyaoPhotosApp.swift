@@ -26,6 +26,7 @@ struct WorkspaceCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("menu.open.photos") { workspace.requestOpenPhotos() }
                 .keyboardShortcut("o")
+            Button("package.import.action") { workspace.showingPackagePicker = true }
         }
         CommandGroup(after: .saveItem) {
             Button("menu.save.photos") { workspace.requestSave() }
