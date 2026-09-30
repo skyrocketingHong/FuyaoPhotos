@@ -15,6 +15,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -24,6 +25,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
 import ing.fuyaoskyrocket.photoinfo.presentation.LocationStatus
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 import kotlin.math.roundToInt
 
 @Composable
@@ -46,6 +48,7 @@ fun EditorControls(
     var fieldFocused by remember { mutableStateOf(false) }
     var imeSeen by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
+    val transitionMillis = if (LocalPhotoMotionEnabled.current) 180 else 0
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val editingCallback = rememberUpdatedState(onEditingActiveChange)
     fun setEditingActive(active: Boolean) {
@@ -91,11 +94,11 @@ fun EditorControls(
         }
         Row(Modifier.widthIn(max = 640.dp).fillMaxWidth().weight(1f).padding(horizontal = FuyaoSpacing.content),
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Crossfade(targetState = tab, animationSpec = tween(180), label = "editor wheel",
+            Crossfade(targetState = tab, animationSpec = tween(transitionMillis), label = "editor wheel",
                 modifier = Modifier.weight(.34f).fillMaxHeight()) { pickerTab ->
                 val pickerLabels = if (pickerTab == 0) fieldLabels else styleLabels
-                CyclicItemSelector(pickerLabels, if (pickerTab == 0) fieldIndex else styleIndex, !state.busy,
-                    Modifier.fillMaxSize()) { index ->
+                CyclicItemSelector(pickerLabels, if (pickerTab == 0) fieldIndex else styleIndex, !state.busy && pickerTab == tab,
+                    Modifier.fillMaxSize().semantics { if (pickerTab != tab) hideFromAccessibility() }) { index ->
                     if (tab == pickerTab && index in pickerLabels.indices) {
                         focus.clearFocus(); setEditingActive(false)
                         if (pickerTab == 0) fieldIndex = index else styleIndex = index
@@ -178,6 +181,7 @@ private fun EditorInspector(
     editingActive: Boolean,
     modifier: Modifier,
 ) {
+    val transitionMillis = if (LocalPhotoMotionEnabled.current) 180 else 0
     BoxWithConstraints(modifier) {
         val tight = maxHeight < 200.dp
         val controlHeight = if (tight) 56.dp else 72.dp
@@ -187,7 +191,6 @@ private fun EditorInspector(
             (if (showHint) hintHeight + 16.dp else 8.dp)
         val previewHeight = minOf(maxWidth, previewRoom.coerceAtLeast(0.dp))
         val showPreview = previewHeight >= 48.dp && LocalDensity.current.fontScale < 1.5f
-        val selection = tab to if (tab == 0) fieldIndex else styleIndex
         val currentField = FieldId.entries[fieldIndex]
         val currentStyle = StyleSetting.entries.getOrNull(styleIndex)
         val hint = when {
@@ -236,24 +239,28 @@ private fun EditorInspector(
             }
             Box(Modifier.fillMaxWidth().height(controlHeight)) {
                 if (tab == 0) fieldContent()
-                else Crossfade(targetState = styleIndex, animationSpec = tween(180), label = "editor style") { selectedIndex ->
+                else Crossfade(targetState = styleIndex, animationSpec = tween(transitionMillis), label = "editor style") { selectedIndex ->
+                val current = selectedIndex == styleIndex && tab == 1
+                Box(Modifier.fillMaxSize().semantics { if (!current) hideFromAccessibility() }) {
                 if (selectedIndex == StyleSetting.entries.size) {
-                    FontControl(state, onImportFont)
+                    FontControl(state, { if (current) onImportFont() }, enabled = !state.busy && current)
                 } else {
                     val setting = StyleSetting.entries[selectedIndex]
                     val value = setting.value(state.style)
-                    CardStyleSlider(value, { onStyle(setting.update(state.style, it)) },
+                    CardStyleSlider(value, { if (current) onStyle(setting.update(state.style, it)) },
                         setting.minimum..setting.maximum, setting.value(CardStyle()), stringResource(setting.label),
                         styleValue(setting.percentage, value),
-                        styleValue(setting.percentage, setting.maximum), !state.busy, Modifier.fillMaxWidth())
+                        styleValue(setting.percentage, setting.maximum), !state.busy && current, Modifier.fillMaxWidth())
+                }
                 }
                 }
             }
             if (showHint) {
                 Spacer(Modifier.height(8.dp))
-                Column(Modifier.fillMaxWidth().height(hintHeight)) {
-                    val hintText = stringResource(hint)
-                    Text(hintText, Modifier.semantics { contentDescription = hintText },
+                Crossfade(targetState = hint, animationSpec = tween(transitionMillis), label = "editor hint",
+                    modifier = Modifier.fillMaxWidth().height(hintHeight)) { shownHint ->
+                    val hintText = stringResource(shownHint)
+                    Text(hintText, Modifier.semantics { if (shownHint != hint) hideFromAccessibility() },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2)
@@ -309,11 +316,11 @@ private fun FieldControl(state: EditorState, field: FieldId, onField: (FieldId, 
 }
 
 @Composable
-private fun FontControl(state: EditorState, onImportFont: () -> Unit) {
+private fun FontControl(state: EditorState, onImportFont: () -> Unit, enabled: Boolean = !state.busy) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
         Text(state.fontName ?: stringResource(R.string.system_mono),
             style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        OutlinedButton(onClick = onImportFont, enabled = !state.busy,
+        OutlinedButton(onClick = onImportFont, enabled = enabled,
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Text(stringResource(R.string.import_font), maxLines = 1)
         }

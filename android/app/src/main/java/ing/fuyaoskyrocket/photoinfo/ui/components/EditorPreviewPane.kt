@@ -23,6 +23,7 @@ import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoIconButton
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.DevelopVeil
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 import ing.fuyaoskyrocket.photoinfo.platform.MotionClipSource
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 import kotlinx.coroutines.launch
 
 @Composable
@@ -38,6 +39,7 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
     val keyboard=LocalSoftwareKeyboardController.current
     val selectedIndex by rememberUpdatedState(state.photoIndex)
     val scope=rememberCoroutineScope()
+    val motionEnabled = LocalPhotoMotionEnabled.current
     val previous=stringResource(R.string.previous_photo)
     val next=stringResource(R.string.next_photo)
     val position=stringResource(R.string.photo_position,state.photoIndex+1,state.photos.size)
@@ -52,6 +54,15 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
         Box(Modifier.fillMaxWidth().weight(1f)) {
             Box(Modifier.matchParentSize()) {
                 val pager=rememberPagerState(initialPage=state.photoIndex) { state.photos.size }
+                fun move(delta: Int) {
+                    playing = false
+                    focus.clearFocus(force = true)
+                    keyboard?.hide()
+                    scope.launch {
+                        val page = (pager.currentPage + delta).coerceIn(0, state.photos.lastIndex)
+                        if (motionEnabled) pager.animateScrollToPage(page) else pager.scrollToPage(page)
+                    }
+                }
                 LaunchedEffect(pager.isScrollInProgress) { if(pager.isScrollInProgress)playing=false }
                 LaunchedEffect(pager) {
                     snapshotFlow { pager.settledPage }.collect { page ->
@@ -81,11 +92,11 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                         containerColor=MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha=.84f))
                     Row(Modifier.fillMaxSize().padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically,
                         horizontalArrangement=Arrangement.SpaceBetween) {
-                        FilledTonalIconButton(onClick={ playing=false;scope.launch { pager.animateScrollToPage((pager.currentPage-1).coerceAtLeast(0)) } },
+                        FilledTonalIconButton(onClick = { move(-1) },
                             enabled=!state.busy && pager.currentPage>0,colors=navColors,modifier=Modifier.size(48.dp)) {
                             Icon(painterResource(R.drawable.ic_back),previous,Modifier.size(20.dp))
                         }
-                        FilledTonalIconButton(onClick={ playing=false;scope.launch { pager.animateScrollToPage((pager.currentPage+1).coerceAtMost(state.photos.lastIndex)) } },
+                        FilledTonalIconButton(onClick = { move(1) },
                             enabled=!state.busy && pager.currentPage<state.photos.lastIndex,colors=navColors,modifier=Modifier.size(48.dp)) {
                             Icon(painterResource(R.drawable.ic_chevron),next,Modifier.size(20.dp))
                         }

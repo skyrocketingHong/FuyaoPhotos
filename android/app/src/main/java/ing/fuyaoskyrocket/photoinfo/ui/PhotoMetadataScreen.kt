@@ -7,6 +7,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -25,6 +26,7 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
     edit: MetadataEditViewModel = viewModel()) {
     var editing by rememberSaveable { mutableStateOf(false) }
     var showOpen by remember { mutableStateOf(false) }
+    val focus = LocalFocusManager.current
     val modeControls: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (photos.size > 1) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -39,7 +41,7 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
                     listOf(R.string.metadata_mode_view, R.string.metadata_mode_edit).forEachIndexed { index, title ->
-                        SegmentedButton(selected = editing == (index == 1), onClick = { editing = index == 1 },
+                        SegmentedButton(selected = editing == (index == 1), onClick = { focus.clearFocus(); editing = index == 1 },
                             shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(stringResource(title)) }
                     }
                 }

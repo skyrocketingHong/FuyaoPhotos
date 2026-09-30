@@ -77,6 +77,7 @@ struct SidebarSelectionButton<T: Identifiable & RawRepresentable>: View where T.
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -86,6 +87,7 @@ struct SidebarSection<T: Identifiable & RawRepresentable & CaseIterable>: View w
     @Binding var selection: T
     let iconProvider: (T) -> String
     let labelProvider: (T) -> LocalizedStringKey
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         title: LocalizedStringKey,
@@ -110,7 +112,7 @@ struct SidebarSection<T: Identifiable & RawRepresentable & CaseIterable>: View w
                     icon: iconProvider(item),
                     label: labelProvider(item)
                 ) {
-                    withAnimation(DesignConstants.Animation.bouncy) {
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.2)) {
                         selection = item
                     }
                 }

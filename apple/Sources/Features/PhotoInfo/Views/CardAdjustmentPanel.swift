@@ -42,14 +42,19 @@ enum CardAdjustment: String, CaseIterable, Identifiable {
     }
 }
 
+@MainActor @Observable final class CardInspectorSelection {
+    enum Mode: Hashable { case information, style }
+    var field: CardField = .author
+    var adjustment: CardAdjustment = .scale
+    var mode: Mode = .information
+}
+
 struct CardAdjustmentPanel: View {
     @Bindable var document: CardDocument
+    @Bindable var selection: CardInspectorSelection
     @Binding var textEditingActive: Bool
-    @State private var field: CardField = .author
-    @State private var adjustment: CardAdjustment = .scale
-    @State private var mode: EditingMode = .information
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    private enum EditingMode: Hashable { case information, style }
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         panel
@@ -61,53 +66,53 @@ struct CardAdjustmentPanel: View {
             let selectorWidth = min(180, contentWidth * 0.32)
             let detailWidth = max(0, contentWidth - selectorWidth - 12)
             VStack(spacing: 12) {
-                Picker("card.edit.mode", selection: $mode) {
-                    Label("card.information", systemImage: "info.circle").tag(EditingMode.information)
-                    Label("card.style", systemImage: "slider.horizontal.3").tag(EditingMode.style)
+                Picker("card.edit.mode", selection: $selection.mode) {
+                    Label("card.information", systemImage: "info.circle").tag(CardInspectorSelection.Mode.information)
+                    Label("card.style", systemImage: "slider.horizontal.3").tag(CardInspectorSelection.Mode.style)
                 }
                 .pickerStyle(.segmented)
                 HStack(alignment: .top, spacing: 12) {
                     ZStack {
                         if geometry.size.height < 300 || dynamicTypeSize.isAccessibilitySize {
                             Menu {
-                                if mode == .information {
-                                    Picker("card.information", selection: $field) {
+                                if selection.mode == .information {
+                                    Picker("card.information", selection: $selection.field) {
                                         ForEach(CardField.allCases) { Text(LocalizedStringKey($0.titleKey)).tag($0) }
                                     }
                                 } else {
-                                    Picker("card.style", selection: $adjustment) {
+                                    Picker("card.style", selection: $selection.adjustment) {
                                         ForEach(CardAdjustment.allCases) { Text($0.title).tag($0) }
                                     }
                                 }
                                 Button("card.restore.current", systemImage: "arrow.counterclockwise") {
-                                    if mode == .information { document.card[field] = document.defaultCard[field] }
-                                    else { document.card.style[keyPath: adjustment.keyPath] = PhotoCardStyle()[keyPath: adjustment.keyPath] }
+                                    if selection.mode == .information { document.card[selection.field] = document.defaultCard[selection.field] }
+                                    else { document.card.style[keyPath: selection.adjustment.keyPath] = PhotoCardStyle()[keyPath: selection.adjustment.keyPath] }
                                 }
                                 Button("card.restore.all", systemImage: "arrow.counterclockwise.circle") {
-                                    if mode == .information {
+                                    if selection.mode == .information {
                                         for item in CardField.allCases { document.card[item] = document.defaultCard[item] }
                                     } else { document.card.style = PhotoCardStyle() }
                                 }
                             } label: {
-                                Label(mode == .information ? LocalizedStringKey(field.titleKey) : adjustment.title,
+                                Label(selection.mode == .information ? LocalizedStringKey(selection.field.titleKey) : selection.adjustment.title,
                                       systemImage: "chevron.up.chevron.down")
                             }
                             .frame(minHeight: 44)
-                        } else if mode == .information {
-                            EditorItemPicker(items: CardField.allCases, selection: $field) {
+                        } else if selection.mode == .information {
+                            EditorItemPicker(items: CardField.allCases, selection: $selection.field) {
                                 $0 == .focalLength ? "card.field.focalLength.short" : LocalizedStringKey($0.titleKey)
                             }
                             .transition(.opacity)
                         } else {
-                            EditorItemPicker(items: CardAdjustment.allCases, selection: $adjustment) { $0.title }
+                            EditorItemPicker(items: CardAdjustment.allCases, selection: $selection.adjustment) { $0.title }
                                 .transition(.opacity)
                         }
                     }
-                    .animation(.easeInOut(duration: 0.18), value: mode)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selection.mode)
                     .frame(width: selectorWidth)
 
-                    MobileCardInspector(document: document, field: field, adjustment: adjustment,
-                                        information: mode == .information, selectionID: detailID,
+                    MobileCardInspector(document: document, field: selection.field, adjustment: selection.adjustment,
+                                        information: selection.mode == .information, selectionID: detailID,
                                         textEditingActive: $textEditingActive)
                         .frame(width: detailWidth)
                         .frame(maxHeight: .infinity)
@@ -119,11 +124,11 @@ struct CardAdjustmentPanel: View {
             .padding(.bottom, 8)
 
         }
-        .onChange(of: mode) { _, _ in textEditingActive = false }
+        .onChange(of: selection.mode) { _, _ in textEditingActive = false }
     }
 
     private var detailID: String {
-        mode == .information ? "field-\(field.rawValue)" : "style-\(adjustment.rawValue)"
+        selection.mode == .information ? "field-\(selection.field.rawValue)" : "style-\(selection.adjustment.rawValue)"
     }
 }
 

@@ -1,5 +1,7 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
+
 import android.graphics.Bitmap
 import android.graphics.RectF
 import androidx.compose.animation.core.Animatable
@@ -142,7 +144,9 @@ internal fun CardDetailPreview(
 @Composable
 private fun rememberAnimatedRects(targets: List<RectF>): List<RectF> {
     val animated = remember { mutableStateOf(targets) }
-    LaunchedEffect(targets) {
+    val motionEnabled = LocalPhotoMotionEnabled.current
+    LaunchedEffect(targets, motionEnabled) {
+        if (!motionEnabled) { animated.value = targets; return@LaunchedEffect }
         val from = animated.value
         if (from == targets) return@LaunchedEffect
         val progress = Animatable(0f)
@@ -159,7 +163,7 @@ private fun rememberAnimatedRects(targets: List<RectF>): List<RectF> {
         }
         animated.value = targets
     }
-    return animated.value
+    return if (motionEnabled) animated.value else targets
 }
 
 private fun cardCrop(bitmap: Bitmap, box: CardBox): CardCrop {

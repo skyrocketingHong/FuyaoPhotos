@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,13 +47,14 @@ internal fun CardStyleSlider(
     val span = valueRange.endInclusive - valueRange.start
     val atMinimum = value <= valueRange.start + span * 0.001f
     val atMaximum = value >= valueRange.endInclusive - span * 0.001f
+    val motionEnabled = LocalPhotoMotionEnabled.current
     val minScale by animateFloatAsState(if (atMinimum) 1.12f else 1f,
         spring(stiffness = 900f), label = "slider min emphasis")
     val maxScale by animateFloatAsState(if (atMaximum) 1.12f else 1f,
         spring(stiffness = 900f), label = "slider max emphasis")
     Row(modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(painterResource(R.drawable.ic_minus), null,
-            Modifier.size(20.dp).scale(minScale),
+            Modifier.size(20.dp).scale(if (motionEnabled) minScale else 1f),
             tint = if (atMinimum) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.width(4.dp))
@@ -82,7 +84,7 @@ internal fun CardStyleSlider(
         )
         Spacer(Modifier.width(4.dp))
         Icon(painterResource(R.drawable.ic_plus), null,
-            Modifier.size(20.dp).scale(maxScale),
+            Modifier.size(20.dp).scale(if (motionEnabled) maxScale else 1f),
             tint = if (atMaximum) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant)
         // The slot reserves the widest formatted value so a changing digit count never

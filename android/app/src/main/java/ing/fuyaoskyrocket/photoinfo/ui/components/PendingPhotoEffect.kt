@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 
 @Composable
 internal fun PendingPhotoEffect(
@@ -22,11 +23,12 @@ internal fun PendingPhotoEffect(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val radius = animateDpAsState(if (active) 7.dp else 0.dp, tween(180), label = "preview blur")
+    val motionEnabled = LocalPhotoMotionEnabled.current
+    val radius = animateDpAsState(if (active && motionEnabled) 7.dp else 0.dp, tween(180), label = "preview blur")
     val light = animateFloatAsState(if (active) 1f else 0f, tween(180), label = "preview light")
     val accent = MaterialTheme.colorScheme.primary
     Box(modifier) {
-        Box(Modifier.fillMaxSize().blur(radius.value), content = content)
+        Box(Modifier.fillMaxSize().blur(if (motionEnabled) radius.value else 0.dp), content = content)
         if (light.value > 0f) {
             Box(
                 Modifier.fillMaxSize().graphicsLayer { alpha = light.value }

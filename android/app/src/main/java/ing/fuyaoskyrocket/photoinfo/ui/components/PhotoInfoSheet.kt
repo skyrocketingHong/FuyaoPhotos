@@ -1,5 +1,8 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
+import androidx.compose.animation.core.tween
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
+
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.*
@@ -62,7 +65,11 @@ fun PhotoInfoContent(photo: OriginalPhoto, controls: OriginalPreviewState, hdrAv
             preview = { OriginalPhotoSummary(photo, controls, subtitle, hdrAvailable, busy) },
             bar = afterSummary) {
             if (header != null) item("page-intro") { header() }
-            if (belowBar != null) item("below-bar") { belowBar() }
+            if (belowBar != null) item("below-bar") {
+                val motion = LocalPhotoMotionEnabled.current
+                Box(Modifier.animateItem(fadeInSpec = if (motion) tween(180) else null,
+                    placementSpec = if (motion) tween(200) else null, fadeOutSpec = null)) { belowBar() }
+            }
             if (display != PhotoInfoDisplay.SUMMARY) detailGroups(groups)
         }
     }
@@ -72,7 +79,10 @@ fun PhotoInfoContent(photo: OriginalPhoto, controls: OriginalPreviewState, hdrAv
 private fun LazyListScope.detailGroups(groups: List<DetailGroup>) {
     groups.forEach { group ->
         item(group.title) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val motion = LocalPhotoMotionEnabled.current
+            Column(Modifier.animateItem(fadeInSpec = if (motion) tween(180) else null,
+                placementSpec = if (motion) tween(200) else null, fadeOutSpec = if (motion) tween(120) else null),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionHeading(stringResource(group.title), group.description?.let { stringResource(it) },
                     Modifier.padding(horizontal = FuyaoSpacing.cardInset))
                 Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large,

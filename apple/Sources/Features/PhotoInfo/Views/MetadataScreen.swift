@@ -3,6 +3,7 @@ import PhotosUI
 
 struct MetadataScreen: View {
     @Environment(PhotoWorkspace.self) private var workspace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var state: MetadataState
     @State private var mode = Mode.view
     @State private var showingPicker = false
@@ -31,6 +32,7 @@ struct MetadataScreen: View {
                             actions: { openPhotoButton })
                     } content: {
                         detailsForm(document)
+                            .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: mode)
                     }
                 } else {
                     Form { intro }.photoPageForm()
@@ -41,9 +43,13 @@ struct MetadataScreen: View {
 #endif
             .disabled(state.busy || session.busy)
             .overlay {
-                if state.busy || session.busy {
-                    ProgressView().padding().background(.regularMaterial, in: .rect(cornerRadius: 16))
+                ZStack {
+                    if state.busy || session.busy {
+                        ProgressView("card.preview.updating").padding().background(.regularMaterial, in: .rect(cornerRadius: 16))
+                            .transition(.opacity)
+                    }
                 }
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: state.busy || session.busy)
             }
         }
         .task(id: session.current?.id) { state.refresh(document: session.current) }

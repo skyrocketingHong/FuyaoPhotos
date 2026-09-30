@@ -12,6 +12,7 @@ struct CardCanvas: View {
     let confirmClose: () -> Void
     @State private var preview = CardPreviewState()
     @State private var textEditingActive = false
+    @State private var inspectorSelection = CardInspectorSelection()
 
     var body: some View {
         GeometryReader { geometry in
@@ -29,15 +30,9 @@ struct CardCanvas: View {
                                     confirmReplace: confirmReplace, confirmClose: confirmClose,
                                     saved: session.savedCount != nil && session.errorMessage == nil)
                 } content: {
-                    if metrics.isWide {
-                        CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
-                            .frame(maxWidth: 460, maxHeight: .infinity)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        CardAdjustmentPanel(document: document, textEditingActive: $textEditingActive)
-                            .frame(maxHeight: .infinity)
-                            .frame(maxWidth: .infinity)
-                    }
+                    CardAdjustmentPanel(document: document, selection: inspectorSelection, textEditingActive: $textEditingActive)
+                        .frame(maxWidth: metrics.isWide ? 460 : .infinity, maxHeight: .infinity)
+                        .frame(maxWidth: .infinity, alignment: metrics.isWide ? .leading : .center)
                 }
                 .onChange(of:session.selectedID) { _,_ in
                     preview.playing=false; preview.original=false; textEditingActive=false
@@ -197,6 +192,7 @@ private struct CardFilmstrip: View {
     let preview: CardPreviewState
     let zoom: Namespace.ID
     let processing: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         ZStack {
 #if os(macOS)
@@ -255,6 +251,10 @@ private struct CardFilmstrip: View {
     private var selectedIndex:Int { session.documents.firstIndex { $0.id==session.selectedID } ?? 0 }
     private func move(_ amount:Int) {
         let next=selectedIndex+amount
-        if session.documents.indices.contains(next) { session.selectedID=session.documents[next].id }
+        if session.documents.indices.contains(next) {
+            withAnimation(reduceMotion ? nil : .smooth(duration: 0.24)) {
+                session.selectedID = session.documents[next].id
+            }
+        }
     }
 }

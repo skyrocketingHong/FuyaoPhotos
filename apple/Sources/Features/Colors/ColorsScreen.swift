@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct ColorsScreen: View {
     @Environment(PhotoWorkspace.self) private var workspace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var sampling = ColorSamplingState()
     @State private var space: ColorResultSpace?
     @State private var showingPicker = false
@@ -32,6 +33,7 @@ struct ColorsScreen: View {
                         colorsActions(metrics: metrics)
                     } content: {
                         Form { results }.photoPageForm().scrollContentBackground(.hidden)
+                            .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: sampling.sample != nil)
                     }
                 } else {
                     Form { intro }.photoPageForm()

@@ -8,6 +8,7 @@ struct CardSaveSheet: View {
     let save: (CardSaveOptions) -> Void
     @State private var options = CardPreferences.shared.saveOptions
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var copyTitle: LocalizedStringKey {
         photoCount == 1 ? "card.save.copy.one" : "card.save.copy.many"
@@ -50,6 +51,9 @@ struct CardSaveSheet: View {
                 CardSaveControls(options: $options, hasHDR: hasHDR, hasLive: hasLive)
             }
             .photoPageForm()
+            .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: options.format)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: options.exportsMotionPhoto)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: options.updateOriginal)
             .navigationTitle("card.save.options")
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)

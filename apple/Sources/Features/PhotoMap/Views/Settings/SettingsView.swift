@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var card = CardPreferences.shared
     @State private var workspacePreferences = WorkspacePreferences.shared
     @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
@@ -70,6 +71,7 @@ struct SettingsView: View {
                         }
                     }
                     .photoPageForm()
+                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: selectedCategory)
                     .frame(maxWidth: .infinity)
                 }
             } else {
@@ -152,6 +154,7 @@ struct SettingsView: View {
         footer: { Text("workspace.sharing.description") }
         .tint(.secondary)
         .toggleStyle(NativeFormToggleStyle())
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: workspacePreferences.sharing)
     }
 
     @ViewBuilder private var cardSettings: some View {

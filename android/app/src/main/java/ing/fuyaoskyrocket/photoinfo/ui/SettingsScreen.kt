@@ -2,6 +2,14 @@ package ing.fuyaoskyrocket.photoinfo.ui
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,6 +34,7 @@ import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsControls
 import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsSaver
 import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 
 private enum class SettingsCategory(@StringRes val label: Int, @DrawableRes val icon: Int) {
     WORKSPACE(R.string.workspace_header, R.drawable.ic_settings),
@@ -49,6 +58,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     var sharedNames by rememberSaveable { mutableStateOf(settings.workspace.sharedFeatures.map { it.name }) }
     val workspace = WorkspaceSettings(startPage, sharing, sharedNames.mapNotNull { name -> PhotoFeature.entries.firstOrNull { it.name == name } }.toSet())
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.CARDS) }
+    val motionEnabled = LocalPhotoMotionEnabled.current
     val draft=settings.copy(defaultAuthor=author, resolvePhotoLocation=geocode, fallbackMainFocal=mainFocal,
         exportDefaults=exportDefaults.photoSave(), hevcEncoder=hevcEncoder, workspace=workspace)
     val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
@@ -75,9 +85,13 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                         PhotoSharing.ALL -> R.string.workspace_sharing_all; PhotoSharing.INDEPENDENT -> R.string.workspace_sharing_none
                         PhotoSharing.PARTIAL -> R.string.workspace_sharing_partial
                     }) }) { sharing = it }
-                if (sharing == PhotoSharing.PARTIAL) PhotoFeature.entries.forEach { feature ->
+                AnimatedVisibility(visible = sharing == PhotoSharing.PARTIAL,
+                    enter = if (motionEnabled) fadeIn(tween(180)) + expandVertically(tween(200)) else EnterTransition.None,
+                    exit = if (motionEnabled) fadeOut(tween(120)) + shrinkVertically(tween(180)) else ExitTransition.None) {
+                Column {
+                PhotoFeature.entries.forEach { feature ->
                     val selected = feature.name in sharedNames
-                    Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(selected, role=Role.Checkbox,
+                    Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(selected, enabled = sharing == PhotoSharing.PARTIAL, role=Role.Checkbox,
                         onValueChange={ enabled -> sharedNames = if (enabled) (sharedNames + feature.name).distinct() else sharedNames - feature.name }),
                         verticalAlignment=Alignment.CenterVertically) {
                         Text(stringResource(when(feature) {
@@ -86,6 +100,8 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                         }), Modifier.weight(1f))
                         Checkbox(selected, onCheckedChange=null)
                     }
+                }
+                }
                 }
             }
             SettingsCategory.CARDS -> SettingsSection(stringResource(R.string.photo_cards_title),

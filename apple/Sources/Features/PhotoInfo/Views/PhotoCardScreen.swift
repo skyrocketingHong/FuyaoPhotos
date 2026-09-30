@@ -5,6 +5,7 @@ struct PhotoCardScreen: View {
     @Bindable var session: CardSession
     @Environment(PhotoWorkspace.self) private var workspace
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
     /// Zoom-transition identity shared by the canvas photo and the fullscreen push.
     @Namespace private var fullScreenZoom
@@ -41,7 +42,10 @@ struct PhotoCardScreen: View {
                 .tint(PhotoPreviewTheme.accent(in: forcedDarkroom ? .dark : colorScheme))
                 .toolbar { editorToolbar }
                 .disabled(session.busy)
-                .overlay { busyOverlay }
+                .overlay {
+                    ZStack { busyOverlay }
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: session.busy)
+                }
         }
         .background(PhotoPreviewTheme.surface.ignoresSafeArea())
         .transformEnvironment(\.colorScheme) { scheme in
@@ -180,6 +184,7 @@ struct PhotoCardScreen: View {
             }
             .padding().frame(maxWidth: 300)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .transition(.opacity)
         }
     }
 

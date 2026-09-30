@@ -1,7 +1,6 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
 import androidx.compose.foundation.border
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
@@ -25,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 
 @Composable
 internal fun CyclicItemSelector(labels:List<String>,selected:Int,enabled:Boolean,modifier:Modifier,onSelect:(Int)->Unit) {
@@ -34,6 +34,7 @@ internal fun CyclicItemSelector(labels:List<String>,selected:Int,enabled:Boolean
     val currentSelected by rememberUpdatedState(selected)
     val select by rememberUpdatedState(onSelect)
     val scope=rememberCoroutineScope()
+    val motionEnabled = LocalPhotoMotionEnabled.current
     val rowHeight=with(LocalDensity.current) { maxOf(56f,48f*fontScale).dp }
     BoxWithConstraints(modifier) {
         val rowHeightPx=with(LocalDensity.current) { rowHeight.roundToPx() }
@@ -94,14 +95,17 @@ internal fun CyclicItemSelector(labels:List<String>,selected:Int,enabled:Boolean
                 val active=position==(centered ?: middle+selected)
                 Box(Modifier.fillMaxWidth().height(rowHeight)
                     .selectable(selected=active,enabled=enabled,role=Role.RadioButton) {
-                        scope.launch { state.animateScrollToItem(position-precedingRows,firstOffsetPx) }
+                        scope.launch {
+                            if (motionEnabled) state.animateScrollToItem(position-precedingRows,firstOffsetPx)
+                            else state.scrollToItem(position-precedingRows,firstOffsetPx)
+                        }
                     }.padding(horizontal=8.dp),contentAlignment=Alignment.Center) {
                     Text(labels[position%count],
-                        modifier = Modifier.fillMaxWidth().then(if(active) Modifier.basicMarquee() else Modifier),
+                        modifier = Modifier.fillMaxWidth(),
                         style=if(active)MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
                         color=if(active)MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign=androidx.compose.ui.text.style.TextAlign.Center,
-                        maxLines = 1, softWrap = false)
+                        maxLines = 2, softWrap = true)
                 }
             }
         }

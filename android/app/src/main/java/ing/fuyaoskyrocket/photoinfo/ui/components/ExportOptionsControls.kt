@@ -1,6 +1,14 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +26,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.model.ExportFormat
 import ing.fuyaoskyrocket.photoinfo.domain.model.ExportOptions
 import kotlin.math.roundToInt
 import ing.fuyaoskyrocket.photoinfo.platform.ImageEncoderSupport
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 
 val ExportOptionsSaver = listSaver<ExportOptions, String>(save={ it.fields() }, restore={ ExportOptions.restore(it) })
 
@@ -28,6 +37,7 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
     avifRequired: Boolean = false, editMetadata: Boolean = false) {
     var expanded by remember { mutableStateOf(false) }
     val supportedFormats=remember { ExportFormat.entries.filter(ImageEncoderSupport::supports) }
+    val motionEnabled = LocalPhotoMotionEnabled.current
     ExposedDropdownMenuBox(expanded, { expanded = it }) {
         OutlinedTextField(options.format.name, {}, readOnly = true, label = { Text(stringResource(R.string.export_format)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
@@ -77,14 +87,19 @@ fun ExportOptionsControls(options: ExportOptions, onChange: (ExportOptions) -> U
         style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     if(options.format==ExportFormat.HEIC && hasMotion && !options.separateLivePhoto) Text(stringResource(R.string.heic_motion_hint),
         style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-    if(options.format!=ExportFormat.PNG) {
+    AnimatedVisibility(visible = options.format != ExportFormat.PNG,
+        enter = if (motionEnabled) fadeIn(tween(180)) + expandVertically(tween(200)) else EnterTransition.None,
+        exit = if (motionEnabled) fadeOut(tween(120)) + shrinkVertically(tween(180)) else ExitTransition.None) {
+        Column(Modifier.fillMaxWidth()) {
         val label=stringResource(R.string.encoding_quality)
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
             Text(label,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
             Text(stringResource(R.string.value_percent,options.jpegQuality),style=MaterialTheme.typography.labelLarge)
         }
-        Slider(options.jpegQuality.toFloat(),{ onChange(options.copy(jpegQuality=it.roundToInt())) },
+        Slider(options.jpegQuality.toFloat(),{ if (options.format != ExportFormat.PNG) onChange(options.copy(jpegQuality=it.roundToInt())) },
+            enabled = options.format != ExportFormat.PNG,
             valueRange=0f..100f,steps=99,modifier=Modifier.fillMaxWidth().semantics { contentDescription=label })
+        }
     }
     if (editMetadata) {
         MetadataSwitch(R.string.keep_metadata,R.string.keep_metadata_hint,options.keepExif) { onChange(options.copy(keepExif=it)) }
