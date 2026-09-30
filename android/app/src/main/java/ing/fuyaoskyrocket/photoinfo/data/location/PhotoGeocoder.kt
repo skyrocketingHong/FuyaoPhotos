@@ -24,7 +24,7 @@ class PhotoGeocoder(private val context: Context) {
                 val completed = AtomicBoolean(false)
                 fun finish(addresses: List<Address>) {
                     val name = addresses.firstOrNull()?.let {
-                        LocationFormatting.place(it.locality, it.subAdminArea, it.adminArea, it.countryName, it.countryCode)
+                        LocationFormatting.place(it.locality, it.countryName, it.countryCode)
                     }?.takeIf { it.isNotBlank() }
                     if (completed.compareAndSet(false, true) && continuation.isActive) continuation.resume(name)
                 }

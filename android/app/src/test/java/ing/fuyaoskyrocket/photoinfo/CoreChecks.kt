@@ -108,14 +108,15 @@ object CoreChecks {
             check(AndroidLensMetadata.resolve("Brand", "Device", "Existing lens",0.0).camera=="Existing lens")
         }
         verify("reference place format uses city and English country") {
-            check(LocationFormatting.place("Hangzhou", null, "Zhejiang", "中国", "CN") == "Hangzhou, China")
-            check(LocationFormatting.place("Paris", null, null, "France", "FR") == "Paris, France")
-            check(LocationFormatting.place("Singapore", null, null, "Singapore", "SG") == "Singapore")
+            check(LocationFormatting.place("Hangzhou", "中国", "CN") == "Hangzhou, China")
+            check(LocationFormatting.place("Paris", "France", "FR") == "Paris, France")
+            check(LocationFormatting.place("Singapore", "Singapore", "SG") == "Singapore")
         }
         verify("place fallback omits empty fields and duplicates") {
-            check(LocationFormatting.place(null, "County", "Region", "Country", null) == "County, Country")
-            check(LocationFormatting.place(null, null, "Region", null, null) == "Region")
-            check(LocationFormatting.place(null, null, null, null, null).isEmpty())
+            check(LocationFormatting.place(null, "Country", null) == "Country")
+            check(LocationFormatting.place(null, null, null).isEmpty())
+            check(LocationFormatting.place("  Hong   Kong  ", "Hong Kong", null) == "Hong Kong")
+            check(LocationFormatting.place("Town", "Country", "ZZ") == "Town, Country")
         }
         verify("EXIF coordinates are validated without rejecting the equator") {
             check(PhotoCoordinates.from(0.0, 0.0) != null)

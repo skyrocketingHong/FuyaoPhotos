@@ -11,11 +11,15 @@ data class PhotoCoordinates(val latitude: Double, val longitude: Double) {
 }
 
 object LocationFormatting {
-    fun place(locality: String?, subAdmin: String?, admin: String?, country: String?, countryCode: String?): String {
-        val city = listOf(locality, subAdmin, admin).firstOrNull { !it.isNullOrBlank() }?.trim().orEmpty()
-        val nation = countryCode?.trim()?.takeIf { it.matches(Regex("[A-Za-z]{2}")) }
+    private val countryCodes = Locale.getISOCountries().toSet()
+
+    fun place(locality: String?, country: String?, countryCode: String?): String {
+        fun clean(value: String?) = value.orEmpty().trim().replace(Regex("\\s+"), " ")
+        val city = clean(locality)
+        val code = countryCode?.trim()?.uppercase(Locale.ROOT)
+        val nation = if (code == "CN") "China" else code?.takeIf { it in countryCodes }
             ?.let { Locale.Builder().setRegion(it.uppercase(Locale.ROOT)).build().getDisplayCountry(Locale.ENGLISH) }
-            ?.takeIf { it.isNotBlank() } ?: country.orEmpty().trim()
-        return listOf(city, nation).filter { it.isNotBlank() }.distinctBy { it.lowercase(Locale.ROOT) }.joinToString(", ")
+            ?.takeIf { it.isNotBlank() } ?: country
+        return listOf(city, clean(nation)).filter { it.isNotBlank() }.distinctBy { it.lowercase(Locale.ROOT) }.joinToString(", ")
     }
 }

@@ -41,9 +41,15 @@ import CoreLocation
     }
 
     func applyMetadataUpdate(source: URL, metadata: CardPhotoMetadata) {
+        let keepsCoordinates = self.metadata.latitude != nil && self.metadata.longitude != nil
+            && self.metadata.latitude == metadata.latitude && self.metadata.longitude == metadata.longitude
+        let resolvedLocation = defaultCard[.location]
         sourceURL = source
         self.metadata = metadata
         defaultCard = metadata.card
+        if keepsCoordinates && defaultCard[.location].isEmpty {
+            defaultCard[.location] = resolvedLocation
+        }
         locationRevision &+= 1
     }
 }

@@ -87,12 +87,15 @@ import os
                 guard document.card[.location].isEmpty, let location = document.location,
                       let request = MKReverseGeocodingRequest(location: location) else { continue }
                 let revision = document.locationRevision
+                request.preferredLocale = Locale(identifier: "en")
                 locationRequest = request
                 let result = try? await request.mapItems
                 if locationRequest === request { locationRequest = nil }
                 guard !Task.isCancelled, CardPreferences.shared.resolveLocation,
                       documents.contains(where: { $0.id == document.id }), document.locationRevision == revision else { continue }
-                document.applyResolvedLocation(result?.first?.addressRepresentations?.cityWithContext(.full) ?? "")
+                let address = result?.first?.addressRepresentations
+                document.applyResolvedLocation(CardLocationFormatting.place(city: address?.cityName,
+                    country: address?.regionName, countryCode: address?.region?.identifier))
             }
         }
     }
