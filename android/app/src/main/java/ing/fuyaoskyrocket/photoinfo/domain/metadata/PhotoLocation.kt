@@ -15,8 +15,8 @@ object LocationFormatting {
 
     fun place(locality: String?, country: String?, countryCode: String?): String {
         fun clean(value: String?) = value.orEmpty().trim().replace(Regex("\\s+"), " ")
-        val city = clean(locality)
         val code = countryCode?.trim()?.uppercase(Locale.ROOT)
+        val city = clean(locality).let { if (code == "CN") it.replace(Regex("\\s+City$", RegexOption.IGNORE_CASE), "") else it }
         val nation = if (code == "CN") "China" else code?.takeIf { it in countryCodes }
             ?.let { Locale.Builder().setRegion(it.uppercase(Locale.ROOT)).build().getDisplayCountry(Locale.ENGLISH) }
             ?.takeIf { it.isNotBlank() } ?: country

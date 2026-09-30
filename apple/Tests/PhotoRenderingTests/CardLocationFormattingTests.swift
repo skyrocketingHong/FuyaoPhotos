@@ -3,6 +3,12 @@ import Foundation
 @testable import PhotoRenderingCore
 
 struct CardLocationFormattingTests {
+    @Test func chineseAdministrativeSuffixDoesNotChangeCityNamesElsewhere() {
+        #expect(CardLocationFormatting.place(city: "Hangzhou City", country: "China", countryCode: "CN") == "Hangzhou, China")
+        #expect(CardLocationFormatting.place(city: "  Shanghai CITY ", country: "China", countryCode: "cn") == "Shanghai, China")
+        #expect(CardLocationFormatting.place(city: "New York City", country: "United States", countryCode: "US") == "New York City, United States")
+        #expect(CardLocationFormatting.place(city: "Mexico City", country: "Mexico", countryCode: "MX") == "Mexico City, Mexico")
+    }
     @Test func usesCityAndEnglishCountryOnly() {
         #expect(CardLocationFormatting.place(city: "Hangzhou", country: "中国", countryCode: "CN") == "Hangzhou, China")
         #expect(CardLocationFormatting.place(city: "New York", country: "United States", countryCode: "US") == "New York, United States")

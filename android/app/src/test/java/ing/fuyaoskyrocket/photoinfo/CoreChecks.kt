@@ -109,6 +109,10 @@ object CoreChecks {
         }
         verify("reference place format uses city and English country") {
             check(LocationFormatting.place("Hangzhou", "中国", "CN") == "Hangzhou, China")
+            check(LocationFormatting.place("Hangzhou City", "中国", "CN") == "Hangzhou, China")
+            check(LocationFormatting.place("  Shanghai CITY ", "中国", "cn") == "Shanghai, China")
+            check(LocationFormatting.place("New York City", "United States", "US") == "New York City, United States")
+            check(LocationFormatting.place("Mexico City", "Mexico", "MX") == "Mexico City, Mexico")
             check(LocationFormatting.place("Paris", "France", "FR") == "Paris, France")
             check(LocationFormatting.place("Singapore", "Singapore", "SG") == "Singapore")
         }
