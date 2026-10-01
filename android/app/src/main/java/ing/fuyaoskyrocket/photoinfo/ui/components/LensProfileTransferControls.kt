@@ -31,9 +31,12 @@ fun LensProfileTransferControls(profiles: List<LensProfile>, onChange: (List<Len
     var incoming by remember { mutableStateOf<LensProfileFile?>(null) }
     var message by remember { mutableStateOf<Int?>(null) }
     var copiedDevice by remember { mutableStateOf<String?>(null) }
+    var status by remember { mutableStateOf<Int?>(null) }
+    var importMenu by remember { mutableStateOf(false) }
+    var exportMenu by remember { mutableStateOf(false) }
     LaunchedEffect(profiles) { copiedDevice = null }
     fun apply(file: LensProfileFile) {
-        try { onChange(file.merging(current)); message = R.string.lens_file_imported }
+        try { onChange(file.merging(current)); status = R.string.lens_file_imported }
         catch (_: Exception) { message = R.string.lens_file_invalid }
     }
     fun receive(file: LensProfileFile) {
@@ -68,52 +71,81 @@ fun LensProfileTransferControls(profiles: List<LensProfile>, onChange: (List<Len
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(file.encoded()) } ?: error("Missing output")
                 }
-                message = R.string.lens_file_exported
+                status = R.string.lens_file_exported
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { message = R.string.lens_file_export_failed }
             finally { busy = false }
         }
     }
+    fun pasteConfiguration() {
+        scope.launch {
+            busy = true
+            try {
+                val clip = requireNotNull(clipboard.getClipEntry()?.clipData)
+                require(clip.itemCount == 1)
+                val text = requireNotNull(clip.getItemAt(0).text)
+                require(text.length in 1..LensProfileFile.MAX_BYTES)
+                val file = withContext(Dispatchers.Default) { LensProfileFile.decode(text.toString().toByteArray(Charsets.UTF_8)) }
+                receive(file)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { message = R.string.lens_clipboard_invalid }
+            finally { busy = false }
+        }
+    }
+    fun copyConfiguration(group: List<LensProfile>) {
+        scope.launch {
+            busy = true
+            try {
+                val file = LensProfileFile.from(group)
+                val text = file.encoded().toString(Charsets.UTF_8)
+                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(clipboardLabel, text)))
+                copiedDevice = file.device
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { message = R.string.lens_clipboard_copy_failed }
+            finally { busy = false }
+        }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(enabled = !busy, onClick = {
-                scope.launch {
-                    busy = true
-                    try {
-                        val clip = requireNotNull(clipboard.getClipEntry()?.clipData)
-                        require(clip.itemCount == 1)
-                        val text = requireNotNull(clip.getItemAt(0).text)
-                        require(text.length in 1..LensProfileFile.MAX_BYTES)
-                        val file = withContext(Dispatchers.Default) { LensProfileFile.decode(text.toString().toByteArray(Charsets.UTF_8)) }
-                        receive(file)
-                    } catch (cancelled: CancellationException) { throw cancelled }
-                    catch (_: Exception) { message = R.string.lens_clipboard_invalid }
-                    finally { busy = false }
+            Box {
+                FilledTonalButton(enabled = !busy, onClick = { importMenu = true }) {
+                    Text(stringResource(R.string.lens_import_configuration))
                 }
-            }) { Text(stringResource(R.string.lens_clipboard_import)) }
-            OutlinedButton(enabled = !busy, onClick = { importer.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }) {
-                Text(stringResource(R.string.lens_file_import))
-            }
-            LensDeviceExportMenu(R.string.lens_clipboard_copy, profiles, !busy) { group ->
-                scope.launch {
-                    busy = true
-                    try {
-                        val file = LensProfileFile.from(group)
-                        val text = file.encoded().toString(Charsets.UTF_8)
-                        clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(clipboardLabel, text)))
-                        copiedDevice = file.device
-                    } catch (cancelled: CancellationException) { throw cancelled }
-                    catch (_: Exception) { message = R.string.lens_clipboard_copy_failed }
-                    finally { busy = false }
+                DropdownMenu(importMenu, onDismissRequest = { importMenu = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.lens_clipboard_import)) }, onClick = {
+                        importMenu = false; pasteConfiguration()
+                    })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.lens_file_import)) }, onClick = {
+                        importMenu = false
+                        importer.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                    })
                 }
             }
-            LensDeviceExportMenu(R.string.lens_file_export, profiles, !busy) { group ->
-                try { outgoing = LensProfileFile.from(group); exporter.launch(requireNotNull(outgoing).filename()) }
-                catch (_: Exception) { message = R.string.lens_file_invalid }
+            Box {
+                OutlinedButton(enabled = !busy && profiles.isNotEmpty(), onClick = { exportMenu = true }) {
+                    Text(stringResource(R.string.lens_export_configuration))
+                }
+                DropdownMenu(exportMenu, onDismissRequest = { exportMenu = false }) {
+                    profiles.groupBy { LensProfile.normalize(it.exifModel) }.values
+                        .sortedBy { LensProfile.normalize(it.first().device) }.forEachIndexed { index, group ->
+                            if (index > 0) HorizontalDivider()
+                            Text(group.first().device, Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            DropdownMenuItem(text = { Text(stringResource(R.string.lens_clipboard_copy)) }, onClick = {
+                                exportMenu = false; copyConfiguration(group)
+                            })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.lens_file_export)) }, onClick = {
+                                exportMenu = false
+                                try { outgoing = LensProfileFile.from(group); exporter.launch(requireNotNull(outgoing).filename()) }
+                                catch (_: Exception) { message = R.string.lens_file_invalid }
+                            })
+                        }
+                }
             }
         }
         copiedDevice?.let { Text(stringResource(R.string.lens_clipboard_copied, it),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        status?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         Text(stringResource(R.string.lens_file_description), style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -129,21 +161,5 @@ fun LensProfileTransferControls(profiles: List<LensProfile>, onChange: (List<Len
             text = { Text(stringResource(value)) }, confirmButton = {
                 TextButton(onClick = { message = null }) { Text(stringResource(R.string.close)) }
             })
-    }
-}
-
-@Composable
-private fun LensDeviceExportMenu(label: Int, profiles: List<LensProfile>, enabled: Boolean,
-                                 onSelect: (List<LensProfile>) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        OutlinedButton(enabled = enabled && profiles.isNotEmpty(), onClick = { expanded = true }) {
-            Text(stringResource(label))
-        }
-        DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
-            profiles.groupBy { LensProfile.normalize(it.exifModel) }.values.forEach { group ->
-                DropdownMenuItem(text = { Text(group.first().device) }, onClick = { expanded = false; onSelect(group) })
-            }
-        }
     }
 }

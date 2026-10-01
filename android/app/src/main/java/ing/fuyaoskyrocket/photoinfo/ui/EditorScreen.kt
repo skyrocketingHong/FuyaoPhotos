@@ -352,15 +352,10 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             } }) { padding ->
                     if(state.photos.isEmpty()) {
                         FuyaoPageColumn(Modifier.fillMaxSize().consumeWindowInsets(padding).imePadding(),topInset=padding.calculateTopPadding()) {
-                            FuyaoPageIntro(stringResource(R.string.photo_cards_title),
-                                stringResource(R.string.empty_hint,PhotoEditSnapshot.MAX_PHOTOS),R.drawable.ic_photo_add) {
-                                FilledTonalButton(onClick={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_gallery)) }
-                                OutlinedButton(onClick={ filePicker.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) },modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),enabled=!state.busy) { Text(stringResource(R.string.from_file)) }
-                                if(state.busy) {
-                                    CircularProgressIndicator(Modifier.size(24.dp),strokeWidth=2.dp)
-                                    Text(stringResource(R.string.importing_photos), style=MaterialTheme.typography.bodyMedium)
-                                }
-                            }
+                            PhotoImportCard(stringResource(R.string.photo_cards_title),
+                                stringResource(R.string.empty_hint,PhotoEditSnapshot.MAX_PHOTOS),R.drawable.ic_photo_add,state.busy,
+                                onGallery={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                                onFiles={ filePicker.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) })
                         }
                     } else {
                         Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {

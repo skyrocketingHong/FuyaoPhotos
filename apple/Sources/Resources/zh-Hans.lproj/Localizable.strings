@@ -600,3 +600,13 @@
 "lens.stylePrefix" = "摄影风格前缀";
 "lens.stylePrefix.footer" = "在卡片的摄影风格名称前添加此文字，留空则使用原名称。";
 "lens.validation.stylePrefix" = "前缀请保持在 64 个字符以内，不使用换行或控制字符。";
+
+"photo.import.loading" = "正在导入照片…";
+
+"lens.import.configuration" = "导入配置";
+
+"lens.device.actions" = "设备操作";
+
+"lens.save.complete" = "镜头配置已保存";
+
+"lens.file.exported" = "配置已保存到文件";

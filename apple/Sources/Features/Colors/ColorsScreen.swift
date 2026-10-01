@@ -5,17 +5,26 @@ import UniformTypeIdentifiers
 struct ColorsScreen: View {
     @Environment(PhotoWorkspace.self) private var workspace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var sampling = ColorSamplingState()
+    @State private var sampling: ColorSamplingState
     @State private var space: ColorResultSpace?
     @State private var showingPicker = false
     @State private var showingFiles = false
     @State private var showingInfo = false
+    @State private var wideWorkspace = false
     @State private var showingCamera = false
     @State private var pendingInput: Input?
     @State private var confirmReplace = false
     @State private var confirmationUsesMenu = false
     private enum Input: Equatable { case photos, files, camera }
     private var session: CardSession { workspace.session(for: .colors) }
+    private var inlineInformation: Bool {
+#if os(macOS)
+        true
+#else
+        wideWorkspace
+#endif
+    }
+    @MainActor init(sampling: ColorSamplingState? = nil) { _sampling = State(initialValue: sampling ?? ColorSamplingState()) }
     private var replacementTitle: LocalizedStringKey {
         session.documents.count == 1 ? "card.replace.confirm.one" : "card.replace.confirm.many"
     }
@@ -32,20 +41,47 @@ struct ColorsScreen: View {
                 } accessories: {
                         colorsActions(metrics: metrics)
                     } content: {
-                        Form { results }.photoPageForm().scrollContentBackground(.hidden)
-                            .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: sampling.sample != nil)
+                        if showingInfo && inlineInformation {
+                            VStack(spacing: 0) {
+                                HStack {
+                                    Text("colors.source").font(.headline)
+                                    Spacer()
+                                    Button("done") { showingInfo = false }
+                                }.padding(20)
+                                Form { ColorInformationSections(information: sampling.information) }.photoPageForm()
+                            }
+                        } else {
+                            Form { results }.photoPageForm().scrollContentBackground(.hidden)
+                                .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: sampling.sample != nil)
+                        }
                     }
                 } else {
-                    Form { intro }.photoPageForm()
+                    PhotoImportPage(title: "tab.colors", description: "colors.description", symbol: "eyedropper.halffull", busy: session.busy) {
+                        PhotoImportAction(title: "card.open", symbol: "photo.badge.plus", primary: true) { request(.photos) }
+                        PhotoImportAction(title: "colors.files", symbol: "folder") { request(.files) }
+                        if cameraAvailable {
+                            PhotoImportAction(title: "colors.camera", symbol: "camera") { request(.camera) }
+                        }
+                    }
                 }
             }
+            .onGeometryChange(for: Bool.self) { $0.size.width >= PhotoPreviewMetrics.wideThreshold } action: { wideWorkspace = $0 }
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)
+#else
+            .navigationTitle("tab.colors")
+            .navigationSubtitle(session.current?.originalName ?? "")
+            .toolbar {
+                if session.current != nil { ToolbarItem(placement: .primaryAction) { inputMenu } }
+            }
 #endif
         }
         .task(id: session.current?.sourceURL) { await sampling.load(session.current) }
+        .onAppear {
+            if workspace.openPickerRequest == .colors { workspace.openPickerRequest = nil; openFromCommand() }
+        }
         .onChange(of: workspace.openPickerRequest) { _, requested in
-            if requested == .colors { workspace.openPickerRequest = nil; request(.photos) }
+            if requested == .colors { workspace.openPickerRequest = nil; openFromCommand() }
         }
         .onChange(of: workspace.saveSheetRequest) { _, requested in
             if requested == .colors { workspace.saveSheetRequest = nil }
@@ -56,9 +92,7 @@ struct ColorsScreen: View {
                 let target = session
                 Task { await target.open(results) }
             }
-#if os(macOS)
-            .frame(minWidth: 680, idealWidth: 820, minHeight: 520, idealHeight: 620)
-#endif
+            .photoPickerPresentation()
         }
         .fileImporter(isPresented: $showingFiles, allowedContentTypes: [.image], allowsMultipleSelection: true) { result in
             switch result {
@@ -76,23 +110,14 @@ struct ColorsScreen: View {
             }
         }
 #endif
-        .sheet(isPresented: $showingInfo) { ColorInformationSheet(information: sampling.information) }
+        .sheet(isPresented: Binding(get: { showingInfo && !inlineInformation }, set: { if !inlineInformation { showingInfo = $0 } })) {
+            ColorInformationSheet(information: sampling.information).presentationSizing(.form)
+        }
         .alert("card.error.title", isPresented: Binding(get: { session.errorMessage != nil }, set: { if !$0 { session.errorMessage = nil } })) {
             Button("done", role: .cancel) { }
         } message: { Text(session.errorMessage ?? "") }
     }
 
-    private var intro: some View {
-        Section {
-            PhotoPageIntro(title: "tab.colors", description: "colors.description", symbol: "eyedropper.halffull")
-            ViewThatFits(in: .horizontal) {
-                HStack { inputButtons }
-                VStack(alignment: .leading) { inputButtons }
-            }
-            .disabled(session.busy)
-            .buttonStyle(.borderless)
-        }
-    }
     @ViewBuilder private var inputButtons: some View {
         Button("card.open", systemImage: "photo.badge.plus") { request(.photos, fromMenu: true) }
         Button("colors.files", systemImage: "folder") { request(.files, fromMenu: true) }
@@ -103,10 +128,13 @@ struct ColorsScreen: View {
 #endif
     }
     private func colorsActions(metrics: PhotoPreviewMetrics) -> some View {
+#if os(macOS)
+        PhotoPreviewActionRow(fillsWidth: false) { colorTools }.disabled(session.busy)
+#else
         let actionCount = (cameraAvailable ? 3 : 2) + (hasHDR ? 2 : 1)
         return Group {
             if metrics.width - PhotoPageLayout.margin * 2 >= CGFloat(actionCount) * 64 {
-                PhotoPreviewActionRow {
+                PhotoPreviewActionRow(fillsWidth: !metrics.isWide) {
                     if session.documents.count > 1 { inputMenu }
                     else { inputAction(.photos, title: "card.open", symbol: "photo.badge.plus") }
                     inputAction(.files, title: "colors.files", symbol: "folder")
@@ -116,10 +144,11 @@ struct ColorsScreen: View {
                     colorTools
                 }
             } else {
-                PhotoPreviewActionRow { inputMenu; colorTools }
+                PhotoPreviewActionRow(fillsWidth: !metrics.isWide) { inputMenu; colorTools }
             }
         }
         .disabled(session.busy)
+#endif
     }
 
     private var cameraAvailable: Bool {
@@ -151,13 +180,15 @@ struct ColorsScreen: View {
     }
 
     private var inputMenu: some View {
+        Group {
+#if os(macOS)
+            Menu("card.open", systemImage: "photo.badge.plus") { inputChoices }
+                .labelStyle(.iconOnly).menuIndicator(.hidden).buttonBorderShape(.circle)
+#else
         PhotoPreviewMenu(title: "card.open", systemImage: "photo.badge.plus") {
-            inputButtons
-            if session.documents.count > 1 {
-                Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
-                    ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
-                }
-            }
+            inputChoices
+        }
+#endif
         }
         .confirmationDialog(replacementTitle, isPresented: Binding(
             get: { confirmReplace && confirmationUsesMenu },
@@ -165,6 +196,23 @@ struct ColorsScreen: View {
             Button("card.replace", role: .destructive) { if let pendingInput { present(pendingInput) } }
             Button("card.cancel", role: .cancel) { pendingInput = nil }
         }
+    }
+
+    @ViewBuilder private var inputChoices: some View {
+        inputButtons
+        if session.documents.count > 1 {
+            Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
+                ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
+            }
+        }
+    }
+
+    private func openFromCommand() {
+#if os(macOS)
+        request(.photos, fromMenu: true)
+#else
+        request(.photos)
+#endif
     }
     private var photo: some View {
         ZStack {
@@ -222,7 +270,17 @@ private struct ColorInformationSheet: View {
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         NavigationStack {
-            Form {
+            Form { ColorInformationSections(information: information) }
+            .photoPageForm()
+            .navigationTitle("colors.source")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("done", action: dismiss.callAsFunction) } }
+        }
+    }
+}
+
+private struct ColorInformationSections: View {
+    let information: PhotoColorDescription?
+    @ViewBuilder var body: some View {
                 if let information {
                     Section("colors.source") {
                         PhotoInformationRow(title: "colors.dimensions", value: "\(information.width) × \(information.height)", monospacedDigits: true)
@@ -236,13 +294,5 @@ private struct ColorInformationSheet: View {
                     }
                 }
                 Section { Text("colors.sample.definition").foregroundStyle(.secondary) }
-            }
-            .photoPageForm()
-            .navigationTitle("colors.source")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("done", action: dismiss.callAsFunction) } }
-        }
-#if os(macOS)
-        .frame(minWidth: 460, minHeight: 440)
-#endif
     }
 }

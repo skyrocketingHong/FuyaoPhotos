@@ -7,6 +7,15 @@ import SwiftUI
         static let photoTabs: [Self] = [.cards, .metadata, .colors]
         static let featureTabs: [Self] = [.map, .cards, .metadata, .colors]
         var title: LocalizedStringKey { self == .settings ? "settings.title" : LocalizedStringKey("tab." + rawValue) }
+        var symbol: String {
+            switch self {
+            case .map: "map"
+            case .cards: "photo.badge.plus"
+            case .metadata: "info.circle"
+            case .colors: "eyedropper.halffull"
+            case .settings: "gearshape"
+            }
+        }
     }
     var selectedTab: Tab = WorkspacePreferences.shared.startup
     var showingPackagePicker = false

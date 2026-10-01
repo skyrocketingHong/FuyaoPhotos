@@ -1,26 +1,5 @@
 import SwiftUI
 
-struct PhotoPreviewMetrics {
-    static let columnWidth: CGFloat = 480
-    static let toolHeight: CGFloat = 64
-    static let inlineToolWidth: CGFloat = 56
-    static let wideThreshold: CGFloat = 840
-
-    let width: CGFloat
-    let imageHeight: CGFloat
-    var accessoryHeight: CGFloat { Self.toolHeight }
-    let isWide: Bool
-    var height: CGFloat { imageHeight + 8 + accessoryHeight }
-
-    init(available: CGSize) {
-        isWide = available.width >= Self.wideThreshold
-        width = min(available.width, Self.columnWidth)
-        let contentWidth = max(0, width - 2 * PhotoPageLayout.margin)
-        let remainingHeight = available.height - Self.toolHeight - 8 - (isWide ? 0 : 240)
-        imageHeight = min(contentWidth * 0.75, max(0, remainingHeight))
-    }
-}
-
 /// The preview stage: photo column plus the accessory row pinned under it.
 struct PhotoPreviewStage<Media: View, Accessories: View>: View {
     let metrics: PhotoPreviewMetrics
@@ -84,8 +63,11 @@ struct PhotoPreviewPage<Media: View, Accessories: View, Content: View>: View {
                                       media: media, accessories: accessories)
         if metrics.isWide {
             HStack(alignment: .top, spacing: 0) {
-                stage
+                stage.padding(.vertical, PhotoPageLayout.margin)
                 content()
+                    .frame(width: metrics.inspectorWidth)
+                    .frame(maxHeight: .infinity)
+                    .background(.background)
             }
         } else {
             VStack(spacing: 0) {
@@ -110,7 +92,12 @@ struct InlinePhotoPreviewPage<Media: View, Accessories: View, Details: View>: Vi
     @ViewBuilder let details: () -> Details
 
     var body: some View {
-        ZStack {
+        if metrics.isWide {
+            PhotoPreviewPage(sourceURL: sourceURL, metrics: metrics, imageAspectRatio: imageAspectRatio,
+                             media: media, accessories: accessories) {
+                Form { details() }.photoPageForm()
+            }
+        } else { ZStack {
             PhotoWorkspaceBackdrop(sourceURL: sourceURL)
             Form {
                 PhotoPreviewStage(metrics: metrics, imageAspectRatio: imageAspectRatio,
@@ -121,7 +108,7 @@ struct InlinePhotoPreviewPage<Media: View, Accessories: View, Details: View>: Vi
             }
             .photoPageForm()
             .scrollContentBackground(.hidden)
-        }
+        } }
     }
 }
 

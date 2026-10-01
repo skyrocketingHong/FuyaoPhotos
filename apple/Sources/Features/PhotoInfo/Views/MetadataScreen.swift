@@ -29,22 +29,40 @@ struct MetadataScreen: View {
                         .photoDevelopEffect()
                 } accessories: {
                         OriginalSummaryActions(document: document, metrics: metrics, state: summaryState,
-                            actions: { openPhotoButton })
+                            actions: {
+#if !os(macOS)
+                                openPhotoButton
+#endif
+                            })
                     } content: {
                         detailsForm(document)
                             .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: mode)
                     }
                 } else {
-                    Form { intro }.photoPageForm()
+                    PhotoImportPage(title: "metadata.intro.title", description: "metadata.intro.description", symbol: "info.circle", busy: session.busy) {
+                        PhotoImportAction(title: "card.open", symbol: "photo.badge.plus", primary: true, action: choosePhoto)
+                    }
                 }
             }
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)
+#else
+            .navigationTitle("tab.metadata")
+            .navigationSubtitle(session.current?.originalName ?? "")
+            .toolbar {
+                if let document = session.current {
+                    ToolbarItem(placement: .primaryAction) { openPhotoButton }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("metadata.save", systemImage: "square.and.arrow.down") { showingSave = true }
+                            .disabled(state.busy || session.busy || !state.supportsInjection(document) || state.report == nil || !state.hasPendingAdd(document))
+                    }
+                }
+            }
 #endif
             .disabled(state.busy || session.busy)
             .overlay {
                 ZStack {
-                    if state.busy || session.busy {
+                    if session.current != nil && (state.busy || session.busy) {
                         ProgressView("card.preview.updating").padding().background(.regularMaterial, in: .rect(cornerRadius: 16))
                             .transition(.opacity)
                     }
@@ -63,16 +81,21 @@ struct MetadataScreen: View {
             workspace.saveSheetRequest = nil
             if let document = session.current, state.hasPendingAdd(document) { showingSave = true }
         }
-        .onAppear(perform: handleHandoff)
+        .onAppear {
+            handleHandoff()
+            if workspace.openPickerRequest == .metadata { workspace.openPickerRequest = nil; choosePhoto() }
+            if workspace.saveSheetRequest == .metadata {
+                workspace.saveSheetRequest = nil
+                if let document = session.current, state.hasPendingAdd(document) { showingSave = true }
+            }
+        }
         .sheet(isPresented: $showingPicker) {
             NativePhotoPicker { results in
                 showingPicker = false
                 let target = session
                 Task { await target.open(results) }
             }
-#if os(macOS)
-            .frame(minWidth: 680, idealWidth: 820, minHeight: 520, idealHeight: 620)
-#endif
+            .photoPickerPresentation()
         }
         .sheet(isPresented: $showingSave) {
             MetadataSaveSheet(document: session.current) { updateOriginal in
@@ -98,15 +121,6 @@ struct MetadataScreen: View {
             } message: { Text(state.savedToOriginal ? "metadata.saved.updated" : "metadata.saved") }
     }
 
-    private var intro: some View {
-        Section {
-            PhotoPageIntro(title: "metadata.intro.title", description: "metadata.intro.description", symbol: "info.circle")
-            Button("card.open", systemImage: "photo.badge.plus") {
-                choosePhoto()
-            }
-        }
-    }
-
     private var modeControls: some View {
         Picker("tab.metadata", selection: $mode) {
             Text("metadata.mode.view").tag(Mode.view)
@@ -118,13 +132,15 @@ struct MetadataScreen: View {
     }
 
     private var openPhotoButton: some View {
+        Group {
+#if os(macOS)
+            Menu("card.open", systemImage: "photo.badge.plus") { openPhotoChoices }
+                .labelStyle(.iconOnly).menuIndicator(.hidden).buttonBorderShape(.circle)
+#else
         PhotoPreviewMenu(title: "card.open", systemImage: "photo.badge.plus") {
-            Button("card.open", action: choosePhoto)
-            if session.documents.count > 1 {
-                Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
-                    ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
-                }
-            }
+            openPhotoChoices
+        }
+#endif
         }
         .confirmationDialog(replacementTitle, isPresented: $confirmReplace, titleVisibility: .visible) {
             Button("card.replace", role: .destructive) {
@@ -134,6 +150,15 @@ struct MetadataScreen: View {
                 } else { showingPicker = true }
             }
             Button("card.cancel", role: .cancel) { replacementIDs = nil }
+        }
+    }
+
+    @ViewBuilder private var openPhotoChoices: some View {
+        Button("card.open", action: choosePhoto)
+        if session.documents.count > 1 {
+            Picker("metadata.photo.name", selection: Binding(get: { session.selectedID }, set: { session.selectedID = $0 })) {
+                ForEach(session.documents) { Text($0.originalName).tag(Optional($0.id)) }
+            }
         }
     }
 
@@ -179,8 +204,10 @@ struct MetadataScreen: View {
                     } else {
                         LabeledContent("metadata.styles.texture") { Text("metadata.styles.value.present").foregroundStyle(.secondary) }
                     }
+#if !os(macOS)
                     Button("metadata.save", systemImage: "square.and.arrow.down") { showingSave = true }
                         .disabled(!state.hasPendingAdd(document))
+#endif
                 }
             } header: { Text("metadata.styles.header") }
             footer: { Text("metadata.styles.footer") }
@@ -235,7 +262,8 @@ struct MetadataSaveSheet: View {
             }
         }
 #if os(macOS)
-        .frame(minWidth: 480, idealWidth: 560, minHeight: 320, idealHeight: 380)
+        .frame(minWidth: 560, idealWidth: 680, minHeight: 420, idealHeight: 540)
+        .presentationSizing(.fitted)
 #endif
     }
 }

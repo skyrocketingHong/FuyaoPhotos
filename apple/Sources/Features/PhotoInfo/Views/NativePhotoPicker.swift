@@ -8,7 +8,7 @@ struct NativePhotoPicker: NSViewControllerRepresentable {
     func makeCoordinator() -> PhotoPickerDelegate { PhotoPickerDelegate(completion: completion) }
     func makeNSViewController(context: Context) -> PHPickerViewController {
         let controller = context.coordinator.controller()
-        controller.preferredContentSize = CGSize(width: 820, height: 620)
+        controller.preferredContentSize = CGSize(width: 960, height: 720)
         return controller
     }
     func updateNSViewController(_ controller: PHPickerViewController, context: Context) {}
@@ -21,6 +21,19 @@ struct NativePhotoPicker: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: PHPickerViewController, context: Context) {}
 }
 #endif
+
+extension View {
+    func photoPickerPresentation() -> some View {
+#if os(macOS)
+        frame(minWidth: 720, idealWidth: 960, maxWidth: .infinity,
+              minHeight: 560, idealHeight: 720, maxHeight: .infinity)
+            .presentationSizing(.fitted)
+#else
+        presentationSizing(.page)
+            .presentationDetents([.large])
+#endif
+    }
+}
 
 @MainActor final class PhotoPickerDelegate: NSObject, PHPickerViewControllerDelegate {
     private let completion: ([PHPickerResult]) -> Void

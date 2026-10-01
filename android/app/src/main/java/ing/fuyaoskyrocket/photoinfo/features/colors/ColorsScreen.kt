@@ -28,13 +28,8 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
     LaunchedEffect(photo?.id) { model.load(photo) }
     LaunchedEffect(model.hdr, model.info?.hasHdrContent) { onHDR(model.info?.hasHdrContent == true, model.hdr) }
     @Composable fun overview() {
-        FuyaoPageIntro(stringResource(R.string.colors_title), stringResource(R.string.colors_description), R.drawable.cp_ic_colorize) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onGallery, enabled = !busy) { Text(stringResource(R.string.from_gallery)) }
-                OutlinedButton(onFiles, enabled = !busy) { Text(stringResource(R.string.from_file)) }
-                OutlinedButton(onCamera, enabled = !busy) { Text(stringResource(R.string.colors_camera)) }
-            }
-        }
+        PhotoImportCard(stringResource(R.string.colors_title), stringResource(R.string.colors_description),
+            R.drawable.cp_ic_colorize,busy,onGallery,onFiles,onCamera)
     }
     @Composable fun image(modifier: Modifier) {
         Box(modifier) {
@@ -68,7 +63,7 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
     }
     FuyaoScaffold("", showTopBar = false) { padding ->
         if (photo == null) {
-            FuyaoPageColumn(Modifier.fillMaxSize().padding(padding)) { overview() }
+            FuyaoPageColumn(Modifier.fillMaxSize().consumeWindowInsets(padding).imePadding(), topInset=padding.calculateTopPadding()) { overview() }
         } else Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
             EditorWorkspace(
                 preview = { modifier, _ ->

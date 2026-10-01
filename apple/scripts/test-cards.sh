@@ -11,6 +11,7 @@ xcrun swiftc -parse-as-library -swift-version 6 \
   "$ROOT/Sources/Features/PhotoInfo/Media/"*.swift \
   "$ROOT/Sources/Features/PhotoInfo/Rendering/CardTypography.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Rendering/CardRenderer.swift" \
+  "$ROOT/Sources/Features/PhotoInfo/Rendering/PhotoPreviewMetrics.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Services/CardImageProcessor.swift" \
   "$ROOT/Sources/Features/PhotoInfo/Services/MovieMetadataCleaner.swift" \
   "$ROOT/Tests/CardRenderingChecks.swift" -o "$BUILD_DIR/CardRenderingChecks"

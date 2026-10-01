@@ -6,12 +6,14 @@ struct FuyaoPhotosApp: App {
 
     var body: some Scene {
         WindowGroup { ContentView(workspace: workspace) }
-            .defaultSize(width: 1000, height: 800)
+            .defaultSize(width: 1280, height: 820)
 #if os(macOS)
             .commands { WorkspaceCommands(workspace: workspace) }
 #endif
 #if os(macOS)
-            Settings { SettingsView().frame(minWidth: 460, idealWidth: 520, minHeight: 480) }
+            Settings { SettingsView().frame(minWidth: 760, idealWidth: 1100, minHeight: 560, idealHeight: 760) }
+                .defaultSize(width: 1100, height: 760)
+                .windowResizability(.contentMinSize)
 #endif
     }
 }

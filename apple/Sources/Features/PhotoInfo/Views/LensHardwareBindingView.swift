@@ -37,7 +37,7 @@ struct LensHardwareBindingView: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("cancel") { dismiss() } } }
         }
 #if os(macOS)
-        .frame(minWidth: 440, minHeight: 360)
+        .frame(minWidth: 520, idealWidth: 620, minHeight: 420, idealHeight: 560)
 #endif
     }
 }

@@ -59,15 +59,10 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
     }
     FuyaoScaffold("", showTopBar = false) { padding ->
         if (photo == null) {
-            FuyaoPageColumn(Modifier.fillMaxSize().padding(padding)) {
-                FuyaoPageIntro(stringResource(R.string.photo_metadata_title),
-                    stringResource(if (sharesCards) R.string.metadata_shared_description else R.string.photo_metadata_description), R.drawable.ic_info) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilledTonalButton(onGallery, enabled = !busy) { Text(stringResource(R.string.from_gallery)) }
-                        OutlinedButton(onFiles, enabled = !busy) { Text(stringResource(R.string.from_file)) }
-                    }
-                    if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                }
+            FuyaoPageColumn(Modifier.fillMaxSize().consumeWindowInsets(padding).imePadding(), topInset=padding.calculateTopPadding()) {
+                PhotoImportCard(stringResource(R.string.photo_metadata_title),
+                    stringResource(if (sharesCards) R.string.metadata_shared_description else R.string.photo_metadata_description),
+                    R.drawable.ic_info,busy,onGallery,onFiles)
             }
         } else {
             FuyaoAdaptivePage(padding, contentUnderTopEdge = true,

@@ -442,4 +442,6 @@
   <string name="lens_style_prefix">Style prefix</string>
   <string name="lens_style_prefix_hint">Add this text before the style name on photo cards. Leave empty to use the original name.</string>
   <string name="lens_style_prefix_invalid">Use up to 64 characters without line breaks or control characters.</string>
+  <string name="lens_import_configuration">Import configuration</string>
+  <string name="lens_export_configuration">Export configuration</string>
 </resources>

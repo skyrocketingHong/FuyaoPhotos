@@ -85,7 +85,8 @@ struct CardSaveSheet: View {
             if requiresHEIC { options.format = .heic; options.exportsMotionPhoto = false }
         }
 #if os(macOS)
-        .frame(minWidth: 520, idealWidth: 600, minHeight: 520, idealHeight: 600)
+        .frame(minWidth: 600, idealWidth: 720, minHeight: 560, idealHeight: 700)
+        .presentationSizing(.fitted)
 #endif
     }
 }

@@ -37,8 +37,10 @@ struct PhotoInformationSheet: View {
         .background(PhotoPreviewTheme.surface.ignoresSafeArea())
         .alert("photo.open.asset.failed", isPresented: $cannotOpenPhotos) { Button("done", role: .cancel) {} }
 #if os(macOS)
-        .frame(minWidth: 460, idealWidth: 620, minHeight: 520, idealHeight: 740)
+        .frame(minWidth: 760, idealWidth: 1040, minHeight: 580, idealHeight: 760)
+        .presentationSizing(.fitted)
 #else
+        .presentationSizing(.page)
         .presentationDetents([.large])
         .presentationContentInteraction(.scrolls)
 #endif

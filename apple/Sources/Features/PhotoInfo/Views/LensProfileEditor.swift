@@ -1,26 +1,25 @@
 import SwiftUI
 
 struct LensProfileEditor: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @State private var draft: LensProfileDraft
+    @Bindable var session: LensEditingSession
+    var inline = false
+    let apply: (LensProfile) -> Void
+    let close: () -> Void
     @State private var confirmDiscard = false
-    private let initial: LensProfileDraft
-    private let apply: (LensProfile) -> Void
-
-    init(draft: LensProfileDraft, apply: @escaping (LensProfile) -> Void) {
-        initial = draft
-        _draft = State(initialValue: draft)
-        self.apply = apply
-    }
-
-    private var hasChanges: Bool {
-        if let profile = draft.profile, let original = initial.profile { return profile != original }
-        return draft != initial
-    }
+    private var draft: LensProfileDraft { session.draft }
+    private var title: LocalizedStringKey { session.initial.isNew ? "lens.add" : "lens.edit" }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            if inline {
+                HStack {
+                    Text(title).font(.headline)
+                    Spacer()
+                    cancelButton
+                    applyButton
+                }.padding(20)
+            }
             GeometryReader { geometry in
                 if geometry.size.width >= 820 && !dynamicTypeSize.isAccessibilitySize {
                     HStack(alignment: .top, spacing: 0) {
@@ -31,42 +30,43 @@ struct LensProfileEditor: View {
                     Form { identity; equivalent; physical; zoom; validation }.photoPageForm()
                 }
             }
-            .navigationTitle(initial.isNew ? "lens.add" : "lens.edit")
+            .navigationTitle(title)
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("cancel") { if hasChanges { confirmDiscard = true } else { dismiss() } }
-                        .keyboardShortcut(.cancelAction)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("lens.apply") {
-                        if let profile = draft.profile { apply(profile); dismiss() }
-                    }
-                    .disabled(draft.profile == nil || !hasChanges)
-                    .keyboardShortcut(.defaultAction)
+                if !inline {
+                    ToolbarItem(placement: .cancellationAction) { cancelButton }
+                    ToolbarItem(placement: .confirmationAction) { applyButton }
                 }
             }
             .confirmationDialog("lens.discard.title", isPresented: $confirmDiscard, titleVisibility: .visible) {
-                Button("lens.discard", role: .destructive) { dismiss() }
+                Button("lens.discard", role: .destructive, action: close)
                 Button("lens.keepEditing", role: .cancel) { }
             } message: { Text("lens.editor.discard.message") }
         }
-        .interactiveDismissDisabled(hasChanges)
-#if os(macOS)
-        .frame(minWidth: 540, idealWidth: 880, minHeight: 560, idealHeight: 680)
-#endif
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var cancelButton: some View {
+        Button("cancel") { if session.hasChanges { confirmDiscard = true } else { close() } }
+            .keyboardShortcut(.cancelAction)
+    }
+
+    private var applyButton: some View {
+        Button("lens.apply") { if let profile = draft.profile { apply(profile); close() } }
+            .disabled(draft.profile == nil || !session.hasChanges)
+            .keyboardShortcut(.defaultAction)
     }
 
     private var identity: some View {
         Section {
-            identityField("lens.device", text: $draft.device)
-            identityField("lens.exifModel", text: $draft.exifModel)
-            identityField("lens.name", text: $draft.name)
-            identityField("lens.stylePrefix", text: $draft.stylePrefix)
+            identityField("lens.device", text: $session.draft.device)
+            identityField("lens.exifModel", text: $session.draft.exifModel)
+            identityField("lens.name", text: $session.draft.name)
+            identityField("lens.stylePrefix", text: $session.draft.stylePrefix)
             Text("lens.stylePrefix.footer").font(.footnote).foregroundStyle(.secondary)
-            Picker("lens.facing", selection: $draft.facing) {
+            Picker("lens.facing", selection: $session.draft.facing) {
                 ForEach(LensProfile.Facing.allCases) { direction in
                     Text(LocalizedStringKey(direction.titleKey)).tag(direction)
                 }
@@ -89,25 +89,25 @@ struct LensProfileEditor: View {
 
     private var equivalent: some View {
         Section {
-            numberField("lens.range.min", text: $draft.equivalentMin, unit: "mm")
-            numberField("lens.range.max", text: $draft.equivalentMax, unit: "mm")
+            numberField("lens.range.min", text: $session.draft.equivalentMin, unit: "mm")
+            numberField("lens.range.max", text: $session.draft.equivalentMax, unit: "mm")
         } header: { Text("lens.equivalent.header") }
         footer: { Text("lens.equivalent.footer") }
     }
 
     private var physical: some View {
         Section {
-            numberField("lens.range.min", text: $draft.physicalMin, unit: "mm")
-            numberField("lens.range.max", text: $draft.physicalMax, unit: "mm")
+            numberField("lens.range.min", text: $session.draft.physicalMin, unit: "mm")
+            numberField("lens.range.max", text: $session.draft.physicalMax, unit: "mm")
         } header: { Text("lens.physical.header") }
         footer: { Text("lens.physical.footer") }
     }
 
     private var zoom: some View {
         Section {
-            numberField("lens.range.min", text: $draft.zoomMin, unit: "×")
-            numberField("lens.range.max", text: $draft.zoomMax, unit: "×")
-            numberField("lens.digitalMax", text: $draft.digitalZoomMax, unit: "×")
+            numberField("lens.range.min", text: $session.draft.zoomMin, unit: "×")
+            numberField("lens.range.max", text: $session.draft.zoomMax, unit: "×")
+            numberField("lens.digitalMax", text: $session.draft.digitalZoomMax, unit: "×")
         } header: { Text("lens.zoom.header") }
         footer: { Text("lens.zoom.footer") }
     }
@@ -138,83 +138,5 @@ struct LensProfileEditor: View {
                 Text(unit).foregroundStyle(.secondary).accessibilityHidden(true)
             }
         }
-    }
-}
-
-struct LensProfileDraft: Equatable, Identifiable {
-    let id: UUID
-    let isNew: Bool
-    var device = ""
-    var exifModel = ""
-    var name = ""
-    var stylePrefix = ""
-    var facing = LensProfile.Facing.unspecified
-    var equivalentMin = ""
-    var equivalentMax = ""
-    var physicalMin = ""
-    var physicalMax = ""
-    var zoomMin = ""
-    var zoomMax = ""
-    var digitalZoomMax = ""
-    var cameraID: String?
-    var hardwareDevice: String?
-    var hardwareModel: String?
-
-    init(profile: LensProfile? = nil) {
-        id = profile?.id ?? UUID()
-        isNew = profile == nil
-        guard let profile else { return }
-        device = profile.device; exifModel = profile.exifModel; name = profile.name; facing = profile.facing
-        stylePrefix = profile.stylePrefix ?? ""
-        equivalentMin = Self.number(profile.equivalentMin); equivalentMax = Self.number(profile.equivalentMax)
-        physicalMin = Self.number(profile.physicalMin); physicalMax = Self.number(profile.physicalMax)
-        zoomMin = Self.number(profile.zoomMin); zoomMax = Self.number(profile.zoomMax)
-        digitalZoomMax = Self.number(profile.digitalZoomMax)
-        cameraID = profile.cameraID; hardwareDevice = profile.hardwareDevice; hardwareModel = profile.hardwareModel
-    }
-
-    var profile: LensProfile? {
-        guard validationKey == nil, let low = Self.parse(equivalentMin), let high = Self.parse(equivalentMax) else { return nil }
-        return LensProfile(id: id, device: device.trimmingCharacters(in: .whitespacesAndNewlines),
-                           exifModel: exifModel.trimmingCharacters(in: .whitespacesAndNewlines),
-                           name: name.trimmingCharacters(in: .whitespacesAndNewlines), facing: facing,
-                           equivalentMin: low, equivalentMax: high,
-                           physicalMin: Self.parse(physicalMin), physicalMax: Self.parse(physicalMax),
-                           zoomMin: Self.parse(zoomMin), zoomMax: Self.parse(zoomMax), digitalZoomMax: Self.parse(digitalZoomMax),
-                           cameraID: cameraID, hardwareDevice: hardwareDevice, hardwareModel: hardwareModel,
-                           stylePrefix: stylePrefix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil
-                                : stylePrefix.trimmingCharacters(in: .whitespacesAndNewlines))
-    }
-
-    var validationKey: String? {
-        if [device, exifModel, name].contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { return "lens.validation.identity" }
-        if [device, exifModel, name].contains(where: { $0.count > 256 }) { return "lens.validation.length" }
-        if stylePrefix.count > 64 || stylePrefix.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) { return "lens.validation.stylePrefix" }
-        if !Self.validRange(equivalentMin, equivalentMax, limit: 2_000, optional: false) { return "lens.validation.equivalent" }
-        if !Self.validRange(physicalMin, physicalMax, limit: 1_000) { return "lens.validation.physical" }
-        if !Self.validRange(zoomMin, zoomMax, limit: 200) { return "lens.validation.zoom" }
-        if Self.parse(equivalentMin) == Self.parse(equivalentMax), Self.parse(zoomMin) != Self.parse(zoomMax) { return "lens.validation.fixed" }
-        if !digitalZoomMax.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            guard let value = Self.parse(digitalZoomMax), let high = Self.parse(zoomMax), value >= high, value <= 200 else { return "lens.validation.digital" }
-        }
-        return nil
-    }
-
-    private static func validRange(_ low: String, _ high: String, limit: Double, optional: Bool = true) -> Bool {
-        if optional && low.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && high.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
-        guard let low = parse(low), let high = parse(high) else { return false }
-        return low > 0 && high >= low && high <= limit
-    }
-
-    private static func parse(_ value: String) -> Double? {
-        let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let separator = Locale.current.decimalSeparator ?? "."
-        let normalized = separator == "." ? text : text.replacingOccurrences(of: separator, with: ".")
-        guard let number = Double(normalized), number.isFinite else { return nil }
-        return number
-    }
-
-    private static func number(_ value: Double?) -> String {
-        value?.formatted(.number.grouping(.never).precision(.fractionLength(0...8))) ?? ""
     }
 }

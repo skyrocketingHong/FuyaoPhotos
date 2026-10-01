@@ -524,9 +524,9 @@
 
 "cancel" = "Cancel";
 
-"lens.file.import" = "Import from file";
+"lens.file.import" = "Import from File…";
 
-"lens.file.export" = "Save to file";
+"lens.file.export" = "Save to File…";
 
 "lens.file.description" = "Share one camera model as a single-line JSON using the clipboard or a file. Save to apply imported changes.";
 
@@ -570,9 +570,9 @@
 
 "package.import.saved" = "Live Photo saved to Photos";
 
-"lens.clipboard.import" = "Import from clipboard";
+"lens.clipboard.import" = "Import from Clipboard";
 
-"lens.clipboard.copy" = "Copy to clipboard";
+"lens.clipboard.copy" = "Copy to Clipboard";
 
 "lens.clipboard.copied" = "Copied the configuration for %@";
 
@@ -585,7 +585,7 @@
 "lens.group.count" = "%d lenses";
 
 "lens.group.current" = "This device";
-"lens.hardware.scan" = "Scan and match lenses";
+"lens.hardware.scan" = "Scan and Match Lenses";
 "lens.hardware.description" = "Uniquely matched lenses on this device are linked automatically. If the model is not recognized, expand its configuration and mark it as this device. Save to apply changes.";
 "lens.hardware.thisDevice" = "Use as this device’s configuration";
 "lens.hardware.bind" = "Link a hardware lens";
@@ -601,3 +601,13 @@
 "lens.stylePrefix" = "Style Prefix";
 "lens.stylePrefix.footer" = "Add this text before the style name on photo cards. Leave empty to use the original name.";
 "lens.validation.stylePrefix" = "Keep the style prefix within 64 characters, without line breaks or control characters.";
+
+"photo.import.loading" = "Importing Photos…";
+
+"lens.import.configuration" = "Import Configuration";
+
+"lens.device.actions" = "Device Options";
+
+"lens.save.complete" = "Lens Configuration Saved";
+
+"lens.file.exported" = "Configuration Saved to File";

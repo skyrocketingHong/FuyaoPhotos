@@ -33,13 +33,6 @@ struct CardPreviewSurface: View {
             // Zoom-transition source identity; the push itself is owned by the canvas,
             // outside the filmstrip's lazy pager.
             .matchedTransitionSource(id: document.id, in: zoom)
-#else
-            .sheet(isPresented: $controls.fullScreen) {
-                NavigationStack {
-                    CardFullPreview(document: document, hdr: controls.hdr, original: controls.original)
-                }
-                .frame(minWidth: 600, minHeight: 500)
-            }
 #endif
             .onDisappear {
                 controls.finishLivePlayback()
@@ -152,6 +145,7 @@ struct CardFullPreview: View {
     let document: CardDocument
     let hdr: Bool
     let original: Bool
+    var close: (() -> Void)? = nil
     @State private var zoom = 1.0
     @State private var committedZoom = 1.0
     @State private var resetVersion = 0
@@ -176,7 +170,7 @@ struct CardFullPreview: View {
         .onGeometryChange(for: Bool.self) { $0.size.width >= 800 } action: { isWide = $0 }
         .navigationTitle("card.preview")
         .toolbar {
-            ToolbarItem(placement: .confirmationAction) { Button("done", action: dismiss.callAsFunction) }
+            ToolbarItem(placement: .confirmationAction) { Button("done") { if let close { close() } else { dismiss() } } }
             ToolbarItem(placement: .automatic) {
                 if !isWide {
                     Button("card.preview.reset", systemImage: "1.magnifyingglass", action: resetPreview)

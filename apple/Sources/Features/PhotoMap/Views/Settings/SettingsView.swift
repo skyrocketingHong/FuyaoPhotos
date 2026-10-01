@@ -11,7 +11,12 @@ struct SettingsView: View {
     @AppStorage("defaultSelectedYear") private var selectedYear = 0
     @State private var selectedCategory: Category? = .cards
     @State private var showLenses = false
+    @State private var lensWorkspace: LensWorkspaceDraft?
+    @State private var pendingCategory: Category?
+    @State private var confirmCategoryChange = false
+    @State private var lensDraftRevision = UUID()
     private let currentYear = Calendar.current.component(.year, from: Date())
+    private var lensesDirty: Bool { lensWorkspace?.hasPendingChanges == true }
 
     private enum Category: Hashable, CaseIterable {
         case cards, lenses, map, about
@@ -52,45 +57,24 @@ struct SettingsView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            if geometry.size.width >= 760 && !dynamicTypeSize.isAccessibilitySize {
-                HStack(spacing: 0) {
-                    List(Category.allCases, id: \.self, selection: $selectedCategory) { category in
-                        Label(category.title, systemImage: category.symbol)
-                            .tag(category)
+            if usesSidebar(width: geometry.size.width) {
+                NavigationSplitView {
+                    List(Category.allCases, id: \.self, selection: Binding(get: { selectedCategory }, set: selectCategory)) { category in
+                        Label(category.title, systemImage: category.symbol).tag(category)
                     }
                     .listStyle(.sidebar)
-                    .frame(width: 220)
-                    Divider()
-                    Form {
-                        Section { categoryIntro(selectedCategory ?? .cards) }
-                        switch selectedCategory ?? .cards {
-                        case .cards: workspaceSettings; cardSettings
-                        case .lenses: lensSettings
-                        case .map: mapSettings
-                        case .about: aboutSettings
-                        }
+                    .navigationTitle("settings.title")
+                    .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
+                } detail: {
+                    if selectedCategory == .lenses {
+                        LensProfilesView(store: .shared, workspace: lensWorkspace, embedded: true)
+                            .id(lensDraftRevision)
+                    } else {
+                        categoryForm(selectedCategory ?? .cards)
                     }
-                    .photoPageForm()
-                    .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: selectedCategory)
-                    .frame(maxWidth: .infinity)
                 }
+                .navigationSplitViewStyle(.balanced)
             } else {
-#if os(macOS)
-                TabView {
-                    Tab("tab.cards", systemImage: "photo.badge.plus") {
-                        Form { settingsIntro; workspaceSettings; cardSettings }.photoPageForm()
-                    }
-                    Tab("lens.profiles.title", systemImage: "camera.aperture") {
-                        Form { Section { categoryIntro(.lenses) }; lensSettings }.photoPageForm()
-                    }
-                    Tab("tab.map", systemImage: "map") {
-                        Form { settingsIntro; mapSettings }.photoPageForm()
-                    }
-                    Tab("settings.about.header", systemImage: "info.circle") {
-                        Form { settingsIntro; aboutSettings }.photoPageForm()
-                    }
-                }
-#else
                 Form {
                     settingsIntro
                     workspaceSettings
@@ -100,17 +84,54 @@ struct SettingsView: View {
                     aboutSettings
                 }
                 .photoPageForm()
-#endif
             }
         }
         .tint(.secondary)
         .toggleStyle(NativeFormToggleStyle())
-        .sheet(isPresented: $showLenses) { LensProfilesView(store: .shared) }
+        .sheet(isPresented: $showLenses) {
+            LensProfilesView(store: .shared)
+                .presentationSizing(.page)
+                .presentationDetents([.large])
+        }
+        .confirmationDialog("lens.discard.title", isPresented: $confirmCategoryChange, titleVisibility: .visible) {
+            Button("lens.discard", role: .destructive) {
+                lensWorkspace = nil; lensDraftRevision = UUID()
+                selectedCategory = pendingCategory ?? selectedCategory; pendingCategory = nil
+            }
+            Button("lens.keepEditing", role: .cancel) { pendingCategory = nil }
+        } message: { Text("lens.discard.message") }
+    }
+
+    private func usesSidebar(width: CGFloat) -> Bool {
 #if os(macOS)
-        .frame(minWidth: 500, minHeight: 420)
+        true
 #else
-        .toolbarVisibility(.hidden, for: .navigationBar)
+        width >= 760 || selectedCategory == .lenses
 #endif
+    }
+
+    private func selectCategory(_ category: Category?) {
+        guard let category, category != selectedCategory else { return }
+        if selectedCategory == .lenses && lensesDirty {
+            pendingCategory = category; confirmCategoryChange = true
+        } else {
+            if category == .lenses && !lensesDirty { lensWorkspace = LensWorkspaceDraft(profiles: LensProfileStore.shared.profiles) }
+            selectedCategory = category
+        }
+    }
+
+    private func categoryForm(_ category: Category) -> some View {
+        Form {
+            Section { Text(category.description).foregroundStyle(.secondary) }
+            switch category {
+            case .cards: workspaceSettings; cardSettings
+            case .lenses: EmptyView()
+            case .map: mapSettings
+            case .about: aboutSettings
+            }
+        }
+        .photoPageForm()
+        .navigationTitle(category.title)
     }
 
     private var lensSettings: some View {
@@ -120,10 +141,6 @@ struct SettingsView: View {
             }
         } header: { Text("lens.settings.header") }
         footer: { Text("lens.settings.footer") }
-    }
-
-    private func categoryIntro(_ category: Category) -> some View {
-        PhotoPageIntro(title: category.title, description: category.description, symbol: category.symbol)
     }
 
     private var settingsIntro: some View {

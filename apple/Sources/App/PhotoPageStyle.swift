@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum PhotoPageLayout {
-    static let margin: CGFloat = 20
+    static let margin: CGFloat = PhotoPreviewMetrics.pageMargin
     static let cardInset: CGFloat = 20
 }
 

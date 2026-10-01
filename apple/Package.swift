@@ -8,7 +8,7 @@ let package = Package(
     targets: [
         .target(name: "PhotoColorsCore", path: "Sources/Features/Colors/Models", resources: [.process("Resources")]),
         .target(name: "PhotoRenderingCore", path: "Sources/Features/PhotoInfo", exclude: ["Views", "Models/CardSession.swift", "Models/MetadataState.swift", "Services/MetadataPhotoLibrary.swift", "Services/CardPhotoLibrary.swift", "Services/PhotoSourceLoader.swift", "Services/LensCameraInventory.swift"],
-            sources: ["Models/PhotoCard.swift", "Models/CardDocument.swift", "Models/PhotoSourceResources.swift", "Models/LensProfile.swift", "Models/LensProfileFile.swift", "Models/LensBindings.swift", "Models/LensProfileStore.swift", "Media", "Rendering", "Services/CardImageProcessor.swift", "Services/MovieMetadataCleaner.swift", "Services/PhotoWorkingDirectory.swift"]),
+            sources: ["Models/PhotoCard.swift", "Models/CardDocument.swift", "Models/PhotoSourceResources.swift", "Models/LensProfile.swift", "Models/LensProfileFile.swift", "Models/LensProfileDraft.swift", "Models/LensEditingSession.swift", "Models/LensWorkspaceDraft.swift", "Models/LensBindings.swift", "Models/LensProfileStore.swift", "Media", "Rendering", "Services/CardImageProcessor.swift", "Services/MovieMetadataCleaner.swift", "Services/PhotoWorkingDirectory.swift"]),
         .testTarget(name: "PhotoRenderingTests", dependencies: ["PhotoRenderingCore", "PhotoColorsCore"], path: "Tests/PhotoRenderingTests")
     ]
 )

@@ -6,6 +6,19 @@ struct ContentView: View {
     @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
     private var darkroomCards: Bool { cardAppearance == CardAppearance.darkroom.rawValue }
     var body: some View {
+        Group {
+#if os(macOS)
+            DesktopWorkspaceView(workspace: workspace)
+                .frame(minWidth: 760, minHeight: 560)
+#else
+            tabs
+#endif
+        }
+        .environment(workspace)
+        .modifier(PackageImportPresentation(workspace: workspace))
+    }
+
+    private var tabs: some View {
         TabView(selection: $workspace.selectedTab) {
             Tab("tab.map", systemImage: "map", value: PhotoWorkspace.Tab.map) {
                 PhotoMapScreen()
@@ -32,16 +45,18 @@ struct ContentView: View {
 #if !os(macOS)
             if #available(iOS 27, *) {
                 Tab("settings.title", systemImage: "gearshape", value: PhotoWorkspace.Tab.settings, role: .prominent) {
-                    NavigationStack { SettingsView() }
+                    SettingsView()
                 }
             } else {
                 Tab("settings.title", systemImage: "gearshape", value: PhotoWorkspace.Tab.settings) {
-                    NavigationStack { SettingsView() }
+                    SettingsView()
                 }
             }
 #endif
         }
-        .tabViewStyle(.tabBarOnly)
+#if os(iOS)
+        .tabViewStyle(.sidebarAdaptable)
+#endif
         .tint(.yellow)
 #if os(iOS)
         .background {
@@ -49,11 +64,6 @@ struct ContentView: View {
                 .frame(width: 0, height: 0).accessibilityHidden(true)
         }
 #endif
-#if os(macOS)
-        .frame(minWidth: 760, minHeight: 560)
-#endif
-        .environment(workspace)
-        .modifier(PackageImportPresentation(workspace: workspace))
     }
 }
 
@@ -67,6 +77,8 @@ struct PhotoMapScreen: View {
     @State private var availableWidth: CGFloat = 0
     @State private var clusterNavigationPath: [PhotoLocation] = []
     @Environment(PhotoWorkspace.self) private var workspace
+
+    @MainActor init(session: MapSession? = nil) { _session = State(initialValue: session ?? MapSession()) }
 
     private var showsSelectionPane: Bool { availableWidth >= 900 }
     private var selectionPaneWidth: CGFloat { min(420, max(320, availableWidth * 0.34)) }
@@ -130,6 +142,7 @@ struct PhotoMapScreen: View {
                     YearFilterMenu(selectedYear: $session.selectedYear, availableYears: session.availableYears)
                         .accessibilityLabel(Text("year.filter.title"))
                         .buttonBorderShape(.circle)
+                        .menuIndicator(.hidden)
                         .help(Text("year.filter.title"))
                 }
                 ToolbarItemGroup(placement: .primaryAction) {

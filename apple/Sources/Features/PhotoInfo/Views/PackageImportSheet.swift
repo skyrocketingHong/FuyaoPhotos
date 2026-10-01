@@ -65,7 +65,10 @@ struct PackageImportSheet: View {
         .task(id: request.id) { await prepare() }
         .onDisappear { if let folder { try? FileManager.default.removeItem(at: folder) } }
 #if os(macOS)
-        .frame(minWidth: 480, idealWidth: 560, minHeight: 520)
+        .frame(minWidth: 720, idealWidth: 960, minHeight: 560, idealHeight: 760)
+        .presentationSizing(.fitted)
+#else
+        .presentationSizing(.page)
 #endif
     }
 

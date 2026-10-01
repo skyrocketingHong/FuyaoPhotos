@@ -10,6 +10,8 @@ struct PhotoPreviewMenu<Content: View>: View {
             PhotoPreviewActionIcon(image: Image(systemName: systemImage))
         }
 #if os(macOS)
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
         .buttonStyle(.bordered)
         .controlSize(.regular)
 #else

@@ -3,6 +3,25 @@ import Testing
 @testable import PhotoRenderingCore
 
 struct LensBindingsTests {
+    @Test @MainActor func editingSessionRetainsBindingsAndTracksPendingInput() throws {
+        var profile = wide
+        profile.hardwareDevice = "local-model"; profile.hardwareModel = "local-model"; profile.stylePrefix = "Example"
+        let session = LensEditingSession(draft: LensProfileDraft(profile: profile))
+        let workspace = LensWorkspaceDraft(profiles: [profile])
+        workspace.editor = session
+        #expect(!session.hasChanges)
+        session.draft.name = "Edited lens"
+        let edited = try #require(session.draft.profile)
+        #expect(session.hasChanges && edited.id == profile.id)
+        #expect(workspace.hasPendingChanges && workspace.profiles == [profile])
+        #expect(edited.cameraID == profile.cameraID && edited.hardwareDevice == profile.hardwareDevice && edited.stylePrefix == profile.stylePrefix)
+        session.draft.name = profile.name
+        #expect(!session.hasChanges)
+        #expect(!workspace.hasPendingChanges)
+        session.draft.equivalentMin = "invalid"
+        #expect(session.hasChanges && session.draft.profile == nil)
+        #expect(session.initial.profile?.equivalentMin == profile.equivalentMin)
+    }
     private var wide: LensProfile { LensProfile(device: "Example Phone", exifModel: "RAW MODEL", name: "Wide", facing: .back,
         equivalentMin: 24, equivalentMax: 24, cameraID: "wrong-id") }
     private var hardware: [HardwareLens] { [HardwareLens(id: "wide", name: "Wide", facing: .back, equivalentFocal: 24),

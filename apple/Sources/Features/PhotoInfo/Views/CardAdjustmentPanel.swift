@@ -53,11 +53,18 @@ struct CardAdjustmentPanel: View {
     @Bindable var document: CardDocument
     @Bindable var selection: CardInspectorSelection
     @Binding var textEditingActive: Bool
+    var expanded = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        panel
+#if os(macOS)
+        RegularCardInspector(document: document, selection: selection, textEditingActive: $textEditingActive)
+#else
+        if expanded {
+            RegularCardInspector(document: document, selection: selection, textEditingActive: $textEditingActive)
+        } else { panel }
+#endif
     }
 
     private var panel: some View {

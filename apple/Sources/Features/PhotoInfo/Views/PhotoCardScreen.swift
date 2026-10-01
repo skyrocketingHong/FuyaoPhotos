@@ -3,9 +3,12 @@ import PhotosUI
 
 struct PhotoCardScreen: View {
     @Bindable var session: CardSession
+    @State private var preview: CardPreviewState
+    @State private var inspector: CardInspectorSelection
     @Environment(PhotoWorkspace.self) private var workspace
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @AppStorage(CardAppearance.storageKey) private var cardAppearance = CardAppearance.system.rawValue
     /// Zoom-transition identity shared by the canvas photo and the fullscreen push.
     @Namespace private var fullScreenZoom
@@ -19,6 +22,12 @@ struct PhotoCardScreen: View {
     @State private var showingToolbarClose = false
     @State private var replacementIDs: [String]?
     private var hasUnsavedChanges: Bool { workspace.hasPendingEdits(in: session) }
+
+    @MainActor init(session: CardSession, preview: CardPreviewState? = nil, inspector: CardInspectorSelection? = nil) {
+        self.session = session
+        _preview = State(initialValue: preview ?? CardPreviewState())
+        _inspector = State(initialValue: inspector ?? CardInspectorSelection())
+    }
 
     private var replaceTitle: LocalizedStringKey {
         session.documents.count == 1 ? "card.replace.confirm.one" : "card.replace.confirm.many"
@@ -41,9 +50,13 @@ struct PhotoCardScreen: View {
             editorContent
                 .tint(PhotoPreviewTheme.accent(in: forcedDarkroom ? .dark : colorScheme))
                 .toolbar { editorToolbar }
+#if os(macOS)
+                .navigationTitle("tab.cards")
+                .navigationSubtitle(session.current?.originalName ?? "")
+#endif
                 .disabled(session.busy)
                 .overlay {
-                    ZStack { busyOverlay }
+                    ZStack { if session.current != nil { busyOverlay } }
                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: session.busy)
                 }
         }
@@ -70,7 +83,13 @@ struct PhotoCardScreen: View {
         .onChange(of: CardPreferences.shared.resolveLocation) { (_: Bool, enabled: Bool) in
             if !enabled { session.cancelLocationLookup() }
         }
-        .onAppear(perform: handlePendingImport)
+        .onAppear {
+            handlePendingImport()
+            if workspace.openPickerRequest == .cards { workspace.openPickerRequest = nil; choosePhotos() }
+            if workspace.saveSheetRequest == .cards, session.current != nil {
+                workspace.saveSheetRequest = nil; presentSaveOptions()
+            }
+        }
     }
 
     private struct SessionAlerts: ViewModifier {
@@ -117,23 +136,16 @@ struct PhotoCardScreen: View {
                     save: presentSaveOptions,
                     close: closeSessionIfSafe,
                     confirmReplace: replacePhotos,
-                    confirmClose: { session.clear() })
+                    confirmClose: { session.clear() }, preview: preview, inspectorSelection: inspector)
                 // The canvas has no vertically scrolling content; a top scroll edge here only
                 // hazes the photo without ever reacting to scrolling.
                 .scrollEdgeEffectHidden(true, for: .top)
             }
             else {
-                Form {
-                    Section {
-                        PhotoPageIntro(title: "tab.cards", description: "card.empty.description", symbol: "photo.badge.plus")
-                        Button("card.open", action: choosePhotos)
-#if os(iOS)
-                            .keyboardShortcut("o")
-#endif
-                        Button("package.import.action", systemImage: "square.and.arrow.down") { workspace.showingPackagePicker = true }
-                    }
+                PhotoImportPage(title: "tab.cards", description: "card.empty.description", symbol: "photo.badge.plus", busy: session.busy) {
+                    PhotoImportAction(title: "card.open", symbol: "photo.badge.plus", primary: true, action: choosePhotos)
+                    PhotoImportAction(title: "package.import.action", symbol: "square.and.arrow.down") { workspace.showingPackagePicker = true }
                 }
-                .photoPageForm()
             }
         }
 #if !os(macOS)
@@ -178,6 +190,7 @@ struct PhotoCardScreen: View {
                     }
                 }
                 .labelStyle(.iconOnly).buttonBorderShape(.circle)
+                .menuIndicator(.hidden)
                 .confirmationDialog(closeTitle, isPresented: $showingToolbarClose, titleVisibility: .visible) {
                     Button(closeActionTitle, role: .destructive) { session.clear() }
                 }
@@ -210,10 +223,7 @@ struct PhotoCardScreen: View {
             showingPicker = false
             Task { await session.open(results) }
         }
-#if os(macOS)
-        .frame(minWidth: 680, idealWidth: 820, minHeight: 520, idealHeight: 620)
-        .presentationSizing(.fitted)
-#endif
+        .photoPickerPresentation()
     }
 
     private var saveSheet: some View {
@@ -225,6 +235,7 @@ struct PhotoCardScreen: View {
                 Task { await session.save(options: options) }
             }
 #if !os(macOS)
+            .presentationSizing(.form)
             .presentationDetents([.medium, .large], selection: $saveDetent)
             .presentationContentInteraction(.scrolls)
 #endif
@@ -239,7 +250,7 @@ struct PhotoCardScreen: View {
         if session.current != nil { showingToolbarReplace = true } else { showingPicker = true }
     }
     private func presentSaveOptions() {
-        saveDetent = .medium
+        saveDetent = horizontalSizeClass == .regular ? .large : .medium
         showingSave = true
     }
     private func replacePhotos() {

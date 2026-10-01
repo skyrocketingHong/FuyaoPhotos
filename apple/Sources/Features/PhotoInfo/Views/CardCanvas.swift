@@ -10,44 +10,55 @@ struct CardCanvas: View {
     let close: () -> Void
     let confirmReplace: () -> Void
     let confirmClose: () -> Void
-    @State private var preview = CardPreviewState()
+    @Bindable var preview: CardPreviewState
     @State private var textEditingActive = false
-    @State private var inspectorSelection = CardInspectorSelection()
+    let inspectorSelection: CardInspectorSelection
 
     var body: some View {
         GeometryReader { geometry in
             if let document = session.current {
-                let metrics = PhotoPreviewMetrics(available: geometry.size)
-                PhotoPreviewPage(sourceURL: document.sourceURL, metrics: metrics,
-                    imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
-                    CardFilmstrip(session: session, preview: preview, zoom: zoom,
-                                  processing: textEditingActive || preview.isRendering)
-                        .photoDevelopEffect()
-                } accessories: {
-                    CardActionStrip(document: document, preview: preview, photoCount: session.documents.count,
-                                    replaceConfirmation: $replaceConfirmation, closeConfirmation: $closeConfirmation,
-                                    open: open, save: save, close: close,
-                                    confirmReplace: confirmReplace, confirmClose: confirmClose,
-                                    saved: session.savedCount != nil && session.errorMessage == nil)
-                } content: {
-                    CardAdjustmentPanel(document: document, selection: inspectorSelection, textEditingActive: $textEditingActive)
-                        .frame(maxWidth: metrics.isWide ? 460 : .infinity, maxHeight: .infinity)
-                        .frame(maxWidth: .infinity, alignment: metrics.isWide ? .leading : .center)
-                }
-                .onChange(of:session.selectedID) { _,_ in
-                    preview.playing=false; preview.original=false; textEditingActive=false
-                }
-#if os(iOS)
-                .navigationDestination(isPresented: $preview.fullScreen) {
-                    // Photos-style zoom push from the canvas photo; registered here, outside
-                    // the filmstrip's lazy pager.
-                    CardFullPreview(document: document, hdr: preview.hdr, original: preview.original)
-                        .navigationTransition(.zoom(sourceID: document.id, in: zoom))
-                        .toolbarVisibility(.hidden, for: .tabBar)
-                }
+#if os(macOS)
+                if preview.fullScreen {
+                    CardFullPreview(document: document, hdr: preview.hdr, original: preview.original,
+                                    close: { preview.fullScreen = false })
+                } else { workspace(document, size: geometry.size) }
+#else
+                workspace(document, size: geometry.size)
 #endif
             }
         }
+    }
+
+    private func workspace(_ document: CardDocument, size: CGSize) -> some View {
+        let metrics = PhotoPreviewMetrics(available: size)
+        return PhotoPreviewPage(sourceURL: document.sourceURL, metrics: metrics,
+            imageAspectRatio: CGFloat(document.metadata.width) / CGFloat(max(1, document.metadata.height))) {
+            CardFilmstrip(session: session, preview: preview, zoom: zoom,
+                          processing: textEditingActive || preview.isRendering)
+                .photoDevelopEffect()
+        } accessories: {
+            CardActionStrip(document: document, preview: preview, photoCount: session.documents.count,
+                            replaceConfirmation: $replaceConfirmation, closeConfirmation: $closeConfirmation,
+                            open: open, save: save, close: close,
+                            confirmReplace: confirmReplace, confirmClose: confirmClose,
+                            saved: session.savedCount != nil && session.errorMessage == nil)
+        } content: {
+            CardAdjustmentPanel(document: document, selection: inspectorSelection, textEditingActive: $textEditingActive,
+                                expanded: metrics.isWide)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onChange(of:session.selectedID) { _,_ in
+            preview.playing=false; preview.original=false; textEditingActive=false
+        }
+#if os(iOS)
+        .navigationDestination(isPresented: $preview.fullScreen) {
+            // Photos-style zoom push from the canvas photo; registered here, outside
+            // the filmstrip's lazy pager.
+            CardFullPreview(document: document, hdr: preview.hdr, original: preview.original)
+                .navigationTransition(.zoom(sourceID: document.id, in: zoom))
+                .toolbarVisibility(.hidden, for: .tabBar)
+        }
+#endif
     }
 }
 
@@ -69,7 +80,7 @@ private struct CardActionStrip: View {
             HStack(spacing: 0) {
                 ForEach(visible, id: \.self) { tool in
                     control(for: tool, width: geometry.size.width)
-                        .frame(width: geometry.size.width / CGFloat(visible.count))
+                        .frame(width: geometry.size.width > 520 ? 68 : geometry.size.width / CGFloat(visible.count))
                         .frame(height: 64)
                 }
             }
@@ -84,7 +95,11 @@ private struct CardActionStrip: View {
     }
 
     private var optionalTools: [Tool] {
+#if os(macOS)
+        var tools: [Tool] = []
+#else
         var tools: [Tool] = [.open]
+#endif
         if document.isLive { tools.append(.live) }
         if document.metadata.hdr { tools.append(.hdr) }
         tools.append(contentsOf: [.compare, .full])
@@ -104,8 +119,12 @@ private struct CardActionStrip: View {
     }
 
     private func visibleTools(for width: CGFloat) -> [Tool] {
+#if os(macOS)
+        return optionalTools
+#else
         let slots = min(7, max(2, Int(max(0, width) / 68)))
         return Array(optionalTools.prefix(slots - 2)) + [.save, .more]
+#endif
     }
 
     private func overflowTools(for width: CGFloat) -> [Tool] {
