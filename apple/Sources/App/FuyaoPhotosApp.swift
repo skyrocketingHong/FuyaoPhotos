@@ -8,11 +8,13 @@ struct FuyaoPhotosApp: App {
         WindowGroup { ContentView(workspace: workspace) }
             .defaultSize(width: 1280, height: 820)
 #if os(macOS)
+            .windowToolbarStyle(.unified)
             .commands { WorkspaceCommands(workspace: workspace) }
 #endif
 #if os(macOS)
-            Settings { SettingsView().frame(minWidth: 760, idealWidth: 1100, minHeight: 560, idealHeight: 760) }
-                .defaultSize(width: 1100, height: 760)
+            Settings { SettingsView().frame(minWidth: 680, idealWidth: 900, minHeight: 520, idealHeight: 680) }
+                .defaultSize(width: 900, height: 680)
+                .windowToolbarStyle(.unifiedCompact)
                 .windowResizability(.contentMinSize)
 #endif
     }

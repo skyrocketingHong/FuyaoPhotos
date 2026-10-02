@@ -46,9 +46,13 @@ struct PhotoPageFormStyle: ViewModifier {
             .formStyle(.grouped)
             .tint(.secondary)
             .toggleStyle(NativeFormToggleStyle())
+#if !os(macOS)
             .contentMargins(.horizontal, PhotoPageLayout.margin, for: .scrollContent)
             .listRowInsets(EdgeInsets(top: 12, leading: PhotoPageLayout.cardInset,
                                      bottom: 12, trailing: PhotoPageLayout.cardInset))
+#else
+            .controlSize(.regular)
+#endif
             .scrollEdgeEffectStyle(.soft, for: .top)
             .scrollEdgeEffectHidden(false, for: .top)
     }

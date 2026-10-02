@@ -54,7 +54,8 @@ private struct MapCanvas: View {
             .ignoresSafeArea(.container)
         }
         .overlay(alignment: .top) {
-            MapHeader(count: session.hasQueryResult ? session.visiblePhotoCount : nil) {
+            MapHeader(count: session.hasQueryResult ? session.visiblePhotoCount : nil,
+                      reservesNativeScale: reservesNativeScale) {
                 if session.displayMode == .heatmap {
                     HeatmapControls(map: heatmap.map, options: session.options)
                 } else {
@@ -70,6 +71,15 @@ private struct MapCanvas: View {
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: session.displayMode == .heatmap)
         .environment(\.colorScheme, session.options.appearance.colorScheme ?? colorScheme)
+    }
+
+    private var reservesNativeScale: Bool {
+#if os(macOS)
+        // macOS has no separate MKScaleView. Its heatmap scale stays in MapKit's top-leading slot.
+        session.displayMode == .heatmap && session.options.scale
+#else
+        false
+#endif
     }
 }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MapHeader<Controls: View>: View {
     let count: Int?
+    var reservesNativeScale = false
     @ViewBuilder var controls: Controls
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -22,6 +23,7 @@ struct MapHeader<Controls: View>: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 2)
+                .frame(maxWidth: 140)
                 .frame(maxHeight: .infinity)
                 .glassEffect(in: .capsule)
                 .layoutPriority(1)
@@ -35,7 +37,7 @@ struct MapHeader<Controls: View>: View {
         // The native controls determine the row height; the count capsule fills it.
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 20)
-        .padding(.top, 12)
+        .padding(.top, reservesNativeScale ? 56 : 12)
     }
 }
 

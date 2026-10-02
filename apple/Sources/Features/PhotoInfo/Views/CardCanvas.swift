@@ -41,6 +41,7 @@ struct CardCanvas: View {
                             replaceConfirmation: $replaceConfirmation, closeConfirmation: $closeConfirmation,
                             open: open, save: save, close: close,
                             confirmReplace: confirmReplace, confirmClose: confirmClose,
+                            saving: session.saving, completed: session.progress, total: session.total,
                             saved: session.savedCount != nil && session.errorMessage == nil)
         } content: {
             CardAdjustmentPanel(document: document, selection: inspectorSelection, textEditingActive: $textEditingActive,
@@ -73,6 +74,9 @@ private struct CardActionStrip: View {
     let close: () -> Void
     let confirmReplace: () -> Void
     let confirmClose: () -> Void
+    let saving: Bool
+    let completed: Int
+    let total: Int
     let saved: Bool
     var body: some View {
         GeometryReader { geometry in
@@ -153,8 +157,13 @@ private struct CardActionStrip: View {
                     Button("card.cancel", role: .cancel) { }
                 }
         case .save:
-            CircularIconButton(photoCount == 1 ? "card.save.action.one" : "card.save.action.many",
-                               systemImage: saved ? "checkmark.circle.fill" : "square.and.arrow.down", action: save)
+            Button(action: save) {
+                SaveProgressLabel(title: photoCount == 1 ? "card.save.action.one" : "card.save.action.many",
+                    active: saving, completed: completed, total: total, compact: true, saved: saved)
+            }
+            .buttonStyle(.glass)
+            .controlSize(.large)
+            .buttonBorderShape(.circle)
         case .more:
             if overflowTools(for: width).contains(.open) {
                 moreMenu(for: width)

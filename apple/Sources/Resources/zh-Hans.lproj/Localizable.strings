@@ -118,6 +118,9 @@
 "settings.title" = "设置";
 "settings.intro" = "设置照片信息卡的编辑与保存方式，以及照片地图的默认展示方式。";
 "settings.category.cards.description" = "设置照片信息卡的编辑、元数据和保存默认值。";
+"settings.about.links" = "链接";
+"card.saving %lld %lld" = "正在保存 %lld/%lld";
+"card.save.summary" = "已保存 %lld 张，%lld 张失败。";
 "settings.category.map.description" = "选择照片地图的默认展示方式与年份筛选。";
 "settings.category.about.description" = "查看应用版本与其他信息。";
 "settings.editor.header" = "编辑器";

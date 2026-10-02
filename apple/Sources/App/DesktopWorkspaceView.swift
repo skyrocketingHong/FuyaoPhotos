@@ -4,7 +4,6 @@ import SwiftUI
 struct DesktopWorkspaceView: View {
     @Bindable var workspace: PhotoWorkspace
     @State private var visibility = NavigationSplitViewVisibility.all
-    @State private var roomySidebar: Bool?
     @State private var mapSession = MapSession()
     @State private var cardPreview = CardPreviewState()
     @State private var cardInspector = CardInspectorSelection()
@@ -29,22 +28,20 @@ struct DesktopWorkspaceView: View {
                 }
             }
         } detail: {
-            switch workspace.selectedTab {
-            case .map: PhotoMapScreen(session: mapSession)
-            case .cards: PhotoCardScreen(session: workspace.cards, preview: cardPreview, inspector: cardInspector)
-            case .metadata: MetadataScreen(state: workspace.metadataEdits)
-            case .colors: ColorsScreen(sampling: colors)
-            case .settings: PhotoCardScreen(session: workspace.cards, preview: cardPreview, inspector: cardInspector)
+            Group {
+                switch workspace.selectedTab {
+                case .map: PhotoMapScreen(session: mapSession)
+                case .cards: PhotoCardScreen(session: workspace.cards, preview: cardPreview, inspector: cardInspector)
+                case .metadata: MetadataScreen(state: workspace.metadataEdits)
+                case .colors: ColorsScreen(sampling: colors)
+                case .settings: PhotoCardScreen(session: workspace.cards, preview: cardPreview, inspector: cardInspector)
+                }
             }
+            .background { DesktopContentUnderlay().frame(width: 0, height: 0).allowsHitTesting(false) }
         }
-        .navigationSplitViewStyle(.balanced)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-            guard width > 0 else { return }
-            let roomy = width >= 1120
-            guard roomySidebar != roomy else { return }
-            visibility = roomy ? .all : .detailOnly
-            roomySidebar = roomy
-        }
+        .navigationSplitViewStyle(.prominentDetail)
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        .scrollEdgeEffectHidden(true, for: .top)
     }
 }
 #endif

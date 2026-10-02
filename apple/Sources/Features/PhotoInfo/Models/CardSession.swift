@@ -10,6 +10,7 @@ import os
     var documents: [CardDocument] = []
     var selectedID: UUID?
     var busy = false
+    private(set) var saving = false
     var progress = 0
     var total = 0
     var errorMessage: String?
@@ -122,8 +123,8 @@ import os
         guard !options.exportsMotionPhoto || options.format == .jpeg else { errorMessage = CardError.fileExport.localizedDescription; return }
         cancelLocationLookup(); savedCount = nil; savedToFiles = false
         discardFileExport()
-        busy = true; total = documents.count; progress = 0
-        defer { busy = false }
+        busy = true; saving = true; total = documents.count; progress = 0; errorMessage = nil
+        defer { busy = false; saving = false }
         var saved = 0
         var failures: [String] = []
         for document in documents {
@@ -134,6 +135,7 @@ import os
                 if !completed { for url in produced { try? FileManager.default.removeItem(at: url) } }
             }
             do {
+                try Task.checkCancellation()
                 switch document.metadata.kind {
                 case .stillJPEG, .stillHEIC, .stillPNG, .ultraHDRJPEG, .heicWithAuxiliaryData: break
                 default: throw CardError.unsupportedMedia
@@ -176,6 +178,10 @@ import os
                     try? FileManager.default.removeItem(at: url)
                 }
                 completed = true
+            } catch is CancellationError {
+                discardFileExport()
+                if saved > 0 { savedCount = saved }
+                return
             } catch {
                 let systemError = error as NSError
                 logger.error("Save failed: \(systemError.domain, privacy: .public) / \(systemError.code)")
@@ -191,7 +197,7 @@ import os
             fileExportFailures = failures
             filesForExport = fileSaves.map { PhotoExportFile(url: $0.url) }
             showingFileExporter = true
-        } else if !failures.isEmpty { errorMessage = failures.joined(separator: "\n") }
+        } else if !failures.isEmpty { reportSaveFailures(failures, saved: saved) }
     }
 
     func completeFileExport(_ result: Result<[URL], Error>) {
@@ -200,7 +206,7 @@ import os
             guard urls.count == fileSaves.count else { discardFileExport(); errorMessage = CardError.fileExport.localizedDescription; return }
             for saved in fileSaves { replaceExport(of: saved.document, with: saved.url, motion: saved.document.isLive, card: saved.card) }
             savedToFiles = true; savedCount = urls.count; fileSaves = []; filesForExport = []
-            if !fileExportFailures.isEmpty { errorMessage = fileExportFailures.joined(separator: "\n") }; fileExportFailures = []
+            if !fileExportFailures.isEmpty { reportSaveFailures(fileExportFailures, saved: urls.count) }; fileExportFailures = []
         case .failure(let error):
             discardFileExport()
             if (error as NSError).code != NSUserCancelledError { errorMessage = Self.saveError(error, stage: .fileExport).localizedDescription }
@@ -211,6 +217,12 @@ import os
         for saved in fileSaves { try? FileManager.default.removeItem(at: saved.url) }
         fileSaves = []; filesForExport = []
         if !fileExportFailures.isEmpty { errorMessage = fileExportFailures.joined(separator: "\n") }; fileExportFailures = []
+    }
+
+    private func reportSaveFailures(_ failures: [String], saved: Int) {
+        let summary = String(format: String.localized("card.save.summary"), saved, failures.count)
+        errorMessage = summary + "\n\n" + failures.joined(separator: "\n\n")
+        savedCount = nil
     }
 
     private func replaceExport(of document: CardDocument, with url: URL, motion: Bool, card: PhotoCard) {

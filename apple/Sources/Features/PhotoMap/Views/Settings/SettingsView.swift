@@ -9,7 +9,7 @@ struct SettingsView: View {
     @AppStorage("defaultDisplayMode") private var defaultMode = MapDisplayMode.photo.rawValue
     @AppStorage("customStartYear") private var startYear = 0
     @AppStorage("defaultSelectedYear") private var selectedYear = 0
-    @State private var selectedCategory: Category? = .cards
+    @State private var selectedCategory: Category? = .general
     @State private var showLenses = false
     @State private var lensWorkspace: LensWorkspaceDraft?
     @State private var pendingCategory: Category?
@@ -19,32 +19,35 @@ struct SettingsView: View {
     private var lensesDirty: Bool { lensWorkspace?.hasPendingChanges == true }
 
     private enum Category: Hashable, CaseIterable {
-        case cards, lenses, map, about
+        case general, cards, saving, lenses, map
 
         var title: LocalizedStringKey {
             switch self {
+            case .general: "workspace.header"
             case .cards: "tab.cards"
+            case .saving: "settings.save.header"
             case .lenses: "lens.profiles.title"
             case .map: "tab.map"
-            case .about: "settings.about.header"
             }
         }
 
         var description: LocalizedStringKey {
             switch self {
+            case .general: "workspace.sharing.description"
             case .cards: "settings.category.cards.description"
+            case .saving: "settings.save.footer"
             case .lenses: "lens.profiles.description"
             case .map: "settings.category.map.description"
-            case .about: "settings.category.about.description"
             }
         }
 
         var symbol: String {
             switch self {
+            case .general: "square.grid.2x2"
             case .cards: "photo.badge.plus"
+            case .saving: "square.and.arrow.down"
             case .lenses: "camera.aperture"
             case .map: "map"
-            case .about: "info.circle"
             }
         }
     }
@@ -70,26 +73,50 @@ struct SettingsView: View {
                         LensProfilesView(store: .shared, workspace: lensWorkspace, embedded: true)
                             .id(lensDraftRevision)
                     } else {
-                        categoryForm(selectedCategory ?? .cards)
+                        categoryForm(selectedCategory ?? .general, includesAbout: true)
                     }
                 }
                 .navigationSplitViewStyle(.balanced)
             } else {
-                Form {
-                    settingsIntro
-                    workspaceSettings
-                    cardSettings
-                    lensSettings
-                    mapSettings
-                    aboutSettings
+                NavigationStack {
+                    Form {
+                        settingsIntro
+                        Section {
+                            ForEach(Category.allCases, id: \.self) { category in
+                                if category == .lenses {
+                                    Button {
+                                        if !lensesDirty { lensWorkspace = LensWorkspaceDraft(profiles: LensProfileStore.shared.profiles) }
+                                        showLenses = true
+                                    } label: {
+                                        Label(category.title, systemImage: category.symbol)
+                                    }
+                                } else {
+                                    NavigationLink(value: category) {
+                                        Label(category.title, systemImage: category.symbol)
+                                    }
+                                }
+                            }
+                        }
+                        aboutSettings
+                    }
+                    .photoPageForm()
+#if os(iOS)
+                    .toolbarVisibility(.hidden, for: .navigationBar)
+#endif
+                    .navigationDestination(for: Category.self) { category in
+                        categoryForm(category)
+#if os(iOS)
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbarVisibility(.visible, for: .navigationBar)
+#endif
+                    }
                 }
-                .photoPageForm()
             }
         }
         .tint(.secondary)
         .toggleStyle(NativeFormToggleStyle())
         .sheet(isPresented: $showLenses) {
-            LensProfilesView(store: .shared)
+            LensProfilesView(store: .shared, workspace: lensWorkspace)
                 .presentationSizing(.page)
                 .presentationDetents([.large])
         }
@@ -120,27 +147,22 @@ struct SettingsView: View {
         }
     }
 
-    private func categoryForm(_ category: Category) -> some View {
+    private func categoryForm(_ category: Category, includesAbout: Bool = false) -> some View {
         Form {
-            Section { Text(category.description).foregroundStyle(.secondary) }
             switch category {
-            case .cards: workspaceSettings; cardSettings
+            case .general:
+                workspaceSettings
+                if includesAbout { aboutSettings }
+            case .cards: cardSettings
+            case .saving: saveSettings
             case .lenses: EmptyView()
             case .map: mapSettings
-            case .about: aboutSettings
             }
         }
         .photoPageForm()
+        .frame(maxWidth: 760)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(category.title)
-    }
-
-    private var lensSettings: some View {
-        Section {
-            Button { showLenses = true } label: {
-                Label("lens.profiles.title", systemImage: "camera.aperture")
-            }
-        } header: { Text("lens.settings.header") }
-        footer: { Text("lens.settings.footer") }
     }
 
     private var settingsIntro: some View {
@@ -191,6 +213,10 @@ struct SettingsView: View {
             LabeledContent("card.defaultAuthor") {
                 TextField("card.defaultAuthor", text: $card.author)
                     .labelsHidden().multilineTextAlignment(.trailing)
+#if os(macOS)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 260)
+#endif
             }
             Toggle(isOn: $card.resolveLocation) {
                 settingLabel("card.resolveLocation", hint: "card.resolveLocation.description")
@@ -201,6 +227,9 @@ struct SettingsView: View {
         } header: {
             Text("settings.photo.header")
         }
+    }
+
+    @ViewBuilder private var saveSettings: some View {
         Section {
             Toggle(isOn: $card.saveOptions.updateOriginal) {
                 settingLabel("card.save.update", hint: "settings.save.destination.hint")
@@ -243,13 +272,18 @@ struct SettingsView: View {
 
     @ViewBuilder private var aboutSettings: some View {
         Section("settings.about.header") {
-            LabeledContent("settings.version", value: version)
-            Text("about.project")
-            Text("about.features").foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 12) {
+                Text(verbatim: "Fuyao Photos \(version)").font(.headline)
+                Text("about.features")
+                Text(String.localized("about.colors.credit") + "\n\n" + String.localized("settings.apple.notice"))
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .textSelection(.enabled)
+        }
+        Section("settings.about.links") {
             Link("AGPL-3.0-only", destination: URL(string: "https://github.com/skyrocketingHong/FuyaoPhotos/blob/main/LICENSE")!)
             Link("GitHub", destination: URL(string: "https://github.com/skyrocketingHong/FuyaoPhotos")!)
-            Text("about.colors.credit").font(.footnote).foregroundStyle(.secondary)
-            Text("settings.apple.notice").font(.footnote).foregroundStyle(.secondary)
         }
     }
 }

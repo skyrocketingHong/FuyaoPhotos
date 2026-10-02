@@ -15,6 +15,7 @@ struct ContentView: View {
 #endif
         }
         .environment(workspace)
+        .preferredColorScheme(darkroomCards && PhotoWorkspace.Tab.photoTabs.contains(workspace.selectedTab) ? .dark : nil)
         .modifier(PackageImportPresentation(workspace: workspace))
     }
 

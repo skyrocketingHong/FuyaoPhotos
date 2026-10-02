@@ -118,6 +118,9 @@
 "settings.title" = "Settings";
 "settings.intro" = "Choose how photo cards are edited and saved, and how your photo map opens.";
 "settings.category.cards.description" = "Configure photo card editing, metadata, and save defaults.";
+"settings.about.links" = "Links";
+"card.saving %lld %lld" = "Saving %lld of %lld";
+"card.save.summary" = "Saved %lld photos; %lld failed.";
 "settings.category.map.description" = "Choose the map's default display and year filters.";
 "settings.category.about.description" = "View the app version and other information.";
 "settings.editor.header" = "Editor";

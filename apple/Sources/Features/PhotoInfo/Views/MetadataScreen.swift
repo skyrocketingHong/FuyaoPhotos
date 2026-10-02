@@ -52,8 +52,10 @@ struct MetadataScreen: View {
             .toolbar {
                 if let document = session.current {
                     ToolbarItem(placement: .primaryAction) { openPhotoButton }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("metadata.save", systemImage: "square.and.arrow.down") { showingSave = true }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { showingSave = true } label: {
+                            SaveProgressLabel(title: "metadata.save", active: state.busy, compact: true)
+                        }
                             .disabled(state.busy || session.busy || !state.supportsInjection(document) || state.report == nil || !state.hasPendingAdd(document))
                     }
                 }
@@ -62,7 +64,7 @@ struct MetadataScreen: View {
             .disabled(state.busy || session.busy)
             .overlay {
                 ZStack {
-                    if session.current != nil && (state.busy || session.busy) {
+                    if session.current != nil && session.busy && !state.busy {
                         ProgressView("card.preview.updating").padding().background(.regularMaterial, in: .rect(cornerRadius: 16))
                             .transition(.opacity)
                     }
@@ -205,7 +207,9 @@ struct MetadataScreen: View {
                         LabeledContent("metadata.styles.texture") { Text("metadata.styles.value.present").foregroundStyle(.secondary) }
                     }
 #if !os(macOS)
-                    Button("metadata.save", systemImage: "square.and.arrow.down") { showingSave = true }
+                    Button { showingSave = true } label: {
+                        SaveProgressLabel(title: "metadata.save", active: state.busy)
+                    }
                         .disabled(!state.hasPendingAdd(document))
 #endif
                 }

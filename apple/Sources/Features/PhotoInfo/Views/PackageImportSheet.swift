@@ -44,7 +44,7 @@ struct PackageImportSheet: View {
                         .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     if contents != nil { Label("Live Photo", systemImage: "livephoto") }
                     Text("package.import.description").foregroundStyle(.secondary)
-                    if loading || saving { ProgressView(loading ? "package.import.checking" : "package.import.saving") }
+                    if loading { ProgressView("package.import.checking") }
                     if let error { Text(error).foregroundStyle(.red) }
                     if saved {
                         Label("package.import.saved", systemImage: "checkmark")
@@ -57,7 +57,11 @@ struct PackageImportSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button(saved ? "done" : "cancel") { dismiss() }.disabled(saving) }
                 ToolbarItem(placement: .confirmationAction) {
-                    if !saved { Button("package.import.save") { Task { await save() } }.disabled(loading || saving || contents == nil) }
+                    if !saved {
+                        Button { Task { await save() } } label: {
+                            SaveProgressLabel(title: "package.import.save", active: saving)
+                        }.disabled(loading || saving || contents == nil)
+                    }
                 }
             }
         }

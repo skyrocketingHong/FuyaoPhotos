@@ -60,7 +60,6 @@ struct PhotoCardScreen: View {
                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: session.busy)
                 }
         }
-        .background(PhotoPreviewTheme.surface.ignoresSafeArea())
         .transformEnvironment(\.colorScheme) { scheme in
             if forcedDarkroom { scheme = .dark }
         }
@@ -169,14 +168,17 @@ struct PhotoCardScreen: View {
                         Button("card.cancel", role: .cancel) { replacementIDs = nil }
                     }
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button(saveActionTitle, systemImage: "checkmark", action: presentSaveOptions)
-                    .labelStyle(.iconOnly).buttonBorderShape(.circle)
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: presentSaveOptions) {
+                    SaveProgressLabel(title: saveActionTitle, active: session.saving,
+                        completed: session.progress, total: session.total, compact: true)
+                }
+                    .buttonBorderShape(.circle)
 #if os(iOS)
                     .keyboardShortcut("s")
 #endif
             }
-            ToolbarItem(placement: .secondaryAction) {
+            ToolbarItem(placement: .primaryAction) {
                 Menu("card.more", systemImage: "ellipsis") {
                     Button("package.import.action", systemImage: "square.and.arrow.down") { workspace.showingPackagePicker = true }
                     Button("card.style.reset", systemImage: "arrow.counterclockwise") {
@@ -199,7 +201,7 @@ struct PhotoCardScreen: View {
     }
 
     @ViewBuilder private var busyOverlay: some View {
-        if session.busy {
+        if session.busy && !session.saving {
             ProgressView(value: Double(session.progress), total: Double(max(1, session.total))) {
                 Text("card.processing \(session.progress) \(session.total)")
             }
