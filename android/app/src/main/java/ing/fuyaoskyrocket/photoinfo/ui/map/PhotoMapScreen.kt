@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -18,13 +19,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoScaffold
-import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoPageColumn
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoFormPage
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoPageIntro
 
 @Composable
 fun PhotoMapScreen(modifier: Modifier = Modifier, onOpenMetadata: () -> Unit) {
     FuyaoScaffold(title = "", modifier = modifier, showTopBar = false) { padding ->
-        FuyaoPageColumn(Modifier.fillMaxSize(),topInset=padding.calculateTopPadding()) {
+        FuyaoFormPage(padding) {
             FuyaoPageIntro(stringResource(R.string.photo_map_title),
                 stringResource(R.string.photo_map_reserved_body),R.drawable.ic_map) {
                 TextButton(onClick = onOpenMetadata) {

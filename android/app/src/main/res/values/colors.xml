@@ -1,16 +1,19 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
+    <string name="colors_values">Color values</string>
+    <string name="colors_references">Reference colors</string>
+    <string name="colors_value_unavailable">Not available</string>
   <string name="cp_empty_image_title">Waiting for an image</string>
-  <string name="cp_empty_image_body">Use Gallery or Camera in the top-right corner to add an image.</string>
+  <string name="cp_empty_image_body">Open a photo or take one with the camera.</string>
   <string name="cp_image_content_description">Image to sample. Touch to show the magnifier, drag to adjust; use two fingers to zoom or move.</string>
   <string name="cp_sampling_magnifier_description">Magnified sampling point</string>
-  <string name="cp_sample_coordinates">(%1$d,%2$d)</string>
-  <string name="cp_sample_coordinates_empty">(—,—)</string>
+  <string name="cp_sample_coordinates">(%1$d, %2$d)</string>
+  <string name="cp_sample_coordinates_empty">Not available</string>
   <string name="cp_sample_coordinates_label">Pixel</string>
   <string name="cp_sample_relative_position">X %1$.1f%% · Y %2$.1f%%</string>
-  <string name="cp_sample_relative_position_empty">X — · Y —</string>
+  <string name="cp_sample_relative_position_empty">Not available</string>
   <string name="cp_sample_relative_position_label">Position</string>
-  <string name="cp_sample_image_summary">%1$d×%2$d px · %3$s</string>
+  <string name="cp_sample_image_summary">%1$d × %2$d px · %3$s</string>
   <string name="cp_sample_image_summary_label">Image</string>
   <string name="cp_ral_code">≈ RAL %1$d</string>
   <string name="cp_color_value_copied">Color value copied to clipboard</string>
@@ -67,5 +70,5 @@
   <string name="cp_photo_info_sheet_title">Photo color parameters</string>
   <string name="cp_hdr_action_on">HDR On</string>
   <string name="cp_hdr_action_off">HDR Off</string>
-  <string name="cp_hdr_action_unavailable">HDR —</string>
+  <string name="cp_hdr_action_unavailable">HDR unavailable</string>
 </resources>

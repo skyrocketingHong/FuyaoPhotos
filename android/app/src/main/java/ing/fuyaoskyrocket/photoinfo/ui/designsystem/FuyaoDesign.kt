@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -17,6 +18,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.layout.PageGeometry
 
@@ -35,17 +37,19 @@ object FuyaoMotion {
 @Composable
 fun FuyaoScaffold(title:String,modifier:Modifier=Modifier,onBack:(()->Unit)?=null,
     actions:@Composable RowScope.()->Unit={},snackbarHost:@Composable ()->Unit={},showTopBar:Boolean=true,
-    bottomBar:@Composable ()->Unit={},content:@Composable (PaddingValues)->Unit) {
+    bottomBar:@Composable ()->Unit={},additionalTopInset:Dp=0.dp,content:@Composable (PaddingValues)->Unit) {
     val titleHeight=with(LocalDensity.current) { MaterialTheme.typography.titleLarge.lineHeight.toDp() }+8.dp
     Box(modifier.fillMaxSize()) {
     Scaffold(modifier=Modifier.fillMaxSize(),containerColor=MaterialTheme.colorScheme.surface,
         contentWindowInsets=WindowInsets.safeDrawing.only(if(!showTopBar)WindowInsetsSides.Top+WindowInsetsSides.Horizontal else WindowInsetsSides.Horizontal),
         topBar={ if(showTopBar)TopAppBar(
+            modifier=Modifier.padding(top=additionalTopInset),
             title={ Text(title,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold) },
             navigationIcon={ if(onBack!=null)FuyaoAppBarAction(R.drawable.ic_back,stringResource(R.string.back),onBack) },
             actions=actions,expandedHeight=maxOf(FuyaoLayout.appBar,titleHeight),
             windowInsets=WindowInsets.statusBars.union(WindowInsets.captionBar).only(WindowInsetsSides.Top).union(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
-            colors=TopAppBarDefaults.topAppBarColors(containerColor=MaterialTheme.colorScheme.surface,actionIconContentColor=MaterialTheme.colorScheme.onSurfaceVariant)) },
+            colors=TopAppBarDefaults.topAppBarColors(containerColor=Color.Transparent,
+                scrolledContainerColor=Color.Transparent,actionIconContentColor=MaterialTheme.colorScheme.onSurfaceVariant)) },
         bottomBar=bottomBar,snackbarHost=snackbarHost,content=content)
     }
 }
@@ -82,16 +86,10 @@ fun FuyaoIconButton(icon:Int,label:String,onClick:()->Unit,enabled:Boolean=true)
 @Composable
 fun FuyaoFormPage(padding:PaddingValues,content:@Composable ColumnScope.()->Unit) {
     val direction=LocalLayoutDirection.current
-    Box(Modifier.fillMaxSize().consumeWindowInsets(padding).imePadding(),contentAlignment=Alignment.TopCenter) {
-        Column(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxWidth().verticalScroll(rememberScrollState())
-            .padding(start=padding.calculateStartPadding(direction)+FuyaoSpacing.content,
-                end=padding.calculateEndPadding(direction)+FuyaoSpacing.content,
-                top=padding.calculateTopPadding()+FuyaoSpacing.content,bottom=FuyaoSpacing.content),
-            verticalArrangement=Arrangement.spacedBy(FuyaoSpacing.content)) {
-            content()
-            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)))
-        }
-    }
+    FuyaoPageColumn(Modifier.fillMaxSize().padding(
+        start=padding.calculateStartPadding(direction),end=padding.calculateEndPadding(direction),
+        bottom=padding.calculateBottomPadding()).consumeWindowInsets(padding).imePadding(),
+        topInset=padding.calculateTopPadding(),content=content)
 }
 
 @Composable

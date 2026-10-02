@@ -1,342 +1,103 @@
 package ing.fuyaoskyrocket.photoinfo.features.colors.ui.components
 
 import android.graphics.Bitmap
-import androidx.annotation.DrawableRes
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
+import ing.fuyaoskyrocket.photoinfo.features.colors.domain.color.SourceColorSpace
 import ing.fuyaoskyrocket.photoinfo.features.colors.domain.model.PhotoColorInfo
 import ing.fuyaoskyrocket.photoinfo.features.colors.domain.model.SampledColor
-import ing.fuyaoskyrocket.photoinfo.features.colors.ui.theme.FuyaoDimensions
-import ing.fuyaoskyrocket.photoinfo.features.colors.ui.theme.FuyaoSpacing
-import ing.fuyaoskyrocket.photoinfo.features.colors.domain.color.SourceColorSpace
-
-/** Material 3 supporting panel for the magnifier, image controls, and color values. */
-@Composable
-internal fun ColorResultPanel(
-    bitmap: Bitmap?,
-    sampledColor: SampledColor?,
-    photoColorInfo: PhotoColorInfo?,
-    hdrDisplayEnabled: Boolean,
-    onShowPhotoInfo: () -> Unit,
-    onHdrDisplayEnabledChange: (Boolean) -> Unit,
-    expandColorValues: Boolean = false,
-    modifier: Modifier = Modifier,
-    sourceProfile: String? = photoColorInfo?.colorSpaceName,
-    photoActions: (@Composable () -> Unit)? = null,
-    showPhotoActions: Boolean = true,
-) {
-    var selectedTabIndex by rememberSaveable { mutableIntStateOf(-1) }
-    val autoSpaceIndex = SourceColorSpace.fromProfile(sourceProfile).tabIndex
-    val canToggleHdr = photoColorInfo?.hasHdrContent == true
-    val hdrStateDescription = when {
-        !canToggleHdr -> stringResource(R.string.cp_hdr_action_unavailable)
-        hdrDisplayEnabled -> stringResource(R.string.cp_hdr_action_on)
-        else -> stringResource(R.string.cp_hdr_action_off)
-    }
-
-    val cardShape = if (expandColorValues) {
-        MaterialTheme.shapes.large.copy(
-            bottomStart = CornerSize(0.dp),
-            bottomEnd = CornerSize(0.dp),
-        )
-    } else {
-        MaterialTheme.shapes.large
-    }
-
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-        shape = cardShape,
-    ) {
-        Column(
-            modifier = if (expandColorValues) {
-                Modifier
-                    .fillMaxSize()
-                    .padding(
-                        start = FuyaoSpacing.compact,
-                        top = FuyaoSpacing.compact,
-                        end = FuyaoSpacing.compact,
-                    )
-            } else {
-                Modifier
-                    .fillMaxWidth()
-                    .padding(FuyaoSpacing.compact)
-            },
-        ) {
-            ResultHeader(
-                bitmap = bitmap,
-                sampledColor = sampledColor,
-                photoColorInfo = photoColorInfo,
-                canToggleHdr = canToggleHdr,
-                hdrDisplayEnabled = hdrDisplayEnabled,
-                hdrStateDescription = hdrStateDescription,
-                selectedTabIndex = selectedTabIndex,
-                autoSpaceIndex = autoSpaceIndex,
-                onTabSelected = { selectedTabIndex = it },
-                onShowPhotoInfo = onShowPhotoInfo,
-                onHdrDisplayEnabledChange = onHdrDisplayEnabledChange,
-                photoActions = photoActions,
-                showPhotoActions = showPhotoActions,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(modifier = Modifier.height(FuyaoSpacing.extraSmall))
-            ColorValueContent(
-                selectedTabIndex = if (selectedTabIndex < 0) autoSpaceIndex else selectedTabIndex,
-                sampledColor = sampledColor,
-                modifier = if (expandColorValues) Modifier.weight(1f) else Modifier,
-            )
-        }
-    }
-}
+import ing.fuyaoskyrocket.photoinfo.ui.components.CyclicItemSelector
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 
 @Composable
-private fun ResultHeader(
-    bitmap: Bitmap?,
-    sampledColor: SampledColor?,
-    photoColorInfo: PhotoColorInfo?,
-    canToggleHdr: Boolean,
-    hdrDisplayEnabled: Boolean,
-    hdrStateDescription: String,
-    selectedTabIndex: Int,
-    autoSpaceIndex: Int,
-    onTabSelected: (Int) -> Unit,
-    onShowPhotoInfo: () -> Unit,
-    onHdrDisplayEnabledChange: (Boolean) -> Unit,
-    photoActions: (@Composable () -> Unit)?,
-    showPhotoActions: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    BoxWithConstraints(modifier = modifier) {
-        val compact = maxWidth < 280.dp
-        val magnifierSize = if (compact) {
-            FuyaoDimensions.compactMagnifierSize
-        } else {
-            FuyaoDimensions.magnifierSize
-        }
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(maxOf(magnifierSize, 100.dp)),
-                horizontalArrangement = Arrangement.spacedBy(
-                    if (compact) FuyaoSpacing.small else FuyaoSpacing.compact,
-                ),
-                verticalAlignment = Alignment.Top,
-            ) {
-                SamplingMagnifier(
-                    bitmap = bitmap,
-                    sampledColor = sampledColor,
-                    contentDescription = stringResource(R.string.cp_sampling_magnifier_description),
-                    modifier = Modifier.size(magnifierSize),
-                )
-                SampleCoordinatesAndActions(
-                    sampledColor = sampledColor,
-                    photoColorInfo = photoColorInfo,
-                    canToggleHdr = canToggleHdr,
-                    hdrDisplayEnabled = hdrDisplayEnabled,
-                    hdrStateDescription = hdrStateDescription,
-                    onShowPhotoInfo = onShowPhotoInfo,
-                    onHdrDisplayEnabledChange = onHdrDisplayEnabledChange,
-                    photoActions = photoActions,
-                    showPhotoActions = showPhotoActions,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                )
-            }
-            ColorValueTabRow(
-                selectedTabIndex = selectedTabIndex,
-                onTabSelected = onTabSelected,
-                modifier = Modifier.fillMaxWidth(),
-                autoSpaceIndex = autoSpaceIndex,
-            )
-        }
-    }
-}
+internal fun ColorResultPanel(bitmap: Bitmap?, sampledColor: SampledColor?, photoColorInfo: PhotoColorInfo?,
+    modifier: Modifier = Modifier, sourceProfile: String? = photoColorInfo?.colorSpaceName) {
+    var group by rememberSaveable { mutableIntStateOf(0) }
+    var valueIndex by rememberSaveable { mutableIntStateOf(0) }
+    var referenceIndex by rememberSaveable { mutableIntStateOf(0) }
+    val autoIndex = SourceColorSpace.fromProfile(sourceProfile).tabIndex
+    val valueLabels = listOf(stringResource(R.string.colors_auto_space,
+        stringResource(ColorValueTab.entries[autoIndex].labelResource))) +
+        ColorValueTab.entries.take(7).map { stringResource(it.labelResource) }
+    val referenceLabels = ColorValueTab.entries.drop(7).map { stringResource(it.labelResource) }
+    val labels = if (group == 0) valueLabels else referenceLabels
+    val selected = if (group == 0) valueIndex else referenceIndex
+    val selectedTab = if (group == 1) referenceIndex + 7 else if (valueIndex == 0) autoIndex else valueIndex - 1
+    val select: (Int) -> Unit = { if (group == 0) valueIndex = it else referenceIndex = it }
 
-@Composable
-private fun SampleCoordinatesAndActions(
-    sampledColor: SampledColor?,
-    photoColorInfo: PhotoColorInfo?,
-    canToggleHdr: Boolean,
-    hdrDisplayEnabled: Boolean,
-    hdrStateDescription: String,
-    onShowPhotoInfo: () -> Unit,
-    onHdrDisplayEnabledChange: (Boolean) -> Unit,
-    photoActions: (@Composable () -> Unit)?,
-    showPhotoActions: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxHeight(),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            SampleInfoLine(
-                label = stringResource(R.string.cp_sample_coordinates_label),
-                value = sampledColor?.let {
-                    stringResource(R.string.cp_sample_coordinates, it.sourceX, it.sourceY)
-                } ?: stringResource(R.string.cp_sample_coordinates_empty),
-            )
-            if (photoColorInfo != null) {
-                val positionText = sampledColor?.let {
-                    val xPercent = if (photoColorInfo.width > 1) {
-                        it.sourceX * 100.0 / (photoColorInfo.width - 1)
-                    } else {
-                        0.0
+    BoxWithConstraints(modifier) {
+        val compact = maxHeight < 240.dp || maxWidth < 320.dp || LocalDensity.current.fontScale > 1.6f
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (!compact) FuyaoPrimaryTabs(listOf(stringResource(R.string.colors_values), stringResource(R.string.colors_references)),
+                group, { group = it })
+            Row(Modifier.widthIn(max = 640.dp).fillMaxWidth().weight(1f).padding(horizontal = FuyaoSpacing.content),
+                horizontalArrangement = Arrangement.spacedBy(FuyaoSpacing.compact)) {
+                Box(Modifier.weight(.34f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                    if (compact) ColorChoiceMenu(valueLabels, referenceLabels, group, selected) { nextGroup, index ->
+                        group = nextGroup
+                        if (nextGroup == 0) valueIndex = index else referenceIndex = index
                     }
-                    val yPercent = if (photoColorInfo.height > 1) {
-                        it.sourceY * 100.0 / (photoColorInfo.height - 1)
-                    } else {
-                        0.0
-                    }
-                    stringResource(R.string.cp_sample_relative_position, xPercent, yPercent)
-                } ?: stringResource(R.string.cp_sample_relative_position_empty)
-                SampleInfoLine(
-                    label = stringResource(R.string.cp_sample_relative_position_label),
-                    value = positionText,
-                )
-                SampleInfoLine(
-                    label = stringResource(R.string.cp_sample_image_summary_label),
-                    value = stringResource(
-                        R.string.cp_sample_image_summary,
-                        photoColorInfo.width,
-                        photoColorInfo.height,
-                        sampledColor?.sourceColorSpaceName ?: photoColorInfo.colorSpaceName,
-                    ),
-                )
+                    else key(group) { CyclicItemSelector(labels, selected, true, Modifier.fillMaxSize(), select) }
+                }
+                FuyaoPageColumn(Modifier.weight(.66f).fillMaxHeight(), topInset = 0.dp, horizontalPadding = 0.dp) {
+                    ColorValueContent(selectedTab, sampledColor)
+                    SampleSummary(bitmap, sampledColor, photoColorInfo)
+                }
             }
         }
-        if (showPhotoActions) Column(
-            modifier = Modifier.fillMaxHeight(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            if (photoActions != null) photoActions() else ResultIconAction(
-                iconResource = R.drawable.cp_ic_info_square,
-                contentDescription = stringResource(R.string.cp_photo_info_action),
-                enabled = photoColorInfo != null,
-                selected = false,
-                onClick = onShowPhotoInfo,
-            )
-            ResultIconAction(
-                iconResource = R.drawable.cp_ic_hdr_viewfinder_rectangular,
-                contentDescription = stringResource(R.string.cp_photo_hdr),
-                stateDescription = hdrStateDescription,
-                enabled = canToggleHdr,
-                selected = canToggleHdr && hdrDisplayEnabled,
-                onClick = { onHdrDisplayEnabledChange(!hdrDisplayEnabled) },
-            )
+    }
+}
+
+@Composable
+private fun ColorChoiceMenu(values: List<String>, references: List<String>, group: Int, selected: Int,
+    onSelect: (Int, Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val labels = if (group == 0) values else references
+    Box {
+        OutlinedButton({ expanded = true }, Modifier.fillMaxWidth()) {
+            Text(labels[selected], style = MaterialTheme.typography.labelMedium)
+        }
+        DropdownMenu(expanded, { expanded = false }) {
+            listOf(values, references).forEachIndexed { nextGroup, items ->
+                if (nextGroup > 0) HorizontalDivider()
+                Text(stringResource(if (nextGroup == 0) R.string.colors_values else R.string.colors_references),
+                    Modifier.padding(FuyaoSpacing.compact), style = MaterialTheme.typography.labelLarge)
+                items.forEachIndexed { index, label ->
+                    DropdownMenuItem(text = { Text(label) }, onClick = { expanded = false; onSelect(nextGroup, index) })
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun SampleInfoLine(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(FuyaoSpacing.small),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-        )
-        Text(
-            text = value,
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun ResultIconAction(
-    @DrawableRes iconResource: Int,
-    contentDescription: String,
-    enabled: Boolean,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    stateDescription: String? = null,
-) {
-    val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
-    IconButton(
-        onClick = onClick,
-        enabled = enabled,
-        colors = IconButtonDefaults.iconButtonColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                Color.Transparent
-            },
-            contentColor = iconColor,
-            disabledContainerColor = Color.Transparent,
-            disabledContentColor = iconColor.copy(alpha = 0.38f),
-        ),
-        modifier = modifier
-            .size(FuyaoDimensions.resultActionButtonSize)
-            .semantics {
-                stateDescription?.let { this.stateDescription = it }
-            },
-    ) {
-        Icon(
-            painter = painterResource(iconResource),
-            contentDescription = contentDescription,
-            modifier = Modifier.size(FuyaoDimensions.resultActionIconSize),
-        )
+private fun SampleSummary(bitmap: Bitmap?, sample: SampledColor?, info: PhotoColorInfo?) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.small)) {
+        SamplingMagnifier(bitmap, sample, stringResource(R.string.cp_sampling_magnifier_description),
+            Modifier.size(72.dp).align(Alignment.CenterHorizontally))
+        val items = buildList {
+            add(ColorValueItem(stringResource(R.string.cp_sample_coordinates_label), sample?.let {
+                stringResource(R.string.cp_sample_coordinates, it.sourceX, it.sourceY)
+            }))
+            if (info != null) {
+                add(ColorValueItem(stringResource(R.string.cp_sample_relative_position_label), sample?.let {
+                    val x = if (info.width > 1) it.sourceX * 100.0 / (info.width - 1) else 0.0
+                    val y = if (info.height > 1) it.sourceY * 100.0 / (info.height - 1) else 0.0
+                    stringResource(R.string.cp_sample_relative_position, x, y)
+                }))
+                add(ColorValueItem(stringResource(R.string.cp_sample_image_summary_label),
+                    stringResource(R.string.cp_sample_image_summary, info.width, info.height,
+                        sample?.sourceColorSpaceName ?: info.colorSpaceName), fullWidth = true))
+            }
+        }
+        ColorValuePanel(items)
     }
 }

@@ -12,5 +12,10 @@ fun ComponentActivity.enableFuyaoEdgeToEdge() {
     val dark=resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
     val bars=if(dark)SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT,Color.TRANSPARENT)
     enableEdgeToEdge(statusBarStyle=bars,navigationBarStyle=bars)
-    if(Build.VERSION.SDK_INT>=29)window.isNavigationBarContrastEnforced=false
+    if(Build.VERSION.SDK_INT>=29) {
+        // Required on API 29-34; newer edge-to-edge windows already use a transparent status bar.
+        @Suppress("DEPRECATION")
+        window.isStatusBarContrastEnforced=false
+        window.isNavigationBarContrastEnforced=false
+    }
 }

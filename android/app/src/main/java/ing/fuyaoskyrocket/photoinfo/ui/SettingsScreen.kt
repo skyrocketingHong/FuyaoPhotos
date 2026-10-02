@@ -181,7 +181,6 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     }) { padding ->
         FuyaoAdaptivePage(padding,contentUnderTopEdge=true,leadingPaneWidth=280.dp,
             single = { modifier ->
-                val topInset = LocalPaneTopInset.current
                 NavHost(categoryNavigation, startDestination = "overview", modifier = modifier) {
                     composable("overview") {
                         rememberConfirmedBack(onBack, hasChanges = changed)
@@ -206,9 +205,10 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                     }
                     composable("category") {
                         FuyaoScaffold(stringResource(selectedCategory.label),
-                            modifier = Modifier.padding(top = topInset),
+                            additionalTopInset = LocalPaneTopInset.current,
                             onBack = { categoryNavigation.popBackStack() }) { categoryPadding ->
-                            FuyaoPageColumn(Modifier.fillMaxSize().padding(categoryPadding), topInset = 0.dp) {
+                            FuyaoPageColumn(Modifier.fillMaxSize().consumeWindowInsets(categoryPadding),
+                                topInset = categoryPadding.calculateTopPadding()) {
                                 categoryContent(selectedCategory)
                             }
                         }

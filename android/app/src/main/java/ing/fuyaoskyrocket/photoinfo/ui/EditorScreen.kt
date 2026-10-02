@@ -40,6 +40,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorWorkspace
+import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoWorkspaceCanvas
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorPreviewPane
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -353,14 +354,14 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 })
             } }) { padding ->
                     if(state.photos.isEmpty()) {
-                        FuyaoPageColumn(Modifier.fillMaxSize().consumeWindowInsets(padding).imePadding(),topInset=padding.calculateTopPadding()) {
+                        FuyaoFormPage(padding) {
                             PhotoImportCard(stringResource(R.string.photo_cards_title),
                                 stringResource(R.string.empty_hint,PhotoEditSnapshot.MAX_PHOTOS),R.drawable.ic_photo_add,state.busy,
                                 onGallery={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 onFiles={ filePicker.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) })
                         }
                     } else {
-                        Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+                        PhotoWorkspaceCanvas(state.original ?: state.preview, padding) {
                         val photoId = state.photos.getOrNull(state.photoIndex)?.id
                         EditorWorkspace(
                             preview = { modifier, bottomSafe ->

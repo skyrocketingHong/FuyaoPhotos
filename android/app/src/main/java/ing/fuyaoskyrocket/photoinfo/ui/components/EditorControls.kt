@@ -26,6 +26,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
 import ing.fuyaoskyrocket.photoinfo.presentation.LocationStatus
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoPrimaryTabs
 import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 import kotlin.math.roundToInt
 
@@ -87,12 +88,8 @@ fun EditorControls(
         }, fieldContent, onStyle, onResetField, onResetAllFields, onImportFont, onResetFont, Modifier.fillMaxSize())
     } else Column(Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally) {
-        PrimaryTabRow(selectedTabIndex = tab, containerColor = androidx.compose.ui.graphics.Color.Transparent, divider = {}) {
-            listOf(R.string.tab_info, R.string.tab_style).forEachIndexed { index, title ->
-                Tab(selected = tab == index, onClick = { focus.clearFocus(); setEditingActive(false); tab = index },
-                    text = { Text(stringResource(title)) })
-            }
-        }
+        FuyaoPrimaryTabs(listOf(stringResource(R.string.tab_info), stringResource(R.string.tab_style)), tab,
+            { focus.clearFocus(); setEditingActive(false); tab = it })
         Row(Modifier.widthIn(max = 640.dp).fillMaxWidth().weight(1f).padding(horizontal = FuyaoSpacing.content),
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Crossfade(targetState = tab, animationSpec = tween(transitionMillis), label = "editor wheel",

@@ -27,36 +27,15 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
     var editing by rememberSaveable { mutableStateOf(false) }
     var showOpen by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
-    val modeControls: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
-                    listOf(R.string.metadata_mode_view, R.string.metadata_mode_edit).forEachIndexed { index, title ->
-                        SegmentedButton(selected = editing == (index == 1), onClick = { focus.clearFocus(); editing = index == 1 },
-                            shape = SegmentedButtonDefaults.itemShape(index, 2)) { Text(stringResource(title)) }
-                    }
-                }
-                Box {
-                    IconButton({ showOpen = true }, enabled = !busy) {
-                        Icon(painterResource(R.drawable.ic_photo_add), stringResource(R.string.from_gallery))
-                    }
-                    DropdownMenu(showOpen, { showOpen = false }) {
-                        DropdownMenuItem(text = { Text(stringResource(R.string.from_gallery)) }, onClick = { showOpen = false; onGallery() })
-                        DropdownMenuItem(text = { Text(stringResource(R.string.from_file)) }, onClick = { showOpen = false; onFiles() })
-                    }
-                }
-            }
-        }
-    }
     FuyaoScaffold("", showTopBar = false) { padding ->
         if (photo == null) {
-            FuyaoPageColumn(Modifier.fillMaxSize().consumeWindowInsets(padding).imePadding(), topInset=padding.calculateTopPadding()) {
+            FuyaoFormPage(padding) {
                 PhotoImportCard(stringResource(R.string.photo_metadata_title),
                     stringResource(if (sharesCards) R.string.metadata_shared_description else R.string.photo_metadata_description),
                     R.drawable.ic_info,busy,onGallery,onFiles)
             }
         } else {
-            Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+            PhotoWorkspaceCanvas(photo.bitmap, padding) {
                 EditorWorkspace(preview = { modifier, expanded ->
                     OriginalPhotoSummary(photo, controls, "", hdrAvailable, busy,
                         workspaceModifier = modifier, expanded = expanded,
@@ -65,10 +44,22 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
                             Text(photo.details.displayName ?: stringResource(R.string.photo_details),
                                 Modifier.weight(1f), style = MaterialTheme.typography.labelMedium,
                                 maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            Box {
+                                IconButton({ showOpen = true }, enabled = !busy) {
+                                    Icon(painterResource(R.drawable.ic_photo_add), stringResource(R.string.from_gallery))
+                                }
+                                DropdownMenu(showOpen, { showOpen = false }) {
+                                    DropdownMenuItem(text = { Text(stringResource(R.string.from_gallery)) },
+                                        onClick = { showOpen = false; onGallery() })
+                                    DropdownMenuItem(text = { Text(stringResource(R.string.from_file)) },
+                                        onClick = { showOpen = false; onFiles() })
+                                }
+                            }
                         })
                 }, controls = { modifier ->
                     Column(modifier) {
-                        Box(Modifier.padding(horizontal = FuyaoSpacing.content, vertical = 8.dp)) { modeControls() }
+                        FuyaoPrimaryTabs(listOf(stringResource(R.string.metadata_mode_view), stringResource(R.string.metadata_mode_edit)),
+                            if (editing) 1 else 0, { focus.clearFocus(); editing = it == 1 })
                         if (controls.mode == OriginalPreviewMode.DEPTH) {
                             Text(stringResource(R.string.portrait_depth_disparity_note),
                                 Modifier.padding(horizontal = FuyaoSpacing.content),

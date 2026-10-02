@@ -98,7 +98,7 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
     FuyaoScaffold(stringResource(R.string.configure_lens),onBack=requestBack,actions={
         TextButton(onClick={ onSave(draft) },enabled=valid&&!readingProduct) { Text(stringResource(R.string.apply_lens)) }
     }) { padding ->
-        FuyaoAdaptivePage(padding,
+        FuyaoAdaptivePage(padding,contentUnderTopEdge=true,
             single = { modifier ->
                 Box(modifier,contentAlignment=Alignment.TopCenter) {
                     FuyaoPageColumn(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxSize()) {

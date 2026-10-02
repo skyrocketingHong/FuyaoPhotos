@@ -9,17 +9,26 @@ import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.domain.layout.EditorWorkspacePolicy
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 
+/** The ambient photo reaches the system bars; interactive content respects the safe area. */
+@Composable
+fun PhotoWorkspaceCanvas(bitmap: Bitmap?, padding: PaddingValues, content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxSize()) {
+        PhotoAmbientBackdrop(bitmap, featherEdges = false, modifier = Modifier.matchParentSize())
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+            content()
+        }
+    }
+}
+
 /** All photo workspaces reserve the same viewport and separate action row. */
 @Composable
 fun PhotoPreviewStage(
-    bitmap: Bitmap?,
     modifier: Modifier = Modifier,
     expanded: Boolean = false,
     media: @Composable BoxScope.() -> Unit,
     actions: @Composable RowScope.() -> Unit,
 ) {
     Box(modifier, contentAlignment = Alignment.TopCenter) {
-        PhotoAmbientBackdrop(bitmap, featherEdges = false, modifier = Modifier.matchParentSize())
         Column(Modifier
             .then(if (expanded) Modifier else Modifier.widthIn(max = EditorWorkspacePolicy.COMPACT_COLUMN_WIDTH.dp))
             .fillMaxSize().padding(horizontal = FuyaoSpacing.content)) {

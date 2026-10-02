@@ -76,7 +76,7 @@ internal fun OriginalPhotoSummary(photo: OriginalPhoto, controls: OriginalPrevie
         actions()
     }
     if (workspaceModifier != null) {
-        PhotoPreviewStage(photo.bitmap, workspaceModifier, expanded, media, tools)
+        PhotoPreviewStage(workspaceModifier, expanded, media, tools)
     } else Box(Modifier.fillMaxWidth()) {
         PhotoAmbientBackdrop(photo.bitmap, modifier = Modifier.matchParentSize())
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

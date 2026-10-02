@@ -155,7 +155,6 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
                     scale=next;offset=bounded(anchored,next)
                 }
             }.pointerInput(photoId) { detectTapGestures(onDoubleTap={ if(!playing)moveTo(1f) }) }) {
-            PhotoAmbientBackdrop(bitmap, modifier=Modifier.matchParentSize())
             Image(displayed.asImageBitmap(),stringResource(R.string.preview_content),Modifier.fillMaxSize()
                 .semantics { stateDescription=zoomDescription }
                 .graphicsLayer { scaleX=scale;scaleY=scale;translationX=offset.x;translationY=offset.y },contentScale=ContentScale.Fit)
@@ -165,7 +164,7 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
     }
     val toolbar: @Composable (Boolean) -> Unit = { wide ->
             Surface(Modifier.fillMaxWidth(),
-                color=MaterialTheme.colorScheme.surface.copy(alpha=.92f),contentColor=MaterialTheme.colorScheme.onSurface) {
+                color=androidx.compose.ui.graphics.Color.Transparent,contentColor=MaterialTheme.colorScheme.onSurface) {
                 Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top+WindowInsetsSides.Horizontal)).heightIn(min=48.dp).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically) {
                     FuyaoIconButton(R.drawable.ic_close,stringResource(R.string.close),onDismiss)
                     if (wide) Spacer(Modifier.weight(1f))
@@ -216,6 +215,7 @@ fun FullScreenPreview(bitmap:Bitmap,photoId:String,loadFullResolution:suspend ()
     val direction = LocalLayoutDirection.current
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)
         .onGloballyPositioned { bounds = it.boundsInWindow() }) {
+        PhotoAmbientBackdrop(bitmap, featherEdges = false, modifier = Modifier.matchParentSize())
         val hinge = fold?.bounds
         val vertical = fold?.orientation == FoldingFeature.Orientation.VERTICAL && hinge != null &&
             hinge.left > bounds.left && hinge.right < bounds.right

@@ -84,6 +84,7 @@ private fun ViewfinderMark(icon: Painter, modifier: Modifier = Modifier) {
 
 @Composable
 fun FuyaoPageColumn(modifier: Modifier = Modifier, topInset: Dp = LocalPaneTopInset.current,
+    horizontalPadding: Dp = FuyaoSpacing.content,
     content: @Composable ColumnScope.() -> Unit) {
     val scroll = rememberScrollState()
     val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
@@ -91,7 +92,7 @@ fun FuyaoPageColumn(modifier: Modifier = Modifier, topInset: Dp = LocalPaneTopIn
         FuyaoScrollEdge(Modifier.widthIn(max = FuyaoLayout.readable).fillMaxSize(), topInset,
             scrollOffset = { scroll.value.toFloat() }) {
             Column(Modifier.fillMaxSize().verticalScroll(scroll)
-                .padding(start = FuyaoSpacing.content, end = FuyaoSpacing.content,
+                .padding(start = horizontalPadding, end = horizontalPadding,
                     top = topInset + FuyaoSpacing.content, bottom = bottomInset + FuyaoSpacing.content),
                 verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.content), content = content)
         }

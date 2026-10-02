@@ -2,11 +2,9 @@ package ing.fuyaoskyrocket.photoinfo.ui.designsystem
 
 import android.os.Build
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
@@ -27,7 +25,6 @@ fun FuyaoScrollEdge(modifier: Modifier, topInset: Dp, scrollOffset: () -> Float,
     val source = rememberGraphicsLayer()
     val blurLayers = listOf(rememberGraphicsLayer(), rememberGraphicsLayer(), rememberGraphicsLayer())
     val masks = listOf(rememberGraphicsLayer(), rememberGraphicsLayer(), rememberGraphicsLayer())
-    val surface = MaterialTheme.colorScheme.surface
     Box(modifier.drawWithContent {
         val progress = PageGeometry.scrollEdgeProgress(scrollOffset() / density)
         if (progress == 0f) {
@@ -55,10 +52,8 @@ fun FuyaoScrollEdge(modifier: Modifier, topInset: Dp, scrollOffset: () -> Float,
                 drawLayer(mask)
             }
         } else {
-            // Older renderers use theme protection after overlap; they cannot blur live UI layers.
+            // RenderEffect is unavailable before API 31; retain the unobscured content.
             drawContent()
         }
-        drawRect(Brush.verticalGradient(listOf(surface.copy(alpha = .65f * progress), Color.Transparent),
-            endY = height), size = Size(size.width, height))
     }) { content() }
 }

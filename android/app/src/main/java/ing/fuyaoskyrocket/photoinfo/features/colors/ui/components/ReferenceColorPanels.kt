@@ -17,12 +17,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.features.colors.domain.model.SampledColor
-import ing.fuyaoskyrocket.photoinfo.features.colors.ui.theme.FuyaoDimensions
-import ing.fuyaoskyrocket.photoinfo.features.colors.ui.theme.FuyaoSpacing
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 import java.util.Locale
 
 @Composable
@@ -86,7 +84,7 @@ private fun ReferenceColorHeader(
         val shape = MaterialTheme.shapes.medium
         Box(
             modifier = Modifier
-                .size(FuyaoDimensions.colorSwatchSize)
+                .size(56.dp)
                 .clip(shape)
                 .background(color ?: MaterialTheme.colorScheme.surfaceContainerHighest)
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape),
@@ -99,15 +97,11 @@ private fun ReferenceColorHeader(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = subtitle,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }

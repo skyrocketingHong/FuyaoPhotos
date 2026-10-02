@@ -44,7 +44,7 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
     val next=stringResource(R.string.next_photo)
     val position=stringResource(R.string.photo_position,state.photoIndex+1,state.photos.size)
     val updating=state.rendering || editingText
-    PhotoPreviewStage(state.original ?: state.preview, modifier, expanded = bottomSafe, media = {
+    PhotoPreviewStage(modifier, expanded = bottomSafe, media = {
             Box(Modifier.matchParentSize()) {
                 val pager=rememberPagerState(initialPage=state.photoIndex) { state.photos.size }
                 fun move(delta: Int) {

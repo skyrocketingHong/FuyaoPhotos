@@ -37,7 +37,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.features.colors.domain.model.SampledColor
 import ing.fuyaoskyrocket.photoinfo.features.colors.presentation.model.PhotoViewportTransform
-import ing.fuyaoskyrocket.photoinfo.features.colors.ui.theme.FuyaoSpacing
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 
 private data class ImageViewRenderState(
     val bitmap: Bitmap,
@@ -160,7 +160,7 @@ internal fun EmptyImagePanel(modifier: Modifier = Modifier) {
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(64.dp),
             )
-            Spacer(modifier = Modifier.height(FuyaoSpacing.medium))
+            Spacer(modifier = Modifier.height(FuyaoSpacing.content))
             Text(
                 text = stringResource(R.string.cp_empty_image_title),
                 style = MaterialTheme.typography.titleMedium,

@@ -278,7 +278,7 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
             FuyaoAppBarAction(R.drawable.ic_plus,stringResource(R.string.add_lens),{ onEdit(draft()) },enabled=profiles.size<64&&productName!=null)
             TextButton(onClick={ onSave(profiles) },enabled=!duplicateBindings) { Text(stringResource(R.string.save_profiles)) }
         }) { padding ->
-        FuyaoAdaptivePage(padding,
+        FuyaoAdaptivePage(padding,contentUnderTopEdge=true,
             single = { modifier ->
                 Box(modifier,contentAlignment=Alignment.TopCenter) {
                     FuyaoPageList(Modifier.widthIn(max=FuyaoLayout.readable).fillMaxSize()) {

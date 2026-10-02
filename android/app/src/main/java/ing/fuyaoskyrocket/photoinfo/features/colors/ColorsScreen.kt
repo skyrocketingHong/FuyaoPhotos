@@ -14,7 +14,7 @@ import ing.fuyaoskyrocket.photoinfo.features.colors.ui.components.PhotoInfoSheet
 import ing.fuyaoskyrocket.photoinfo.presentation.OriginalPhoto
 import ing.fuyaoskyrocket.photoinfo.presentation.PhotoPageItem
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
-import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoAmbientBackdrop
+import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoWorkspaceCanvas
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorWorkspace
 import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoPreviewStage
 import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoPageNavigation
@@ -44,10 +44,8 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
         }
     }
     @Composable fun results(modifier: Modifier) {
-        ColorResultPanel(model.bitmap, model.sample, model.info, model.hdr,
-            { showingInfo = true }, model::setHDR, expandColorValues = true, modifier = modifier,
-            sourceProfile = photo?.details?.colorSpace ?: model.info?.colorSpaceName,
-            showPhotoActions = false)
+        ColorResultPanel(model.bitmap, model.sample, model.info, modifier = modifier,
+            sourceProfile = photo?.details?.colorSpace ?: model.info?.colorSpaceName)
     }
     @Composable fun photoTools() {
         ColorPhotoMenu(busy, model.info != null, onGallery, onFiles, onCamera) { showingInfo = true }
@@ -60,16 +58,16 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
     }
     FuyaoScaffold("", showTopBar = false) { padding ->
         if (photo == null) {
-            FuyaoPageColumn(Modifier.fillMaxSize().consumeWindowInsets(padding).imePadding(), topInset=padding.calculateTopPadding()) { overview() }
-        } else Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+            FuyaoFormPage(padding) { overview() }
+        } else PhotoWorkspaceCanvas(photo.bitmap, padding) {
             EditorWorkspace(
                 preview = { modifier, expanded ->
-                    PhotoPreviewStage(photo.bitmap, modifier, expanded, media = {
+                    PhotoPreviewStage(modifier, expanded, media = {
                         image(Modifier.fillMaxSize())
                         PhotoPageNavigation(photos.size, photoIndex, busy, onSelect)
                     }, actions = { photoTools() })
                 },
-                controls = { modifier -> results(modifier.padding(horizontal = FuyaoSpacing.content)) })
+                controls = { modifier -> results(modifier) })
         }
     }
     if (showingInfo) model.info?.let { PhotoInfoSheet(it, model.hdr) { showingInfo = false } }
