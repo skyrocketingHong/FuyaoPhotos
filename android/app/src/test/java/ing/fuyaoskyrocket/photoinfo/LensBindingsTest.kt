@@ -46,11 +46,13 @@ class LensBindingsTest {
     }
 
     @Test fun savedEditorStateKeepsHintsAndReadsPreviousVersion() {
-        val value = wide.copy(hardwareModel="local-model",stylePrefix="Leica")
+        val value = wide.copy(hardwareModel="local-model",stylePrefix="Leica",originalMegapixels=50.25)
         assertEquals(value, LensProfileFields.decode(LensProfileFields.encode(value)))
-        val v3 = LensProfileFields.encode(value).dropLast(1).toMutableList().apply { this[0]="lens-v3" }
-        assertEquals(value.copy(stylePrefix=""), LensProfileFields.decodeList(v3).single())
-        val v2 = LensProfileFields.encode(value).dropLast(2).toMutableList().apply { this[0]="lens-v2" }
-        assertEquals(value.copy(hardwareModel="",stylePrefix=""), LensProfileFields.decodeList(v2).single())
+        val v4 = LensProfileFields.encode(value).take(17).toMutableList().apply { this[0]="lens-v4" }
+        assertEquals(value.copy(originalMegapixels=null), LensProfileFields.decodeList(v4).single())
+        val v3 = LensProfileFields.encode(value).take(16).toMutableList().apply { this[0]="lens-v3" }
+        assertEquals(value.copy(stylePrefix="",originalMegapixels=null), LensProfileFields.decodeList(v3).single())
+        val v2 = LensProfileFields.encode(value).take(15).toMutableList().apply { this[0]="lens-v2" }
+        assertEquals(value.copy(hardwareModel="",stylePrefix="",originalMegapixels=null), LensProfileFields.decodeList(v2).single())
     }
 }

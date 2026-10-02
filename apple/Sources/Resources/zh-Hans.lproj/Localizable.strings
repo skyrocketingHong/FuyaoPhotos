@@ -610,3 +610,12 @@
 "lens.save.complete" = "镜头配置已保存";
 
 "lens.file.exported" = "配置已保存到文件";
+
+"lens.originalMegapixels" = "官方像素数";
+"lens.originalMegapixels.footer" = "填写设备官方参数页中此镜头的像素数，单位为 MP。未知时留空。";
+"lens.validation.originalMegapixels" = "像素数须大于 0 且不超过 1000 MP，也可留空。";
+"card.imageSize.menu" = "填入像素数";
+"card.imageSize.file" = "照片像素：%@";
+"card.imageSize.lens" = "镜头像素：%@";
+"card.imageSize.unavailable" = "镜头像素：未配置或未匹配";
+"card.imageSize.hint" = "照片像素按实际宽 × 高计算，镜头像素来自已配置的官方参数。";

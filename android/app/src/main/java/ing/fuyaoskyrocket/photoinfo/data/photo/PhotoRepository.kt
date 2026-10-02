@@ -190,7 +190,7 @@ class PhotoRepository(private val context: Context, kind: PhotoSessionKind = Pho
             coordinates = coordinates,
             report = report,
         )
-        return PhotoSource(file, width, height, orientation, info, tags, coordinates, media, details)
+        return PhotoSource(file, width, height, orientation, info, tags, coordinates, media, details, lens.originalMegapixels)
     }
 
     /** Keep the decoded color space and gainmap. EXIF orientation applies to both base and gainmap. */

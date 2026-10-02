@@ -19,6 +19,7 @@ data class LensProfileFile(val device: String, val exifModel: String, val lenses
                     put("name", lens.name); put("facing", lens.facing.lowercase(Locale.ROOT).ifBlank { "unspecified" })
                     lens.cameraId.takeIf(String::isNotBlank)?.let { put("id", it) }
                     lens.stylePrefix.takeIf(String::isNotBlank)?.let { put("stylePrefix", it) }
+                    lens.originalMegapixels?.let { put("originalMegapixels", it) }
                     put("equivalentMin", lens.equivalentMin); put("equivalentMax", lens.equivalentMax)
                     lens.physicalMin?.let { put("physicalMin", it) }; lens.physicalMax?.let { put("physicalMax", it) }
                     lens.zoomMin?.let { put("zoomMin", it) }; lens.zoomMax?.let { put("zoomMax", it) }
@@ -70,6 +71,7 @@ data class LensProfileFile(val device: String, val exifModel: String, val lenses
                 LensProfile(id = UUID.randomUUID().toString(), device = device, exifModel = model,
                     cameraId = if (item.isNull("id")) "" else PortableJson.string(item, "id"), hardwareModel = hardwareModel,
                     stylePrefix = if (item.isNull("stylePrefix")) "" else PortableJson.string(item, "stylePrefix"),
+                    originalMegapixels = optional(item, "originalMegapixels"),
                     name = PortableJson.string(item, "name"), facing = if (direction == "unspecified") "" else direction.uppercase(Locale.ROOT),
                     equivalentMin = number(item, "equivalentMin"), equivalentMax = number(item, "equivalentMax"),
                     physicalMin = optional(item, "physicalMin"), physicalMax = optional(item, "physicalMax"),

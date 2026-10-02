@@ -190,6 +190,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         state = state.copy(photoIndex = index, info = draft.info, style = draft.style, original = null, preview = null,
             previewCardBox = null, previewFieldRects = emptyMap(),
             photoDetails = draft.source.details,
+            originalMegapixels = draft.source.originalMegapixels,
             width = draft.source.width, height = draft.source.height, busy = true, importing = false, loadingPhoto = true,
             rendering = false, previewError = null, hasPhotoGps = draft.source.coordinates != null, locationStatus = LocationStatus.IDLE)
         updateMediaState(draft.source)

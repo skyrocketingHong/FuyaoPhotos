@@ -66,6 +66,8 @@ struct LensProfileEditor: View {
             identityField("lens.name", text: $session.draft.name)
             identityField("lens.stylePrefix", text: $session.draft.stylePrefix)
             Text("lens.stylePrefix.footer").font(.footnote).foregroundStyle(.secondary)
+            numberField("lens.originalMegapixels", text: $session.draft.originalMegapixels, unit: "MP")
+            Text("lens.originalMegapixels.footer").font(.footnote).foregroundStyle(.secondary)
             Picker("lens.facing", selection: $session.draft.facing) {
                 ForEach(LensProfile.Facing.allCases) { direction in
                     Text(LocalizedStringKey(direction.titleKey)).tag(direction)

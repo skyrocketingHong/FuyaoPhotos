@@ -259,6 +259,11 @@
   <string name="card_author_hint">Photographer credit.</string>
   <string name="card_lens_hint">Lens name.</string>
   <string name="card_pixels_hint">Resolution in megapixels.</string>
+  <string name="card_pixels_choose">Fill pixel count</string>
+  <string name="card_pixels_file">Photo pixels: %1$s</string>
+  <string name="card_pixels_lens">Lens pixels: %1$s</string>
+  <string name="card_pixels_lens_unavailable">Lens pixels unavailable</string>
+  <string name="card_pixels_lens_hint">Set official MP in the matching lens profile, then reopen the photo.</string>
   <string name="card_focal_hint">35 mm-equivalent focal length.</string>
   <string name="card_exposure_hint">Shutter time.</string>
   <string name="card_aperture_hint">Lens aperture.</string>
@@ -440,6 +445,9 @@
   <string name="lens_hardware_unbind">Remove link</string>
   <string name="lens_hardware_invalid">Could not link this lens. Scan again and check its facing, focal length and existing links.</string>
   <string name="lens_style_prefix">Style prefix</string>
+  <string name="lens_original_megapixels">Original pixel count (optional)</string>
+  <string name="lens_original_megapixels_hint">Enter the official lens pixel specification in MP. It can fill card text without changing the photo resolution.</string>
+  <string name="lens_original_megapixels_invalid">Enter a number greater than 0 and at most 1000, or leave empty.</string>
   <string name="lens_style_prefix_hint">Add this text before the style name on photo cards. Leave empty to use the original name.</string>
   <string name="lens_style_prefix_invalid">Use up to 64 characters without line breaks or control characters.</string>
   <string name="lens_import_configuration">Import configuration</string>

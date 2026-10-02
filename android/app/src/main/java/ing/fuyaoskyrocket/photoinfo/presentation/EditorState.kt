@@ -28,6 +28,7 @@ data class EditorState(
     val photoDetails: PhotoDetails? = null,
     val width: Int = 0,
     val height: Int = 0,
+    val originalMegapixels: Double? = null,
     val busy: Boolean = false,
     val exporting: Boolean = false,
     val rendering: Boolean = false,

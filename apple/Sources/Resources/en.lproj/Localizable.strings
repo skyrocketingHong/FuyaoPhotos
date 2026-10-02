@@ -611,3 +611,12 @@
 "lens.save.complete" = "Lens Configuration Saved";
 
 "lens.file.exported" = "Configuration Saved to File";
+
+"lens.originalMegapixels" = "Official Pixel Count";
+"lens.originalMegapixels.footer" = "Enter the pixel count listed for this lens on the device’s official specifications page, in MP. Leave empty if unknown.";
+"lens.validation.originalMegapixels" = "Enter a pixel count greater than 0 and no more than 1000 MP, or leave it empty.";
+"card.imageSize.menu" = "Fill Pixel Count";
+"card.imageSize.file" = "Photo Pixels: %@";
+"card.imageSize.lens" = "Lens Pixels: %@";
+"card.imageSize.unavailable" = "Lens Pixels: Not Configured or Matched";
+"card.imageSize.hint" = "Photo pixels use the actual width times height. Lens pixels use the configured official specifications.";

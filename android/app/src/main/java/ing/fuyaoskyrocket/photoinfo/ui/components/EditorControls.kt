@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
 import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
 import ing.fuyaoskyrocket.photoinfo.presentation.LocationStatus
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
@@ -289,6 +290,7 @@ private fun FieldControl(state: EditorState, field: FieldId, onField: (FieldId, 
     val canResolve = field == FieldId.LOCATION && state.hasPhotoGps && state.settings.resolvePhotoLocation
     val label = stringResource(fieldLabel(field))
     val retryLabel = stringResource(R.string.location_retry)
+    var pixelsMenu by remember(state.photos.getOrNull(state.photoIndex)?.id, field) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         OutlinedTextField(value = state.info[field], onValueChange = { onFieldEdited(); onField(field, it) },
             modifier = Modifier.fillMaxWidth().weight(1f)
@@ -301,6 +303,29 @@ private fun FieldControl(state: EditorState, field: FieldId, onField: (FieldId, 
                 else TextButton(onClick = onResolveLocation, enabled = !state.busy,
                     modifier = Modifier.semantics { contentDescription = retryLabel }) {
                     Text("GPS", style = MaterialTheme.typography.labelSmall)
+                }
+            } } else if (field == FieldId.IMAGE_SIZE) { {
+                Box {
+                    ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoIconButton(R.drawable.ic_more,
+                        stringResource(R.string.card_pixels_choose), { pixelsMenu = true }, enabled = !state.busy)
+                    DropdownMenu(pixelsMenu, onDismissRequest = { pixelsMenu = false }) {
+                        val filePixels = MetadataFormatting.megapixels(state.width, state.height)
+                        val lensPixels = state.originalMegapixels?.let { MetadataFormatting.number(it, 2) + "MP" }
+                        DropdownMenuItem(text = { Text(stringResource(R.string.card_pixels_file, filePixels)) },
+                            enabled = !state.busy && filePixels.isNotEmpty(), onClick = {
+                                pixelsMenu = false; onField(field, filePixels)
+                            })
+                        DropdownMenuItem(text = {
+                            Column {
+                                Text(if (lensPixels == null) stringResource(R.string.card_pixels_lens_unavailable)
+                                    else stringResource(R.string.card_pixels_lens, lensPixels))
+                                if (lensPixels == null) Text(stringResource(R.string.card_pixels_lens_hint),
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                        }, enabled = !state.busy && lensPixels != null, onClick = {
+                            pixelsMenu = false; lensPixels?.let { onField(field, it) }
+                        })
+                    }
                 }
             } } else null,
             keyboardOptions = KeyboardOptions(keyboardType = when (field) {

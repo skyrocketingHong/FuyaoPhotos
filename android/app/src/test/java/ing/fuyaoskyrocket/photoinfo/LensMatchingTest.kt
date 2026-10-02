@@ -57,6 +57,22 @@ class LensMatchingTest {
         assertEquals("", resolve(75.0, overlap).camera)
         assertEquals("75 MM", resolve(75.0, overlap).focalLength)
     }
+    @Test fun originalMegapixelsRequireAUniqueLensAndRemainIndependentOfTheFileCrop() {
+        val configured = main.copy(physicalMin=8.7, physicalMax=8.7, originalMegapixels=50.25)
+        val cropped = resolve(75.0, listOf(configured), physical=8.7)
+        assertEquals(50.25, cropped.originalMegapixels!!, 0.0)
+        assertEquals("12MP", ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting.megapixels(4000, 3000))
+        assertNull(resolve(75.0, listOf(configured), physical=4.0).originalMegapixels)
+        assertNull(resolve(75.0, listOf(configured, configured.copy(id="duplicate")), physical=8.7).originalMegapixels)
+        assertNull(resolve(23.0, listOf(main)).originalMegapixels)
+    }
+    @Test fun originalMegapixelsValidateAnOptionalPositiveFiniteSpecification() {
+        assertTrue(main.copy(originalMegapixels=1000.0).valid())
+        assertTrue(main.copy(originalMegapixels=.000001).valid())
+        for (value in listOf(0.0, -1.0, 1000.01, Double.NaN, Double.POSITIVE_INFINITY)) {
+            assertFalse(main.copy(originalMegapixels=value).valid())
+        }
+    }
     @Test fun aFrontCameraDoesNotTruncateRearCropCoverage() {
         val front = wide.copy(id="front", cameraId="3", name="FRONT", equivalentMin=21.0, equivalentMax=21.0, zoomMin=1.0, zoomMax=1.0, facing="FRONT")
         assertEquals("WIDE", resolve(22.0, lenses + front).camera)

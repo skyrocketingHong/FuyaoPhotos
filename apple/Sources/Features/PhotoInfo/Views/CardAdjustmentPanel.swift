@@ -54,6 +54,7 @@ struct CardAdjustmentPanel: View {
     @Bindable var selection: CardInspectorSelection
     @Binding var textEditingActive: Bool
     var expanded = false
+    @FocusState private var editingText: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -80,11 +81,14 @@ struct CardAdjustmentPanel: View {
                 .pickerStyle(.segmented)
                 HStack(alignment: .top, spacing: 12) {
                     ZStack {
-                        if geometry.size.height < 300 || dynamicTypeSize.isAccessibilitySize {
+                        if geometry.size.height < 320 || dynamicTypeSize.isAccessibilitySize {
                             Menu {
                                 if selection.mode == .information {
                                     Picker("card.information", selection: $selection.field) {
                                         ForEach(CardField.allCases) { Text(LocalizedStringKey($0.titleKey)).tag($0) }
+                                    }
+                                    if selection.field == .imageSize {
+                                        CardImageSizeMenu(document: document) { editingText = false; textEditingActive = false }.actions
                                     }
                                 } else {
                                     Picker("card.style", selection: $selection.adjustment) {
@@ -120,7 +124,7 @@ struct CardAdjustmentPanel: View {
 
                     MobileCardInspector(document: document, field: selection.field, adjustment: selection.adjustment,
                                         information: selection.mode == .information, selectionID: detailID,
-                                        textEditingActive: $textEditingActive)
+                                        textEditingActive: $textEditingActive, editingText: $editingText)
                         .frame(width: detailWidth)
                         .frame(maxHeight: .infinity)
                 }
@@ -148,7 +152,7 @@ private struct MobileCardInspector: View {
     @Binding var textEditingActive: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @FocusState private var editingText: Bool
+    @FocusState.Binding var editingText: Bool
 
     var body: some View {
         GeometryReader { geometry in
@@ -156,7 +160,7 @@ private struct MobileCardInspector: View {
             let compact = height < 240 || dynamicTypeSize.isAccessibilitySize
             let buttonHeight: CGFloat = compact ? 0 : 44
             let controlHeight: CGFloat = min(dynamicTypeSize.isAccessibilitySize ? 88 : 64, max(44, height - 24))
-            let descriptionHeight: CGFloat = compact ? 0 : 34
+            let descriptionHeight: CGFloat = compact ? 0 : 44
             let availablePreviewHeight = height - controlHeight - descriptionHeight - buttonHeight - 24
             let previewHeight = availablePreviewHeight >= 44
                 ? min(geometry.size.width / CardDetailPreview.referenceAspect, availablePreviewHeight) : 0
@@ -221,15 +225,22 @@ private struct MobileCardInspector: View {
             .frame(height: controlHeight)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
 
-            Text(LocalizedStringKey(information
-                 ? "card.field." + field.rawValue + ".hint"
-                 : "card.style." + adjustment.rawValue + ".hint"))
+            Group {
+                if information && field == .imageSize {
+                    CardImageSizeMenu(document: document) { editingText = false; textEditingActive = false }
+                } else {
+                    Text(LocalizedStringKey(information
+                         ? "card.field." + field.rawValue + ".hint"
+                         : "card.style." + adjustment.rawValue + ".hint"))
+                }
+            }
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: descriptionHeight, alignment: .topLeading)
                 .clipped()
+                .accessibilityHidden(compact)
                 .id(selectionID)
                 .transition(.opacity)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)

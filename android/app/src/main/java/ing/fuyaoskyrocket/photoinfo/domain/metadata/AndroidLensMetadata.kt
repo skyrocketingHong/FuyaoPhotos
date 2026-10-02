@@ -5,7 +5,8 @@ import kotlin.math.ceil
 
 /** EXIF identifies the photographed device; Camera2 IDs are only local hardware bindings. */
 object AndroidLensMetadata {
-    data class Lens(val camera: String, val focalLength: String, val deviceName: String = "", val stylePrefix: String = "")
+    data class Lens(val camera: String, val focalLength: String, val deviceName: String = "", val stylePrefix: String = "",
+        val originalMegapixels: Double? = null)
     fun resolve(make: String, model: String, lensModel: String, equivalentMm: Double,
         fallbackMainMm: Double? = null, profiles: List<LensProfile> = emptyList(), physicalMm: Double = 0.0,
         appleCameraType: Int? = null): Lens {
@@ -30,13 +31,14 @@ object AndroidLensMetadata {
         val namedCamera = AppleCameraNames.resolve(make, model, lensModel, appleCameraType)
         val camera = match?.first?.name ?: namedCamera?.name ?: AppleCameraNames.displayLensName(lensModel, model)
         val stylePrefix = match?.first?.stylePrefix.orEmpty()
-        if (focal.isEmpty()) return Lens(camera, "", product, stylePrefix)
+        val originalMegapixels = match?.first?.originalMegapixels
+        if (focal.isEmpty()) return Lens(camera, "", product, stylePrefix, originalMegapixels)
         val explicitZoom = Regex("(?i)(?:^|[\\s(])([0-9]+(?:\\.[0-9]+)?)\\s*[x×](?:$|[\\s)])")
             .find(lensModel)?.groupValues?.get(1)?.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0 }
         val base = fallbackMainMm?.takeIf { !isFront && it.isFinite() && it in 1.0..200.0 }
         val zoom = explicitZoom ?: match?.first?.zoomFor(mm) ?: base?.let { mm / it } ?: namedCamera?.zoomAt(mm)
         return Lens(camera,
-            if (zoom == null) focal else "$focal (${MetadataFormatting.number(zoom, 1)}X)", product, stylePrefix)
+            if (zoom == null) focal else "$focal (${MetadataFormatting.number(zoom, 1)}X)", product, stylePrefix, originalMegapixels)
     }
 
     private fun covers(p: LensProfile, mm: Double, peers: List<LensProfile>): Boolean {

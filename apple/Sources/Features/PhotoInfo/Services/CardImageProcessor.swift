@@ -27,6 +27,11 @@ nonisolated struct CardPhotoMetadata: Sendable {
     let kind: PhotoMediaKind
     let fileSize: Int
     var nativeEditingData = false
+    var lensMegapixels: Double?
+
+    var lensImageSize: String? {
+        lensMegapixels.map { CardImageProcessor.number($0, decimals: 2) + "MP" }
+    }
 }
 
 actor CardImageProcessor {
@@ -87,7 +92,8 @@ actor CardImageProcessor {
         return CardPhotoMetadata(card: card, width: Int(image.extent.width), height: Int(image.extent.height),
                                  latitude: latitude, longitude: longitude, hdr: hdr, hasPortraitData: portrait, kind: inspection.kind,
                                  fileSize: (try url.resourceValues(forKeys: [.fileSizeKey])).fileSize ?? 0,
-                                 nativeEditingData: nativeEditingData)
+                                 nativeEditingData: nativeEditingData,
+                                 lensMegapixels: lens?.profile.originalMegapixels)
     }
 
     func preview(_ url: URL, card: PhotoCard, hdr: Bool, maxDimension: CGFloat = 1800) throws -> CGImage {

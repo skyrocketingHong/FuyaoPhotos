@@ -21,6 +21,7 @@ nonisolated struct LensProfileFile: Codable, Equatable, Sendable {
         var digitalZoomMax: Double?
         var id: String?
         var stylePrefix: String?
+        var originalMegapixels: Double?
     }
 
     init(profiles: [LensProfile]) throws {
@@ -34,7 +35,8 @@ nonisolated struct LensProfileFile: Codable, Equatable, Sendable {
         lenses = profiles.map { Lens(name: $0.name, facing: $0.facing,
             equivalentMin: $0.equivalentMin, equivalentMax: $0.equivalentMax,
             physicalMin: $0.physicalMin, physicalMax: $0.physicalMax,
-            zoomMin: $0.zoomMin, zoomMax: $0.zoomMax, digitalZoomMax: $0.digitalZoomMax, id: $0.cameraID, stylePrefix: $0.stylePrefix) }
+            zoomMin: $0.zoomMin, zoomMax: $0.zoomMax, digitalZoomMax: $0.digitalZoomMax, id: $0.cameraID,
+            stylePrefix: $0.stylePrefix, originalMegapixels: $0.originalMegapixels) }
     }
 
     func profiles() throws -> [LensProfile] {
@@ -44,7 +46,8 @@ nonisolated struct LensProfileFile: Codable, Equatable, Sendable {
         let values = lenses.map { LensProfile(device: device, exifModel: exifModel, name: $0.name,
             facing: $0.facing, equivalentMin: $0.equivalentMin, equivalentMax: $0.equivalentMax,
             physicalMin: $0.physicalMin, physicalMax: $0.physicalMax, zoomMin: $0.zoomMin,
-            zoomMax: $0.zoomMax, digitalZoomMax: $0.digitalZoomMax, cameraID: $0.id, hardwareModel: hardwareModel, stylePrefix: $0.stylePrefix) }
+            zoomMax: $0.zoomMax, digitalZoomMax: $0.digitalZoomMax, cameraID: $0.id, hardwareModel: hardwareModel,
+            stylePrefix: $0.stylePrefix, originalMegapixels: $0.originalMegapixels) }
         guard values.allSatisfy({ $0.isValid && Self.validText($0.name) }) else { throw LensProfileFileError.invalid }
         return values
     }

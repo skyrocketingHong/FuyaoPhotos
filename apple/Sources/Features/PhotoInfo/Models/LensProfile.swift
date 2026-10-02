@@ -17,6 +17,7 @@ nonisolated struct LensProfile: Codable, Equatable, Identifiable, Sendable {
     var hardwareDevice: String?
     var hardwareModel: String?
     var stylePrefix: String?
+    var originalMegapixels: Double?
 
     enum Facing: String, Codable, CaseIterable, Identifiable, Sendable {
         case unspecified, back, front, external
@@ -27,6 +28,8 @@ nonisolated struct LensProfile: Codable, Equatable, Identifiable, Sendable {
     var isValid: Bool {
         guard (stylePrefix?.count ?? 0) <= 64,
               stylePrefix?.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) != false else { return false }
+        if let originalMegapixels,
+           !originalMegapixels.isFinite || originalMegapixels <= 0 || originalMegapixels > 1_000 { return false }
         guard [cameraID, hardwareDevice, hardwareModel].compactMap({ $0 }).allSatisfy({ value in
             value.count <= 512 && value.unicodeScalars.allSatisfy { !CharacterSet.controlCharacters.contains($0) }
         }), (cameraID?.count ?? 0) <= 256 else { return false }

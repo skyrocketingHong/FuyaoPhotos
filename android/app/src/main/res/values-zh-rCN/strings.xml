@@ -259,6 +259,11 @@
   <string name="card_author_hint">摄影者署名。</string>
   <string name="card_lens_hint">镜头名称。</string>
   <string name="card_pixels_hint">以 MP 表示像素数量。</string>
+  <string name="card_pixels_choose">填入像素数</string>
+  <string name="card_pixels_file">照片像素：%1$s</string>
+  <string name="card_pixels_lens">镜头像素：%1$s</string>
+  <string name="card_pixels_lens_unavailable">镜头像素不可用</string>
+  <string name="card_pixels_lens_hint">在匹配的镜头配置中填写官方标称像素后，重新打开照片。</string>
   <string name="card_focal_hint">35 mm 等效焦距。</string>
   <string name="card_exposure_hint">快门时间。</string>
   <string name="card_aperture_hint">镜头光圈。</string>
@@ -440,6 +445,9 @@
   <string name="lens_hardware_unbind">解除绑定</string>
   <string name="lens_hardware_invalid">无法绑定此镜头。请重新扫描，并检查朝向、焦距及已有绑定。</string>
   <string name="lens_style_prefix">摄影风格前缀</string>
+  <string name="lens_original_megapixels">原始像素（可选）</string>
+  <string name="lens_original_megapixels_hint">以 MP 填写官方标称的镜头像素，可填入卡片文字，不改变照片实际分辨率。</string>
+  <string name="lens_original_megapixels_invalid">填写大于 0 且不超过 1000 的数字，或留空。</string>
   <string name="lens_style_prefix_hint">在卡片的摄影风格名称前添加此文字，留空则使用原名称。</string>
   <string name="lens_style_prefix_invalid">前缀最多 64 个字符，不使用换行或控制字符。</string>
   <string name="lens_import_configuration">导入配置</string>

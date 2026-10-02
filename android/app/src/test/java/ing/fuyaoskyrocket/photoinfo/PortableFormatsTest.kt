@@ -109,6 +109,27 @@ class PortableFormatsTest {
         }
     }
 
+    @Test fun officialLensMegapixelsUseTheSharedFixtureAndRoundTripWithLegacyFiles() {
+        val file = LensProfileFile.decode(File(root(), "shared/fixtures/lenses-v1-with-pixels.json").readBytes())
+        assertEquals(listOf(50.25, 48.0), file.lenses.map { it.originalMegapixels })
+        assertEquals(listOf(50.25, 48.0), LensProfileFile.decode(file.encoded()).lenses.map { it.originalMegapixels })
+        val legacy = LensProfileFile.decode(File(root(), "shared/fixtures/lenses-v1.json").readBytes())
+        assertTrue(legacy.lenses.all { it.originalMegapixels == null })
+        val nullable = JSONObject(file.encoded().toString(Charsets.UTF_8)).apply {
+            getJSONArray("lenses").getJSONObject(0).put("originalMegapixels", JSONObject.NULL)
+        }
+        assertNull(LensProfileFile.decode(nullable.toString().toByteArray()).lenses.first().originalMegapixels)
+    }
+
+    @Test fun originalMegapixelJsonRejectsCoercionAndInvalidBounds() {
+        val text = File(root(), "shared/fixtures/lenses-v1-with-pixels.json").readText()
+        for (invalid in listOf("\"50.25\"", "true", "false", "0", "-1", "1000.01", "1e309")) {
+            val changed = text.replace("\"originalMegapixels\":50.25", "\"originalMegapixels\":$invalid")
+            assertNotEquals(text, changed)
+            assertThrows(Exception::class.java) { LensProfileFile.decode(changed.toByteArray()) }
+        }
+    }
+
     @Test fun packageStreamsRoundTripAndRejectsCorruption() {
         val directory = kotlin.io.path.createTempDirectory("fuyao-package-test").toFile()
         try {

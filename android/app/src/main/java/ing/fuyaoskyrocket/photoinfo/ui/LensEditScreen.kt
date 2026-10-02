@@ -32,6 +32,7 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
     var digitalMax by rememberSaveable(lens.id) { mutableStateOf(number(lens.digitalZoomMax)) }
     var name by rememberSaveable(lens.id) { mutableStateOf(lens.name) }
     var stylePrefix by rememberSaveable(lens.id) { mutableStateOf(lens.stylePrefix) }
+    var originalMegapixels by rememberSaveable(lens.id) { mutableStateOf(number(lens.originalMegapixels)) }
     var min by rememberSaveable(lens.id) { mutableStateOf(number(lens.equivalentMin)) }
     var max by rememberSaveable(lens.id) { mutableStateOf(number(lens.equivalentMax)) }
     var zoomMin by rememberSaveable(lens.id) { mutableStateOf(number(lens.zoomMin)) }
@@ -40,14 +41,14 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
     var physicalMax by rememberSaveable(lens.id) { mutableStateOf(number(lens.physicalMax)) }
     val draft=lens.copy(device=device.trim(),name=name.trim(),equivalentMin=min.toDoubleOrNull() ?: 0.0,equivalentMax=max.toDoubleOrNull() ?: 0.0,
         zoomMin=zoomMin.toDoubleOrNull(),zoomMax=zoomMax.toDoubleOrNull(),physicalMin=physicalMin.toDoubleOrNull(),physicalMax=physicalMax.toDoubleOrNull(),
-        exifModel=exifModel.trim(),digitalZoomMax=digitalMax.toDoubleOrNull(),stylePrefix=stylePrefix.trim(),
+        exifModel=exifModel.trim(),digitalZoomMax=digitalMax.toDoubleOrNull(),stylePrefix=stylePrefix.trim(),originalMegapixels=originalMegapixels.toDoubleOrNull(),
         hardwareDevice=if(lens.valid() && !lens.acceptsExif(exifModel)) "" else lens.hardwareDevice,
         hardwareModel=if(lens.valid() && !lens.acceptsExif(exifModel)) "" else lens.hardwareModel)
-    val numeric=listOf(zoomMin,zoomMax,physicalMin,physicalMax,digitalMax).all { it.isBlank() || it.toDoubleOrNull()?.isFinite()==true }
+    val numeric=listOf(zoomMin,zoomMax,physicalMin,physicalMax,digitalMax,originalMegapixels).all { it.isBlank() || it.toDoubleOrNull()?.isFinite()==true }
     val valid=draft.valid()&&numeric
     val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
-        listOf(lens.device, lens.name, number(lens.equivalentMin), number(lens.equivalentMax), number(lens.zoomMin), number(lens.zoomMax), number(lens.physicalMin), number(lens.physicalMax), lens.exifModel, number(lens.digitalZoomMax), lens.stylePrefix),
-        listOf(device, name, min, max, zoomMin, zoomMax, physicalMin, physicalMax, exifModel, digitalMax, stylePrefix), (2..7).toSet() + 9)
+        listOf(lens.device, lens.name, number(lens.equivalentMin), number(lens.equivalentMax), number(lens.zoomMin), number(lens.zoomMax), number(lens.physicalMin), number(lens.physicalMax), lens.exifModel, number(lens.digitalZoomMax), lens.stylePrefix, number(lens.originalMegapixels)),
+        listOf(device, name, min, max, zoomMin, zoomMax, physicalMin, physicalMax, exifModel, digitalMax, stylePrefix, originalMegapixels), (2..7).toSet() + setOf(9, 11))
     val identityContent: @Composable ColumnScope.() -> Unit = {
             Text(stringResource(R.string.apply_lens_hint), style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
             SectionHeading(stringResource(R.string.lens_identity),stringResource(R.string.profile_match_hint))
@@ -64,6 +65,12 @@ fun LensEditScreen(lens:LensProfile,onBack:()->Unit,onSave:(LensProfile)->Unit,c
                 if(lens.hardwareDevice == ing.fuyaoskyrocket.photoinfo.data.camera.LocalCameraDevice.hardwareKey) R.string.bound_camera_id else R.string.lens_hardware_id_hint,
                 lens.cameraId),style=MaterialTheme.typography.bodySmall)
             OutlinedTextField(name,{ if(it.length<=256)name=it },Modifier.fillMaxWidth(),label={ Text(stringResource(R.string.profile_name)) },maxLines=3)
+            val megapixelsInvalid = originalMegapixels.isNotBlank() && originalMegapixels.toDoubleOrNull()?.let { it.isFinite() && it > 0 && it <= 1000 } != true
+            OutlinedTextField(originalMegapixels,{ if(it.length<=32)originalMegapixels=it },Modifier.fillMaxWidth(),
+                label={ Text(stringResource(R.string.lens_original_megapixels)) },singleLine=true,
+                suffix={ Text("MP") },isError=megapixelsInvalid,
+                keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),
+                supportingText={ Text(stringResource(if(megapixelsInvalid) R.string.lens_original_megapixels_invalid else R.string.lens_original_megapixels_hint)) })
             val prefixInvalid = stylePrefix.length > 64 || stylePrefix.any(Char::isISOControl)
             OutlinedTextField(stylePrefix,{ if(it.length<=64)stylePrefix=it },Modifier.fillMaxWidth(),
                 label={ Text(stringResource(R.string.lens_style_prefix)) },singleLine=true,

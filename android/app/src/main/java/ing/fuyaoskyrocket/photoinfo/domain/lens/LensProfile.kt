@@ -20,11 +20,13 @@ data class LensProfile(
     val facing: String = "",
     val hardwareModel: String = "",
     val stylePrefix: String = "",
+    val originalMegapixels: Double? = null,
 ) {
     fun valid(): Boolean = id.isNotBlank() && device.isNotBlank() && device.length <= 256 && name.isNotBlank() && name.length <= 256 &&
         exifModel.isNotBlank() && exifModel.length <= 256 && cameraId.length <= 256 && hardwareDevice.length <= 512 && hardwareModel.length <= 512 &&
         listOf(cameraId, hardwareDevice, hardwareModel).none { value -> value.any(Char::isISOControl) } &&
         stylePrefix.length <= 64 && stylePrefix.none(Char::isISOControl) &&
+        (originalMegapixels == null || (originalMegapixels.isFinite() && originalMegapixels > 0 && originalMegapixels <= 1000)) &&
         facing in listOf("", "BACK", "FRONT", "EXTERNAL") &&
         range(equivalentMin, equivalentMax, 2000.0) && optionalRange(zoomMin, zoomMax, 200.0) && optionalRange(physicalMin, physicalMax, 1000.0) &&
         (equivalentMin != equivalentMax || zoomMin == null || zoomMin == zoomMax) &&

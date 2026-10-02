@@ -7,6 +7,7 @@ nonisolated struct LensProfileDraft: Equatable, Identifiable {
     var exifModel = ""
     var name = ""
     var stylePrefix = ""
+    var originalMegapixels = ""
     var facing = LensProfile.Facing.unspecified
     var equivalentMin = ""
     var equivalentMax = ""
@@ -25,6 +26,9 @@ nonisolated struct LensProfileDraft: Equatable, Identifiable {
         guard let profile else { return }
         device = profile.device; exifModel = profile.exifModel; name = profile.name; facing = profile.facing
         stylePrefix = profile.stylePrefix ?? ""
+        originalMegapixels = profile.originalMegapixels.map {
+            $0.formatted(.number.grouping(.never).precision(.significantDigits(1...17)))
+        } ?? ""
         equivalentMin = Self.number(profile.equivalentMin); equivalentMax = Self.number(profile.equivalentMax)
         physicalMin = Self.number(profile.physicalMin); physicalMax = Self.number(profile.physicalMax)
         zoomMin = Self.number(profile.zoomMin); zoomMax = Self.number(profile.zoomMax)
@@ -42,13 +46,17 @@ nonisolated struct LensProfileDraft: Equatable, Identifiable {
                            zoomMin: Self.parse(zoomMin), zoomMax: Self.parse(zoomMax), digitalZoomMax: Self.parse(digitalZoomMax),
                            cameraID: cameraID, hardwareDevice: hardwareDevice, hardwareModel: hardwareModel,
                            stylePrefix: stylePrefix.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil
-                                : stylePrefix.trimmingCharacters(in: .whitespacesAndNewlines))
+                                : stylePrefix.trimmingCharacters(in: .whitespacesAndNewlines),
+                           originalMegapixels: Self.parse(originalMegapixels))
     }
 
     var validationKey: String? {
         if [device, exifModel, name].contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { return "lens.validation.identity" }
         if [device, exifModel, name].contains(where: { $0.count > 256 }) { return "lens.validation.length" }
         if stylePrefix.count > 64 || stylePrefix.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) { return "lens.validation.stylePrefix" }
+        if !originalMegapixels.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            guard let value = Self.parse(originalMegapixels), value > 0, value <= 1_000 else { return "lens.validation.originalMegapixels" }
+        }
         if !Self.validRange(equivalentMin, equivalentMax, limit: 2_000, optional: false) { return "lens.validation.equivalent" }
         if !Self.validRange(physicalMin, physicalMax, limit: 1_000) { return "lens.validation.physical" }
         if !Self.validRange(zoomMin, zoomMax, limit: 200) { return "lens.validation.zoom" }

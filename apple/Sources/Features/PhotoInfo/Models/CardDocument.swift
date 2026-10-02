@@ -40,6 +40,15 @@ import CoreLocation
         card[.location] = value
     }
 
+    func useFileImageSize() {
+        card[.imageSize] = metadata.card[.imageSize]
+    }
+
+    func useLensImageSize() {
+        guard let value = metadata.lensImageSize else { return }
+        card[.imageSize] = value
+    }
+
     func applyMetadataUpdate(source: URL, metadata: CardPhotoMetadata) {
         let keepsCoordinates = self.metadata.latitude != nil && self.metadata.longitude != nil
             && self.metadata.latitude == metadata.latitude && self.metadata.longitude == metadata.longitude

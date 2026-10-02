@@ -30,6 +30,9 @@ struct RegularCardInspector: View {
                                     .labelsHidden().textFieldStyle(.roundedBorder)
                                     .lineLimit(1...5)
                                     .focused($focusedField, equals: field)
+                                if field == .imageSize {
+                                    CardImageSizeMenu(document: document) { focusedField = nil; textEditingActive = false }
+                                }
                             }
                         }
                     }
