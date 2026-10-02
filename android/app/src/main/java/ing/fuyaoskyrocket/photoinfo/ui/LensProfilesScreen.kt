@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.content.pm.PackageManager
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -15,7 +16,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.stateDescription
@@ -36,6 +37,7 @@ import ing.fuyaoskyrocket.photoinfo.data.camera.*
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfile
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfileFields
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensBindings
+import ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 import java.util.UUID
@@ -101,128 +103,160 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
         }
     }
     val inventoryItems: LazyListScope.() -> Unit = {
-                item { ing.fuyaoskyrocket.photoinfo.ui.components.LensProfileTransferControls(profiles) {
+        item(key = "configuration-transfer") {
+            FuyaoFormSection(stringResource(R.string.lens_transfer_title), stringResource(R.string.lens_file_description)) {
+                ing.fuyaoskyrocket.photoinfo.ui.components.LensProfileTransferControls(profiles) {
                     profiles = reconcile(it)
                     if (inventory == null) permission.launch(Manifest.permission.CAMERA)
-                } }
-                item {
-                    SectionHeading(stringResource(R.string.scan_lenses),stringResource(R.string.inventory_hint))
-                    OutlinedButton(onClick={ permission.launch(Manifest.permission.CAMERA) },enabled=!scanning) { Text(stringResource(R.string.scan_lenses)) }
-                    if(scanning)LinearProgressIndicator(Modifier.fillMaxWidth())
-                    if(denied) {
-                        Text(stringResource(R.string.camera_permission_denied),style=MaterialTheme.typography.bodySmall)
-                        TextButton(onClick={ context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:${context.packageName}"))) }) {
-                            Text(stringResource(R.string.open_app_settings))
-                        }
-                    }
-                    if(failed)Text(stringResource(R.string.inventory_failed),color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
                 }
+            }
+        }
+        item(key = "hardware-inventory") {
+            FuyaoFormSection(stringResource(R.string.scan_lenses), stringResource(R.string.inventory_hint)) {
+                OutlinedButton(onClick = { permission.launch(Manifest.permission.CAMERA) }, enabled = !scanning,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.scan_lenses)) }
+                if (scanning) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (denied) {
+                    Text(stringResource(R.string.camera_permission_denied), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:${context.packageName}"))) }) { Text(stringResource(R.string.open_app_settings)) }
+                }
+                if (failed) Text(stringResource(R.string.inventory_failed), color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall)
                 inventory?.let { result ->
                     val unconfigured = LensBindings.unconfigured(result.lenses.map { it.id }, profiles, hardwareDevice).toSet()
-                    item {
-                        Text(stringResource(R.string.inventory_count,result.lenses.size,result.logicalCount),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(stringResource(R.string.inventory_configured,result.lenses.size-unconfigured.size,unconfigured.size),style=MaterialTheme.typography.bodySmall)
-                        if(result.incomplete)Text(stringResource(R.string.inventory_incomplete),style=MaterialTheme.typography.bodySmall)
-                        if(unconfigured.isEmpty())Text(stringResource(R.string.all_lenses_configured),style=MaterialTheme.typography.bodyMedium)
+                    Column(verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.small)) {
+                        Text(stringResource(R.string.inventory_count, result.lenses.size, result.logicalCount),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.inventory_configured, result.lenses.size - unconfigured.size, unconfigured.size),
+                            style = MaterialTheme.typography.bodySmall)
+                        if (result.incomplete) Text(stringResource(R.string.inventory_incomplete), style = MaterialTheme.typography.bodySmall)
+                        if (unconfigured.isEmpty()) Text(stringResource(R.string.all_lenses_configured), style = MaterialTheme.typography.bodyMedium)
                     }
-                    items(result.lenses.filter { it.id in unconfigured },key={ "hardware-${it.id}" }) { hardware ->
-                        var menu by remember(hardware.id) { mutableStateOf(false) }
-                        Row(Modifier.fillMaxWidth().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                                Text(stringResource(R.string.hardware_identity,stringResource(when(hardware.facing) { "FRONT"->R.string.lens_front;"BACK"->R.string.lens_back;else->R.string.lens_external }),hardware.id),style=MaterialTheme.typography.titleSmall)
-                                Text(stringResource(R.string.hardware_values,hardware.physicalFocals.joinToString(),hardware.apertures.joinToString()),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Box {
-                                FuyaoIconButton(R.drawable.ic_plus,stringResource(R.string.configure_lens),{ menu=true },enabled=productName!=null)
-                                DropdownMenu(menu,onDismissRequest={ menu=false }) {
-                                    DropdownMenuItem(text={ Text(stringResource(R.string.add_lens)) },enabled=profiles.size<64,
-                                        onClick={ menu=false;onEdit(draft(hardware)) })
-                                    profiles.filter { it.hardwareDevice.isBlank() && LensBindings.isCurrent(it, hardwareDevice, aliases) }.forEach { profile ->
-                                        DropdownMenuItem(text={ Text(stringResource(R.string.link_existing_lens,profile.name)) },
-                                            enabled = LensBindings.compatible(profile, hardware, false), onClick={
-                                            menu=false
-                                            try { profiles = LensBindings.bind(profiles, profile.id, hardware.id, result.lenses, hardwareDevice) }
-                                            catch (_: IllegalArgumentException) { bindingFailed = true }
-                                        })
+                    if (unconfigured.isNotEmpty()) Column {
+                        result.lenses.filter { it.id in unconfigured }.forEach { hardware ->
+                            key(hardware.id) {
+                                HorizontalDivider()
+                                var menu by remember(hardware.id) { mutableStateOf(false) }
+                                Row(Modifier.fillMaxWidth().padding(vertical = FuyaoSpacing.small),
+                                    horizontalArrangement = Arrangement.spacedBy(FuyaoSpacing.compact), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.xs)) {
+                                        Text(stringResource(R.string.hardware_identity, stringResource(when (hardware.facing) {
+                                            "FRONT" -> R.string.lens_front; "BACK" -> R.string.lens_back; else -> R.string.lens_external
+                                        }), hardware.id), style = MaterialTheme.typography.titleSmall)
+                                        Text(stringResource(R.string.hardware_values,
+                                            hardware.physicalFocals.joinToString { MetadataFormatting.number(it, 3) },
+                                            hardware.apertures.joinToString { MetadataFormatting.number(it, 2) }),
+                                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Box {
+                                        FuyaoIconButton(R.drawable.ic_plus, stringResource(R.string.configure_lens), { menu = true }, enabled = productName != null)
+                                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                                            DropdownMenuItem(text = { Text(stringResource(R.string.add_lens)) }, enabled = profiles.size < 64,
+                                                onClick = { menu = false; onEdit(draft(hardware)) })
+                                            profiles.filter { it.hardwareDevice.isBlank() && LensBindings.isCurrent(it, hardwareDevice, aliases) }.forEach { profile ->
+                                                DropdownMenuItem(text = { Text(stringResource(R.string.link_existing_lens, profile.name)) },
+                                                    enabled = LensBindings.compatible(profile, hardware, false), onClick = {
+                                                        menu = false
+                                                        try { profiles = LensBindings.bind(profiles, profile.id, hardware.id, result.lenses, hardwareDevice) }
+                                                        catch (_: IllegalArgumentException) { bindingFailed = true }
+                                                    })
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
     }
     val savedItems: LazyListScope.() -> Unit = {
-                item { HorizontalDivider();Spacer(Modifier.height(12.dp));SectionHeading(stringResource(R.string.saved_profiles)) }
-                if(duplicateBindings)item { Text(stringResource(R.string.duplicate_lens_binding),color=MaterialTheme.colorScheme.error) }
-                if(profiles.isEmpty())item {
-                    Text(stringResource(R.string.no_lens_profiles),style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick={ onEdit(draft()) },enabled=productName!=null) { Text(stringResource(R.string.add_lens)) }
-                }
-                LensBindings.groups(profiles, hardwareDevice, aliases).forEach { group ->
-                    val model = group.model
-                    val lenses = group.profiles
-                    val expanded = model in expandedDevices
-                    item(key = "device-$model") {
-                        val expandedLabel = stringResource(if (expanded) R.string.lens_group_expanded else R.string.lens_group_collapsed)
-                        val rotation by animateFloatAsState(if (expanded) 90f else 0f,
-                            animationSpec = if (motionEnabled) tween(180) else snap(), label = "lensDisclosure")
+        if (profiles.isEmpty()) item(key = "profiles-empty") {
+            FuyaoFormSection(stringResource(R.string.saved_profiles)) {
+                Text(stringResource(R.string.no_lens_profiles), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = { onEdit(draft()) }, enabled = productName != null) { Text(stringResource(R.string.add_lens)) }
+            }
+        }
+        LensBindings.groups(profiles, hardwareDevice, aliases).forEachIndexed { groupIndex, group ->
+            val model = group.model
+            val lenses = group.profiles
+            val expanded = model in expandedDevices
+            item(key = "device-$model") {
+                val expandedLabel = stringResource(if (expanded) R.string.lens_group_expanded else R.string.lens_group_collapsed)
+                val rotation by animateFloatAsState(if (expanded) 90f else 0f,
+                    animationSpec = if (motionEnabled) tween(180) else snap(), label = "lensDisclosure")
+                FuyaoFormSection(title = if (groupIndex == 0) stringResource(R.string.saved_profiles) else null,
+                    modifier = if (motionEnabled) Modifier.animateItem(placementSpec = tween(200)) else Modifier,
+                    contentPadding = PaddingValues(horizontal = FuyaoSpacing.xs, vertical = FuyaoSpacing.small), verticalSpacing = 0.dp) {
+                    Column(if (motionEnabled) Modifier.animateContentSize(tween(200)) else Modifier) {
+                        if (groupIndex == 0 && duplicateBindings) Text(stringResource(R.string.duplicate_lens_binding),
+                            Modifier.padding(horizontal = 16.dp, vertical = FuyaoSpacing.small), color = MaterialTheme.colorScheme.error)
                         ListItem(modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) {
                             expandedDevices = if (expanded) expandedDevices - model else expandedDevices + model
                         }.semantics { heading(); stateDescription = expandedLabel },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             headlineContent = { Text(group.device, style = MaterialTheme.typography.titleMedium) },
                             overlineContent = if (group.isCurrent) { { Text(stringResource(R.string.lens_group_current)) } } else null,
-                            supportingContent = { Text(if (lenses.size == 1) stringResource(R.string.lens_group_one) else stringResource(R.string.lens_group_count, lenses.size)) },
-                            trailingContent = { Icon(painterResource(R.drawable.ic_chevron), contentDescription = null, modifier = Modifier.rotate(rotation)) })
-                    }
-                    if (expanded) {
-                        item(key = "device-details-$model") {
-                            Column(Modifier.fillMaxWidth().then(if (motionEnabled) Modifier.animateItem(
-                                fadeInSpec = tween(160), placementSpec = tween(200), fadeOutSpec = tween(120)) else Modifier)
-                                .padding(horizontal = 16.dp)) {
+                            supportingContent = { Text(if (lenses.size == 1) stringResource(R.string.lens_group_one)
+                                else stringResource(R.string.lens_group_count, lenses.size)) },
+                            trailingContent = { Icon(painterResource(R.drawable.ic_chevron), null, Modifier.rotate(rotation)) })
+                        if (expanded) {
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.small)) {
                                 if (LensProfile.normalize(group.device) != model) Text(lenses.first().exifModel,
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 if (!group.isCurrent) TextButton(onClick = {
-                                    profiles = reconcile(profiles.map { if (it.acceptsExif(model)) it.copy(hardwareModel=hardwareDevice,hardwareDevice="") else it })
+                                    profiles = reconcile(profiles.map { if (it.acceptsExif(model)) it.copy(hardwareModel = hardwareDevice, hardwareDevice = "") else it })
                                     if (inventory == null) permission.launch(Manifest.permission.CAMERA)
-                                }, contentPadding = PaddingValues(vertical = 8.dp)) { Text(stringResource(R.string.lens_hardware_this_device)) }
+                                }, contentPadding = PaddingValues(vertical = FuyaoSpacing.small)) { Text(stringResource(R.string.lens_hardware_this_device)) }
                             }
-                        }
-                        items(lenses,key={ "lens-${it.id}" }) { profile ->
-                            ListItem(
-                                modifier = Modifier.fillMaxWidth().then(if (motionEnabled) Modifier.animateItem(
-                                    fadeInSpec = tween(160), placementSpec = tween(200), fadeOutSpec = tween(120)) else Modifier),
-                                headlineContent = { Text(profile.name, style = MaterialTheme.typography.titleMedium) },
-                                supportingContent = {
-                                    Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
-                                        val low = ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting.number(profile.equivalentMin, 2)
-                                        val high = ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting.number(profile.equivalentMax, 2)
-                                        Text(if (profile.equivalentMin == profile.equivalentMax) "$low mm" else stringResource(R.string.lens_group_range,low,high),
-                                            style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                                        if(profile.cameraId.isNotBlank()) Text(stringResource(if (profile.hardwareDevice == hardwareDevice) R.string.bound_camera_id else R.string.lens_hardware_id_hint,profile.cameraId),style=MaterialTheme.typography.bodySmall)
-                                        if(inventory!=null && profile.hardwareDevice==hardwareDevice && inventory?.lenses?.any { it.id==profile.cameraId }==true)
-                                            Text(stringResource(R.string.hardware_linked),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.primary)
-                                        TextButton(onClick = {
-                                            bindingProfileId = profile.id
-                                            if (inventory == null) permission.launch(Manifest.permission.CAMERA)
-                                        }, contentPadding = PaddingValues(vertical = 8.dp)) { Text(stringResource(R.string.lens_hardware_bind)) }
-                                    }
-                                },
-                                trailingContent = { Row(verticalAlignment = Alignment.CenterVertically) {
-                                    FuyaoIconButton(R.drawable.ic_edit,stringResource(R.string.lens_action,stringResource(R.string.edit_lens),profile.name),{ onEdit(profile) })
-                                    FuyaoIconButton(R.drawable.ic_delete,stringResource(R.string.lens_action,stringResource(R.string.delete_lens),profile.name),{
-                                        val index=profiles.indexOfFirst { it.id==profile.id }
-                                        profiles=profiles.filterNot { it.id==profile.id }
-                                        scope.launch {
-                                            if(snackbar.showSnackbar(removedText,actionLabel=undoText,withDismissAction=true,duration=SnackbarDuration.Long)==SnackbarResult.ActionPerformed && profiles.none { it.id==profile.id }) {
-                                                profiles=profiles.toMutableList().apply { add(index.coerceIn(0,size),profile) }
+                            lenses.forEach { profile ->
+                                key(profile.id) {
+                                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+                                    ListItem(colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                                        headlineContent = { Text(profile.name, style = MaterialTheme.typography.titleMedium) },
+                                        supportingContent = {
+                                            Column(verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.xs)) {
+                                                val low = MetadataFormatting.number(profile.equivalentMin, 2)
+                                                val high = MetadataFormatting.number(profile.equivalentMax, 2)
+                                                Text(if (profile.equivalentMin == profile.equivalentMax) "$low mm"
+                                                    else stringResource(R.string.lens_group_range, low, high),
+                                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                if (profile.cameraId.isNotBlank()) Text(stringResource(
+                                                    if (profile.hardwareDevice == hardwareDevice) R.string.bound_camera_id else R.string.lens_hardware_id_hint,
+                                                    profile.cameraId), style = MaterialTheme.typography.bodySmall)
+                                                if (inventory != null && profile.hardwareDevice == hardwareDevice && inventory?.lenses?.any { it.id == profile.cameraId } == true)
+                                                    Text(stringResource(R.string.hardware_linked), style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.primary)
+                                                TextButton(onClick = {
+                                                    bindingProfileId = profile.id
+                                                    if (inventory == null) permission.launch(Manifest.permission.CAMERA)
+                                                }, contentPadding = PaddingValues(vertical = FuyaoSpacing.small)) { Text(stringResource(R.string.lens_hardware_bind)) }
                                             }
-                                        }
-                                    })
-                                } },
-                            )
+                                        },
+                                        trailingContent = { Row(verticalAlignment = Alignment.CenterVertically) {
+                                            FuyaoIconButton(R.drawable.ic_edit, stringResource(R.string.lens_action, stringResource(R.string.edit_lens), profile.name), { onEdit(profile) })
+                                            FuyaoIconButton(R.drawable.ic_delete, stringResource(R.string.lens_action, stringResource(R.string.delete_lens), profile.name), {
+                                                val index = profiles.indexOfFirst { it.id == profile.id }
+                                                profiles = profiles.filterNot { it.id == profile.id }
+                                                scope.launch {
+                                                    if (snackbar.showSnackbar(removedText, actionLabel = undoText, withDismissAction = true,
+                                                            duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed && profiles.none { it.id == profile.id }) {
+                                                        profiles = profiles.toMutableList().apply { add(index.coerceIn(0, size), profile) }
+                                                    }
+                                                }
+                                            })
+                                        } })
+                                }
+                            }
                         }
                     }
                 }
+            }
+        }
     }
     val requestBack = rememberConfirmedBack(onBack, hasChanges = profiles != initial)
     profiles.firstOrNull { it.id == bindingProfileId }?.let { profile ->

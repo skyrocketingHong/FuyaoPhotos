@@ -452,4 +452,5 @@
   <string name="lens_style_prefix_invalid">Use up to 64 characters without line breaks or control characters.</string>
   <string name="lens_import_configuration">Import configuration</string>
   <string name="lens_export_configuration">Export configuration</string>
+  <string name="lens_transfer_title">Import and export</string>
 </resources>

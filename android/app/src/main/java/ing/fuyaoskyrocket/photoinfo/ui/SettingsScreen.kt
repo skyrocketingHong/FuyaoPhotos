@@ -74,7 +74,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
 
     @Composable fun categoryContent(category: SettingsCategory) {
         when(category) {
-            SettingsCategory.WORKSPACE -> SettingsSection(stringResource(R.string.workspace_header), stringResource(R.string.workspace_sharing_hint)) {
+            SettingsCategory.WORKSPACE -> FuyaoFormSection(stringResource(R.string.workspace_header), stringResource(R.string.workspace_sharing_hint)) {
                 SettingsChoice(stringResource(R.string.workspace_startup), startPage,
                     StartPage.entries.associateWith { stringResource(when(it) {
                         StartPage.MAP -> R.string.photo_map_title; StartPage.EDITOR -> R.string.photo_cards_title
@@ -104,7 +104,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 }
                 }
             }
-            SettingsCategory.CARDS -> SettingsSection(stringResource(R.string.photo_cards_title),
+            SettingsCategory.CARDS -> FuyaoFormSection(stringResource(R.string.photo_cards_title),
                 stringResource(R.string.settings_cards_description)) {
                 OutlinedTextField(author,{ if(it.length<=512)author=it },Modifier.fillMaxWidth(),
                     label={ Text(stringResource(R.string.field_author)) },maxLines=3,
@@ -113,7 +113,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                     Text(stringResource(R.string.save_apply_author))
                 }
             }
-            SettingsCategory.EXPORT -> SettingsSection(stringResource(R.string.export_defaults),
+            SettingsCategory.EXPORT -> FuyaoFormSection(stringResource(R.string.export_defaults),
                 stringResource(R.string.export_defaults_hint)) {
                 ExportOptionsControls(exportDefaults,{ exportDefaults=it })
                 HorizontalDivider()
@@ -132,7 +132,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 Text(stringResource(if(x265Available)R.string.hevc_encoder_hint else R.string.hevc_encoder_unavailable),
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SettingsCategory.METADATA -> SettingsSection(stringResource(R.string.section_metadata),
+            SettingsCategory.METADATA -> FuyaoFormSection(stringResource(R.string.section_metadata),
                 stringResource(R.string.settings_metadata_description)) {
                 val locationLabel=stringResource(R.string.resolve_location)
                 Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=geocode,role=Role.Switch,
@@ -143,7 +143,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 Text(stringResource(R.string.resolve_location_hint),style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SettingsCategory.LENSES -> SettingsSection(stringResource(R.string.lens_settings),
+            SettingsCategory.LENSES -> FuyaoFormSection(stringResource(R.string.lens_settings),
                 stringResource(R.string.lens_entry_hint)) {
                 TextButton(onClick=onManageLenses,contentPadding=PaddingValues(0.dp),modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
                     Text(stringResource(R.string.manage_lenses,settings.lenses.size),Modifier.weight(1f),
@@ -157,7 +157,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                     isError=!draft.validFocal,
                     supportingText={ Text(stringResource(if(draft.validFocal)R.string.main_focal_hint else R.string.main_focal_error)) })
             }
-            SettingsCategory.ABOUT -> SettingsSection(stringResource(R.string.about)) {
+            SettingsCategory.ABOUT -> FuyaoFormSection(stringResource(R.string.about)) {
                 AboutContent()
             }
         }
@@ -210,17 +210,6 @@ private fun <T> SettingsChoice(title: String, selected: T, options: Map<T, Strin
                 options.forEach { (value, label) -> DropdownMenuItem(text={ Text(label) },
                     onClick={ onSelect(value); expanded = false }) }
             }
-        }
-    }
-}
-
-@Composable
-private fun SettingsSection(title:String,description:String?=null,content:@Composable ColumnScope.()->Unit) {
-    Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        SectionHeading(title,description,Modifier.padding(horizontal=FuyaoSpacing.cardInset))
-        Surface(Modifier.fillMaxWidth(),shape=MaterialTheme.shapes.large,
-            color=MaterialTheme.colorScheme.surfaceContainerLow) {
-            Column(Modifier.padding(FuyaoSpacing.cardInset),verticalArrangement=Arrangement.spacedBy(12.dp),content=content)
         }
     }
 }

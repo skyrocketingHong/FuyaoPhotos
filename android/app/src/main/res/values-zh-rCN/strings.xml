@@ -452,4 +452,5 @@
   <string name="lens_style_prefix_invalid">前缀最多 64 个字符，不使用换行或控制字符。</string>
   <string name="lens_import_configuration">导入配置</string>
   <string name="lens_export_configuration">导出配置</string>
+  <string name="lens_transfer_title">导入与导出</string>
 </resources>

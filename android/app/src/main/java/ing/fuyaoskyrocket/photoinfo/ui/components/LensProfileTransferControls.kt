@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfile
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfileFile
 import kotlinx.coroutines.Dispatchers
@@ -105,49 +107,60 @@ fun LensProfileTransferControls(profiles: List<LensProfile>, onChange: (List<Len
             finally { busy = false }
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box {
-                FilledTonalButton(enabled = !busy, onClick = { importMenu = true }) {
-                    Text(stringResource(R.string.lens_import_configuration))
-                }
-                DropdownMenu(importMenu, onDismissRequest = { importMenu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.lens_clipboard_import)) }, onClick = {
-                        importMenu = false; pasteConfiguration()
-                    })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.lens_file_import)) }, onClick = {
-                        importMenu = false
-                        importer.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
-                    })
-                }
+    @Composable fun importButton(modifier: Modifier) {
+        Box(modifier) {
+            FilledTonalButton(enabled = !busy, onClick = { importMenu = true },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.lens_import_configuration)) }
+            DropdownMenu(importMenu, onDismissRequest = { importMenu = false }) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.lens_clipboard_import)) }, onClick = {
+                    importMenu = false; pasteConfiguration()
+                })
+                DropdownMenuItem(text = { Text(stringResource(R.string.lens_file_import)) }, onClick = {
+                    importMenu = false
+                    importer.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                })
             }
-            Box {
-                OutlinedButton(enabled = !busy && profiles.isNotEmpty(), onClick = { exportMenu = true }) {
-                    Text(stringResource(R.string.lens_export_configuration))
+        }
+    }
+    @Composable fun exportButton(modifier: Modifier) {
+        Box(modifier) {
+            OutlinedButton(enabled = !busy && profiles.isNotEmpty(), onClick = { exportMenu = true },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text(stringResource(R.string.lens_export_configuration)) }
+            DropdownMenu(exportMenu, onDismissRequest = { exportMenu = false }) {
+                profiles.groupBy { LensProfile.normalize(it.exifModel) }.values
+                    .sortedBy { LensProfile.normalize(it.first().device) }.forEachIndexed { index, group ->
+                        if (index > 0) HorizontalDivider()
+                        Text(group.first().device, Modifier.padding(horizontal = FuyaoSpacing.compact, vertical = FuyaoSpacing.small),
+                            style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        DropdownMenuItem(text = { Text(stringResource(R.string.lens_clipboard_copy)) }, onClick = {
+                            exportMenu = false; copyConfiguration(group)
+                        })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.lens_file_export)) }, onClick = {
+                            exportMenu = false
+                            try { outgoing = LensProfileFile.from(group); exporter.launch(requireNotNull(outgoing).filename()) }
+                            catch (_: Exception) { message = R.string.lens_file_invalid }
+                        })
+                    }
+            }
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.compact)) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            if (maxWidth >= 400.dp && LocalDensity.current.fontScale <= 1.3f) {
+                Row(horizontalArrangement = Arrangement.spacedBy(FuyaoSpacing.compact)) {
+                    importButton(Modifier.weight(1f))
+                    exportButton(Modifier.weight(1f))
                 }
-                DropdownMenu(exportMenu, onDismissRequest = { exportMenu = false }) {
-                    profiles.groupBy { LensProfile.normalize(it.exifModel) }.values
-                        .sortedBy { LensProfile.normalize(it.first().device) }.forEachIndexed { index, group ->
-                            if (index > 0) HorizontalDivider()
-                            Text(group.first().device, Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            DropdownMenuItem(text = { Text(stringResource(R.string.lens_clipboard_copy)) }, onClick = {
-                                exportMenu = false; copyConfiguration(group)
-                            })
-                            DropdownMenuItem(text = { Text(stringResource(R.string.lens_file_export)) }, onClick = {
-                                exportMenu = false
-                                try { outgoing = LensProfileFile.from(group); exporter.launch(requireNotNull(outgoing).filename()) }
-                                catch (_: Exception) { message = R.string.lens_file_invalid }
-                            })
-                        }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.compact)) {
+                    importButton(Modifier.fillMaxWidth())
+                    exportButton(Modifier.fillMaxWidth())
                 }
             }
         }
         copiedDevice?.let { Text(stringResource(R.string.lens_clipboard_copied, it),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         status?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        Text(stringResource(R.string.lens_file_description), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     }
     incoming?.let { file ->
