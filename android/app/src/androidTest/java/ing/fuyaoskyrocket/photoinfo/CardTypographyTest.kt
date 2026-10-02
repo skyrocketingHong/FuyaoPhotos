@@ -112,9 +112,9 @@ class CardTypographyTest {
     @Test fun colorTextAndHdrMaskHaveIdenticalGlyphCoverage() {
         val typography=reference()
         val layout=CardLayout(CardBox(0f,0f,720f,240f),listOf(
-            CardLine("iPHONE 18 PRO",true,16f,16f),
-            CardLine("FOCAL LENGTH: 75 MM (3.2X)",false,16f,72f),
-            CardLine("PHOTO: 東京 1️⃣ 400",true,16f,128f)),28f,40f,0f,0f)
+            CardLine(FieldId.DEVICE,"iPHONE 18 PRO",true,16f,16f),
+            CardLine(FieldId.FOCAL_LENGTH,"FOCAL LENGTH: 75 MM (3.2X)",false,16f,72f),
+            CardLine(FieldId.LOCATION,"PHOTO: 東京 1️⃣ 400",true,16f,128f)),28f,40f,0f,0f)
         val color=Bitmap.createBitmap(720,240,Bitmap.Config.ARGB_8888)
         val mask=Bitmap.createBitmap(720,240,Bitmap.Config.ARGB_8888)
         try {

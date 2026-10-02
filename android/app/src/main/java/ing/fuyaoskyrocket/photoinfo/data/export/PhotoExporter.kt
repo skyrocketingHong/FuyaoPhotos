@@ -192,6 +192,9 @@ class PhotoExporter(private val context: Context, private val photos: PhotoRepos
                 }
                 portraitBytes=null
                 val options=BitmapFactory.Options().apply {
+                    // Float decoding can name sRGB as scRGB. Compare using the same precision,
+                    // without forcing a target color space that could conceal a lost profile.
+                    inPreferredConfig = if (tenBitSource) Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888
                     var sample=1
                     while(maxOf(source.width,source.height)/sample>1024)sample*=2
                     inSampleSize=sample

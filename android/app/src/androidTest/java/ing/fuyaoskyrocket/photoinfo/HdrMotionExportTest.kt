@@ -58,6 +58,11 @@ class HdrMotionExportTest {
             val photos = PhotoRepository(context)
             val source = photos.import(Uri.fromFile(input))
             try {
+                val working = photos.decode(source, preview = false)
+                val workingColor = try {
+                    assertEquals(Bitmap.Config.RGBA_F16, working.config)
+                    requireNotNull(working.colorSpace).name
+                } finally { working.recycle() }
                 for (keepMetadata in listOf(false, true)) {
                     PhotoExporter(context, photos).export(source, PhotoInfo(mapOf(FieldId.ISO to "100")),
                         CardStyle(), CardTypography.uniform(Typeface.MONOSPACE), ExportFormat.JPEG, keepMetadata, Uri.fromFile(output))
@@ -67,6 +72,12 @@ class HdrMotionExportTest {
                         assertEquals(4f, decoded.gainmap!!.ratioMax[0], .001f)
                         assertNull(MotionPhoto.inspect(output, "image/jpeg").motion)
                     } finally { decoded.recycle() }
+                    val floatRead = requireNotNull(BitmapFactory.decodeFile(output.absolutePath,
+                        BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.RGBA_F16 }))
+                    try {
+                        assertEquals(workingColor, floatRead.colorSpace?.name)
+                        assertTrue(floatRead.hasGainmap())
+                    } finally { floatRead.recycle() }
                 }
             } finally { source.file.delete() }
         } finally { bitmap.recycle(); contents.recycle(); input.delete(); output.delete() }
@@ -77,7 +88,7 @@ class HdrMotionExportTest {
         val map=Bitmap.createBitmap(200,150,Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
         source.setGainmap(Gainmap(map).apply { setRatioMax(4f,4f,4f);displayRatioForFullHdr=4f })
         val result=ing.fuyaoskyrocket.photoinfo.platform.CardRenderer().preview(source,
-            PhotoInfo(mapOf(FieldId.ISO to "100")),CardStyle(opacity=0f,blur=0f),FontRepository(InstrumentationRegistry.getInstrumentation().targetContext).defaultTypography)
+            PhotoInfo(mapOf(FieldId.ISO to "100")),CardStyle(opacity=0f,blur=0f),FontRepository(InstrumentationRegistry.getInstrumentation().targetContext).defaultTypography).bitmap
         try {
             val output=requireNotNull(result.gainmap).gainmapContents
             assertEquals(Color.WHITE,output.getPixel(160,120))

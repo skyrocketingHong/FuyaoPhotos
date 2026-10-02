@@ -9,6 +9,39 @@ import org.junit.Test
 import org.junit.Assert.*
 
 class MediaContainerTest {
+    @Test fun realHdrMotionJpegPreservesAuxiliaryImageAndVideoAcrossHeaderRewrite() {
+        val path = System.getenv("FUYAO_JPEG_SAMPLE")
+        org.junit.Assume.assumeTrue(path != null)
+        val source = File(requireNotNull(path))
+        val original = MotionPhoto.inspect(source, "image/jpeg")
+        assertFalse(original.blockReason, original.blocked)
+        assertTrue(original.hdrHint)
+        val motion = requireNotNull(original.motion)
+        val layout = JpegContainer.inspect(source)
+        val gain = JpegContainer.auxiliary(layout).single()
+        val encoded = File.createTempFile("hdr-cover-", ".jpg")
+        val output = File.createTempFile("hdr-assembled-", ".jpg")
+        try {
+            encoded.outputStream().use { JpegContainer.copyRange(source, 0, motion.offset, it) }
+            val cover = JpegContainer.inspect(encoded)
+            for (keepExif in listOf(false, true)) {
+                JpegContainer.rewrite(encoded, output, if (keepExif) JpegContainer.exif(layout) else emptyList(),
+                    MotionPhoto.xmp(cover, motion))
+                java.io.FileOutputStream(output, true).use { JpegContainer.copyRange(source, motion.offset, motion.length, it) }
+                val result = MotionPhoto.inspect(output, "image/jpeg")
+                assertFalse(result.blockReason, result.blocked)
+                assertTrue(result.hdrHint)
+                val resultVideo = requireNotNull(result.motion)
+                val resultGain = JpegContainer.auxiliary(JpegContainer.inspect(output)).single()
+                assertEquals(motion.timestampUs, resultVideo.timestampUs)
+                assertArrayEquals(MotionPhoto.digest(source, motion.offset, motion.length),
+                    MotionPhoto.digest(output, resultVideo.offset, resultVideo.length))
+                assertArrayEquals(MotionPhoto.digest(source, gain.offset, gain.length),
+                    MotionPhoto.digest(output, resultGain.offset, resultGain.length))
+            }
+        } finally { encoded.delete(); output.delete() }
+    }
+
     @Test fun appleMotionOutputHasReadableDirectoryOffsetsAndVideo() {
         val path = System.getenv("FUYAO_APPLE_MOTION")
         org.junit.Assume.assumeTrue(path != null)

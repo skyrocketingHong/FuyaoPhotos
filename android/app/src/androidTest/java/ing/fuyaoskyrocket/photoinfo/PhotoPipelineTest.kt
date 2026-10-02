@@ -135,7 +135,7 @@ class PhotoPipelineTest {
 
     @Test fun renderingDoesNotAlterPixelsOutsideCardOrSource() {
         val source = Bitmap.createBitmap(1527,859,Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLACK) }
-        val result = CardRenderer().preview(source, PhotoInfo(mapOf(FieldId.ISO to "100")), CardStyle(), CardTypography.uniform(Typeface.MONOSPACE))
+        val result = CardRenderer().preview(source, PhotoInfo(mapOf(FieldId.ISO to "100")), CardStyle(), CardTypography.uniform(Typeface.MONOSPACE)).bitmap
         try {
             assertEquals(1527,result.width);assertEquals(859,result.height)
             assertEquals(Color.BLACK,result.getPixel(1200,700))
