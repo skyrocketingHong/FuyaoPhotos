@@ -87,7 +87,7 @@ nonisolated enum HevcAuxStill {
         }
         let encoder = try bitmapContext(width: 1024, height: 768)
         raster.withUnsafeBytes { raw in
-            memcpy(encoder.data!, raw.baseAddress, min(raster.count, 1024 * 768 * 4))
+            _ = memcpy(encoder.data!, raw.baseAddress, min(raster.count, 1024 * 768 * 4))
         }
         return try encodedFrame(in: encoder, width: 1024, height: 768, monochrome: false)
     }
