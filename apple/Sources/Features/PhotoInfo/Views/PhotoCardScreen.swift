@@ -143,7 +143,7 @@ struct PhotoCardScreen: View {
             }
             else {
                 PhotoImportPage(title: "tab.cards", description: "card.empty.description", symbol: "photo.badge.plus", busy: session.busy) {
-                    PhotoImportAction(title: "card.open", symbol: "photo.badge.plus", primary: true, action: choosePhotos)
+                    PhotoImportAction(title: "card.open", symbol: "photo.badge.plus", prominence: .primary, action: choosePhotos)
                     PhotoImportAction(title: "package.import.action", symbol: "square.and.arrow.down") { workspace.showingPackagePicker = true }
                 }
             }

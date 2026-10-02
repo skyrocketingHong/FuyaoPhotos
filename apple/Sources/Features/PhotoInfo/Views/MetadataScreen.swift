@@ -40,7 +40,7 @@ struct MetadataScreen: View {
                     }
                 } else {
                     PhotoImportPage(title: "metadata.intro.title", description: "metadata.intro.description", symbol: "info.circle", busy: session.busy) {
-                        PhotoImportAction(title: "card.open", symbol: "photo.badge.plus", primary: true, action: choosePhoto)
+                        PhotoImportAction(title: "card.open", symbol: "photo.badge.plus", prominence: .primary, action: choosePhoto)
                     }
                 }
             }

@@ -31,6 +31,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.window.layout.FoldingFeature
@@ -49,6 +50,7 @@ val LocalPaneTopInset = staticCompositionLocalOf { 0.dp }
 fun FuyaoAdaptivePage(
     padding: PaddingValues,
     contentUnderTopEdge: Boolean = false,
+    leadingPaneWidth: Dp? = null,
     single: @Composable (Modifier) -> Unit,
     leading: @Composable (Modifier) -> Unit,
     trailing: @Composable (Modifier) -> Unit,
@@ -113,10 +115,12 @@ fun FuyaoAdaptivePage(
                     }
                 }
                 maxWidth >= 840.dp && density.fontScale <= 1.4f -> {
+                    val contentWidth = minOf(maxWidth, 1120.dp)
+                    val leadingWidth = leadingPaneWidth?.coerceIn(240.dp, contentWidth - 400.dp) ?: contentWidth * .4f
                     Row(Modifier.widthIn(max = 1120.dp).fillMaxWidth().fillMaxHeight()
                         .align(Alignment.TopCenter)) {
-                        leading(Modifier.weight(.4f).fillMaxHeight())
-                        trailing(Modifier.weight(.6f).fillMaxHeight())
+                        leading(Modifier.width(leadingWidth).fillMaxHeight())
+                        trailing(Modifier.weight(1f).fillMaxHeight())
                     }
                 }
                 else -> single(Modifier.fillMaxSize())

@@ -65,10 +65,17 @@ fun FuyaoAppBarAction(icon:Int,label:String,onClick:()->Unit,enabled:Boolean=tru
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FuyaoIconButton(icon:Int,label:String,onClick:()->Unit,enabled:Boolean=true) {
-    IconButton(onClick=onClick,enabled=enabled,modifier=Modifier.size(48.dp)) {
-        Icon(painterResource(icon),label,Modifier.size(24.dp))
+    TooltipBox(
+        positionProvider=TooltipDefaults.rememberTooltipPositionProvider(positioning=TooltipAnchorPosition.Above),
+        tooltip={ PlainTooltip { Text(label) } },
+        state=rememberTooltipState(),
+    ) {
+        IconButton(onClick=onClick,enabled=enabled,modifier=Modifier.size(48.dp)) {
+            Icon(painterResource(icon),label,Modifier.size(24.dp))
+        }
     }
 }
 

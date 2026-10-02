@@ -620,3 +620,10 @@
 "card.imageSize.lens" = "Lens Pixels: %@";
 "card.imageSize.unavailable" = "Lens Pixels: Not Configured or Matched";
 "card.imageSize.hint" = "Photo pixels use the actual width times height. Lens pixels use the configured official specifications.";
+
+"card.group.photo" = "Photo and Camera";
+"card.group.capture" = "Capture Settings";
+"card.group.credit" = "Credit and Location";
+"card.group.layout" = "Layout";
+"card.group.appearance" = "Appearance";
+"card.restore.named" = "Restore %@";

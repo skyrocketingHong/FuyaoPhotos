@@ -9,21 +9,27 @@ struct PhotoPageIntro: View {
     let title: LocalizedStringKey
     let description: LocalizedStringKey
     let symbol: String
+    var prominent = false
 
     /// The camera-at-work mark: the page symbol framed by viewfinder brackets —
     /// every empty workspace reads as a camera waiting for a photo.
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ZStack {
-                Image(systemName: "viewfinder")
-                    .font(.largeTitle)
-                    .foregroundStyle(.tertiary)
-                Image(systemName: symbol)
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(.tint)
+            HStack(alignment: .center, spacing: 16) {
+                ZStack {
+                    Image(systemName: "viewfinder")
+                        .font(.largeTitle)
+                        .foregroundStyle(.tertiary)
+                    Image(systemName: symbol)
+                        .font(.title3.weight(.medium))
+                        .foregroundStyle(.tint)
+                }
+                .accessibilityHidden(true)
+                Text(title)
+                    .font(prominent ? .title.bold() : .title2.bold())
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
             }
-            .accessibilityHidden(true)
-            Text(title).font(.title2.bold())
             Text(description)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

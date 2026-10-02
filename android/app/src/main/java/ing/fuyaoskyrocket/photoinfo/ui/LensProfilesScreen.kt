@@ -5,6 +5,9 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import android.content.pm.PackageManager
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.clickable
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -34,6 +37,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfile
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfileFields
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensBindings
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,6 +59,7 @@ internal val ProfilesSaver = Saver<List<LensProfile>, ArrayList<String>>(
 @Composable
 fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedFields:List<String>?,onEditConsumed:()->Unit,
     onEdit:(LensProfile)->Unit,onBack:()->Unit,onSave:(List<LensProfile>)->Unit) {
+    val motionEnabled = LocalPhotoMotionEnabled.current
     var profiles by rememberSaveable(stateSaver=ProfilesSaver) { mutableStateOf(initial) }
     var inventory by remember { mutableStateOf<CameraInventory?>(null) }
     var scanning by remember { mutableStateOf(false) }
@@ -159,17 +164,21 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                     val expanded = model in expandedDevices
                     item(key = "device-$model") {
                         val expandedLabel = stringResource(if (expanded) R.string.lens_group_expanded else R.string.lens_group_collapsed)
+                        val rotation by animateFloatAsState(if (expanded) 90f else 0f,
+                            animationSpec = if (motionEnabled) tween(180) else snap(), label = "lensDisclosure")
                         ListItem(modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) {
                             expandedDevices = if (expanded) expandedDevices - model else expandedDevices + model
                         }.semantics { heading(); stateDescription = expandedLabel },
                             headlineContent = { Text(group.device, style = MaterialTheme.typography.titleMedium) },
                             overlineContent = if (group.isCurrent) { { Text(stringResource(R.string.lens_group_current)) } } else null,
                             supportingContent = { Text(if (lenses.size == 1) stringResource(R.string.lens_group_one) else stringResource(R.string.lens_group_count, lenses.size)) },
-                            trailingContent = { Icon(painterResource(R.drawable.ic_chevron), contentDescription = null, modifier = Modifier.rotate(if (expanded) 90f else 0f)) })
+                            trailingContent = { Icon(painterResource(R.drawable.ic_chevron), contentDescription = null, modifier = Modifier.rotate(rotation)) })
                     }
                     if (expanded) {
                         item(key = "device-details-$model") {
-                            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                            Column(Modifier.fillMaxWidth().then(if (motionEnabled) Modifier.animateItem(
+                                fadeInSpec = tween(160), placementSpec = tween(200), fadeOutSpec = tween(120)) else Modifier)
+                                .padding(horizontal = 16.dp)) {
                                 if (LensProfile.normalize(group.device) != model) Text(lenses.first().exifModel,
                                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 if (!group.isCurrent) TextButton(onClick = {
@@ -180,7 +189,8 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                         }
                         items(lenses,key={ "lens-${it.id}" }) { profile ->
                             ListItem(
-                                modifier = Modifier.fillMaxWidth().animateItem(),
+                                modifier = Modifier.fillMaxWidth().then(if (motionEnabled) Modifier.animateItem(
+                                    fadeInSpec = tween(160), placementSpec = tween(200), fadeOutSpec = tween(120)) else Modifier),
                                 headlineContent = { Text(profile.name, style = MaterialTheme.typography.titleMedium) },
                                 supportingContent = {
                                     Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {

@@ -57,10 +57,10 @@ struct ColorsScreen: View {
                     }
                 } else {
                     PhotoImportPage(title: "tab.colors", description: "colors.description", symbol: "eyedropper.halffull", busy: session.busy) {
-                        PhotoImportAction(title: "card.open", symbol: "photo.badge.plus", primary: true) { request(.photos) }
+                        PhotoImportAction(title: "card.open", symbol: "photo.badge.plus", prominence: .primary) { request(.photos) }
                         PhotoImportAction(title: "colors.files", symbol: "folder") { request(.files) }
                         if cameraAvailable {
-                            PhotoImportAction(title: "colors.camera", symbol: "camera") { request(.camera) }
+                            PhotoImportAction(title: "colors.camera", symbol: "camera", prominence: .tertiary) { request(.camera) }
                         }
                     }
                 }

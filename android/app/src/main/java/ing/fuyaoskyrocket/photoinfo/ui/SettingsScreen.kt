@@ -171,7 +171,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
             }
         }
     }) { padding ->
-        FuyaoAdaptivePage(padding,contentUnderTopEdge=true,
+        FuyaoAdaptivePage(padding,contentUnderTopEdge=true,leadingPaneWidth=280.dp,
             single = { modifier ->
                     FuyaoPageColumn(modifier) {
                         overview()

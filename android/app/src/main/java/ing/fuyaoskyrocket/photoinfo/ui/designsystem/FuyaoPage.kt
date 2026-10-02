@@ -29,15 +29,34 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun FuyaoPageIntro(title: String, description: String, @DrawableRes icon: Int,
-    actions: @Composable ColumnScope.() -> Unit = {}) {
+    actionsInSeparateColumn: Boolean = false,
+    actions: (@Composable ColumnScope.() -> Unit)? = null) {
     Surface(Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerLow) {
-        Column(Modifier.padding(FuyaoSpacing.cardInset), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ViewfinderMark(painterResource(icon))
-            Text(title, Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
-            Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            actions()
+        BoxWithConstraints(Modifier.padding(FuyaoSpacing.cardInset)) {
+            if (actions != null && actionsInSeparateColumn && maxWidth >= 640.dp && LocalDensity.current.fontScale <= 1.3f) {
+                Row(horizontalArrangement = Arrangement.spacedBy(32.dp), verticalAlignment = Alignment.Top) {
+                    PageIntroHeading(title, description, icon, Modifier.weight(1f))
+                    Column(Modifier.width(280.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = actions)
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    PageIntroHeading(title, description, icon)
+                    if (actions != null) Column(verticalArrangement = Arrangement.spacedBy(12.dp), content = actions)
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun PageIntroHeading(title: String, description: String, @DrawableRes icon: Int, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            ViewfinderMark(painterResource(icon))
+            Text(title, Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineSmall)
+        }
+        Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

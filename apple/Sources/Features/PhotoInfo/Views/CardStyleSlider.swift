@@ -30,6 +30,7 @@ struct CardStyleSlider: View {
                 .accessibilityValue(Text(formattedValue))
 #else
             Slider(value: $value, in: range) { Text(label) }
+                .labelsHidden()
                 .accessibilityValue(Text(formattedValue))
 #endif
             SliderEndpointIcon(symbol: maximumSymbol, active: atMaximum)
