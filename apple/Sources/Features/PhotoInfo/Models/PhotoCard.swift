@@ -80,6 +80,9 @@ nonisolated struct CardSaveOptions: Codable, Equatable, Sendable {
     var resolveLocation: Bool = UserDefaults.standard.bool(forKey: "card.resolveLocation") {
         didSet { UserDefaults.standard.set(resolveLocation, forKey: "card.resolveLocation") }
     }
+    var preferLensPixelCount: Bool = UserDefaults.standard.bool(forKey: "card.preferLensPixelCount") {
+        didSet { UserDefaults.standard.set(preferLensPixelCount, forKey: "card.preferLensPixelCount") }
+    }
     /// Whether the metadata tab shows the cards session's photos instead of its own.
     var metadataSharesCards: Bool = UserDefaults.standard.bool(forKey: "metadata.sharesCards") {
         didSet { UserDefaults.standard.set(metadataSharesCards, forKey: "metadata.sharesCards") }

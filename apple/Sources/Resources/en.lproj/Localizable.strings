@@ -627,3 +627,6 @@
 "card.group.layout" = "Layout";
 "card.group.appearance" = "Appearance";
 "card.restore.named" = "Restore %@";
+
+"card.preferLensPixelCount" = "Use Lens Pixel Count by Default";
+"card.preferLensPixelCount.hint" = "Use the matched lens’s official pixel count when importing or restoring card fields. When off, or if unavailable, use the photo’s actual width × height.";

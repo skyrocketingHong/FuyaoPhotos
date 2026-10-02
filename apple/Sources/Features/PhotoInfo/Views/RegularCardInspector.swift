@@ -103,13 +103,13 @@ struct RegularCardInspector: View {
     @ViewBuilder private var restoreActions: some View {
         Button(restoreTitle, systemImage: "arrow.counterclockwise") {
             focusedField = nil
-            if selection.mode == .information { document.card[selection.field] = document.defaultCard[selection.field] }
+            if selection.mode == .information { document.restoreField(selection.field, preferLensPixelCount: CardPreferences.shared.preferLensPixelCount) }
             else { document.card.style[keyPath: selection.adjustment.keyPath] = PhotoCardStyle()[keyPath: selection.adjustment.keyPath] }
         }
         Button("card.restore.all", systemImage: "arrow.counterclockwise.circle") {
             focusedField = nil
             if selection.mode == .information {
-                for field in CardField.allCases { document.card[field] = document.defaultCard[field] }
+                document.restoreInformation(preferLensPixelCount: CardPreferences.shared.preferLensPixelCount)
             } else { document.card.style = PhotoCardStyle() }
         }
     }

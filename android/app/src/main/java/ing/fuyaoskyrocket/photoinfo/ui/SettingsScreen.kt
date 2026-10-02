@@ -50,6 +50,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     onDirtyChanged:(Boolean)->Unit,onSave:(EditorSettings,Boolean)->Unit) {
     var author by rememberSaveable { mutableStateOf(settings.defaultAuthor) }
     var geocode by rememberSaveable { mutableStateOf(settings.resolvePhotoLocation) }
+    var preferLensPixelCount by rememberSaveable { mutableStateOf(settings.preferLensPixelCount) }
     var mainFocal by rememberSaveable { mutableStateOf(settings.fallbackMainFocal) }
     var exportDefaults by rememberSaveable(stateSaver=ExportOptionsSaver) { mutableStateOf(settings.exportDefaults) }
     var hevcEncoder by rememberSaveable { mutableStateOf(settings.hevcEncoder) }
@@ -60,11 +61,11 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.CARDS) }
     val motionEnabled = LocalPhotoMotionEnabled.current
     val draft=settings.copy(defaultAuthor=author, resolvePhotoLocation=geocode, fallbackMainFocal=mainFocal,
-        exportDefaults=exportDefaults.photoSave(), hevcEncoder=hevcEncoder, workspace=workspace)
+        exportDefaults=exportDefaults.photoSave(), hevcEncoder=hevcEncoder, workspace=workspace, preferLensPixelCount=preferLensPixelCount)
     val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
         listOf(settings.defaultAuthor, settings.resolvePhotoLocation.toString(), settings.fallbackMainFocal),
         listOf(author, geocode.toString(), mainFocal), setOf(2)) || exportDefaults != settings.exportDefaults ||
-        hevcEncoder != settings.hevcEncoder || workspace != settings.workspace
+        hevcEncoder != settings.hevcEncoder || workspace != settings.workspace || preferLensPixelCount != settings.preferLensPixelCount
     SideEffect { onDirtyChanged(changed) }
     rememberConfirmedBack(onBack, hasChanges = changed)
 
@@ -112,6 +113,13 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 TextButton(onClick={ onSave(draft,true) },enabled=canSave&&hasPhoto&&draft.validFocal) {
                     Text(stringResource(R.string.save_apply_author))
                 }
+                Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=preferLensPixelCount, role=Role.Switch,
+                    onValueChange={ preferLensPixelCount=it }), verticalAlignment=Alignment.CenterVertically) {
+                    Text(stringResource(R.string.prefer_lens_pixel_count), Modifier.weight(1f), style=MaterialTheme.typography.bodyLarge)
+                    Switch(preferLensPixelCount, onCheckedChange=null)
+                }
+                Text(stringResource(R.string.prefer_lens_pixel_count_hint), style=MaterialTheme.typography.bodySmall,
+                    color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             SettingsCategory.EXPORT -> FuyaoFormSection(stringResource(R.string.export_defaults),
                 stringResource(R.string.export_defaults_hint)) {

@@ -6,6 +6,35 @@ import Testing
 @testable import PhotoRenderingCore
 
 struct CardImageSizeTests {
+    @Test @MainActor func defaultPreferenceAndRestorationKeepSourcePixelsSeparate() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var sourceCard = PhotoCard()
+        sourceCard[.imageSize] = "5.9MP"; sourceCard[.camera] = "Matched telephoto"
+        let metadata = CardPhotoMetadata(card: sourceCard, width: 2105, height: 2796, latitude: nil, longitude: nil,
+            hdr: true, hasPortraitData: false, kind: .ultraHDRJPEG, fileSize: 0, lensMegapixels: 200)
+        let source = folder.appendingPathComponent("source.jpg")
+        let document = CardDocument(resources: PhotoSourceResources(image: source, movie: nil,
+            originalName: "source.jpg", assetIdentifier: nil), metadata: metadata, preferLensPixelCount: true)
+        #expect(document.card[.imageSize] == "200MP")
+        #expect(document.metadata.card[.imageSize] == "5.9MP")
+        document.useFileImageSize()
+        #expect(document.card[.imageSize] == "5.9MP")
+        document.restoreField(.imageSize, preferLensPixelCount: true)
+        #expect(document.card[.imageSize] == "200MP")
+        document.card[.camera] = "Manual label"
+        document.card.style.opacity = 0.4
+        document.restoreInformation(preferLensPixelCount: false)
+        for field in CardField.allCases { #expect(document.card[field] == sourceCard[field]) }
+        #expect(document.card.style.opacity == 0.4)
+        var unavailable = metadata
+        unavailable.lensMegapixels = nil
+        document.applyMetadataUpdate(source: source, metadata: unavailable)
+        document.restoreField(.imageSize, preferLensPixelCount: true)
+        #expect(document.card[.imageSize] == "5.9MP")
+    }
+
     @Test @MainActor func croppedPhotoCanUseOfficialLensPixelsWithoutChangingImageOrDefaults() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

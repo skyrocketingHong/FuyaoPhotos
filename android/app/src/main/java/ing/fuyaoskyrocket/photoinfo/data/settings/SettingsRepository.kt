@@ -20,6 +20,7 @@ class SettingsRepository(context: Context) {
         // Preserve the photographer saved by versions before the dedicated settings screen.
         defaultAuthor = preferences.getString("defaultAuthor", null) ?: preferences.getString("author", "").orEmpty(),
         resolvePhotoLocation = preferences.getBoolean("resolvePhotoLocation", true),
+        preferLensPixelCount = preferences.getBoolean("preferLensPixelCount", false),
         fallbackMainFocal = preferences.getString("fallbackMainFocal", "").orEmpty(),
         lenses = readLenses(),
         metadataSharesCards = preferences.getBoolean("metadata.sharesCards", false),
@@ -94,6 +95,7 @@ class SettingsRepository(context: Context) {
             putString("export.hevcEncoder", if (settings.hevcEncoder == ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.PLATFORM) "platform" else "x265")
             putString("defaultAuthor", settings.defaultAuthor.trim())
             putBoolean("resolvePhotoLocation", settings.resolvePhotoLocation)
+            putBoolean("preferLensPixelCount", settings.preferLensPixelCount)
             putString("fallbackMainFocal", settings.fallbackMainFocal.trim())
             putBoolean("metadata.sharesCards", settings.metadataSharesCards)
             remove("author")

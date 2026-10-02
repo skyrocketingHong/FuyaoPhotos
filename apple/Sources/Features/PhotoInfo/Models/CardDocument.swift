@@ -27,11 +27,12 @@ import CoreLocation
     }
     var hasChanges: Bool { savedCard != card }
 
-    init(resources: PhotoSourceResources, metadata: CardPhotoMetadata) {
+    init(resources: PhotoSourceResources, metadata: CardPhotoMetadata, preferLensPixelCount: Bool = false) {
         sourceURL = resources.image; sourceMovieURL = resources.movie
         workingDirectory = PhotoWorkingDirectory(resources.image.deletingLastPathComponent())
         originalName = resources.originalName; assetIdentifier = resources.assetIdentifier
         self.metadata = metadata; defaultCard = metadata.card; card = metadata.card
+        if preferLensPixelCount, let pixels = metadata.lensImageSize { card[.imageSize] = pixels }
     }
 
     func applyResolvedLocation(_ value: String) {
@@ -47,6 +48,15 @@ import CoreLocation
     func useLensImageSize() {
         guard let value = metadata.lensImageSize else { return }
         card[.imageSize] = value
+    }
+
+    func restoreField(_ field: CardField, preferLensPixelCount: Bool) {
+        card[field] = field == .imageSize && preferLensPixelCount
+            ? metadata.lensImageSize ?? defaultCard[field] : defaultCard[field]
+    }
+
+    func restoreInformation(preferLensPixelCount: Bool) {
+        for field in CardField.allCases { restoreField(field, preferLensPixelCount: preferLensPixelCount) }
     }
 
     func applyMetadataUpdate(source: URL, metadata: CardPhotoMetadata) {

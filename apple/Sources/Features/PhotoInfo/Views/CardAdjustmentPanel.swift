@@ -96,12 +96,12 @@ struct CardAdjustmentPanel: View {
                                     }
                                 }
                                 Button("card.restore.current", systemImage: "arrow.counterclockwise") {
-                                    if selection.mode == .information { document.card[selection.field] = document.defaultCard[selection.field] }
+                                    if selection.mode == .information { document.restoreField(selection.field, preferLensPixelCount: CardPreferences.shared.preferLensPixelCount) }
                                     else { document.card.style[keyPath: selection.adjustment.keyPath] = PhotoCardStyle()[keyPath: selection.adjustment.keyPath] }
                                 }
                                 Button("card.restore.all", systemImage: "arrow.counterclockwise.circle") {
                                     if selection.mode == .information {
-                                        for item in CardField.allCases { document.card[item] = document.defaultCard[item] }
+                                        document.restoreInformation(preferLensPixelCount: CardPreferences.shared.preferLensPixelCount)
                                     } else { document.card.style = PhotoCardStyle() }
                                 }
                             } label: {
@@ -280,7 +280,7 @@ private struct MobileCardInspector: View {
 
     private func restoreCurrent() {
         if information {
-            document.card[field] = document.defaultCard[field]
+            document.restoreField(field, preferLensPixelCount: CardPreferences.shared.preferLensPixelCount)
         } else {
             document.card.style[keyPath: adjustment.keyPath] = PhotoCardStyle()[keyPath: adjustment.keyPath]
         }
@@ -288,9 +288,7 @@ private struct MobileCardInspector: View {
 
     private func restoreAll() {
         if information {
-            var card = document.card
-            for item in CardField.allCases { card[item] = document.defaultCard[item] }
-            document.card = card
+            document.restoreInformation(preferLensPixelCount: CardPreferences.shared.preferLensPixelCount)
         } else {
             document.card.style = PhotoCardStyle()
         }

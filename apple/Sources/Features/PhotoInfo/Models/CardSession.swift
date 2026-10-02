@@ -66,7 +66,8 @@ import os
                     }
                     let metadata = try await CardImageProcessor.shared.read(resources.image, author: CardPreferences.shared.author,
                                                                             profiles: LensProfileStore.shared.profiles)
-                    imported.append(CardDocument(resources: resources, metadata: metadata))
+                    imported.append(CardDocument(resources: resources, metadata: metadata,
+                        preferLensPixelCount: CardPreferences.shared.preferLensPixelCount))
                 } catch {
                     try? FileManager.default.removeItem(at: folder)
                     throw error

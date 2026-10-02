@@ -453,4 +453,6 @@
   <string name="lens_import_configuration">Import configuration</string>
   <string name="lens_export_configuration">Export configuration</string>
   <string name="lens_transfer_title">Import and export</string>
+  <string name="prefer_lens_pixel_count">Use lens pixel count by default</string>
+  <string name="prefer_lens_pixel_count_hint">Use the matched lens’s official pixel count when importing or restoring card fields. When off, or if unavailable, use the photo’s actual width × height.</string>
 </resources>

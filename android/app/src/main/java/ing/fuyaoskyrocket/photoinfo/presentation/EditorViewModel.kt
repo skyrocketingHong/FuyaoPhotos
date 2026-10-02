@@ -96,7 +96,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                     // Older sessions had no baseline. Preserve real overrides while allowing an
                     // unchanged default photo to return without a spurious confirmation.
                     baselines = drafts.associate { draft ->
-                        val initial = draft.copy(info=draft.source.info.with(FieldId.AUTHOR, state.settings.authorFor(draft.source.info[FieldId.AUTHOR])),
+                        val initial = draft.copy(info=state.settings.initialCardInfo(draft.source.info, draft.source.originalMegapixels),
                             style=CardStyle(), resolvedLocation="", locationEdited=false)
                         draft.source.file.name to (baselines[draft.source.file.name]
                             ?: EditChanges.fingerprint(initial.snapshot(), PhotoExporter.DEFAULT_JPEG_QUALITY, true, fonts.selectionKey))
@@ -137,7 +137,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                     var pending: PhotoSource? = null
                     try {
                         val photo = withContext(Dispatchers.IO) { photos.import(uri).also { pending = it } }
-                        imported += SessionPhoto(photo, photo.info.with(FieldId.AUTHOR, settings.authorFor(photo.info[FieldId.AUTHOR])), style)
+                        imported += SessionPhoto(photo, settings.initialCardInfo(photo.info, photo.originalMegapixels), style)
                         pending = null
                     } catch (cancelled: CancellationException) { throw cancelled }
                     catch (failure: Exception) { failures += app.getString(R.string.photo_failure,index+1,errorMessage(failure,PhotoOperation.OPEN)) }
@@ -222,7 +222,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         if (state.busy || (photoId != null && photoId != source?.file?.name)) return
         cancelLocation(); locationEdited = false
         source?.let { photo ->
-            state = state.copy(info = photo.info.with(FieldId.AUTHOR, state.settings.authorFor(photo.info[FieldId.AUTHOR]))
+            state = state.copy(info = state.settings.initialCardInfo(photo.info, photo.originalMegapixels)
                 .with(FieldId.LOCATION, resolvedLocation))
             persist(); renderPreview()
             if (resolvedLocation.isBlank()) resolveLocation()
@@ -233,6 +233,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         val photo=source?.takeIf { it.file.name==photoId && !state.busy } ?: return
         val value=when(field) {
             FieldId.AUTHOR -> state.settings.authorFor(photo.info[field])
+            FieldId.IMAGE_SIZE -> state.settings.imageSizeFor(photo.info[field], photo.originalMegapixels)
             FieldId.LOCATION -> resolvedLocation
             else -> photo.info[field]
         }

@@ -195,6 +195,9 @@ struct SettingsView: View {
             Toggle(isOn: $card.resolveLocation) {
                 settingLabel("card.resolveLocation", hint: "card.resolveLocation.description")
             }
+            Toggle(isOn: $card.preferLensPixelCount) {
+                settingLabel("card.preferLensPixelCount", hint: "card.preferLensPixelCount.hint")
+            }
         } header: {
             Text("settings.photo.header")
         }
