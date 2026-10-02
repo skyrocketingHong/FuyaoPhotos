@@ -409,7 +409,10 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                 val active = drafts[state.photoIndex]
                 resolvedLocation = active.resolvedLocation
                 state = state.copy(busy = false, exporting = false, info = active.info, exported = result.saved.lastOrNull(),
-                    error = result.failures.takeIf { it.isNotEmpty() }?.map { it.message }?.distinct()?.joinToString("\n"),
+                    error = result.failures.takeIf { it.isNotEmpty() }?.joinToString("\n\n") { failure ->
+                        val name = snapshot[failure.index].source.details.displayName
+                        if (snapshot.size > 1 && !name.isNullOrBlank()) "$name\n${failure.message}" else failure.message
+                    },
                     errorDetail = result.failures.firstOrNull()?.detail,
                     notice = if (result.saved.isEmpty()) null else EditorNotice(++noticeId,
                         if (result.saved.any { it.isPackage }) app.getString(R.string.package_export_success)
@@ -420,7 +423,10 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
             catch (failure: Exception) { state = state.copy(busy = false, exporting = false,
                 error = errorMessage(failure, PhotoOperation.SAVE),
                 errorDetail = stackTraceOf(failure)) }
-            finally { reloadOriginalAfterExport() }
+            finally {
+                if (state.exporting) state = state.copy(exporting = false, busy = state.closing)
+                reloadOriginalAfterExport()
+            }
         }
     }
 

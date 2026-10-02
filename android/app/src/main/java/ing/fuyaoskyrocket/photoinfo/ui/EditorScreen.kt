@@ -336,9 +336,11 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                     }
                 }
                 val exportNotice=exportBlockingNotice(state)
-                FuyaoAppBarAction(R.drawable.ic_export,if(state.photos.size>1) stringResource(R.string.batch_export,state.photos.size) else stringResource(R.string.export),{
+                ing.fuyaoskyrocket.photoinfo.ui.components.SaveProgressAction(
+                    label = if(state.photos.size>1) stringResource(R.string.batch_export,state.photos.size) else stringResource(R.string.export),
+                    saving = state.exporting, completed = state.exportCompleted, total = state.exportTotal, enabled = !state.busy) {
                     if(exportNotice!=null)showExportBlocked=true else showExport=true
-                },enabled=!state.busy)
+                }
             }
             FuyaoScaffold(title="",showTopBar=false,
                 snackbarHost={ SnackbarHost(snackbar, Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal))) { data ->

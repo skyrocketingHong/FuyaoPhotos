@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -23,6 +24,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
 import ing.fuyaoskyrocket.photoinfo.domain.model.WorkspaceSettings
@@ -42,7 +46,6 @@ private enum class SettingsCategory(@StringRes val label: Int, @DrawableRes val 
     EXPORT(R.string.export_defaults, R.drawable.ic_export),
     METADATA(R.string.section_metadata, R.drawable.ic_info),
     LENSES(R.string.lens_settings, R.drawable.ic_photo_info),
-    ABOUT(R.string.about, R.drawable.ic_info),
 }
 
 @Composable
@@ -59,6 +62,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     var sharedNames by rememberSaveable { mutableStateOf(settings.workspace.sharedFeatures.map { it.name }) }
     val workspace = WorkspaceSettings(startPage, sharing, sharedNames.mapNotNull { name -> PhotoFeature.entries.firstOrNull { it.name == name } }.toSet())
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.CARDS) }
+    val categoryNavigation = rememberNavController()
     val motionEnabled = LocalPhotoMotionEnabled.current
     val draft=settings.copy(defaultAuthor=author, resolvePhotoLocation=geocode, fallbackMainFocal=mainFocal,
         exportDefaults=exportDefaults.photoSave(), hevcEncoder=hevcEncoder, workspace=workspace, preferLensPixelCount=preferLensPixelCount)
@@ -67,7 +71,6 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
         listOf(author, geocode.toString(), mainFocal), setOf(2)) || exportDefaults != settings.exportDefaults ||
         hevcEncoder != settings.hevcEncoder || workspace != settings.workspace || preferLensPixelCount != settings.preferLensPixelCount
     SideEffect { onDirtyChanged(changed) }
-    rememberConfirmedBack(onBack, hasChanges = changed)
 
     @Composable fun overview() {
         FuyaoPageIntro(stringResource(R.string.settings), stringResource(R.string.settings_overview_description), R.drawable.ic_settings)
@@ -165,9 +168,6 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                     isError=!draft.validFocal,
                     supportingText={ Text(stringResource(if(draft.validFocal)R.string.main_focal_hint else R.string.main_focal_error)) })
             }
-            SettingsCategory.ABOUT -> FuyaoFormSection(stringResource(R.string.about)) {
-                AboutContent()
-            }
         }
     }
 
@@ -181,12 +181,42 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     }) { padding ->
         FuyaoAdaptivePage(padding,contentUnderTopEdge=true,leadingPaneWidth=280.dp,
             single = { modifier ->
-                    FuyaoPageColumn(modifier) {
-                        overview()
-                        SettingsCategory.entries.forEach { categoryContent(it) }
+                val topInset = LocalPaneTopInset.current
+                NavHost(categoryNavigation, startDestination = "overview", modifier = modifier) {
+                    composable("overview") {
+                        rememberConfirmedBack(onBack, hasChanges = changed)
+                        FuyaoPageColumn {
+                            overview()
+                            FuyaoFormSection(contentPadding = PaddingValues(4.dp), verticalSpacing = 0.dp) {
+                                SettingsCategory.entries.forEach { category ->
+                                    ListItem(
+                                        headlineContent = { Text(stringResource(category.label)) },
+                                        leadingContent = { Icon(painterResource(category.icon), null) },
+                                        trailingContent = { Icon(painterResource(R.drawable.ic_chevron), null) },
+                                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            selectedCategory = category
+                                            categoryNavigation.navigate("category") { launchSingleTop = true }
+                                        },
+                                    )
+                                }
+                            }
+                            FuyaoFormSection(stringResource(R.string.about)) { AboutContent() }
+                        }
                     }
+                    composable("category") {
+                        FuyaoScaffold(stringResource(selectedCategory.label),
+                            modifier = Modifier.padding(top = topInset),
+                            onBack = { categoryNavigation.popBackStack() }) { categoryPadding ->
+                            FuyaoPageColumn(Modifier.fillMaxSize().padding(categoryPadding), topInset = 0.dp) {
+                                categoryContent(selectedCategory)
+                            }
+                        }
+                    }
+                }
             },
             leading = { modifier ->
+                rememberConfirmedBack(onBack, hasChanges = changed)
                 FuyaoPageColumn(modifier) {
                     overview()
                     SettingsCategory.entries.forEach { category ->
@@ -197,6 +227,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                             icon={ Icon(painterResource(category.icon),null) },
                         )
                     }
+                    FuyaoFormSection(stringResource(R.string.about)) { AboutContent() }
                 }
             },
             trailing = { modifier ->

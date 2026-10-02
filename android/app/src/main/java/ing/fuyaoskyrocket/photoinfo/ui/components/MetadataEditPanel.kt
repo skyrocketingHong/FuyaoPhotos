@@ -29,7 +29,7 @@ fun MetadataEditPanel(photo: OriginalPhoto, model: MetadataEditViewModel) {
             ExportOptionsControls(options, { model.change(photo, it) }, jpegRequired = photo.hdr || photo.hasDepth || photo.motion != null,
                 hasMotion = photo.motion != null, hasPortrait = photo.hasDepth,
                 showLiveOption = photo.motion != null, showPortraitOption = photo.hasDepth,
-                avifRequired = photo.bitDepth > 8, editMetadata = true)
+                avifRequired = photo.bitDepth > 8, editMetadata = true, enabled = !model.busy)
             val compatible = ing.fuyaoskyrocket.photoinfo.platform.ImageEncoderSupport.supports(options.format) &&
                 (photo.bitDepth <= 8 || options.format in setOf(ExportFormat.HEIC, ExportFormat.AVIF)) &&
                 (!photo.hasDepth || options.format == if (options.applePortrait) ExportFormat.HEIC else ExportFormat.JPEG) &&
@@ -38,10 +38,12 @@ fun MetadataEditPanel(photo: OriginalPhoto, model: MetadataEditViewModel) {
                 if (options.separateLivePhoto && photo.motion != null) folder.launch(null)
                 else model.save(photo, options)
             }, enabled = !model.busy && compatible && model.hasChanges(photo.id), modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(if (photo.motion != null && options.separateLivePhoto) R.string.package_export_action else R.string.metadata_save_copy))
+                SavingSymbol(model.busy, Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(if (model.busy) stringResource(R.string.save_progress, 0, 1)
+                    else stringResource(if (photo.motion != null && options.separateLivePhoto) R.string.package_export_action else R.string.metadata_save_copy))
             }
             if (!compatible) Text(stringResource(R.string.export_formats_conflict), color = MaterialTheme.colorScheme.error)
-            if (model.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         }
     }
     if (model.error != null || model.saved) AlertDialog(onDismissRequest = model::dismissResult,

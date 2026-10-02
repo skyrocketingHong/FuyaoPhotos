@@ -29,15 +29,6 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
     val focus = LocalFocusManager.current
     val modeControls: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (photos.size > 1) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton({ onSelectPhoto(photoIndex - 1) }, enabled = !busy && photoIndex > 0) {
-                    Icon(painterResource(R.drawable.ic_back), stringResource(R.string.previous_photo))
-                }
-                Text(stringResource(R.string.photo_position, photoIndex + 1, photos.size), Modifier.weight(1f))
-                IconButton({ onSelectPhoto(photoIndex + 1) }, enabled = !busy && photoIndex < photos.lastIndex) {
-                    Icon(painterResource(R.drawable.ic_chevron), stringResource(R.string.next_photo))
-                }
-            }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
                     listOf(R.string.metadata_mode_view, R.string.metadata_mode_edit).forEachIndexed { index, title ->
@@ -65,21 +56,31 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
                     R.drawable.ic_info,busy,onGallery,onFiles)
             }
         } else {
-            FuyaoAdaptivePage(padding, contentUnderTopEdge = true,
-                single = { modifier ->
-                    PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
-                        display = if (editing) PhotoInfoDisplay.SUMMARY else PhotoInfoDisplay.ALL,
-                        afterSummary = { modeControls() },
-                        belowBar = if (editing) {
-                            { MetadataEditPanel(photo, edit) }
-                        } else null)
-                },
-                leading = { modifier -> PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier,
-                    display = PhotoInfoDisplay.SUMMARY, afterSummary = modeControls) },
-                trailing = { modifier ->
-                    if (editing) FuyaoPageColumn(modifier) { MetadataEditPanel(photo, edit) }
-                    else PhotoInfoContent(photo, controls, hdrAvailable, busy, modifier, display = PhotoInfoDisplay.FACTS)
+            Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+                EditorWorkspace(preview = { modifier, expanded ->
+                    OriginalPhotoSummary(photo, controls, "", hdrAvailable, busy,
+                        workspaceModifier = modifier, expanded = expanded,
+                        overlay = { PhotoPageNavigation(photos.size, photoIndex, busy, onSelectPhoto) },
+                        actions = {
+                            Text(photo.details.displayName ?: stringResource(R.string.photo_details),
+                                Modifier.weight(1f), style = MaterialTheme.typography.labelMedium,
+                                maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        })
+                }, controls = { modifier ->
+                    Column(modifier) {
+                        Box(Modifier.padding(horizontal = FuyaoSpacing.content, vertical = 8.dp)) { modeControls() }
+                        if (controls.mode == OriginalPreviewMode.DEPTH) {
+                            Text(stringResource(R.string.portrait_depth_disparity_note),
+                                Modifier.padding(horizontal = FuyaoSpacing.content),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (editing) FuyaoPageColumn(Modifier.weight(1f), topInset = 0.dp) { MetadataEditPanel(photo, edit) }
+                        else PhotoInfoContent(photo, controls, hdrAvailable, busy, Modifier.weight(1f),
+                            topInset = 0.dp, display = PhotoInfoDisplay.FACTS)
+                    }
                 })
+            }
         }
     }
 }

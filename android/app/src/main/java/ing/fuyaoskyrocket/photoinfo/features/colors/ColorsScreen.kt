@@ -16,6 +16,8 @@ import ing.fuyaoskyrocket.photoinfo.presentation.PhotoPageItem
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoAmbientBackdrop
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorWorkspace
+import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoPreviewStage
+import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoPageNavigation
 import androidx.compose.ui.Alignment
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -33,7 +35,6 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
     }
     @Composable fun image(modifier: Modifier) {
         Box(modifier) {
-            PhotoAmbientBackdrop(photo?.bitmap, modifier = Modifier.matchParentSize())
             model.bitmap?.let { bitmap ->
                 SampleImagePanel(bitmap, model.sample, model.transform, model::updateTransform, model::sampleAt,
                     Modifier.fillMaxSize())
@@ -46,31 +47,27 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
         ColorResultPanel(model.bitmap, model.sample, model.info, model.hdr,
             { showingInfo = true }, model::setHDR, expandColorValues = true, modifier = modifier,
             sourceProfile = photo?.details?.colorSpace ?: model.info?.colorSpaceName,
-            photoActions = { ColorPhotoMenu(busy, model.info != null, onGallery, onFiles, onCamera) { showingInfo = true } })
+            showPhotoActions = false)
     }
     @Composable fun photoTools() {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (photos.size > 1) {
-                IconButton({ onSelect(photoIndex - 1) }, enabled = !busy && photoIndex > 0) {
-                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_back), stringResource(R.string.previous_photo))
-                }
-                Text(stringResource(R.string.photo_position, photoIndex + 1, photos.size), Modifier.weight(1f))
-                IconButton({ onSelect(photoIndex + 1) }, enabled = !busy && photoIndex < photos.lastIndex) {
-                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_chevron), stringResource(R.string.next_photo))
-                }
-            }
+        ColorPhotoMenu(busy, model.info != null, onGallery, onFiles, onCamera) { showingInfo = true }
+        ing.fuyaoskyrocket.photoinfo.ui.components.PreviewMediaButton(R.drawable.ic_hdr,
+            stringResource(R.string.cp_photo_hdr), model.hdr, { model.setHDR(!model.hdr) },
+            enabled = !busy && model.info?.hasHdrContent == true)
+        IconButton({ showingInfo = true }, enabled = model.info != null) {
+            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_info), stringResource(R.string.cp_photo_info_action))
         }
     }
     FuyaoScaffold("", showTopBar = false) { padding ->
         if (photo == null) {
             FuyaoPageColumn(Modifier.fillMaxSize().consumeWindowInsets(padding).imePadding(), topInset=padding.calculateTopPadding()) { overview() }
-        } else Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
+        } else Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
             EditorWorkspace(
-                preview = { modifier, _ ->
-                    Box(modifier.padding(horizontal = FuyaoSpacing.content)) {
+                preview = { modifier, expanded ->
+                    PhotoPreviewStage(photo.bitmap, modifier, expanded, media = {
                         image(Modifier.fillMaxSize())
-                        if (photos.size > 1) Box(Modifier.align(Alignment.BottomCenter)) { photoTools() }
-                    }
+                        PhotoPageNavigation(photos.size, photoIndex, busy, onSelect)
+                    }, actions = { photoTools() })
                 },
                 controls = { modifier -> results(modifier.padding(horizontal = FuyaoSpacing.content)) })
         }

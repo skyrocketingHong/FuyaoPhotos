@@ -57,6 +57,7 @@ internal fun ColorResultPanel(
     modifier: Modifier = Modifier,
     sourceProfile: String? = photoColorInfo?.colorSpaceName,
     photoActions: (@Composable () -> Unit)? = null,
+    showPhotoActions: Boolean = true,
 ) {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(-1) }
     val autoSpaceIndex = SourceColorSpace.fromProfile(sourceProfile).tabIndex
@@ -111,6 +112,7 @@ internal fun ColorResultPanel(
                 onShowPhotoInfo = onShowPhotoInfo,
                 onHdrDisplayEnabledChange = onHdrDisplayEnabledChange,
                 photoActions = photoActions,
+                showPhotoActions = showPhotoActions,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(FuyaoSpacing.extraSmall))
@@ -137,6 +139,7 @@ private fun ResultHeader(
     onShowPhotoInfo: () -> Unit,
     onHdrDisplayEnabledChange: (Boolean) -> Unit,
     photoActions: (@Composable () -> Unit)?,
+    showPhotoActions: Boolean,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
@@ -171,6 +174,7 @@ private fun ResultHeader(
                     onShowPhotoInfo = onShowPhotoInfo,
                     onHdrDisplayEnabledChange = onHdrDisplayEnabledChange,
                     photoActions = photoActions,
+                    showPhotoActions = showPhotoActions,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight(),
@@ -196,6 +200,7 @@ private fun SampleCoordinatesAndActions(
     onShowPhotoInfo: () -> Unit,
     onHdrDisplayEnabledChange: (Boolean) -> Unit,
     photoActions: (@Composable () -> Unit)?,
+    showPhotoActions: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -243,7 +248,7 @@ private fun SampleCoordinatesAndActions(
                 )
             }
         }
-        Column(
+        if (showPhotoActions) Column(
             modifier = Modifier.fillMaxHeight(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,

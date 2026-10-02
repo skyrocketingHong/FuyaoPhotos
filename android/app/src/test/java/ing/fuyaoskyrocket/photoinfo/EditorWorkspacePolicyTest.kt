@@ -22,8 +22,15 @@ class EditorWorkspacePolicyTest {
 
     @Test fun portraitReservesTheActionStripOutsideThePhoto() {
         val layout=EditorWorkspacePolicy.calculate(400f,900f,1f,false)
-        assertEquals(322f,layout.previewHeight,0f)
-        assertEquals(578f,900f-layout.previewHeight,0f)
+        assertEquals(342f,layout.previewHeight,0f)
+        assertEquals(558f,900f-layout.previewHeight,0f)
+    }
+
+    @Test fun compactViewportCapsItsWidthAndKeepsActionsOutsideImage() {
+        val layout = EditorWorkspacePolicy.calculate(700f, 1000f, 1f, false)
+        val imageHeight = layout.previewHeight - EditorWorkspacePolicy.ACTION_HEIGHT - EditorWorkspacePolicy.ACTION_GAP
+        assertEquals(330f, imageHeight, 0f)
+        assertTrue(1000f - layout.previewHeight >= 220f)
     }
 
     @Test fun keyboardKeepsThePhotoVisibleInShortWindows() {

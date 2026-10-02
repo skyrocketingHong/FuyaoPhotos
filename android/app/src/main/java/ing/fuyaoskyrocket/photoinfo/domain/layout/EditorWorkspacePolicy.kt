@@ -4,6 +4,9 @@ package ing.fuyaoskyrocket.photoinfo.domain.layout
 object EditorWorkspacePolicy {
     const val MIN_PHOTO_WIDTH = 280f
     const val PANE_GAP = 12f
+    const val COMPACT_COLUMN_WIDTH = 480f
+    const val ACTION_HEIGHT = 64f
+    const val ACTION_GAP = 8f
 
     data class Layout(val sideBySide: Boolean, val inspectorWidth: Float, val previewHeight: Float)
 
@@ -18,7 +21,7 @@ object EditorWorkspacePolicy {
                 (height - 96f).coerceAtLeast(72f),
             )
             else -> maxOf(minimumPreview, minOf(
-                (width - PageGeometry.MARGIN * 2).coerceAtLeast(0f) * .75f + 52f,
+                (minOf(width, COMPACT_COLUMN_WIDTH) - PageGeometry.MARGIN * 2).coerceAtLeast(0f) * .75f + ACTION_HEIGHT + ACTION_GAP,
                 height * .55f,
                 (height - 220f).coerceAtLeast(96f),
             ))

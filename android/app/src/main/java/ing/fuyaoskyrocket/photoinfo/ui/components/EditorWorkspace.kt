@@ -20,6 +20,7 @@ import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
 import ing.fuyaoskyrocket.photoinfo.domain.layout.EditorWorkspacePolicy
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoLayout
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -112,7 +113,7 @@ private fun AdaptiveEditorRegions(
     } else {
         val previewHeight by animateDpAsState(
             targetValue = spec.previewHeight.dp,
-            animationSpec = tween(durationMillis = 220),
+            animationSpec = tween(durationMillis = if (LocalPhotoMotionEnabled.current) 220 else 0),
             label = "editor photo region",
         )
         Column(Modifier.fillMaxSize()) {

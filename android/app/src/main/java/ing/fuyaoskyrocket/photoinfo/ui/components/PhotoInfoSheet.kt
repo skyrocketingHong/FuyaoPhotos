@@ -127,6 +127,7 @@ private fun detailGroups(context: Context, details: PhotoDetails): List<DetailGr
     fun number(tag: String, places: Int = 2): String? = raw(tag)?.let { parseExifNumber(it) }
         ?.let { MetadataFormatting.number(it, places) }?.takeIf(String::isNotEmpty)
     val file = buildList {
+        details.displayName?.takeIf(String::isNotBlank)?.let { add(DetailRow(R.string.photo_info_name, it)) }
         details.mimeType?.takeIf(String::isNotBlank)?.let { add(DetailRow(R.string.photo_info_kind, imageKind(context, it))) }
         details.byteCount?.takeIf { it > 0L }?.let {
             add(DetailRow(R.string.photo_info_file_size, android.text.format.Formatter.formatFileSize(context, it)))

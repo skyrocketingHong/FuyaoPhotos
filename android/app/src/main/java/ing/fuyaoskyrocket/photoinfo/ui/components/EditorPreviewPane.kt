@@ -44,14 +44,7 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
     val next=stringResource(R.string.next_photo)
     val position=stringResource(R.string.photo_position,state.photoIndex+1,state.photos.size)
     val updating=state.rendering || editingText
-    BoxWithConstraints(modifier.then(if(bottomSafe)Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier)) {
-    val showPhoto=maxHeight>52.dp
-    val justifiedControls=maxWidth>=336.dp
-    LaunchedEffect(showPhoto) { if(!showPhoto)playing=false }
-    PhotoAmbientBackdrop(state.original, featherEdges=false, modifier=Modifier.matchParentSize())
-    Column(Modifier.fillMaxSize().padding(horizontal=FuyaoSpacing.content)) {
-        if(showPhoto) {
-        Box(Modifier.fillMaxWidth().weight(1f)) {
+    PhotoPreviewStage(state.original ?: state.preview, modifier, expanded = bottomSafe, media = {
             Box(Modifier.matchParentSize()) {
                 val pager=rememberPagerState(initialPage=state.photoIndex) { state.photos.size }
                 fun move(delta: Int) {
@@ -78,7 +71,7 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                     }
                 },userScrollEnabled=(!state.busy || state.loadingPhoto) && !state.closing) { page ->
                     if(page==state.photoIndex)PendingPhotoEffect(updating,Modifier.fillMaxSize()) {
-                        PhotoPreview(if(original)state.original else state.preview,Modifier.fillMaxSize(),
+                        PhotoPreview(if(original && !state.exporting)state.original else state.preview,Modifier.fillMaxSize(),
                             showsBackdrop=false,original=original)
                         if(playing && motion!=null)MotionPhotoPreview(motion,Modifier.fillMaxSize(),
                             onFinished={ playing=false },onError={ playing=false;playbackError=true })
@@ -107,28 +100,42 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                 }
                 }
             }
-            }
-        }
-        Surface(color=Color.Transparent) {
-            // Justified, evenly spaced controls; only genuinely narrow windows keep the scroll fallback.
-            val mediaActions: @Composable RowScope.() -> Unit = {
+    }, actions = {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            var overflow by remember { mutableStateOf(false) }
+            val optionalCount = 1 + (if (state.motionPhoto) 1 else 0) + (if (showHdr) 1 else 0)
+            val fits = maxWidth >= ((optionalCount + 3) * 48 + 8).dp
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceEvenly) {
+            if (fits) {
                 if(state.motionPhoto)PreviewMediaButton(if(playing)R.drawable.ic_stop else R.drawable.ic_motion,
                     stringResource(if(playing)R.string.stop_motion else R.string.play_motion),playing,{ playing=!playing },
                     enabled=motion!=null && !state.busy && !state.rendering)
                 if(showHdr)PreviewMediaButton(R.drawable.ic_hdr,
                     stringResource(if(!hdrAvailable)R.string.hdr_unavailable else if(hdrEnabled)R.string.disable_hdr else R.string.enable_hdr),
-                    hdrEnabled && hdrAvailable,{ playing=false;onHdr() },enabled=hdrAvailable)
-                PreviewMediaButton(R.drawable.ic_compare,stringResource(R.string.original),original,{ playing=false;onOriginal() },enabled=state.original!=null)
-                actions()
-                FuyaoIconButton(R.drawable.ic_expand,stringResource(R.string.enlarge),{ playing=false;onEnlarge() },enabled=state.preview!=null)
+                    hdrEnabled && hdrAvailable,{ playing=false;onHdr() },enabled=hdrAvailable && !state.busy)
+                PreviewMediaButton(R.drawable.ic_compare,stringResource(R.string.original),original,{ playing=false;onOriginal() },enabled=state.original!=null && !state.busy)
+            } else Box {
+                IconButton({ overflow = true }, enabled = !state.busy) {
+                    Icon(painterResource(R.drawable.ic_more), stringResource(R.string.photo_tools))
+                }
+                DropdownMenu(overflow, { overflow = false }) {
+                    if (state.motionPhoto) DropdownMenuItem(
+                        text = { Text(stringResource(if (playing) R.string.stop_motion else R.string.play_motion)) },
+                        onClick = { playing = !playing; overflow = false }, enabled = motion != null && !state.rendering)
+                    if (showHdr) DropdownMenuItem(
+                        text = { Text(stringResource(if (hdrEnabled) R.string.disable_hdr else R.string.enable_hdr)) },
+                        onClick = { playing = false; onHdr(); overflow = false }, enabled = hdrAvailable)
+                    DropdownMenuItem(text = { Text(stringResource(R.string.original)) },
+                        trailingIcon = { Checkbox(original, onCheckedChange = null) },
+                        onClick = { playing = false; onOriginal(); overflow = false }, enabled = state.original != null)
+                }
             }
-            if(justifiedControls) Row(Modifier.fillMaxWidth().height(52.dp),verticalAlignment=Alignment.CenterVertically,
-                horizontalArrangement=Arrangement.SpaceBetween,content=mediaActions)
-            else Row(Modifier.fillMaxWidth().height(52.dp).horizontalScroll(rememberScrollState()),
-                verticalAlignment=Alignment.CenterVertically,content=mediaActions)
+            actions()
+            FuyaoIconButton(R.drawable.ic_expand,stringResource(R.string.enlarge),{ playing=false;onEnlarge() },enabled=state.preview!=null && !state.busy)
+            }
         }
-    }
-    }
+    })
     if(playbackError)AlertDialog(onDismissRequest={ playbackError=false },title={ Text(stringResource(R.string.motion_playback_title)) },
         text={ Text(stringResource(R.string.motion_playback_error)) },confirmButton={ TextButton(onClick={ playbackError=false }) { Text(stringResource(R.string.close)) } })
 }

@@ -76,4 +76,17 @@ class BatchWorkflowTest {
             assertEquals(listOf(0, 1), visited)
         }
     }
+
+    @Test fun memoryFailureStillProcessesRemainingItemsAndReportsCompletedAttempts() = runBlocking {
+        val progress = mutableListOf<BatchProgress>()
+        val result = runBatch(listOf("first", "broken", "last"), { "Insufficient memory" }, progress::add) { _, item ->
+            if (item == "broken") throw OutOfMemoryError("export fixture")
+            item
+        }
+        assertEquals(listOf("first", "last"), result.saved)
+        assertEquals(listOf(0, 1, 2, 3), progress.map { it.completed })
+        assertEquals(listOf(0, 0, 1, 1), progress.map { it.failed })
+        assertTrue(progress.all { it.total == 3 })
+        assertEquals(1, result.failures.single().index)
+    }
 }
