@@ -9,11 +9,11 @@ Apple 与 Android 共用本格式，目前支持版本 1。不支持的版本明
 文件按以下顺序组成：
 
 1. 16 字节魔数：ASCII `FUYAOPHOTOS`，后接 `00 01 0D 0A 1A`。
-2. 4 字节无符号大端整数，表示 JSON 字节数，范围 1～32768。
+2. 4 字节无符号大端整数，表示 JSON 字节数，范围为 1 至 32768。
 3. UTF-8 JSON 清单。
 4. 原始图片字节、原始 MOV 字节；没有填充或尾随数据。
 
-清单字段：`format` 固定为 `fuyaophotos.live-photo`，`version` 为 `1`；`assetIdentifier` 为规范 UUID 字符串，`stillImageTimeUs` 为 0～60000000 的微秒时间戳；`photo`、`movie` 分别包含 `fileExtension`、`bytes`、64 位小写十六进制 `sha256`。图片仅允许 `jpg` 或 `heic`，视频为 `mov`；每个资源最多 512 MiB。哈希用于发现传输损坏，不是身份签名。
+清单字段：`format` 固定为 `fuyaophotos.live-photo`，`version` 为 `1`；`assetIdentifier` 为规范 UUID 字符串，`stillImageTimeUs` 为 0 至 60000000 的微秒时间戳；`photo`、`movie` 分别包含 `fileExtension`、`bytes`、64 位小写十六进制 `sha256`。图片仅允许 `jpg` 或 `heic`，视频为 `mov`；每个资源最多 512 MiB。哈希用于发现传输损坏，不是身份签名。
 
 固定两个未压缩资源，不包含解包路径、目录、符号链接、可执行内容或任意资源名。读取方自行生成私有临时目录和文件名，写入前验证长度，流式核对哈希；失败时清理半成品。
 
@@ -25,7 +25,7 @@ Apple 与 Android 共用本格式，目前支持版本 1。不支持的版本明
 
 根字段：`format` 固定为 `fuyaophotos.lenses`，`version` 为 `1`；`device` 为产品显示名，`exifModel` 为原片 EXIF 匹配值，`lenses` 为镜头数组。
 
-镜头包含 `name`、`facing`（`unspecified`、`back`、`front`、`external`）、`equivalentMin`、`equivalentMax`。可选成对端点为 `physicalMin` / `physicalMax` 与 `zoomMin` / `zoomMax`；`digitalZoomMax` 单独表示数码覆盖上限。数字必须有限且满足两端 LensProfile 范围约束。缺失值保持缺失，不在导入时估算。
+镜头包含 `name`、`facing` (`unspecified`、`back`、`front`、`external`)、`equivalentMin`、`equivalentMax`。可选成对端点为 `physicalMin` / `physicalMax` 与 `zoomMin` / `zoomMax`；`digitalZoomMax` 单独表示数码覆盖上限。数字必须有限且满足两端 LensProfile 范围约束。缺失值保持缺失，不在导入时估算。
 
 可选字段 `stylePrefix` 为不超过 64 个字符且不含控制字符的字符串。镜头唯一匹配后，在卡片的非空摄影风格名称前加此前缀；留空保留原名称，名称已含相同前缀时不重复添加。缺少风格名称时不只显示前缀，也不修改原片元数据。旧文件省略此字段时保持原有显示行为。
 

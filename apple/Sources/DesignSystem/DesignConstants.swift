@@ -83,7 +83,7 @@ enum DesignConstants {
         /// 缩略图尺寸（减小以节省内存）
         static let thumbnailSize = CGSize(width: 40, height: 40)
         static let maxVisiblePhotos = 500
-        /// 白色计数文字需要 ≥4.5:1 对比度，系统 .blue 只有 3.6–4.0:1
+        /// 白色计数文字需要至少 4.5:1 对比度，系统 .blue 只有 3.6-4.0:1。
         static let countBadgeColor = Color(red: 0.04, green: 0.35, blue: 0.71)
     }
 

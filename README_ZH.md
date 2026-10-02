@@ -16,10 +16,10 @@
 
 ### 导出样例
 
-香港海滨 · 小米 17 Ultra · 徕卡 75–100mm 长焦。点击查看 **4080 × 3072** 原尺寸导出图片。
+香港海滨 · 小米 17 Ultra · 徕卡 75-100 mm 长焦。点击查看 **4080 × 3072** 原尺寸导出图片。
 
 <p align="center">
-  <a href="assets/readme/sample-hong-kong.jpg"><img src="assets/readme/sample-hong-kong.jpg" width="960" alt="香港海滨照片，右下角圆角信息卡展示小米 17 Ultra、徕卡 75–100mm 长焦镜头及拍摄参数"></a>
+  <a href="assets/readme/sample-hong-kong.jpg"><img src="assets/readme/sample-hong-kong.jpg" width="960" alt="香港海滨照片，右下角圆角信息卡展示小米 17 Ultra、徕卡 75-100 mm 长焦镜头及拍摄参数"></a>
 </p>
 
 ### Apple 发布会参考截图
@@ -34,20 +34,20 @@ Apple 发布会截图，展示信息卡的设计参考。三张截图均为 **25
   </tr>
 </table>
 
-Apple 与画面署名摄影者保留各自的图片权利，详见[素材来源与权利说明](assets/readme/README.md)及 [Apple 相关声明](#apple-相关声明)。
+Apple 与画面署名摄影者保留各自的图片权利，详见[素材来源与权利说明](assets/readme/README.md) 及 [Apple 相关声明](#apple-相关声明)。
 
 ## 功能
 
-- **拍摄信息卡**：以圆角磨砂卡片展示设备、摄影者、地点、镜头及拍摄参数。
-- **EXIF 识别**：读取照片元数据，根据照片 GPS 解析地点，支持手动修改全部展示字段。
-- **批量编辑**：一次选择最多 50 张照片，横向切换编辑并统一保存，每张照片保留独立的信息和样式。
-- **样式调整**：自定义卡片大小、字号、透明度、模糊、圆角和边距，支持导入 TTF/OTF/TTC 字体。
-- **保存偏好**：设置默认格式、JPEG 质量、EXIF 参数、定位和拍摄时间保留选项，每次保存均可临时调整。
-- **相册衔接**：从相册分享单张或多张照片到应用编辑，保存后可直接打开或分享。
-- **署名与镜头配置**：保存默认摄影者，自定义镜头名称、焦段范围和变焦倍率。
-- **媒体预览**：通过紧凑图标播放动态照片视频、切换 HDR 显示。
-- **预览与导出**：原图对照、原尺寸预览，按原尺寸导出 JPEG/PNG。JPEG 编码质量可在 0～100 之间调整，默认 100。
-- **HDR 与动态照片**：编辑封面时保留支持的 JPEG Ultra HDR 增益图及动态照片视频、音频。
+- 以圆角磨砂信息卡展示设备、摄影者、地点、镜头及拍摄参数。
+- 读取照片 EXIF 元数据，根据照片 GPS 解析地点，支持手动修改全部展示字段。
+- 一次选择最多 50 张照片，横向切换编辑并统一保存，每张照片保留独立的信息和样式。
+- 自定义卡片大小、字号、透明度、模糊、圆角和边距，支持导入 TTF/OTF/TTC 字体。
+- 设置默认格式、JPEG 质量、EXIF 参数、定位和拍摄时间保留选项，每次保存均可临时调整。
+- 从相册分享单张或多张照片到应用编辑，保存后可直接打开或分享。
+- 保存默认摄影者，自定义镜头名称、焦段范围和变焦倍率。
+- 通过紧凑图标播放动态照片视频、切换 HDR 显示。
+- 对照原图、按原尺寸预览，按原尺寸导出 JPEG/PNG。JPEG 编码质量可在 0 至 100 之间调整，默认 100。
+- 编辑封面时保留支持的 JPEG Ultra HDR 增益图及动态照片视频、音频。
 
 ## 使用
 
@@ -69,9 +69,9 @@ Android 10+ 保存至 `Pictures/FuyaoPhotoInfo`；Android 8/9 单张选择保存
 
 | 镜头 | 原生等效焦段 | 原生倍率 | 数码最高倍率（可选） |
 | --- | --- | --- | --- |
-| 主摄 | 23～23 mm | 1～1× | 3.1× |
-| 超广角 | 14～14 mm | 0.6～0.6× | 0.9× |
-| 长焦 | 75～100 mm | 3.2～4.3× | 按需要填写已确认的最高总倍率 |
+| 主摄 | 23-23 mm | 1-1× | 3.1× |
+| 超广角 | 14-14 mm | 0.6-0.6× | 0.9× |
+| 长焦 | 75-100 mm | 3.2-4.3× | 按需要填写已确认的最高总倍率 |
 
 物理焦距填写 Camera2/EXIF 的实际数值，不能使用表中的等效焦距；未知时留空。匹配优先使用物理焦距，其次使用配置的等效焦段和数码范围；存在歧义时留空。
 
@@ -82,9 +82,9 @@ Android 10+ 保存至 `Pictures/FuyaoPhotoInfo`；Android 8/9 单张选择保存
 | 输入 | 输出 | 保留内容 |
 | --- | --- | --- |
 | 普通静态照片 | JPEG / 8 位 PNG | 原始尺寸，可选保留拍摄参数 |
-| JPEG Ultra HDR（Android 14+） | JPEG | 增益图与解码颜色空间 |
+| JPEG Ultra HDR (Android 14+) | JPEG | 增益图与解码颜色空间 |
 | 支持的 JPEG 动态照片 / Microvideo | JPEG | 原音视频编码内容及所选元数据 |
-| 支持的 JPEG Ultra HDR 动态照片（Android 14+） | JPEG | HDR 与动态数据 |
+| 支持的 JPEG Ultra HDR 动态照片 (Android 14+) | JPEG | HDR 与动态数据 |
 
 JPEG 底图和增益图会重新编码，视频和音频不转码。定位与拍摄时间开关同时作用于照片和视频元数据。对于支持的 MP4/MOV，清理不会移动编码样本或改变播放时序，并校验未修改区域；全部保留时视频按原字节复制。HDR/动态照片不能导出为 PNG。请导入完整原片，聊天应用或文件提供程序已移除的数据无法恢复。
 
@@ -186,7 +186,7 @@ Fuyao Photo Info 是独立的第三方项目，与 Apple Inc. 无隶属或合作
 
 SF Mono 等 Apple 字体仍受其适用许可约束，不属于本项目 `AGPL-3.0-only` 的授权范围。macOS 自带字体、本地复制脚本或 Git 忽略规则均不构成字体嵌入或再分发授权。分发包含 Apple 字体的 Android APK 前，应取得覆盖该用途的许可，或改用 Android 系统等宽字体及其他许可允许的字体。本声明本身不授予使用 Apple 素材的权利。
 
-相关依据见 Apple 的[商标使用指南](https://www.apple.com/legal/intellectual-property/guidelinesfor3rdparties.html)、[商标列表](https://www.apple.com/legal/intellectual-property/trademark/appletmlist.html)和[字体信息及许可条款](https://developer.apple.com/fonts/)。具体字体或素材随附的许可仍然适用。
+相关依据见 Apple 的[商标使用指南](https://www.apple.com/legal/intellectual-property/guidelinesfor3rdparties.html)、[商标列表](https://www.apple.com/legal/intellectual-property/trademark/appletmlist.html) 和[字体信息及许可条款](https://developer.apple.com/fonts/)。具体字体或素材随附的许可仍然适用。
 
 ## AI 辅助开发
 

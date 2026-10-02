@@ -1,6 +1,6 @@
 # Changelog
 
-## 27.0 — 2026-09-21
+## 27.0 (2026-09-21)
 
 Initial release of Fuyao Photo Info for Android 8.0 and later.
 

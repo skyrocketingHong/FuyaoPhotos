@@ -358,9 +358,9 @@
 "metadata.styles.status" = "状态";
 "metadata.styles.value.present" = "已包含";
 "metadata.styles.value.unavailable" = "不可用";
-"metadata.styles.standard" = "添加摄影风格（Standard）";
+"metadata.styles.standard" = "添加摄影风格 (Standard)";
 "metadata.styles.texture" = "添加质感风格（纹理与颗粒）";
-"metadata.styles.footer" = "质感风格依赖摄影风格（Standard）层。点按“保存到照片图库”后，可选择另存为新照片，或在支持时更新原照片。支持的 Live Photo 会保留动态效果；视频风格数据不兼容时会提示，原照片保留。";
+"metadata.styles.footer" = "质感风格依赖 Standard 摄影风格层。点按“保存到照片图库”后，可选择另存为新照片，或在支持时更新原照片。支持的 Live Photo 会保留动态效果；视频风格数据不兼容时会提示，原照片保留。";
 
 "metadata.report.section.container" = "容器";
 "metadata.report.section.container.description" = "显示可从这张照片读取的文件格式与封装信息。";
@@ -391,14 +391,14 @@
 "metadata.report.appleMakerNote" = "Apple MakerNote 标签";
 "metadata.report.appleAuxStack" = "Apple 辅助条目";
 "metadata.report.value.none" = "无";
-"metadata.report.value.ultrahdr" = "Ultra HDR（Google XMP）";
+"metadata.report.value.ultrahdr" = "Ultra HDR (Google XMP)";
 "metadata.report.value.isogainmap" = "ISO 21496-1 增益图";
 "metadata.report.value.applegainmap" = "Apple 私有增益图";
 "metadata.report.value.livephoto" = "Apple Live Photo";
 "metadata.report.value.googlemotion" = "Google Motion Photo";
-"metadata.report.value.heicmotion" = "HEIC 内嵌动态（Google）";
-"metadata.report.value.styles2023" = "已包含（2023 Standard）";
-"metadata.report.value.styles2026" = "已包含（2026 纹理与颗粒）";
+"metadata.report.value.heicmotion" = "HEIC 内嵌动态 (Google)";
+"metadata.report.value.styles2023" = "已包含 2023 Standard";
+"metadata.report.value.styles2026" = "已包含 2026 纹理与颗粒";
 
 "metadata.settings.header" = "元数据";
 "metadata.sharesCards" = "与信息卡片共享照片";
@@ -483,7 +483,7 @@
 "colors.sample.definition" = "数值来自解码后的原始像素，HDR 开关仅影响显示。带增益图的照片从基底取色，原生 HDR 像素保留扩展范围。";
 "colors.magnifier" = "像素放大镜";
 "colors.space" = "色彩空间";
-"colors.auto.value" = "自动（%@）";
+"colors.auto.value" = "自动 (%@)";
 "colors.copy" = "复制色值";
 "colors.sample" = "色样";
 "colors.pixel" = "选择像素";
@@ -510,8 +510,8 @@
 "photo.count.unit" = "项";
 
 "map.coordinates.alignment" = "地图位置对齐";
-"map.coordinates.gcj02" = "高德底图（GCJ-02）";
-"map.coordinates.wgs84" = "标准底图（WGS-84）";
+"map.coordinates.gcj02" = "高德底图 (GCJ-02)";
+"map.coordinates.wgs84" = "标准底图 (WGS-84)";
 "map.coordinates.description" = "选择与地图底部来源一致的坐标方案。原片 GPS 保持不变。";
 
 "photo.info.fileName" = "文件名";

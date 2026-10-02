@@ -51,7 +51,7 @@
   <string name="settings">Settings</string>
   <string name="photo_cards_title">Cards</string>
   <string name="photo_metadata_title">Metadata</string>
-  <string name="photo_metadata_description">Inspect the original photo’s file, camera, capture and location details. Only available values are shown.</string>
+  <string name="photo_metadata_description">Inspect file, camera, capture, and location details from the original photo. Only available values are shown.</string>
   <string name="photo_metadata_empty">Choose photos above to inspect their metadata.</string>
   <string name="metadata_shares_cards">Share photos with Cards</string>
   <string name="metadata_shares_cards_hint">When off, each page keeps its own photos. When on, choosing photos on either page changes the shared selection.</string>
@@ -91,7 +91,7 @@
   <string name="add_lens">Add lens</string>
   <string name="edit_lens">Edit lens</string>
   <string name="delete_lens">Delete lens</string>
-  <string name="profile_match_hint">Use a product name for display and the photo’s EXIF model to match photos.</string>
+  <string name="profile_match_hint">Use a product name for display and the EXIF model to match photos.</string>
   <string name="profile_device">Product name</string>
   <string name="profile_name">Lens name</string>
   <string name="equivalent_min">Equivalent focal min (mm)</string>
@@ -152,7 +152,7 @@
   <string name="loading_motion">Loading Motion Photo…</string>
   <string name="profile_exif_model">Device identifier (EXIF model)</string>
   <string name="profile_exif_hint">Use the model recorded in the original photo. This may differ from the product name.</string>
-  <string name="read_product_name">Use this device’s product name</string>
+  <string name="read_product_name">Use the product name of this device</string>
   <string name="bound_camera_id">Hardware lens ID: %1$s</string>
   <string name="digital_range">Digital zoom coverage</string>
   <string name="digital_range_hint">Optional limit for focal-length matching. If blank, coverage extends toward the next lens on the same device. Actual physical lens metadata takes priority.</string>
@@ -199,7 +199,7 @@
   <string name="value_pixels">%1$d px</string>
   <string name="hardware_identity">%1$s · ID %2$s</string>
   <string name="profile_summary">%1$s · %2$s
-%3$s–%4$s mm</string>
+%3$s-%4$s mm</string>
   <string name="lens_action">%1$s: %2$s</string>
   <string name="media_hdr_portrait">Ultra HDR · Portrait</string>
   <string name="heic_sdr_hint">HEIC keeps the HDR gain map when present. Encoding support depends on your device.</string>
@@ -255,7 +255,7 @@
   <string name="heic_motion_hint">Motion photos are recognized by Android galleries only in JPEG exports; Apple devices need the paired Live Photo output.</string>
   <string name="apple_portrait_hint">Use the unblurred image, relative depth and portrait mask. Save as HEIC for depth editing on Apple devices.</string>
   <string name="portrait_heic_required">Choose HEIC to include Apple portrait depth.</string>
-  <string name="avif_precision_required">Choose AVIF or HEIC to preserve this photo’s 10-bit color and dynamic range.</string>
+  <string name="avif_precision_required">Choose AVIF or HEIC to preserve the 10-bit color and dynamic range of this photo.</string>
   <string name="image_encoder_unavailable">This device has no encoder for the selected format. Choose another supported format.</string>
   <string name="export_formats_conflict">These photos need different output formats. Save the 10-bit AVIF photos separately from Motion Photos and portraits.</string>
   <string name="card_device_hint">Camera or phone model.</string>
@@ -416,7 +416,7 @@
   <string name="lens_file_description">Share one camera model as a single-line JSON using the clipboard or a file. Save to apply imported changes.</string>
   <string name="lens_file_invalid">Cannot read this lens configuration. Choose a supported Fuyao Photos JSON file with valid lens parameters.</string>
   <string name="lens_file_export_failed">Could not export the configuration. Choose another location and try again.</string>
-  <string name="lens_file_replace_title">Replace this model’s configuration?</string>
+  <string name="lens_file_replace_title">Replace the configuration for this model?</string>
   <string name="lens_file_replace">Replace configuration</string>
   <string name="lens_file_replace_message">The lens configuration for %1$s will be replaced in this draft. Other models are kept.</string>
   <string name="lens_file_imported">Configuration added to the draft. Save to apply it.</string>
@@ -434,11 +434,11 @@
   <string name="lens_clipboard_invalid">The clipboard does not contain a supported lens configuration. Copy one complete JSON configuration and try again.</string>
   <string name="lens_group_one">1 lens</string>
   <string name="lens_group_count">%1$d lenses</string>
-  <string name="lens_group_range">%1$s–%2$s mm</string>
+  <string name="lens_group_range">%1$s-%2$s mm</string>
   <string name="lens_group_current">This device</string>
   <string name="lens_group_expanded">Expanded</string>
   <string name="lens_group_collapsed">Collapsed</string>
-  <string name="lens_hardware_this_device">Use as this device’s configuration</string>
+  <string name="lens_hardware_this_device">Use for this device</string>
   <string name="lens_hardware_bind">Link a hardware lens</string>
   <string name="lens_hardware_id_hint">Imported ID: %1$s · Not linked</string>
   <string name="lens_hardware_manual_description">Choose a lens from this device. Available focal lengths, facing and existing links are checked before linking. Save the configuration to apply changes.</string>
@@ -457,5 +457,5 @@
   <string name="lens_export_configuration">Export configuration</string>
   <string name="lens_transfer_title">Import and export</string>
   <string name="prefer_lens_pixel_count">Use lens pixel count by default</string>
-  <string name="prefer_lens_pixel_count_hint">Use the matched lens’s official pixel count when importing or restoring card fields. When off, or if unavailable, use the photo’s actual width × height.</string>
+  <string name="prefer_lens_pixel_count_hint">Use the official pixel count of the matched lens when importing or restoring card fields. When off, or if unavailable, use the actual photo width × height.</string>
 </resources>

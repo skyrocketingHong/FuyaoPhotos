@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// 统一的信息行组件（用于PhotoDetailSheet）
+/// PhotoDetailSheet 使用的统一信息行组件。
 struct InfoRow: View {
     let icon: String
     let label: LocalizedStringKey

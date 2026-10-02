@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The develop settle: when a photo first arrives in a workspace, a brief exposure flash
-/// fades out over the media — the print develops. It runs once per view insertion (opening
+/// fades out over the media, like a developing print. It runs once per view insertion (opening
 /// a photo, not paging between already-open ones) and is skipped entirely under Reduce Motion.
 struct PhotoDevelopEffect: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

@@ -4,7 +4,7 @@ import android.graphics.Color as AndroidColor
 import java.util.Locale
 
 /**
- * A color value expressed in 0–255 integer RGB, with a flag indicating whether
+ * A color value expressed in integer RGB from 0 to 255, with a flag indicating whether
  * any source component was outside the [0, 1] range and had to be clamped.
  */
 internal data class ColorValue(

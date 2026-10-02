@@ -288,7 +288,7 @@
 "card.photo.position %lld %lld" = "%lld of %lld";
 "card.field.device.hint" = "Camera or phone product name. Leave blank to hide it.";
 "card.field.author.hint" = "Photographer credit for this photo.";
-"card.field.location.hint" = "City and country from the photo’s GPS, or your own location text.";
+"card.field.location.hint" = "City and country from the photo's GPS, or your own location text.";
 "card.field.camera.hint" = "Lens name read from the original photo.";
 "card.field.imageSize.hint" = "Resolution in megapixels, not file size.";
 "card.field.focalLength.hint" = "35 mm-equivalent focal length and optional zoom ratio.";
@@ -302,11 +302,11 @@
 "card.style.blur.hint" = "Blur photo details behind the card.";
 "card.style.rightInset.hint" = "Distance from the right edge, scaled with the photo.";
 "card.style.bottomInset.hint" = "Distance from the bottom edge, scaled with the photo.";
-"card.style.cornerRadius.hint" = "Adjust the card’s rounded corners.";
+"card.style.cornerRadius.hint" = "Adjust the card's rounded corners.";
 "card.error.imageEncoding" = "The system could not encode this photo. Try the other image format; the original is unchanged.";
 "card.error.imageValidation" = "The encoded photo did not retain its dimensions or HDR data. It was not saved.";
-"card.error.auxiliaryEncoding" = "The system could not preserve the photo’s depth or matte data. It was not saved.";
-"card.error.nativeMetadataFormat" = "Save as HEIC to keep this photo’s Photographic Styles and editing data.";
+"card.error.auxiliaryEncoding" = "The system could not preserve the photo's depth or matte data. It was not saved.";
+"card.error.nativeMetadataFormat" = "Save as HEIC to keep this photo's Photographic Styles and editing data.";
 "card.error.liveStyleMetadata" = "This Live Photo has no compatible native video style data, so this style cannot be added yet. The original is unchanged.";
 "card.save.nativeMetadata" = "HEIC keeps the original Photographic Styles, depth and other editing data.";
 "card.error.librarySave" = "The photo was created, but Photos could not add it to the library. Try saving again.";
@@ -426,7 +426,7 @@
 "lens.keepEditing" = "Keep Editing";
 "lens.discard.message" = "Your changes to the lens list have not been saved.";
 "lens.editor.discard.message" = "Your changes to this lens have not been applied.";
-"lens.save.failed" = "Couldn’t save the profiles. Check the values and try again.";
+"lens.save.failed" = "Couldn't save the profiles. Check the values and try again.";
 "lens.device" = "Product Name";
 "lens.exifModel" = "EXIF Camera Model";
 "lens.name" = "Lens Name";
@@ -436,7 +436,7 @@
 "lens.facing.front" = "Front";
 "lens.facing.external" = "External";
 "lens.identity.header" = "Identification";
-"lens.identity.footer" = "Use the camera model exactly as it appears in the original photo’s EXIF. The product name is shown on the card; the lens name is used when EXIF has no lens name.";
+"lens.identity.footer" = "Use the camera model exactly as it appears in the original photo's EXIF. The product name is shown on the card; the lens name is used when EXIF has no lens name.";
 "lens.range.min" = "Minimum";
 "lens.range.max" = "Maximum";
 "lens.equivalent.header" = "35 mm Equivalent Focal Length";
@@ -444,7 +444,7 @@
 "lens.physical.header" = "Physical Focal Length · Optional";
 "lens.physical.footer" = "Use the actual lens focal length from EXIF, up to 1000 mm. Fill both values or leave both blank. Physical focal length takes priority when matching.";
 "lens.zoom.header" = "Zoom Calibration · Optional";
-"lens.zoom.footer" = "Enter the camera’s displayed zoom at each native focal endpoint, up to 200×. For a fixed lens, use the same zoom twice. Set digital coverage separately; leave unknown values blank.";
+"lens.zoom.footer" = "Enter the camera's displayed zoom at each native focal endpoint, up to 200×. For a fixed lens, use the same zoom twice. Set digital coverage separately; leave unknown values blank.";
 "lens.digitalMax" = "Digital Coverage Limit";
 "lens.apply.footer" = "Apply Changes updates the list draft. Choose Save Profiles on the list to save it.";
 "lens.validation.identity" = "Enter a product name, EXIF camera model, and lens name.";
@@ -537,7 +537,7 @@
 
 "lens.file.export.failed" = "Could not export the configuration. Choose another location and try again.";
 
-"lens.file.replace.title" = "Replace this model’s configuration?";
+"lens.file.replace.title" = "Replace this model's configuration?";
 
 "lens.file.replace" = "Replace configuration";
 
@@ -563,7 +563,7 @@
 
 "package.import.file" = "File";
 
-"package.import.description" = "Save this package’s photo and video together as a Live Photo in your photo library.";
+"package.import.description" = "Save this package's photo and video together as a Live Photo in your photo library.";
 
 "package.import.checking" = "Checking photo package…";
 
@@ -590,7 +590,7 @@
 "lens.group.current" = "This device";
 "lens.hardware.scan" = "Scan and Match Lenses";
 "lens.hardware.description" = "Uniquely matched lenses on this device are linked automatically. If the model is not recognized, expand its configuration and mark it as this device. Save to apply changes.";
-"lens.hardware.thisDevice" = "Use as this device’s configuration";
+"lens.hardware.thisDevice" = "Use as this device's configuration";
 "lens.hardware.bind" = "Link a hardware lens";
 "lens.hardware.bound" = "Linked lens ID: %@";
 "lens.hardware.hint" = "Imported ID: %@ · Not linked";
@@ -616,7 +616,7 @@
 "lens.file.exported" = "Configuration Saved to File";
 
 "lens.originalMegapixels" = "Official Pixel Count";
-"lens.originalMegapixels.footer" = "Enter the pixel count listed for this lens on the device’s official specifications page, in MP. Leave empty if unknown.";
+"lens.originalMegapixels.footer" = "Enter the pixel count listed for this lens on the device's official specifications page, in MP. Leave empty if unknown.";
 "lens.validation.originalMegapixels" = "Enter a pixel count greater than 0 and no more than 1000 MP, or leave it empty.";
 "card.imageSize.menu" = "Fill Pixel Count";
 "card.imageSize.file" = "Photo Pixels: %@";
@@ -632,4 +632,4 @@
 "card.restore.named" = "Restore %@";
 
 "card.preferLensPixelCount" = "Use Lens Pixel Count by Default";
-"card.preferLensPixelCount.hint" = "Use the matched lens’s official pixel count when importing or restoring card fields. When off, or if unavailable, use the photo’s actual width × height.";
+"card.preferLensPixelCount.hint" = "Use the matched lens's official pixel count when importing or restoring card fields. When off, or if unavailable, use the photo's actual width × height.";

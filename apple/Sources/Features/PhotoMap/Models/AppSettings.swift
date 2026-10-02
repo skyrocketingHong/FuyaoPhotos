@@ -37,7 +37,7 @@ class AppSettings {
 
     // MARK: - Settings Properties
 
-    /// 默认展示模式（缺省 photo）
+    /// 默认展示模式，缺省为 photo。
     var defaultDisplayMode: MapDisplayMode {
         get {
             if let rawValue = UserDefaults.standard.string(forKey: "defaultDisplayMode"),
@@ -51,7 +51,7 @@ class AppSettings {
         }
     }
 
-    /// 默认地图样式（缺省 explore）
+    /// 默认地图样式，缺省为 explore。
     var defaultMapStyle: MapStyleMode {
         get {
             if let rawValue = UserDefaults.standard.string(forKey: "defaultMapStyle"),

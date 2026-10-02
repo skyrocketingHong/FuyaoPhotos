@@ -11,7 +11,7 @@ struct PhotoPageIntro: View {
     let symbol: String
     var prominent = false
 
-    /// The camera-at-work mark: the page symbol framed by viewfinder brackets —
+    /// The camera-at-work mark frames the page symbol with viewfinder brackets,
     /// every empty workspace reads as a camera waiting for a photo.
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

@@ -18,7 +18,7 @@ import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 
 /**
  * The develop settle: a brief exposure flash fades out over the photo when its workspace
- * first appears — the print develops. It runs once per workspace (paging between already
+ * first appears, like a developing print. It runs once per workspace (paging between already
  * open photos does not re-trigger it) and is skipped when system animations are removed.
  * The veil only covers the media, so the HDR preview itself is untouched.
  */

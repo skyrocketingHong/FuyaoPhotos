@@ -6,7 +6,7 @@ internal object ApplePortraitMetadata {
 
     /**
      * Calibration inputs for the disparity sidecar. Every value derives from the photo's
-     * own metadata or is a neutral identity — nothing is invented beyond the declared
+     * own metadata or is a neutral identity; nothing is invented beyond the declared
      * "relative" accuracy: the focal model comes from the EXIF 35 mm equivalent field
      * and the pixel size from the crop factor it implies.
      */

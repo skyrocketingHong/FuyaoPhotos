@@ -62,7 +62,7 @@ internal data class LchColorValue(
     val hue: Double,
 ) {
     private val hueText: String
-        get() = if (hue.isNaN()) "—" else String.format(Locale.US, "%.2f°", hue)
+        get() = if (hue.isNaN()) "N/A" else String.format(Locale.US, "%.2f°", hue)
     private val cssHueText: String
         get() = if (hue.isNaN()) "none" else String.format(Locale.US, "%.2f", hue)
     val componentsText: String
@@ -94,7 +94,7 @@ internal data class OklchColorValue(
     val hue: Double,
 ) {
     private val hueText: String
-        get() = if (hue.isNaN()) "—" else String.format(Locale.US, "%.2f°", hue)
+        get() = if (hue.isNaN()) "N/A" else String.format(Locale.US, "%.2f°", hue)
     private val cssHueText: String
         get() = if (hue.isNaN()) "none" else String.format(Locale.US, "%.2f", hue)
     val componentsText: String

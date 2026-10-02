@@ -40,10 +40,10 @@ internal fun describePhoto(bitmap: Bitmap): PhotoColorInfo {
     val componentRange = if (colorSpace != null && colorModel != null) {
         (0 until colorModel.getComponentCount()).joinToString(" · ") { index ->
             val label = componentLabels.getOrElse(index) { "C${index + 1}" }
-            "$label ${formatFloat(colorSpace.getMinValue(index))}–${formatFloat(colorSpace.getMaxValue(index))}"
+            "$label [${formatFloat(colorSpace.getMinValue(index))}, ${formatFloat(colorSpace.getMaxValue(index))}]"
         }
     } else {
-        "—"
+        "N/A"
     }
     val rgbColorSpace = colorSpace as? ColorSpace.Rgb
     val gainmapDetails = if (
@@ -56,9 +56,9 @@ internal fun describePhoto(bitmap: Bitmap): PhotoColorInfo {
     return PhotoColorInfo(
         width = bitmap.width,
         height = bitmap.height,
-        bitmapConfig = bitmap.config?.toString() ?: "—",
-        colorSpaceName = colorSpace?.getName() ?: "—",
-        colorModel = colorModel?.toString() ?: "—",
+        bitmapConfig = bitmap.config?.toString() ?: "N/A",
+        colorSpaceName = colorSpace?.getName() ?: "N/A",
+        colorModel = colorModel?.toString() ?: "N/A",
         isWideGamut = colorSpace?.isWideGamut() == true,
         isSrgb = colorSpace?.isSrgb() == true,
         componentRange = componentRange,
@@ -88,7 +88,7 @@ private fun formatTriplet(values: FloatArray): String =
     values.joinToString(", ") { formatFloat(it) }
 
 private fun formatCoordinatePair(values: FloatArray): String =
-    if (values.size >= 2) "x=${formatFloat(values[0])}, y=${formatFloat(values[1])}" else "—"
+    if (values.size >= 2) "x=${formatFloat(values[0])}, y=${formatFloat(values[1])}" else "N/A"
 
 private fun formatPrimaries(values: FloatArray): String =
     if (values.size >= 6) {
@@ -96,5 +96,5 @@ private fun formatPrimaries(values: FloatArray): String =
             "G(${formatFloat(values[2])}, ${formatFloat(values[3])}) " +
             "B(${formatFloat(values[4])}, ${formatFloat(values[5])})"
     } else {
-        "—"
+        "N/A"
     }

@@ -3,7 +3,7 @@
 Local default typography uses two independent faces:
 
 - `SF-Compact-Rounded.ttf`: copied byte-for-byte from `/System/Library/Fonts/SFCompactRounded.ttf`, loaded at `wght=500`; `cv04` centers colons vertically, `cv05` enables the seriffed capital I, and `pnum` preserves the proportional digit `1` (without `cv09`).
-- `SF-Mono-Medium.otf`: copied byte-for-byte from the macOS Terminal font bundle; used only for ASCII digits `0` and `2`–`9`; `1` stays in Compact Rounded.
+- `SF-Mono-Medium.otf`: copied byte-for-byte from the macOS Terminal font bundle; used only for ASCII digits `0` and `2`-`9`; `1` stays in Compact Rounded.
 
 Spaces, punctuation, parentheses and decimal separators use the proportional
 base face. Android measurement, wrapping, color rendering and HDR text coverage

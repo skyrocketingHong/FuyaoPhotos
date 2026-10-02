@@ -231,7 +231,7 @@ internal data class HeifImageContainer(
      * Attaches the Photographic Styles 3 layer: the texture_styles uri item and twelve
      * part mattes that share one black 768×576 HEVC frame, exactly like native iPhone
      * captures (auxl to the primary and the tone map, payload inside mdat). Must run in
-     * the same container pass as [withPhotographicStyles] — the native contract keeps
+     * the same container pass as [withPhotographicStyles]; the native contract keeps
      * the 2023 styles item alongside this one.
      */
     fun withTextureStyles(textureInfo: ByteArray, matteHvcC: ByteArray, mattePayload: ByteArray): HeifImageContainer {

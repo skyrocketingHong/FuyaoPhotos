@@ -244,7 +244,7 @@ struct LensProfilesView: View {
     private func equivalentRange(_ profile: LensProfile) -> String {
         let low = profile.equivalentMin.formatted(.number.precision(.fractionLength(0...2)))
         let high = profile.equivalentMax.formatted(.number.precision(.fractionLength(0...2)))
-        return profile.equivalentMin == profile.equivalentMax ? "\(low) mm" : "\(low)–\(high) mm"
+        return profile.equivalentMin == profile.equivalentMax ? "\(low) mm" : "\(low)-\(high) mm"
     }
 
     private func lensRow(_ profile: LensProfile) -> some View {

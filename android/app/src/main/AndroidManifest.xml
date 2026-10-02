@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   xmlns:tools="http://schemas.android.com/tools">
-  <!-- HeifWriter is reached only on API 28+, while JPEG/PNG remain available on API 26–27. -->
+  <!-- HeifWriter is reached only on API 28+, while JPEG/PNG remain available on API 26-27. -->
   <uses-sdk tools:overrideLibrary="androidx.heifwriter" />
   <!-- Photo metadata access only; never request the device's current location. -->
   <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />

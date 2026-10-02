@@ -16,10 +16,10 @@ Download the [latest release](https://github.com/skyrocketingHong/FuyaoPhotoInfo
 
 ### Exported sample
 
-Hong Kong waterfront · Xiaomi 17 Ultra · Leica 75–100mm telephoto. Click to view the **4080 × 3072** original-size export.
+Hong Kong waterfront · Xiaomi 17 Ultra · Leica 75-100 mm telephoto. Click to view the **4080 × 3072** original-size export.
 
 <p align="center">
-  <a href="assets/readme/sample-hong-kong.jpg"><img src="assets/readme/sample-hong-kong.jpg" width="960" alt="Hong Kong waterfront photo with a rounded information card in the lower-right corner, showing Xiaomi 17 Ultra, Leica 75–100mm telephoto and capture details"></a>
+  <a href="assets/readme/sample-hong-kong.jpg"><img src="assets/readme/sample-hong-kong.jpg" width="960" alt="Hong Kong waterfront photo with a rounded information card in the lower-right corner, showing Xiaomi 17 Ultra, Leica 75-100 mm telephoto and capture details"></a>
 </p>
 
 ### Apple keynote references
@@ -38,16 +38,16 @@ Apple and the credited photographers retain their respective image rights. See [
 
 ## Features
 
-- **Photo information cards** — Display device, photographer, location, lens and capture parameters in a rounded, frosted card.
-- **EXIF metadata** — Read available photo metadata, resolve locations from photo GPS and edit every displayed field.
-- **Batch editing** — Select up to 50 photos, swipe between them and save the full selection. Each photo keeps its own information and style.
-- **Style controls** — Adjust card size, text size, opacity, blur, corners and margins; import TTF/OTF/TTC fonts.
-- **Save preferences** — Set default format, JPEG quality, EXIF details, location and capture-time retention. Override them for one save without changing defaults.
-- **Gallery integration** — Share one or multiple photos into the editor; open or share completed exports.
-- **Photographer and lens profiles** — Save a default credit and configure lens names, focal ranges and zoom values.
-- **Media preview** — Play embedded Motion Photo video and switch HDR display from compact icon controls.
-- **Preview and export** — Compare with the original, inspect at full resolution and export JPEG/PNG at the original dimensions. JPEG quality defaults to 100 and is adjustable from 0 to 100.
-- **HDR and Motion Photos** — Preserve supported JPEG Ultra HDR gainmaps and Motion Photo video/audio when editing the cover.
+- Display device, photographer, location, lens, and capture parameters in a rounded, frosted photo card.
+- Read available EXIF metadata, resolve locations from photo GPS, and edit every displayed field.
+- Select up to 50 photos, swipe between them, and save the full selection. Each photo keeps its own information and style.
+- Adjust card size, text size, opacity, blur, corners, and margins; import TTF/OTF/TTC fonts.
+- Set default format, JPEG quality, EXIF details, location, and capture-time retention. Override them for one save without changing defaults.
+- Share one or multiple photos from the gallery into the editor; open or share completed exports.
+- Save a default photographer credit and configure lens names, focal ranges, and zoom values.
+- Play embedded Motion Photo video and switch HDR display from compact icon controls.
+- Compare with the original, inspect at full resolution, and export JPEG/PNG at the original dimensions. JPEG quality defaults to 100 and is adjustable from 0 to 100.
+- Preserve supported JPEG Ultra HDR gainmaps and Motion Photo video and audio when editing the cover.
 
 ## Usage
 
@@ -69,9 +69,9 @@ Example for Xiaomi 17 Ultra:
 
 | Lens | Native equivalent range | Native zoom | Optional digital maximum |
 | --- | --- | --- | --- |
-| Main | 23–23 mm | 1–1× | 3.1× |
-| Ultra-wide | 14–14 mm | 0.6–0.6× | 0.9× |
-| Telephoto | 75–100 mm | 3.2–4.3× | Set the confirmed total maximum if needed |
+| Main | 23-23 mm | 1-1× | 3.1× |
+| Ultra-wide | 14-14 mm | 0.6-0.6× | 0.9× |
+| Telephoto | 75-100 mm | 3.2-4.3× | Set the confirmed total maximum if needed |
 
 Physical focal lengths must use actual Camera2/EXIF values, not the equivalent values in this table. Leave unknown values blank. Lens matching prioritizes physical focal metadata, then the configured equivalent/digital ranges; ambiguous matches remain unset.
 
@@ -182,11 +182,11 @@ Original source is `AGPL-3.0-only`; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 Fuyao Photo Info is an independent third-party project. It is not developed, sponsored or endorsed by, or affiliated with, Apple Inc. Apple, iPhone and macOS are trademarks of Apple Inc.; other names and materials remain the property of their respective owners.
 
-References to Apple products, fonts and visual styles describe the project’s references and implementation only. The information-card measurements are estimates from reference images, not official Apple specifications, design resources or a claim of certification.
+References to Apple products, fonts and visual styles describe the project's references and implementation only. The information-card measurements are estimates from reference images, not official Apple specifications, design resources or a claim of certification.
 
-Apple fonts, including SF Mono, remain subject to their applicable licenses and are not licensed under this project’s AGPL-3.0-only terms. Their availability on macOS, the local copying script and Git exclusion do not grant permission to embed or redistribute them. Before distributing an Android APK containing an Apple font, obtain a license covering that use or build with Android monospace or another appropriately licensed font. This notice itself grants no rights to Apple materials.
+Apple fonts, including SF Mono, remain subject to their applicable licenses and are not licensed under this project's AGPL-3.0-only terms. Their availability on macOS, the local copying script and Git exclusion do not grant permission to embed or redistribute them. Before distributing an Android APK containing an Apple font, obtain a license covering that use or build with Android monospace or another appropriately licensed font. This notice itself grants no rights to Apple materials.
 
-See Apple’s [trademark guidelines](https://www.apple.com/legal/intellectual-property/guidelinesfor3rdparties.html), [trademark list](https://www.apple.com/legal/intellectual-property/trademark/appletmlist.html) and [font information and license terms](https://developer.apple.com/fonts/). The license supplied with the particular font or material remains applicable.
+See Apple's [trademark guidelines](https://www.apple.com/legal/intellectual-property/guidelinesfor3rdparties.html), [trademark list](https://www.apple.com/legal/intellectual-property/trademark/appletmlist.html) and [font information and license terms](https://developer.apple.com/fonts/). The license supplied with the particular font or material remains applicable.
 
 ## AI-Assisted Development
 
