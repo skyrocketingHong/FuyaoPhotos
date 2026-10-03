@@ -35,23 +35,24 @@ private struct MapCanvas: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let controlsInsets = EdgeInsets(top: geometry.safeAreaInsets.top,
+                leading: geometry.safeAreaInsets.leading, bottom: geometry.safeAreaInsets.bottom + 8,
+                trailing: geometry.safeAreaInsets.trailing)
             ZStack {
                 if session.displayMode == .heatmap {
                     HeatmapView(
                         map: heatmap.map, region: $session.heatmapRegion, clusters: session.clusters,
-                        options: session.options, showsUserLocation: session.location.authorized
+                        options: session.options, showsUserLocation: session.location.authorized,
+                        safeAreaInsets: controlsInsets
                     )
                     .transition(.opacity)
                 } else {
                     PhotoClusterMap(session: session, scope: scope)
+                        .safeAreaPadding(controlsInsets)
+                        .ignoresSafeArea(.container)
                         .transition(.opacity)
                 }
             }
-            // Expand the real map, then restore the safe area used by its attribution.
-            .safeAreaPadding(EdgeInsets(top: geometry.safeAreaInsets.top,
-                leading: geometry.safeAreaInsets.leading, bottom: geometry.safeAreaInsets.bottom + 8,
-                trailing: geometry.safeAreaInsets.trailing))
-            .ignoresSafeArea(.container)
         }
         .overlay(alignment: .top) {
             MapHeader(count: session.hasQueryResult ? session.visiblePhotoCount : nil,

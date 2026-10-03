@@ -4,6 +4,8 @@ import SwiftUI
 
 /// SwiftUI has no macOS modifier for NSSplitViewItem's content-under-sidebar behavior.
 struct DesktopContentUnderlay: NSViewControllerRepresentable {
+    let rendererKey: String
+
     func makeNSViewController(context: Context) -> Controller { Controller() }
     func updateNSViewController(_ controller: Controller, context: Context) { controller.configure() }
     static func dismantleNSViewController(_ controller: Controller, coordinator: ()) { controller.restore() }
@@ -22,11 +24,14 @@ struct DesktopContentUnderlay: NSViewControllerRepresentable {
                 if let split = parent as? NSSplitViewController,
                    let item = split.splitViewItems.first(where: { $0.viewController === child }),
                    item.behavior != .sidebar {
-                    guard configuredItem !== item else { return }
-                    restore()
-                    previousAdjustment = item.automaticallyAdjustsSafeAreaInsets
-                    configuredItem = item
-                    item.automaticallyAdjustsSafeAreaInsets = true
+                    if configuredItem !== item {
+                        restore()
+                        previousAdjustment = item.automaticallyAdjustsSafeAreaInsets
+                        configuredItem = item
+                    }
+                    if !item.automaticallyAdjustsSafeAreaInsets {
+                        item.automaticallyAdjustsSafeAreaInsets = true
+                    }
                     return
                 }
                 child = parent

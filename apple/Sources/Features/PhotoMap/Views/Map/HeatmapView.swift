@@ -12,9 +12,18 @@ struct HeatmapView: View {
     let clusters: [MapCluster]
     let options: MapOptions
     let showsUserLocation: Bool
+    let safeAreaInsets: EdgeInsets
 
     var body: some View {
+#if os(macOS)
+        HeatmapPlatformView(map: map, region: $region, clusters: clusters, options: options,
+            showsUserLocation: showsUserLocation, safeAreaInsets: safeAreaInsets)
+            .ignoresSafeArea(.container)
+#else
         HeatmapPlatformView(map: map, region: $region, clusters: clusters, options: options, showsUserLocation: showsUserLocation)
+            .safeAreaPadding(safeAreaInsets)
+            .ignoresSafeArea(.container)
+#endif
     }
 }
 
@@ -25,20 +34,81 @@ private struct HeatmapPlatformView: NSViewRepresentable {
     let clusters: [MapCluster]
     let options: MapOptions
     let showsUserLocation: Bool
+    let safeAreaInsets: EdgeInsets
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.layoutDirection) private var layoutDirection
     func makeCoordinator() -> HeatmapCoordinator { HeatmapCoordinator(region: $region) }
-    func makeNSView(context: Context) -> MKMapView { context.coordinator.configure(map); return map }
-    func updateNSView(_ map: MKMapView, context: Context) {
+    func makeNSView(context: Context) -> HeatmapMapHost {
+        context.coordinator.configure(map)
+        return HeatmapMapHost(map: map)
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: HeatmapMapHost, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height,
+              width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: width, height: height)
+    }
+    func updateNSView(_ host: HeatmapMapHost, context: Context) {
+        host.requiredInsets = NSEdgeInsets(top: safeAreaInsets.top,
+            left: layoutDirection == .leftToRight ? safeAreaInsets.leading : safeAreaInsets.trailing,
+            bottom: safeAreaInsets.bottom,
+            right: layoutDirection == .leftToRight ? safeAreaInsets.trailing : safeAreaInsets.leading)
+        host.updateSafeArea()
+        let map = host.map
         context.coordinator.update(map, region: $region, clusters: clusters, options: options,
             showsUserLocation: showsUserLocation, animated: context.transaction.animation != nil,
             reduceMotion: reduceMotion)
         map.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
     }
-    static func dismantleNSView(_ map: MKMapView, coordinator: HeatmapCoordinator) {
+    static func dismantleNSView(_ host: HeatmapMapHost, coordinator: HeatmapCoordinator) {
         coordinator.stop()
+        let map = host.map
         map.delegate = nil
         map.showsUserLocation = false
+        map.removeFromSuperview()
+        map.additionalSafeAreaInsets = NSEdgeInsetsZero
+    }
+}
+
+private final class HeatmapMapHost: NSView {
+    let map: MKMapView
+    var requiredInsets = NSEdgeInsetsZero
+
+    init(map: MKMapView) {
+        self.map = map
+        super.init(frame: .zero)
+        map.frame = bounds
+        map.autoresizingMask = [.width, .height]
+        addSubview(map)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        updateSafeArea()
+    }
+
+    override func layout() {
+        updateSafeArea()
+        super.layout()
+    }
+
+    func updateSafeArea() {
+        guard map.superview === self else { return }
+        let applied = map.additionalSafeAreaInsets
+        let resolved = map.safeAreaInsets
+        // Insets protect MapKit's controls without shrinking the canvas behind the sidebar.
+        // Subtract our prior contribution so inherited AppKit insets are not counted twice.
+        let next = NSEdgeInsets(
+            top: max(0, requiredInsets.top - max(0, resolved.top - applied.top)),
+            left: max(0, requiredInsets.left - max(0, resolved.left - applied.left)),
+            bottom: max(0, requiredInsets.bottom - max(0, resolved.bottom - applied.bottom)),
+            right: max(0, requiredInsets.right - max(0, resolved.right - applied.right)))
+        if next.top != applied.top || next.left != applied.left ||
+            next.bottom != applied.bottom || next.right != applied.right {
+            map.additionalSafeAreaInsets = next
+        }
     }
 }
 #else

@@ -37,7 +37,10 @@ struct DesktopWorkspaceView: View {
                 case .settings: PhotoCardScreen(session: workspace.cards, preview: cardPreview, inspector: cardInspector)
                 }
             }
-            .background { DesktopContentUnderlay().frame(width: 0, height: 0).allowsHitTesting(false) }
+            .background {
+                DesktopContentUnderlay(rendererKey: "\(workspace.selectedTab.rawValue):\(mapSession.displayMode.rawValue)")
+                    .frame(width: 0, height: 0).allowsHitTesting(false)
+            }
         }
         .navigationSplitViewStyle(.prominentDetail)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
