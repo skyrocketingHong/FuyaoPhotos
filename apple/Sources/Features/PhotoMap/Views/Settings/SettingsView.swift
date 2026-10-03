@@ -33,9 +33,9 @@ struct SettingsView: View {
 
         var description: LocalizedStringKey {
             switch self {
-            case .general: "workspace.sharing.description"
+            case .general: "settings.category.workspace.description"
             case .cards: "settings.category.cards.description"
-            case .saving: "settings.save.footer"
+            case .saving: "settings.category.saving.description"
             case .lenses: "lens.profiles.description"
             case .map: "settings.category.map.description"
             }
@@ -67,7 +67,7 @@ struct SettingsView: View {
                     }
                     .listStyle(.sidebar)
                     .navigationTitle("settings.title")
-                    .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 240)
+                    .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
                 } detail: {
                     if selectedCategory == .lenses {
                         LensProfilesView(store: .shared, workspace: lensWorkspace, embedded: true)
@@ -113,8 +113,12 @@ struct SettingsView: View {
                 }
             }
         }
+        .modifier(NativePresentationDefaults())
         .tint(.secondary)
         .toggleStyle(NativeFormToggleStyle())
+#if os(macOS)
+        .background(SettingsWindowChrome())
+#endif
         .sheet(isPresented: $showLenses) {
             LensProfilesView(store: .shared, workspace: lensWorkspace)
                 .presentationSizing(.page)
@@ -149,6 +153,9 @@ struct SettingsView: View {
 
     private func categoryForm(_ category: Category, includesAbout: Bool = false) -> some View {
         Form {
+            Section {
+                PhotoPageIntro(title: category.title, description: category.description, symbol: category.symbol)
+            }
             switch category {
             case .general:
                 workspaceSettings
@@ -160,9 +167,16 @@ struct SettingsView: View {
             }
         }
         .photoPageForm()
+        .id(category)
+#if os(macOS)
+        .frame(maxWidth: 620)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .navigationTitle("settings.title")
+#else
         .frame(maxWidth: 760)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .navigationTitle(category.title)
+#endif
     }
 
     private var settingsIntro: some View {
@@ -189,8 +203,7 @@ struct SettingsView: View {
                         }))
                 }
             }
-        } header: { Text("workspace.header") }
-        footer: { Text("workspace.sharing.description") }
+        } footer: { Text("workspace.sharing.description") }
         .tint(.secondary)
         .toggleStyle(NativeFormToggleStyle())
         .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: workspacePreferences.sharing)
@@ -234,8 +247,6 @@ struct SettingsView: View {
             Toggle(isOn: $card.saveOptions.updateOriginal) {
                 settingLabel("card.save.update", hint: "settings.save.destination.hint")
             }
-        } header: {
-            Text("settings.save.header")
         } footer: {
             Text("settings.save.footer")
         }

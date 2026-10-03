@@ -117,7 +117,9 @@
 // MARK: - Settings
 "settings.title" = "设置";
 "settings.intro" = "设置照片信息卡的编辑与保存方式，以及照片地图的默认展示方式。";
-"settings.category.cards.description" = "设置照片信息卡的编辑、元数据和保存默认值。";
+"settings.category.workspace.description" = "选择启动页面，以及卡片、元数据和色彩的照片共享方式。";
+"settings.category.cards.description" = "设置卡片预览外观、默认摄影者署名及字段自动填写方式。";
+"settings.category.saving.description" = "选择默认输出格式和画质，以及更新图库原片或保存副本。";
 "settings.about.links" = "链接";
 "card.saving %lld %lld" = "正在保存 %lld/%lld";
 "card.save.summary" = "已保存 %lld 张，%lld 张失败。";

@@ -61,7 +61,10 @@
   <string name="photo_metadata_unavailable">当前照片没有可读取的元数据。</string>
   <string name="photo_metadata_open_cards">打开卡片</string>
   <string name="settings_overview_description">管理卡片、保存文件、元数据和镜头识别的默认选项。</string>
-  <string name="settings_cards_description">设置原片未记录摄影者时使用的默认署名。</string>
+  <string name="settings_workspace_description">选择启动页面，以及卡片、元数据和色彩的照片共享方式。</string>
+  <string name="settings_cards_description">设置默认摄影者署名和卡片使用的像素数来源。</string>
+  <string name="settings_export_description">选择默认输出格式、画质和动态照片格式。</string>
+  <string name="settings_lenses_description">管理镜头匹配规则与默认主摄焦距。</string>
   <string name="settings_metadata_description">设置照片地点的显示方式。</string>
   <string name="settings_leave_message">要放弃尚未保存的设置并切换标签页吗？</string>
   <string name="discard_changes">放弃修改</string>

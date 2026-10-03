@@ -117,7 +117,9 @@
 // MARK: - Settings
 "settings.title" = "Settings";
 "settings.intro" = "Choose how photo cards are edited and saved, and how your photo map opens.";
-"settings.category.cards.description" = "Configure photo card editing, metadata, and save defaults.";
+"settings.category.workspace.description" = "Choose the startup page and how Cards, Metadata, and Colors share photos.";
+"settings.category.cards.description" = "Choose the card preview appearance, default photographer, and automatic field values.";
+"settings.category.saving.description" = "Choose the default output format and quality, and whether to update a library photo or save a copy.";
 "settings.about.links" = "Links";
 "card.saving %lld %lld" = "Saving %lld of %lld";
 "card.save.summary" = "Saved %lld photos; %lld failed.";

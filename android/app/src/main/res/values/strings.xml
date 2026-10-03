@@ -61,7 +61,10 @@
   <string name="photo_metadata_unavailable">No readable metadata is available for this photo.</string>
   <string name="photo_metadata_open_cards">Open Cards</string>
   <string name="settings_overview_description">Choose defaults for photo cards, saved files, metadata and lens recognition.</string>
-  <string name="settings_cards_description">Set the photographer used when an imported photo has no creator.</string>
+  <string name="settings_workspace_description">Choose the startup page and how Cards, Metadata, and Colors share photos.</string>
+  <string name="settings_cards_description">Set the default photographer and the pixel count source for photo cards.</string>
+  <string name="settings_export_description">Choose the default output format, quality, and motion photo format.</string>
+  <string name="settings_lenses_description">Manage lens matching rules and the default main camera focal length.</string>
   <string name="settings_metadata_description">Choose how photo locations are displayed.</string>
   <string name="settings_leave_message">Discard your unsaved settings changes and switch tabs?</string>
   <string name="discard_changes">Discard changes</string>

@@ -103,6 +103,9 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
         }
     }
     val inventoryItems: LazyListScope.() -> Unit = {
+        item(key = "lens-intro") {
+            FuyaoPageIntro(stringResource(R.string.lens_profiles), stringResource(R.string.lens_entry_hint), R.drawable.ic_photo_info)
+        }
         item(key = "configuration-transfer") {
             FuyaoFormSection(stringResource(R.string.lens_transfer_title), stringResource(R.string.lens_file_description)) {
                 ing.fuyaoskyrocket.photoinfo.ui.components.LensProfileTransferControls(profiles) {

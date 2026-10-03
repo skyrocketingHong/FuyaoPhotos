@@ -40,12 +40,12 @@ import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 
-private enum class SettingsCategory(@StringRes val label: Int, @DrawableRes val icon: Int) {
-    WORKSPACE(R.string.workspace_header, R.drawable.ic_settings),
-    CARDS(R.string.photo_cards_title, R.drawable.ic_photo_add),
-    EXPORT(R.string.export_defaults, R.drawable.ic_export),
-    METADATA(R.string.section_metadata, R.drawable.ic_info),
-    LENSES(R.string.lens_settings, R.drawable.ic_photo_info),
+private enum class SettingsCategory(@StringRes val label: Int, @StringRes val description: Int, @DrawableRes val icon: Int) {
+    WORKSPACE(R.string.workspace_header, R.string.settings_workspace_description, R.drawable.ic_settings),
+    CARDS(R.string.photo_cards_title, R.string.settings_cards_description, R.drawable.ic_photo_add),
+    EXPORT(R.string.export_defaults, R.string.settings_export_description, R.drawable.ic_export),
+    METADATA(R.string.section_metadata, R.string.settings_metadata_description, R.drawable.ic_info),
+    LENSES(R.string.lens_settings, R.string.settings_lenses_description, R.drawable.ic_photo_info),
 }
 
 @Composable
@@ -77,8 +77,9 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     }
 
     @Composable fun categoryContent(category: SettingsCategory) {
+        FuyaoPageIntro(stringResource(category.label), stringResource(category.description), category.icon)
         when(category) {
-            SettingsCategory.WORKSPACE -> FuyaoFormSection(stringResource(R.string.workspace_header), stringResource(R.string.workspace_sharing_hint)) {
+            SettingsCategory.WORKSPACE -> FuyaoFormSection {
                 SettingsChoice(stringResource(R.string.workspace_startup), startPage,
                     StartPage.entries.associateWith { stringResource(when(it) {
                         StartPage.MAP -> R.string.photo_map_title; StartPage.EDITOR -> R.string.photo_cards_title
@@ -107,9 +108,10 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 }
                 }
                 }
+                Text(stringResource(R.string.workspace_sharing_hint), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SettingsCategory.CARDS -> FuyaoFormSection(stringResource(R.string.photo_cards_title),
-                stringResource(R.string.settings_cards_description)) {
+            SettingsCategory.CARDS -> FuyaoFormSection {
                 OutlinedTextField(author,{ if(it.length<=512)author=it },Modifier.fillMaxWidth(),
                     label={ Text(stringResource(R.string.field_author)) },maxLines=3,
                     supportingText={ Text(stringResource(R.string.default_author_hint)) })
@@ -124,9 +126,10 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 Text(stringResource(R.string.prefer_lens_pixel_count_hint), style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SettingsCategory.EXPORT -> FuyaoFormSection(stringResource(R.string.export_defaults),
-                stringResource(R.string.export_defaults_hint)) {
+            SettingsCategory.EXPORT -> FuyaoFormSection {
                 ExportOptionsControls(exportDefaults,{ exportDefaults=it })
+                Text(stringResource(R.string.export_defaults_hint), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 HorizontalDivider()
                 val x265Available=ing.fuyaoskyrocket.photoinfo.platform.HevcEncoders.x265Available
                 val encoderLabel=stringResource(R.string.hevc_encoder)
@@ -143,8 +146,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 Text(stringResource(if(x265Available)R.string.hevc_encoder_hint else R.string.hevc_encoder_unavailable),
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SettingsCategory.METADATA -> FuyaoFormSection(stringResource(R.string.section_metadata),
-                stringResource(R.string.settings_metadata_description)) {
+            SettingsCategory.METADATA -> FuyaoFormSection {
                 val locationLabel=stringResource(R.string.resolve_location)
                 Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=geocode,role=Role.Switch,
                     onValueChange={ geocode=it }),verticalAlignment=Alignment.CenterVertically) {
@@ -154,8 +156,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 Text(stringResource(R.string.resolve_location_hint),style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            SettingsCategory.LENSES -> FuyaoFormSection(stringResource(R.string.lens_settings),
-                stringResource(R.string.lens_entry_hint)) {
+            SettingsCategory.LENSES -> FuyaoFormSection {
                 TextButton(onClick=onManageLenses,contentPadding=PaddingValues(0.dp),modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
                     Text(stringResource(R.string.manage_lenses,settings.lenses.size),Modifier.weight(1f),
                         style=MaterialTheme.typography.bodyLarge)
@@ -231,8 +232,10 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 }
             },
             trailing = { modifier ->
-                FuyaoPageColumn(modifier) {
-                    categoryContent(selectedCategory)
+                key(selectedCategory) {
+                    FuyaoPageColumn(modifier) {
+                        categoryContent(selectedCategory)
+                    }
                 }
             })
     }

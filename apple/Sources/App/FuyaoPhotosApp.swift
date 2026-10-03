@@ -12,8 +12,8 @@ struct FuyaoPhotosApp: App {
             .commands { WorkspaceCommands(workspace: workspace) }
 #endif
 #if os(macOS)
-            Settings { SettingsView().frame(minWidth: 680, idealWidth: 900, minHeight: 520, idealHeight: 680) }
-                .defaultSize(width: 900, height: 680)
+            Settings { SettingsView().frame(minWidth: 680, idealWidth: 820, minHeight: 520, idealHeight: 640) }
+                .defaultSize(width: 820, height: 640)
                 .windowToolbarStyle(.unifiedCompact)
                 .windowResizability(.contentMinSize)
 #endif

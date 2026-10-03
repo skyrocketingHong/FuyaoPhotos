@@ -62,14 +62,22 @@ struct LensProfilesView: View {
                     HStack(spacing: 0) {
                         profileList
                             .frame(width: editor != nil ? min(360, geometry.size.width * 0.4) : nil)
+#if os(macOS)
+                            .frame(maxWidth: editor == nil && embedded ? 620 : nil)
+#endif
                         if let editor {
                             Divider()
                             editorView(editor, inline: true)
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+#if os(macOS)
+            .navigationTitle(embedded ? LocalizedStringKey("settings.title") : pageTitle)
+#else
             .navigationTitle(pageTitle)
+#endif
             .toolbar {
                 if editor == nil || split {
                     if !embedded {
@@ -157,7 +165,9 @@ struct LensProfilesView: View {
     private var profileList: some View {
         List {
             Section {
-                Text("lens.profiles.description").foregroundStyle(.secondary)
+                PhotoPageIntro(title: "lens.profiles.title", description: "lens.profiles.description", symbol: "camera.aperture")
+            }
+            Section {
                 DisclosureGroup("lens.import.configuration", isExpanded: $showingImport) {
                     PasteButton(payloadType: String.self, onPaste: importClipboard)
                         .labelStyle(LensPasteLabelStyle())
