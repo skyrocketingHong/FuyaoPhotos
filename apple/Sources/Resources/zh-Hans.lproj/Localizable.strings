@@ -121,6 +121,7 @@
 "settings.category.cards.description" = "设置卡片预览外观、默认摄影者署名及字段自动填写方式。";
 "settings.category.saving.description" = "选择默认输出格式和画质，以及更新图库原片或保存副本。";
 "settings.about.links" = "链接";
+"settings.about.credits" = "来源与声明";
 "card.saving %lld %lld" = "正在保存 %lld/%lld";
 "card.save.summary" = "已保存 %lld 张，%lld 张失败。";
 "settings.category.map.description" = "选择照片地图的默认展示方式与年份筛选。";

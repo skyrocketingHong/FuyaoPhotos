@@ -41,11 +41,11 @@ import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 
 private enum class SettingsCategory(@StringRes val label: Int, @StringRes val description: Int, @DrawableRes val icon: Int) {
-    WORKSPACE(R.string.workspace_header, R.string.settings_workspace_description, R.drawable.ic_settings),
     CARDS(R.string.photo_cards_title, R.string.settings_cards_description, R.drawable.ic_photo_add),
-    EXPORT(R.string.export_defaults, R.string.settings_export_description, R.drawable.ic_export),
     METADATA(R.string.section_metadata, R.string.settings_metadata_description, R.drawable.ic_info),
+    EXPORT(R.string.export_defaults, R.string.settings_export_description, R.drawable.ic_export),
     LENSES(R.string.lens_settings, R.string.settings_lenses_description, R.drawable.ic_photo_info),
+    WORKSPACE(R.string.workspace_header, R.string.settings_workspace_description, R.drawable.ic_settings),
 }
 
 @Composable

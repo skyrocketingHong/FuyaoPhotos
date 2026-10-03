@@ -121,6 +121,7 @@
 "settings.category.cards.description" = "Choose the card preview appearance, default photographer, and automatic field values.";
 "settings.category.saving.description" = "Choose the default output format and quality, and whether to update a library photo or save a copy.";
 "settings.about.links" = "Links";
+"settings.about.credits" = "Credits and Notices";
 "card.saving %lld %lld" = "Saving %lld of %lld";
 "card.save.summary" = "Saved %lld photos; %lld failed.";
 "settings.category.map.description" = "Choose the map's default display and year filters.";

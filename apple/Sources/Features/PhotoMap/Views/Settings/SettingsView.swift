@@ -19,7 +19,7 @@ struct SettingsView: View {
     private var lensesDirty: Bool { lensWorkspace?.hasPendingChanges == true }
 
     private enum Category: Hashable, CaseIterable {
-        case general, cards, saving, lenses, map
+        case map, cards, saving, lenses, general
 
         var title: LocalizedStringKey {
             switch self {
@@ -62,10 +62,18 @@ struct SettingsView: View {
         GeometryReader { geometry in
             if usesSidebar(width: geometry.size.width) {
                 NavigationSplitView {
-                    List(Category.allCases, id: \.self, selection: Binding(get: { selectedCategory }, set: selectCategory)) { category in
-                        Label(category.title, systemImage: category.symbol).tag(category)
+                    VStack(spacing: 0) {
+                        List(Category.allCases, id: \.self, selection: Binding(get: { selectedCategory }, set: selectCategory)) { category in
+                            Label(category.title, systemImage: category.symbol).tag(category)
+                        }
+                        .listStyle(.sidebar)
+#if os(macOS)
+                        ScrollView {
+                            SettingsSidebarAbout(version: version).padding(20)
+                        }
+                        .frame(maxHeight: 280)
+#endif
                     }
-                    .listStyle(.sidebar)
                     .navigationTitle("settings.title")
                     .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
                 } detail: {
@@ -73,7 +81,11 @@ struct SettingsView: View {
                         LensProfilesView(store: .shared, workspace: lensWorkspace, embedded: true)
                             .id(lensDraftRevision)
                     } else {
+#if os(macOS)
+                        categoryForm(selectedCategory ?? .general)
+#else
                         categoryForm(selectedCategory ?? .general, includesAbout: true)
+#endif
                     }
                 }
                 .navigationSplitViewStyle(.balanced)

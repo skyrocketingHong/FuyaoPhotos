@@ -163,7 +163,7 @@ struct LensProfilesView: View {
     }
 
     private var profileList: some View {
-        List {
+        Form {
             Section {
                 PhotoPageIntro(title: "lens.profiles.title", description: "lens.profiles.description", symbol: "camera.aperture")
             }
@@ -180,9 +180,18 @@ struct LensProfilesView: View {
                 if let transferStatus {
                     Label(transferStatus, systemImage: "checkmark").font(.footnote).foregroundStyle(.secondary)
                 }
-            }
+            } footer: { Text("lens.profiles.footer") }
             if draft.isEmpty {
-                ContentUnavailableView("lens.empty.title", systemImage: "camera.aperture", description: Text("lens.empty.description"))
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("lens.empty.title", systemImage: "camera.aperture").font(.headline)
+                        Text("lens.empty.description").foregroundStyle(.secondary)
+                        Button("lens.add", systemImage: "plus") { requestEditor(LensProfileDraft()) }
+                            .disabled(transferring)
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.vertical, 8)
+                }
             }
             ForEach(deviceGroups) { group in
                 Section {
@@ -229,9 +238,8 @@ struct LensProfilesView: View {
                     }
                 }
             }
-            Section { Text("lens.profiles.footer").font(.footnote).foregroundStyle(.secondary) }
         }
-        .scrollEdgeEffectStyle(.soft, for: .top)
+        .photoPageForm()
     }
 
     private func editorView(_ session: LensEditingSession, inline: Bool) -> some View {
