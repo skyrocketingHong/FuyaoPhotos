@@ -52,6 +52,16 @@ Dependencies retain their upstream licenses and notices. The generated Gradle
 Wrapper retains its upstream notices. Imported fonts and photographs retain
 their own rights; the source-code license grants no additional rights to them.
 
+Motion references
+-----------------
+Native progress, row removal and Android container/navigation interactions were
+informed by NextAlone/Nagram, NextAlone/Nagram-iOS, telegramdesktop/tdesktop,
+chen08209/FlClash and YXBwbWFya2V0/AppMarket. Pinned revisions, inspected files,
+implementation boundaries and official API references are documented in
+shared/motion/IMPLEMENTATION.md and shared/motion/IMPLEMENTATION_ZH.md.
+No upstream motion source files, assets or rendering engines are bundled by
+this change. Apple navigation and glass remain system-provided.
+
 Icon assets
 -----------
 The SVG exports under assets/icons/sf-symbols and their Android vector derivatives

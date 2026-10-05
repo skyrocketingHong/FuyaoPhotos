@@ -6,9 +6,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.activity.compose.LocalActivity
+import androidx.core.view.WindowCompat
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import ing.fuyaoskyrocket.photoinfo.domain.model.AppAppearance
 
 private val LightColors=lightColorScheme(
     primary=Color(0xFF6750A4),onPrimary=Color.White,secondary=Color(0xFF625B71),tertiary=Color(0xFF7D5260),
@@ -20,8 +24,17 @@ private val FuyaoTypography = Typography()
 private val FuyaoShapes=Shapes(RoundedCornerShape(4.dp),RoundedCornerShape(8.dp),RoundedCornerShape(12.dp),RoundedCornerShape(16.dp),RoundedCornerShape(28.dp))
 
 @Composable
-fun PhotoInfoTheme(content:@Composable ()->Unit) {
-    val dark=isSystemInDarkTheme();val context=LocalContext.current
+fun PhotoInfoTheme(appearance: AppAppearance = AppAppearance.SYSTEM, content:@Composable ()->Unit) {
+    val dark=appearance.isDark(isSystemInDarkTheme());val context=LocalContext.current
+    val window = LocalActivity.current?.window
+    SideEffect {
+        window?.let {
+            WindowCompat.getInsetsController(it, it.decorView).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
+        }
+    }
     val colors=if(Build.VERSION.SDK_INT>=31) { if(dark)dynamicDarkColorScheme(context) else dynamicLightColorScheme(context) }
         else if(dark)DarkColors else LightColors
     CompositionLocalProvider(LocalPhotoMotionEnabled provides rememberSystemMotionEnabled()) {

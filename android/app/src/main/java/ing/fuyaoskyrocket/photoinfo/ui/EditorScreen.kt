@@ -9,6 +9,18 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.painterResource
 import android.content.Intent
 import android.os.Build
+import android.graphics.Bitmap
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.Color
+import ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoMotionTokens
+import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
+import ing.fuyaoskyrocket.photoinfo.ui.components.GlassNavigationSurface
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -81,23 +93,29 @@ private val topLevelTabs = listOf(
 private val topLevelPages = topLevelTabs.map(PhotoTab::page)
 
 @Composable
-private fun PhotoBottomBar(selected: PhotoPage, enabled: Boolean, onSelect: (PhotoPage) -> Unit) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
-        topLevelTabs.forEach { tab ->
+private fun PhotoBottomBar(selected: PhotoPage, enabled: Boolean, glass: Boolean, bitmap: Bitmap?, onSelect: (PhotoPage) -> Unit) {
+    val glassAvailable = glass && Build.VERSION.SDK_INT >= 31
+    val items: @Composable ((Int) -> Modifier) -> Unit = { iconModifier ->
+    NavigationBar(containerColor = if (glassAvailable) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 0.dp, windowInsets = if (glassAvailable) WindowInsets(0, 0, 0, 0) else NavigationBarDefaults.windowInsets) {
+        topLevelTabs.forEachIndexed { index, tab ->
             NavigationBarItem(
                 selected = selected == tab.page,
                 onClick = { onSelect(tab.page) },
                 enabled = enabled,
-                icon = { Icon(painterResource(tab.icon), contentDescription = null, Modifier.size(24.dp)) },
+                icon = { Icon(painterResource(tab.icon), contentDescription = null, iconModifier(index).size(24.dp)) },
                 label = { Text(stringResource(tab.label)) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                    selectedIconColor = if (glassAvailable) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = if (glassAvailable) Color.Transparent else MaterialTheme.colorScheme.primary,
                 ),
             )
         }
     }
+    }
+    if (glassAvailable) GlassNavigationSurface(bitmap, topLevelTabs.indexOfFirst { it.page == selected }, topLevelTabs.size, items)
+    else items { Modifier }
 }
 
 @Composable
@@ -124,6 +142,7 @@ private fun PhotoSideRail(selected: PhotoPage, enabled: Boolean, onSelect: (Phot
 @Composable
 fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     val state = vm.state
+    val motion = LocalPhotoMotionEnabled.current
     val metadata: MetadataViewModel = viewModel()
     val metadataState = metadata.state
     val metadataEdits: ing.fuyaoskyrocket.photoinfo.presentation.MetadataEditViewModel = viewModel()
@@ -303,7 +322,11 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            if (!useRail && !WindowInsets.isImeVisible && currentPage in topLevelPages) PhotoBottomBar(currentPage ?: PhotoPage.EDITOR, !state.exporting && !state.closing && !metadataEdits.busy, ::selectTab)
+            if (!useRail && !WindowInsets.isImeVisible && currentPage in topLevelPages) PhotoBottomBar(
+                currentPage ?: PhotoPage.EDITOR, !state.exporting && !state.closing && !metadataEdits.busy,
+                state.settings.workspace.glassNavigation,
+                if (inColors) colorPhoto?.bitmap else if (inMetadata) metadataPhoto?.bitmap else if (inEditor) state.original else null,
+                ::selectTab)
         },
     ) { outerPadding ->
     Row(Modifier.fillMaxSize().padding(outerPadding).consumeWindowInsets(outerPadding)) {
@@ -312,6 +335,18 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     NavHost(
         navController = navigation,
         startDestination = startupPage,
+        enterTransition = {
+            if (motion && targetState.destination.route in setOf(PhotoPage.LENSES.name, PhotoPage.LENS_EDIT.name))
+                fadeIn(tween(PhotoMotionTokens.controlMillis)) + scaleIn(tween(PhotoMotionTokens.containerMillis), initialScale = .96f)
+            else EnterTransition.None
+        },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = {
+            if (motion && initialState.destination.route in setOf(PhotoPage.LENSES.name, PhotoPage.LENS_EDIT.name))
+                fadeOut(tween(PhotoMotionTokens.controlMillis)) + scaleOut(tween(PhotoMotionTokens.containerMillis), targetScale = .96f)
+            else ExitTransition.None
+        },
     ) {
         composable(PhotoPage.MAP.name) {
             PhotoMapScreen(onOpenMetadata = { selectTab(PhotoPage.METADATA) })

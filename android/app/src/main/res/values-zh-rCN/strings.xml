@@ -461,4 +461,10 @@
   <string name="lens_transfer_title">导入与导出</string>
   <string name="prefer_lens_pixel_count">默认使用镜头像素数</string>
   <string name="prefer_lens_pixel_count_hint">导入照片或恢复卡片字段时，优先使用匹配镜头的官方像素数。关闭或无可用配置时，按照片实际宽 × 高计算。</string>
+  <string name="appearance">外观</string>
+  <string name="appearance_system">跟随系统</string>
+  <string name="appearance_light">浅色</string>
+  <string name="appearance_dark">深色</string>
+  <string name="glass_navigation">玻璃导航栏</string>
+  <string name="glass_navigation_hint">底部导航使用照片模糊背景和滑动选中态。关闭后使用纯色背景。</string>
 </resources>

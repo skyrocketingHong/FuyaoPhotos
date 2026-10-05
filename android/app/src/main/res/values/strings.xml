@@ -461,4 +461,10 @@
   <string name="lens_transfer_title">Import and export</string>
   <string name="prefer_lens_pixel_count">Use lens pixel count by default</string>
   <string name="prefer_lens_pixel_count_hint">Use the official pixel count of the matched lens when importing or restoring card fields. When off, or if unavailable, use the actual photo width × height.</string>
+  <string name="appearance">Appearance</string>
+  <string name="appearance_system">Follow system</string>
+  <string name="appearance_light">Light</string>
+  <string name="appearance_dark">Dark</string>
+  <string name="glass_navigation">Glass navigation bar</string>
+  <string name="glass_navigation_hint">Use a blurred photo background and a moving selection indicator in the bottom bar. Turn off for a solid surface.</string>
 </resources>

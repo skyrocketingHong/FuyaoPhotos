@@ -13,6 +13,7 @@ import ing.fuyaoskyrocket.photoinfo.domain.model.WorkspaceSettings
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoSharing
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature
 import ing.fuyaoskyrocket.photoinfo.domain.model.StartPage
+import ing.fuyaoskyrocket.photoinfo.domain.model.AppAppearance
 
 class SettingsRepository(context: Context) {
     private val preferences = context.getSharedPreferences("editor", Context.MODE_PRIVATE)
@@ -29,7 +30,9 @@ class SettingsRepository(context: Context) {
             sharing = PhotoSharing.entries.firstOrNull { it.name == preferences.getString("workspace.sharing", null) }
                 ?: if (preferences.getBoolean("metadata.sharesCards", false)) PhotoSharing.PARTIAL else PhotoSharing.INDEPENDENT,
             sharedFeatures = preferences.getStringSet("workspace.sharedTabs", setOf("CARDS", "METADATA")).orEmpty()
-                .mapNotNull { raw -> PhotoFeature.entries.firstOrNull { it.name == raw } }.toSet()),
+                .mapNotNull { raw -> PhotoFeature.entries.firstOrNull { it.name == raw } }.toSet(),
+            appearance = AppAppearance.entries.firstOrNull { it.name == preferences.getString("workspace.appearance", null) } ?: AppAppearance.SYSTEM,
+            glassNavigation = preferences.getBoolean("workspace.glassNavigation", true)),
         hevcEncoder = if (preferences.getString("export.hevcEncoder", "x265") == "platform")
             ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.PLATFORM
         else ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265,
@@ -80,6 +83,8 @@ class SettingsRepository(context: Context) {
         val defaults = settings.exportDefaults.sanitized()
         preferences.edit {
             putString("workspace.startup", settings.workspace.startPage.name)
+            putString("workspace.appearance", settings.workspace.appearance.name)
+            putBoolean("workspace.glassNavigation", settings.workspace.glassNavigation)
             putString("workspace.sharing", settings.workspace.sharing.name)
             putStringSet("workspace.sharedTabs", settings.workspace.sharedFeatures.map { it.name }.toSet())
             putString("export.format", defaults.format.name)
