@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct LensProfilesView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: LensWorkspaceDraft
     @State private var queuedEditor: LensProfileDraft?
     @State private var confirmEditorReplacement = false
@@ -22,6 +23,12 @@ struct LensProfilesView: View {
     @State private var inventory: LensCameraInventory?
     @State private var scanning = false
     @State private var bindingProfile: LensProfile?
+    @State private var departing: [UUID: DepartingLens] = [:]
+    private struct DepartingLens {
+        let profile: LensProfile
+        let index: Int
+        let deadline: ContinuousClock.Instant
+    }
     private let hardwareDevice = LensCameraInventory.localHardwareDevice
     private let store: LensProfileStore
     private let embedded: Bool
@@ -38,7 +45,11 @@ struct LensProfilesView: View {
     private var hasChanges: Bool { draft != initial }
     private var hasPendingChanges: Bool { hasChanges || editor?.hasChanges == true }
     private var deviceGroups: [LensBindings.DeviceGroup] {
-        LensBindings.groups(draft, hardwareDevice: hardwareDevice, aliases: inventory?.aliases ?? [])
+        var displayed = draft
+        for item in departing.values.sorted(by: { $0.index < $1.index }) where !displayed.contains(where: { $0.id == item.profile.id }) {
+            displayed.insert(item.profile, at: min(item.index, displayed.count))
+        }
+        return LensBindings.groups(displayed, hardwareDevice: hardwareDevice, aliases: inventory?.aliases ?? [])
     }
 
     var body: some View {
@@ -108,10 +119,15 @@ struct LensProfilesView: View {
             }
         }
         .task { await scanCameras() }
+        .task(id: Set(departing.keys)) {
+            guard let deadline = departing.values.map(\.deadline).min() else { return }
+            do { try await ContinuousClock().sleep(until: deadline) } catch { return }
+            departing = departing.filter { $0.value.deadline > .now }
+        }
         .onChange(of: draft) { _, _ in copiedDevice = nil }
         .confirmationDialog("lens.discard.title", isPresented: $confirmDiscard, titleVisibility: .visible) {
             Button("lens.discard", role: .destructive) {
-                draft = initial; editor = nil
+                departing = [:]; draft = initial; editor = nil
                 if !embedded { dismiss() }
             }
             Button("lens.keepEditing", role: .cancel) { }
@@ -181,7 +197,7 @@ struct LensProfilesView: View {
                     Label(transferStatus, systemImage: "checkmark").font(.footnote).foregroundStyle(.secondary)
                 }
             } footer: { Text("lens.profiles.footer") }
-            if draft.isEmpty {
+            if draft.isEmpty && departing.isEmpty {
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("lens.empty.title", systemImage: "camera.aperture").font(.headline)
@@ -220,11 +236,18 @@ struct LensProfilesView: View {
                             Label(String(format: String.localized("lens.clipboard.copied"), group.device), systemImage: "checkmark")
                                 .font(.footnote).foregroundStyle(.secondary)
                         }
-                        ForEach(group.profiles) { profile in lensRow(profile) }
+                        ForEach(group.profiles) { profile in
+                            DissolvingRow(removed: !draft.contains(where: { $0.id == profile.id }),
+                                onFinished: {
+                                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.18)) {
+                                        departing[profile.id] = nil
+                                    }
+                                }) { lensRow(profile) }
+                        }
                             .onDelete { offsets in
                                 let ids = Set(offsets.compactMap { group.profiles.indices.contains($0) ? group.profiles[$0].id : nil })
                                 if let editor, ids.contains(editor.id) { self.editor = nil }
-                                draft.removeAll { ids.contains($0.id) }
+                                for profile in group.profiles where ids.contains(profile.id) { remove(profile) }
                             }
                             .deleteDisabled(editor != nil)
                     } label: {
@@ -292,7 +315,17 @@ struct LensProfilesView: View {
         .swipeActions { Button("lens.delete", systemImage: "trash", role: .destructive) { remove(profile) }.disabled(editor != nil) }
     }
 
-    private func remove(_ profile: LensProfile) { draft.removeAll { $0.id == profile.id } }
+    private func remove(_ profile: LensProfile) {
+        guard let index = draft.firstIndex(where: { $0.id == profile.id }), editor == nil else { return }
+        if !reduceMotion {
+            if departing.count >= 3, let oldest = departing.min(by: { $0.value.deadline < $1.value.deadline })?.key {
+                departing[oldest] = nil
+            }
+            departing[profile.id] = DepartingLens(profile: profile, index: index,
+                deadline: .now.advanced(by: .milliseconds(PhotoMotionTokens.dissolveMillis + 120)))
+        }
+        draft.removeAll { $0.id == profile.id }
+    }
 
     private func save() {
         do {

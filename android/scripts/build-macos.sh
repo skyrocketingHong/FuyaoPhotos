@@ -2,6 +2,7 @@
 # Works on macOS and Linux. Does not install SDK packages or accept licenses implicitly.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+python3 "$ROOT/../scripts/generate-motion-tokens.py" --check
 if [[ -z "${JAVA_HOME:-}" ]] && [[ -x /usr/libexec/java_home ]]; then
     JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
     if [[ -n "$JAVA_HOME" ]]; then export JAVA_HOME; export PATH="$JAVA_HOME/bin:$PATH"; fi

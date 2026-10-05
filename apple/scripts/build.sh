@@ -2,6 +2,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+python3 ../scripts/generate-motion-tokens.py --check
 # DEVELOPER_DIR can select Xcode 27.1 or 27.2 without changing xcode-select globally.
 SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
 if [[ "$SDK_VERSION" != 27.* ]]; then

@@ -10,9 +10,7 @@ struct SaveProgressLabel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var symbol: some View {
-        Image(systemName: saved && !active ? "checkmark.circle.fill" : "square.and.arrow.down")
-            .symbolEffect(.pulse, isActive: active && !reduceMotion)
-            .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+        OperationProgressSymbol(active: active, completed: total > 1 ? completed : nil, total: total, saved: saved)
     }
 
     var body: some View {
@@ -23,7 +21,7 @@ struct SaveProgressLabel: View {
                     if active {
                         Text("\(completed)/\(max(1, total))")
                             .font(.caption2.monospacedDigit())
-                            .contentTransition(.numericText())
+                            .contentTransition(reduceMotion ? .identity : .numericText())
                     }
                 }
             } else {

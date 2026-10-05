@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.os.SystemClock
 import android.content.pm.PackageManager
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -44,6 +45,11 @@ import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoMotionTokens
+import ing.fuyaoskyrocket.photoinfo.ui.components.DissolvingRow
+
+private data class DepartingLens(val profile: LensProfile, val index: Int, val deadline: Long)
 
 internal fun LensProfile.fields() = LensProfileFields.encode(this)
 internal fun lensFromFields(fields: List<String>): LensProfile {
@@ -63,6 +69,20 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
     onEdit:(LensProfile)->Unit,onBack:()->Unit,onSave:(List<LensProfile>)->Unit) {
     val motionEnabled = LocalPhotoMotionEnabled.current
     var profiles by rememberSaveable(stateSaver=ProfilesSaver) { mutableStateOf(initial) }
+    var departing by remember { mutableStateOf(emptyList<DepartingLens>()) }
+    val deletionTokens = remember { mutableMapOf<String, String>() }
+    val displayedProfiles = remember(profiles, departing) {
+        profiles.toMutableList().apply {
+            departing.sortedBy { it.index }.forEach { item ->
+                if (none { it.id == item.profile.id }) add(item.index.coerceIn(0, size), item.profile)
+            }
+        }
+    }
+    LaunchedEffect(departing) {
+        val deadline = departing.minOfOrNull { it.deadline } ?: return@LaunchedEffect
+        delay((deadline - SystemClock.uptimeMillis()).coerceAtLeast(0))
+        departing = departing.filter { it.deadline > SystemClock.uptimeMillis() }
+    }
     var inventory by remember { mutableStateOf<CameraInventory?>(null) }
     var scanning by remember { mutableStateOf(false) }
     var denied by remember { mutableStateOf(false) }
@@ -72,6 +92,24 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
     var expandedDevices by rememberSaveable { mutableStateOf(emptyList<String>()) }
     val context=LocalContext.current;val scope=rememberCoroutineScope();val snackbar=remember { SnackbarHostState() }
     val removedText=stringResource(R.string.lens_removed);val undoText=stringResource(R.string.undo)
+    fun remove(profile: LensProfile) {
+        val index = profiles.indexOfFirst { it.id == profile.id }
+        if (index < 0) return
+        val token = UUID.randomUUID().toString()
+        deletionTokens[profile.id] = token
+        if (motionEnabled) departing = (departing.filterNot { it.profile.id == profile.id } +
+            DepartingLens(profile, index, SystemClock.uptimeMillis() + PhotoMotionTokens.dissolveMillis + 120)).takeLast(3)
+        profiles = profiles.filterNot { it.id == profile.id }
+        scope.launch {
+            if (snackbar.showSnackbar(removedText, actionLabel = undoText, withDismissAction = true,
+                    duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed &&
+                deletionTokens[profile.id] == token && profiles.none { it.id == profile.id }) {
+                departing = departing.filterNot { it.profile.id == profile.id }
+                profiles = profiles.toMutableList().apply { add(index.coerceIn(0, size), profile) }
+            }
+            if (deletionTokens[profile.id] == token) deletionTokens.remove(profile.id)
+        }
+    }
     val hardwareDevice = LocalCameraDevice.hardwareKey
     var productName by remember { mutableStateOf<String?>(null) }
     val aliases = LocalCameraDevice.aliases(productName)
@@ -176,14 +214,14 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
         }
     }
     val savedItems: LazyListScope.() -> Unit = {
-        if (profiles.isEmpty()) item(key = "profiles-empty") {
+        if (displayedProfiles.isEmpty()) item(key = "profiles-empty") {
             FuyaoFormSection(stringResource(R.string.saved_profiles)) {
                 Text(stringResource(R.string.no_lens_profiles), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 TextButton(onClick = { onEdit(draft()) }, enabled = productName != null) { Text(stringResource(R.string.add_lens)) }
             }
         }
-        LensBindings.groups(profiles, hardwareDevice, aliases).forEachIndexed { groupIndex, group ->
+        LensBindings.groups(displayedProfiles, hardwareDevice, aliases).forEachIndexed { groupIndex, group ->
             val model = group.model
             val lenses = group.profiles
             val expanded = model in expandedDevices
@@ -218,6 +256,9 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                             }
                             lenses.forEach { profile ->
                                 key(profile.id) {
+                                    DissolvingRow(removed = profiles.none { it.id == profile.id },
+                                        onFinished = { departing = departing.filterNot { it.profile.id == profile.id } }) {
+                                    Column {
                                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                                     ListItem(colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                                         headlineContent = { Text(profile.name, style = MaterialTheme.typography.titleMedium) },
@@ -242,17 +283,10 @@ fun LensProfilesScreen(initial:List<LensProfile>,exifModelHint:String="",editedF
                                         },
                                         trailingContent = { Row(verticalAlignment = Alignment.CenterVertically) {
                                             FuyaoIconButton(R.drawable.ic_edit, stringResource(R.string.lens_action, stringResource(R.string.edit_lens), profile.name), { onEdit(profile) })
-                                            FuyaoIconButton(R.drawable.ic_delete, stringResource(R.string.lens_action, stringResource(R.string.delete_lens), profile.name), {
-                                                val index = profiles.indexOfFirst { it.id == profile.id }
-                                                profiles = profiles.filterNot { it.id == profile.id }
-                                                scope.launch {
-                                                    if (snackbar.showSnackbar(removedText, actionLabel = undoText, withDismissAction = true,
-                                                            duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed && profiles.none { it.id == profile.id }) {
-                                                        profiles = profiles.toMutableList().apply { add(index.coerceIn(0, size), profile) }
-                                                    }
-                                                }
-                                            })
+                                            FuyaoIconButton(R.drawable.ic_delete, stringResource(R.string.lens_action, stringResource(R.string.delete_lens), profile.name), { remove(profile) })
                                         } })
+                                    }
+                                    }
                                 }
                             }
                         }
