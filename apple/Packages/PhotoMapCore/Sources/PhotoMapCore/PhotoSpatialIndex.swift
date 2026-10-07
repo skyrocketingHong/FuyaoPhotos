@@ -97,6 +97,26 @@ public actor PhotoSpatialIndex {
     public func snapshot() -> [PhotoCoordinate] { Array(records.values) }
     public func coordinate(for id: String) -> PhotoCoordinate? { records[id] }
 
+    /// An export reads every selected source record, independently of on-screen clustering budgets.
+    public func exportSnapshot(year: Int?, scope: MapExportScope = .allFiltered) throws -> MapExportSnapshot {
+        let rectangles: [MapRect]?
+        switch scope {
+        case .allFiltered: rectangles = nil
+        case .viewport(let viewport): rectangles = viewport.rectangles
+        }
+        var selected: [PhotoCoordinate] = []
+        for (offset, original) in records.values.enumerated() {
+            if offset.isMultiple(of: 256) { try Task.checkCancellation() }
+            guard year == nil || original.year == year,
+                  let displayed = original.projected(to: coordinateSystem) else { continue }
+            if let rectangles, !rectangles.contains(where: { $0.contains(displayed.point) }) { continue }
+            selected.append(displayed)
+        }
+        selected.sort { $0.id < $1.id }
+        try Task.checkCancellation()
+        return MapExportSnapshot(displayCoordinates: selected, coordinateSystem: coordinateSystem, revision: revision)
+    }
+
     public func bounds(year: Int?) throws -> MapViewport? {
         var latitudes: [Double] = []
         var longitudes: [Double] = []

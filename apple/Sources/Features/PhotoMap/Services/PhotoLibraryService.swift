@@ -28,6 +28,7 @@ final class PhotoLibraryService: NSObject, PHPhotoLibraryChangeObserver {
     @ObservationIgnored private let worker = PhotoLibraryIndexWorker()
     @ObservationIgnored private var loaded = false
     @ObservationIgnored private var permissionGeneration: UInt64 = 0
+    @ObservationIgnored private var changeGeneration: UInt64 = 0
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var changeTask: Task<Void, Never>?
     @ObservationIgnored private var authorizationTask: Task<Void, Never>?
@@ -106,6 +107,7 @@ final class PhotoLibraryService: NSObject, PHPhotoLibraryChangeObserver {
 
     private func enqueue(_ change: PHChange) {
         guard hasAccess, authorizationTask == nil else { return }
+        changeGeneration &+= 1
         let previous = changeTask
         let initialLoad = loadTask
         let generation = permissionGeneration
@@ -156,6 +158,74 @@ final class PhotoLibraryService: NSObject, PHPhotoLibraryChangeObserver {
         guard let bounds = try? await spatialIndex(for: coordinateSystem).bounds(year: year) else { return nil }
         return MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: bounds.latitude, longitude: bounds.longitude),
                                   span: MKCoordinateSpan(latitudeDelta: bounds.latitudeDelta, longitudeDelta: bounds.longitudeDelta))
+    }
+
+    func exportSnapshot(year: Int?, scope: MapExportScope = .allFiltered,
+                        coordinateSystem: MapCoordinateSystem) async throws -> MapExportSnapshot {
+        await refreshAuthorization()
+        await loadPhotoIndex()
+        for _ in 0..<3 {
+            if let pending = authorizationTask { await pending.value }
+            await loadTask?.value
+            let awaitedChange = changeGeneration
+            await changeTask?.value
+            try Task.checkCancellation()
+            guard hasAccess else { throw MapExportError.permission }
+            guard loaded else { throw MapExportError.changed }
+            if awaitedChange != changeGeneration { continue }
+            let generation = indexVersion
+            let permission = permissionGeneration
+            let changes = changeGeneration
+            let result = try await spatialIndex(for: coordinateSystem).exportSnapshot(year: year, scope: scope)
+            let coordinates: [PhotoCoordinate]
+            if authorizationStatus == .limited {
+                let identifiers = result.displayCoordinates.map(\.id)
+                let accessible = try await Self.accessibleExportIdentifiers(identifiers)
+                coordinates = result.displayCoordinates.filter { accessible.contains($0.id) }
+            } else { coordinates = result.displayCoordinates }
+            try Task.checkCancellation()
+            guard PHPhotoLibrary.authorizationStatus(for: .readWrite) == authorizationStatus,
+                  permission == permissionGeneration, hasAccess else { throw MapExportError.permission }
+            guard generation == indexVersion, changes == changeGeneration, authorizationTask == nil, loaded else { continue }
+            return MapExportSnapshot(displayCoordinates: coordinates, coordinateSystem: coordinateSystem, revision: generation)
+        }
+        throw MapExportError.changed
+    }
+
+    /// Recheck the same revision after rendering, before publishing an exported artifact.
+    func validateExportSnapshot(_ snapshot: MapExportSnapshot) async throws {
+        await refreshAuthorization()
+        if let pending = authorizationTask { await pending.value }
+        await loadTask?.value
+        let changes = changeGeneration
+        let permission = permissionGeneration
+        await changeTask?.value
+        try Task.checkCancellation()
+        if authorizationStatus == .limited {
+            let accessible = try await Self.accessibleExportIdentifiers(snapshot.displayCoordinates.map(\.id))
+            guard accessible.count == snapshot.totalCount else { throw MapExportError.changed }
+        }
+        try Task.checkCancellation()
+        guard hasAccess, authorizationTask == nil,
+              permission == permissionGeneration,
+              PHPhotoLibrary.authorizationStatus(for: .readWrite) == authorizationStatus else {
+            throw MapExportError.permission
+        }
+        guard loaded, snapshot.revision == indexVersion, changes == changeGeneration else {
+            throw MapExportError.changed
+        }
+    }
+
+    @concurrent
+    private nonisolated static func accessibleExportIdentifiers(_ identifiers: [String]) async throws -> Set<String> {
+        var accessible = Set<String>()
+        for start in stride(from: 0, to: identifiers.count, by: 512) {
+            try Task.checkCancellation()
+            let end = min(identifiers.count, start + 512)
+            let assets = PHAsset.fetchAssets(withLocalIdentifiers: Array(identifiers[start..<end]), options: nil)
+            assets.enumerateObjects { asset, _, _ in accessible.insert(asset.localIdentifier) }
+        }
+        return accessible
     }
 
     func locations(in cluster: MapCluster, region: MKCoordinateRegion, year: Int?, offset: Int, limit: Int,
