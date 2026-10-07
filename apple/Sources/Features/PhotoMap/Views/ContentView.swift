@@ -79,6 +79,7 @@ struct PhotoMapScreen: View {
     @State private var session = MapSession()
     @State private var showingOptions = false
     @State private var showingModes = false
+    @State private var showingExport = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var editAfterDismiss: [String]?
     @State private var availableWidth: CGFloat = 0
@@ -101,6 +102,7 @@ struct PhotoMapScreen: View {
                         VStack(spacing: 0) {
                             mapStyleMenu.frame(width: 44, height: 44)
                             mapOptionsButton.frame(width: 44, height: 44)
+                            exportMapButton.frame(width: 44, height: 44)
                             fitPhotosButton.frame(width: 44, height: 44)
                             Divider().frame(width: 24)
                             locationButton.frame(width: 44, height: 44)
@@ -156,6 +158,10 @@ struct PhotoMapScreen: View {
                         .labelStyle(.iconOnly)
                         .buttonBorderShape(.circle)
                         .help(Text("map.options"))
+                    exportMapButton
+                        .labelStyle(.iconOnly)
+                        .buttonBorderShape(.circle)
+                        .help(Text("map.export.title"))
                     fitPhotosButton
                         .labelStyle(.iconOnly)
                         .buttonBorderShape(.circle)
@@ -167,6 +173,7 @@ struct PhotoMapScreen: View {
         }
         .mapScope(mapScope)
         .modifier(MapLifecycleModifier(session: session))
+        .sheet(isPresented: $showingExport) { MapExportSheet(session: session) }
         .onChange(of: session.presentation?.id) { _, _ in clusterNavigationPath = [] }
         .sheet(item: Binding(
             get: { showsSelectionPane ? nil : session.presentation },
@@ -207,6 +214,13 @@ struct PhotoMapScreen: View {
                     .presentationDetents([.medium, .large])
 #endif
             }
+    }
+
+    private var exportMapButton: some View {
+        Button { showingExport = true } label: {
+            MapActionLabel(title: "map.export.title", symbol: "square.and.arrow.up")
+        }
+        .disabled(session.phase != .ready || session.library.isLoading || session.library.photoCount == 0)
     }
 
     private var locationButton: some View {
