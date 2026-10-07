@@ -20,8 +20,8 @@ struct HeatmapView: View {
             showsUserLocation: showsUserLocation, safeAreaInsets: safeAreaInsets)
             .ignoresSafeArea(.container)
 #else
-        HeatmapPlatformView(map: map, region: $region, clusters: clusters, options: options, showsUserLocation: showsUserLocation)
-            .safeAreaPadding(safeAreaInsets)
+        HeatmapPlatformView(map: map, region: $region, clusters: clusters, options: options,
+            showsUserLocation: showsUserLocation, safeAreaInsets: safeAreaInsets)
             .ignoresSafeArea(.container)
 #endif
     }
@@ -112,26 +112,96 @@ private final class HeatmapMapHost: NSView {
     }
 }
 #else
-private struct HeatmapPlatformView: UIViewRepresentable {
+private struct HeatmapPlatformView: UIViewControllerRepresentable {
     let map: MKMapView
     @Binding var region: MKCoordinateRegion
     let clusters: [MapCluster]
     let options: MapOptions
     let showsUserLocation: Bool
+    let safeAreaInsets: EdgeInsets
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.layoutDirection) private var layoutDirection
     func makeCoordinator() -> HeatmapCoordinator { HeatmapCoordinator(region: $region) }
-    func makeUIView(context: Context) -> MKMapView { context.coordinator.configure(map); return map }
-    func updateUIView(_ map: MKMapView, context: Context) {
+    func makeUIViewController(context: Context) -> HeatmapMapHostController {
+        context.coordinator.configure(map)
+        return HeatmapMapHostController(map: map)
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, uiViewController: HeatmapMapHostController, context: Context) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height,
+              width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: width, height: height)
+    }
+    func updateUIViewController(_ host: HeatmapMapHostController, context: Context) {
+        host.requiredInsets = UIEdgeInsets(top: safeAreaInsets.top,
+            left: layoutDirection == .leftToRight ? safeAreaInsets.leading : safeAreaInsets.trailing,
+            bottom: safeAreaInsets.bottom,
+            right: layoutDirection == .leftToRight ? safeAreaInsets.trailing : safeAreaInsets.leading)
+        host.updateSafeArea()
+        let map = host.map
         context.coordinator.update(map, region: $region, clusters: clusters, options: options,
             showsUserLocation: showsUserLocation, animated: context.transaction.animation != nil,
             reduceMotion: reduceMotion)
         map.overrideUserInterfaceStyle = colorScheme == .dark ? .dark : .light
     }
-    static func dismantleUIView(_ map: MKMapView, coordinator: HeatmapCoordinator) {
+    static func dismantleUIViewController(_ host: HeatmapMapHostController, coordinator: HeatmapCoordinator) {
         coordinator.stop()
-        map.delegate = nil
-        map.showsUserLocation = false
+        if host.map.delegate === coordinator {
+            host.map.delegate = nil
+            host.map.showsUserLocation = false
+        }
+        host.detachMap()
+    }
+}
+
+private final class HeatmapMapHostController: UIViewController {
+    let map: MKMapView
+    var requiredInsets = UIEdgeInsets.zero
+
+    init(map: MKMapView) {
+        self.map = map
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { return nil }
+
+    override func loadView() {
+        let host = UIView()
+        host.backgroundColor = .clear
+        map.frame = host.bounds
+        map.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        host.addSubview(map)
+        view = host
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        if map.superview === view { map.frame = view.bounds }
+        updateSafeArea()
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        updateSafeArea()
+    }
+
+    func updateSafeArea() {
+        guard isViewLoaded, map.superview === view else { return }
+        let applied = additionalSafeAreaInsets
+        let resolved = view.safeAreaInsets
+        // Keep the canvas at full bounds; only MapKit's native controls inherit these insets.
+        let next = UIEdgeInsets(
+            top: HeatmapSafeAreaPolicy.additional(required: requiredInsets.top, resolved: resolved.top, applied: applied.top),
+            left: HeatmapSafeAreaPolicy.additional(required: requiredInsets.left, resolved: resolved.left, applied: applied.left),
+            bottom: HeatmapSafeAreaPolicy.additional(required: requiredInsets.bottom, resolved: resolved.bottom, applied: applied.bottom),
+            right: HeatmapSafeAreaPolicy.additional(required: requiredInsets.right, resolved: resolved.right, applied: applied.right))
+        if next != applied { additionalSafeAreaInsets = next }
+    }
+
+    func detachMap() {
+        if isViewLoaded, map.superview === view { map.removeFromSuperview() }
+        requiredInsets = .zero
+        additionalSafeAreaInsets = .zero
     }
 }
 #endif
