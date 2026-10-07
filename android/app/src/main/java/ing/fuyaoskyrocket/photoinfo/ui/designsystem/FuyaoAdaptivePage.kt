@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.calculateEndPadding
 
 val LocalPaneTopInset = staticCompositionLocalOf { 0.dp }
+val LocalBottomNavigationInset = staticCompositionLocalOf { 0.dp }
 
 /** Shared page geometry for metadata, settings and lens forms. Each pane owns its own scroll. */
 @Composable
@@ -67,7 +68,9 @@ fun FuyaoAdaptivePage(
     val outerPadding = if (contentUnderTopEdge) PaddingValues(
         start = padding.calculateStartPadding(direction), end = padding.calculateEndPadding(direction),
         bottom = padding.calculateBottomPadding()) else padding
-    CompositionLocalProvider(LocalPaneTopInset provides if (contentUnderTopEdge) padding.calculateTopPadding() else 0.dp) {
+    val navigationInset = if (outerPadding.calculateBottomPadding() > 0.dp) 0.dp else LocalBottomNavigationInset.current
+    CompositionLocalProvider(LocalPaneTopInset provides if (contentUnderTopEdge) padding.calculateTopPadding() else 0.dp,
+        LocalBottomNavigationInset provides navigationInset) {
     Box(Modifier.fillMaxSize().padding(outerPadding).consumeWindowInsets(padding).imePadding()) {
         BoxWithConstraints(Modifier.fillMaxSize().onGloballyPositioned { bounds = it.boundsInWindow() }) {
             val hinge = fold?.bounds

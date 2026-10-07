@@ -9,8 +9,10 @@ struct NativeColorPhotoViewport: UIViewRepresentable {
     let point: CGPoint
     let onSample: (CGPoint) -> Void
     let onLoupe: (ColorLoupeContact?) -> Void
+    var onCaptureReady: ((PhotoViewportCapture?) -> Void)?
     func makeUIView(context: Context) -> ColorPhotoScrollView { ColorPhotoScrollView() }
     func updateUIView(_ view: ColorPhotoScrollView, context: Context) {
+        onCaptureReady?({ [weak view] in view?.departureSnapshot() })
         view.onSample = onSample
         view.onLoupe = onLoupe
         view.photo.preferredImageDynamicRange = hdr ? .high : .standard
@@ -129,6 +131,16 @@ final class ColorPhotoScrollView: UIView, UIScrollViewDelegate, UIGestureRecogni
         marker.lineWidth = 2 / scroll.zoomScale
         marker.path = CGPath(ellipseIn: CGRect(x: p.x - radius, y: p.y - radius, width: radius * 2, height: radius * 2), transform: nil)
     }
+
+    func departureSnapshot() -> CGImage? {
+        guard !bounds.isEmpty, let image = photo.image else { return nil }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = min(2, contentScaleFactor)
+        format.preferredRange = .standard
+        return UIGraphicsImageRenderer(size: bounds.size, format: format).image { _ in
+            image.draw(in: photo.convert(photo.bounds, to: self))
+        }.cgImage
+    }
 }
 #else
 import AppKit
@@ -139,8 +151,10 @@ struct NativeColorPhotoViewport: NSViewRepresentable {
     let point: CGPoint
     let onSample: (CGPoint) -> Void
     let onLoupe: (ColorLoupeContact?) -> Void
+    var onCaptureReady: ((PhotoViewportCapture?) -> Void)?
     func makeNSView(context: Context) -> ColorPhotoScrollView { ColorPhotoScrollView() }
     func updateNSView(_ view: ColorPhotoScrollView, context: Context) {
+        onCaptureReady?({ [weak view] in view?.departureSnapshot() })
         view.photo.onSample = onSample
         view.photo.onLoupe = { [weak view] location in
             guard let view, let location else { onLoupe(nil); return }
@@ -188,6 +202,25 @@ final class ColorPhotoScrollView: NSScrollView {
             magnification = 1
             photo.frame = CGRect(origin: .zero, size: bounds.size)
         }
+    }
+
+    func departureSnapshot() -> CGImage? {
+        guard !bounds.isEmpty, let image = photo.image else { return nil }
+        let scale = min(2, window?.backingScaleFactor ?? 1)
+        let width = Int((bounds.width * scale).rounded(.up))
+        let height = Int((bounds.height * scale).rounded(.up))
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let bitmap = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+                bytesPerRow: 0, space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        let context = NSGraphicsContext(cgContext: bitmap, flipped: false)
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        NSGraphicsContext.current = context
+        bitmap.scaleBy(x: CGFloat(width) / bounds.width, y: CGFloat(height) / bounds.height)
+        image.draw(in: photo.convert(photo.imageRect, to: self), from: .zero,
+            operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        return bitmap.makeImage()
     }
 }
 

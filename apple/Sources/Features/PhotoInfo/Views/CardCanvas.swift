@@ -95,7 +95,7 @@ private struct CardActionStrip: View {
     }
 
     private enum Tool: Hashable {
-        case live, hdr, compare, full, open, save, more
+        case live, hdr, compare, full, open, save, close, more
     }
 
     private var optionalTools: [Tool] {
@@ -126,8 +126,8 @@ private struct CardActionStrip: View {
 #if os(macOS)
         return optionalTools
 #else
-        let slots = min(7, max(2, Int(max(0, width) / 68)))
-        return Array(optionalTools.prefix(slots - 2)) + [.save, .more]
+        let slots = min(7, max(3, Int(max(0, width) / 68)))
+        return Array(optionalTools.prefix(slots - 3)) + [.save, .close, .more]
 #endif
     }
 
@@ -164,6 +164,12 @@ private struct CardActionStrip: View {
             .buttonStyle(.glass)
             .controlSize(.large)
             .buttonBorderShape(.circle)
+        case .close:
+            CircularIconButton(closeLabel, systemImage: "xmark", action: close)
+                .confirmationDialog(closePrompt, isPresented: $closeConfirmation, titleVisibility: .visible) {
+                    Button(closeLabel, role: .destructive, action: confirmClose)
+                    Button("card.cancel", role: .cancel) {}
+                }
         case .more:
             if overflowTools(for: width).contains(.open) {
                 moreMenu(for: width)
@@ -187,11 +193,6 @@ private struct CardActionStrip: View {
             Button("card.style.reset", systemImage: "arrow.counterclockwise") {
                 document.card.style = PhotoCardStyle()
             }
-            Button(closeLabel, systemImage: "xmark", action: close)
-        }
-        .confirmationDialog(closePrompt, isPresented: $closeConfirmation, titleVisibility: .visible) {
-            Button(closeLabel, role: .destructive, action: confirmClose)
-            Button("card.cancel", role: .cancel) { }
         }
     }
 
@@ -210,7 +211,7 @@ private struct CardActionStrip: View {
             }
         case .open:
             Button("card.open", systemImage: "photo.badge.plus", action: open)
-        case .save, .more:
+        case .save, .close, .more:
             EmptyView()
         }
     }

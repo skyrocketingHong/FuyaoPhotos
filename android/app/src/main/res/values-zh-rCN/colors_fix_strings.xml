@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="colors_current_pixel">当前像素</string>
+    <string name="colors_source_profile">源色彩空间</string>
+    <string name="colors_source_components">源 RGB 分量</string>
+    <string name="colors_converted_components">转换后的 RGB 分量</string>
+    <string name="colors_source_values_note">自动模式显示解码后像素在源色彩空间中的数值。RGB 和 HEX 按相同编码换算为 0 至 255；选择其他色彩空间可查看该像素转换后的数值。</string>
+    <string name="colors_clipped_values_note">此颜色超出 0 至 1 范围。RGB 和 HEX 已裁剪，浮点分量和 CSS 保留完整数值。</string>
+    <string name="colors_rec2020_encoding_note">Rec.2020 使用 CSS Color 4 的 BT.1886 传递函数。自动模式保留源编码，包括 HLG 和 PQ。</string>
+    <string name="colors_cmyk_approximation_note">CMYK 根据裁剪后的 sRGB 数值近似计算，未应用打印设备的色彩配置。</string>
+</resources>

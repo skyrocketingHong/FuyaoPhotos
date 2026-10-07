@@ -10,7 +10,8 @@ struct ColorResultsPanel: View {
     let information: PhotoColorDescription?
     @Binding var space: ColorResultSpace?
     let movePixel: (Int, Int) -> Void
-    private var resolvedSpace: ColorResultSpace { space ?? .matchingProfile(information?.colorSpace ?? "") }
+    private var readouts: [ColorReadout] { space.map(sample.color.readouts) ?? sample.color.sourceReadouts }
+    private var sourceProfile: String { sample.color.sourceProfile ?? information?.colorSpace ?? "XYZ" }
 
     var body: some View {
         Section {
@@ -32,7 +33,7 @@ struct ColorResultsPanel: View {
                 Spacer(minLength: 0)
             }
             Picker("colors.space", selection: $space) {
-                Text(String(format: String.localized("colors.auto.value"), ColorResultSpace.matchingProfile(information?.colorSpace ?? "").rawValue))
+                Text(String(format: String.localized("colors.auto.value"), sourceProfile))
                     .tag(nil as ColorResultSpace?)
                 ForEach(ColorResultSpace.allCases) { Text($0.rawValue).tag(Optional($0)) }
             }
@@ -40,21 +41,22 @@ struct ColorResultsPanel: View {
         }
         Section {
             LabeledContent("colors.sample") {
-                let rgb = (resolvedSpace == .css ? sample.color.cssReference?.rgb : resolvedSpace == .ral ? sample.color.ralReference?.rgb : nil) ?? sample.color.srgb
+                let rgb = (space == .css ? sample.color.cssReference?.rgb : space == .ral ? sample.color.ralReference?.rgb : nil) ?? sample.color.srgb
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color(.sRGB, red: rgb.clipped.x, green: rgb.clipped.y, blue: rgb.clipped.z, opacity: 1))
                     .frame(width: 64, height: 44)
                     .accessibilityLabel(Text(verbatim: rgb.hex))
             }
-            ForEach(sample.color.readouts(resolvedSpace)) { row in
+            ForEach(readouts) { row in
                 PhotoInformationRow(title: LocalizedStringKey(row.label), value: row.value, monospaced: true)
                     .contextMenu { Button("colors.copy", systemImage: "doc.on.doc") { copy(row.value) } }
             }
         } footer: {
-            if resolvedSpace == .ral { Text("colors.ral.note") }
-            else if resolvedSpace == .css { Text("colors.css.note") }
+            if space == nil { Text("colors.auto.note") }
+            else if space == .ral { Text("colors.ral.note") }
+            else if space == .css { Text("colors.css.note") }
             else if sample.color.srgb.outOfGamut { Text("colors.gamut.note") }
-            else if resolvedSpace == .sRGB { Text("colors.cmyk.note") }
+            else if space == .sRGB { Text("colors.cmyk.note") }
         }
         Section("colors.pixel") {
             Stepper("X: \(sample.color.x)", onIncrement: { movePixel(sample.color.x + 1, sample.color.y) },

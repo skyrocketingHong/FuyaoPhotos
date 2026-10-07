@@ -32,6 +32,7 @@ struct MetadataScreen: View {
                             actions: {
 #if !os(macOS)
                                 openPhotoButton
+                                PhotoCloseButton(session: session)
 #endif
                             })
                     } content: {
@@ -44,6 +45,13 @@ struct MetadataScreen: View {
                     }
                 }
             }
+            .modifier(PhotoDepartureOverlay(session: session, imageCapture: {
+                if summaryState.showsDepth, let depth = summaryState.depthImage, let document = session.current {
+                    return PhotoPreviewSnapshot(documentID: document.id, sourceURL: document.sourceURL,
+                        image: depth, overlay: nil, usesPhotoBackdrop: false)
+                }
+                return summaryState.preview.departureFrame
+            }))
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)
 #else
@@ -52,6 +60,7 @@ struct MetadataScreen: View {
             .toolbar {
                 if let document = session.current {
                     ToolbarItem(placement: .primaryAction) { openPhotoButton }
+                    ToolbarItem(placement: .primaryAction) { PhotoCloseButton(session: session) }
                     ToolbarItem(placement: .primaryAction) {
                         Button { showingSave = true } label: {
                             SaveProgressLabel(title: "metadata.save", active: state.busy, compact: true)

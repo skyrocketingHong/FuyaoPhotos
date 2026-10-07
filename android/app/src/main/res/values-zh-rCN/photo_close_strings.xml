@@ -1,0 +1,5 @@
+<resources>
+    <string name="close_photo">关闭照片</string>
+    <string name="close_photo_title">结束照片编辑？</string>
+    <string name="close_photo_message">将放弃此照片工作区尚未保存的修改，保留原片和已导出的照片。</string>
+</resources>

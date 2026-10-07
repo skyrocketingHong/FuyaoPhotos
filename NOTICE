@@ -52,15 +52,27 @@ Dependencies retain their upstream licenses and notices. The generated Gradle
 Wrapper retains its upstream notices. Imported fonts and photographs retain
 their own rights; the source-code license grants no additional rights to them.
 
-Motion references
------------------
-Native progress, row removal and Android container/navigation interactions were
-informed by NextAlone/Nagram, NextAlone/Nagram-iOS, telegramdesktop/tdesktop,
-chen08209/FlClash and YXBwbWFya2V0/AppMarket. Pinned revisions, inspected files,
-implementation boundaries and official API references are documented in
-shared/motion/IMPLEMENTATION.md and shared/motion/IMPLEMENTATION_ZH.md.
-No upstream motion source files, assets or rendering engines are bundled by
-this change. Apple navigation and glass remain system-provided.
+Motion and Android navigation
+-----------------------------
+Android particle rendering ports ThanosEffect from NextAlone/Nagram, revision
+b8db62a65e1e4dee34d92bff412548ef628ddb06, and includes its original vertex and
+fragment shaders under GPL-3.0. See LICENSES/Nagram-GPL-3.0.txt.
+
+Apple particle rendering includes the original DustEffectShaders.metal and Loki
+files from NextAlone/Nagram-iOS, revision 5b72e0fb7dcbc762568f567c823485e42d32e4d7,
+derived from Telegram-iOS. Telegram identifies its iOS source as GPL-2.0-or-later
+at https://telegram.org/apps. See LICENSES/Telegram-GPL-2.0.txt. The original
+Loki copyright (c) 2017 Youssef Victor is retained in its header; its upstream
+MIT license, copyright (c) 2024 Youssef Victor, is in LICENSES/Loki-MIT.txt.
+
+The Android liquid navigation and blur renderer links Kyant Backdrop and Shapes
+and adapts the official AndroidLiquidGlass catalog components under Apache-2.0.
+Material theme generation uses MaterialKolor's Material Color Utilities under
+MIT and Apache-2.0. Pinned versions, original authors, adapted files and full
+licenses are in third_party/AndroidNavigation/. IntentX, AppMarket, FlClash and
+Telegram Desktop are also interaction references. Apple navigation and glass
+remain system-provided. See shared/motion/IMPLEMENTATION.md and its Chinese
+counterpart for the precise implementation boundaries.
 
 Icon assets
 -----------

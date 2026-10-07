@@ -494,7 +494,8 @@
 "colors.ral.note" = "Nearest reference RGB from the inherited RAL table. This is not a physical color measurement.";
 "colors.css.note" = "An exact 8-bit sRGB match is preferred; otherwise the nearest CSS named color is shown using OKLab distance.";
 "colors.gamut.note" = "HEX and 8-bit RGB are clipped to the displayed gamut. CSS coordinates keep out-of-range components.";
-"colors.cmyk.note" = "CMYK is a mathematical approximation without a printer profile.";
+"colors.cmyk.note" = "CMYK is a mathematical approximation of clipped sRGB values without a printer profile.";
+"colors.auto.note" = "Auto keeps the source color profile and encoded pixel values. Selecting another color space converts the values to that space.";
 "about.project" = "Fuyao Photos brings photo maps, information cards, metadata and color sampling into one app.";
 "about.features" = "Browse photos by location, add information cards, inspect and edit metadata, and sample colors across color spaces.";
 "about.colors.credit" = "Color tools come from FuyaoColorPicker. The original Color Picker reference materials retain their GPL-3.0-only license.";

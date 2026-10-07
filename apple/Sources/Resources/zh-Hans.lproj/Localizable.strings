@@ -493,7 +493,8 @@
 "colors.ral.note" = "从继承的 RAL 色表中匹配最近似 RGB，仅作参考，不代表实物测色结果。";
 "colors.css.note" = "优先匹配完全相同的 8 位 sRGB；否则按 OKLab 距离展示最近似 CSS 命名色。";
 "colors.gamut.note" = "HEX 与 8 位 RGB 裁剪到当前色域，CSS 坐标保留越界分量。";
-"colors.cmyk.note" = "CMYK 为数学近似，未应用打印设备的色彩配置。";
+"colors.cmyk.note" = "CMYK 为裁剪后的 sRGB 色值的数学近似，未应用打印设备的色彩配置。";
+"colors.auto.note" = "自动模式保留源色彩配置及像素编码值；选择其他色彩空间时，显示转换到该空间后的数值。";
 "about.project" = "扶摇照片将照片地图、信息卡片、元数据与图片取色整合在一个应用中。";
 "about.features" = "按地点浏览照片，制作信息卡片，查看和修改元数据，跨色彩空间取色。";
 "about.colors.credit" = "取色功能迁移自 FuyaoColorPicker。原 Color Picker 参考材料保留 GPL-3.0-only 许可。";

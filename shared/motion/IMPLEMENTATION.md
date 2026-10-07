@@ -1,25 +1,31 @@
-# Motion implementation
+# Native motion, navigation and appearance
 
 [简体中文](IMPLEMENTATION_ZH.md)
 
-`tokens.json` is the source of duration, particle budget and geometry constants. Run `python3 scripts/generate-motion-tokens.py` from the repository root after changing it. Both platform build scripts check that their committed constants match. `particle-frames.tsv` is a shared numerical contract, exercised by Kotlin and Swift tests.
+## Upstream implementations
 
-The Apple implementation is shared by iOS, iPadOS and macOS. Android reuses the same Compose components across destinations. Rendering stays native: SwiftUI Canvas and Compose GraphicsLayer use a single snapshot of a removed form row. The authoritative list changes immediately; retained rows are inert, bounded to three removals and expire even when scrolled away. Saving progress follows completed items, with a separate indication of ongoing work. Reduced motion removes travel and rotation; backgrounding or leaving a page releases animations.
+| Feature | Implementation and source |
+| --- | --- |
+| Android particles | Original `thanos_vertex.glsl` and `thanos_fragment.glsl` from [Nagram](https://github.com/NextAlone/Nagram/tree/b8db62a65e1e4dee34d92bff412548ef628ddb06), with a TextureView/EGL bridge ported from `ThanosEffect.java`. GPU transform feedback retains particle UV, position, velocity and lifetime in two 28-byte buffers. Original equations, density scaling, random lifetime and photo-mode settings are retained. |
+| Apple particles | Original `DustEffectShaders.metal`, `loki.metal` and `loki_header.metal` from [Nagram-iOS](https://github.com/NextAlone/Nagram-iOS/tree/5b72e0fb7dcbc762568f567c823485e42d32e4d7). A shared iOS/iPadOS/macOS MTKView bridge replaces Telegram's app-specific MetalEngine. The original compute and instanced-quad rendering run unchanged; exact dispatch prevents initialization beyond the particle buffer. |
+| Android liquid tabs | Actual Kyant Backdrop 1.0.6 and Shapes 1.2.0 libraries, with the official [AndroidLiquidGlass catalog](https://github.com/Kyant0/AndroidLiquidGlass/tree/1.0.6/catalog/src/main/java/com/kyant/backdrop/catalog) component port. Lens refraction, blur and combined backdrop rendering call the upstream library. |
+| MD3 blur and themes | The native Material 3 bar uses the same Backdrop blur independently of liquid tabs. Material Color Utilities 5.0.1 generates all HCT color roles. Appearance, wallpaper/custom seed, palette, specification, contrast, pure black, bar materials and back transitions have a dedicated settings category. |
+| Settings and back | FlClash's [OpenContainer](https://github.com/chen08209/FlClash/blob/4b59eca853778d4e7be3de26589252889c899bc5/lib/widgets/open_container.dart) informs the measured container transition. [IntentX](https://github.com/wxxsfxyzm/IntentX/tree/5870f2f849c4b17518444518f9bc8a8f7e2972e7) and [AppMarket](https://github.com/YXBwbWFya2V0/AppMarket/tree/af34ee9c3b3c8794b27536ae680f4dc3f335f9a9) inform theme and material controls. Navigation Compose drives gesture progress and cancellation; no private ApplicationInfo reflection is used. |
 
-Android settings use `sharedBounds` inside Navigation Compose, including gesture seeking and cancellation. Draft confirmation remains separate. Appearance changes persist before a settings-only snapshot is revealed; photo workspaces are never captured. Bottom navigation uses Material 3 items over an SDR photo material, RenderEffect blur on API 31+, and AGSL edge refraction on API 33+. The selected capsule moves with an interruptible spring. Older systems and the disabled glass preference retain a solid native bar. This photo-derived material does not sample the HDR viewport or claim to reproduce Apple's system Liquid Glass.
+Telegram Desktop's Qt particle renderer at `d8594c011756265de4385408540bd9f7c787a003` remains a reference. The Apple client uses the original Metal renderer across its platforms. The earlier coarse Canvas particle approximation and guessed color-space matching have been removed.
 
-## Source references
+## Photo and state boundaries
 
-These repositories were studied at the following revisions. This change includes independently implemented components and no copied upstream source files, assets, rendering engines or dependencies.
+Cards, Metadata and Colors offer a close action. Dirty sessions keep their discard confirmation. Closing clears only the owning private editing session; originals and exported files are preserved. Shared photo pages resolve the actual session owner. Replacing photos first decodes a usable new preview, then publishes the replacement and emits the old image's departure. Cancellation and failed preparation retain the old session and metadata drafts.
 
-| Reference | Revision | Studied implementation |
-| --- | --- | --- |
-| [Nagram](https://github.com/NextAlone/Nagram) | `b8db62a65e1e4dee34d92bff412548ef628ddb06` | `ThanosEffect.java`, `thanos_vertex.glsl`, `RadialProgressView.java`, `RadialProgress2.java`: content fragments, sweeping onset, progress interpolation. |
-| [Nagram iOS](https://github.com/NextAlone/Nagram-iOS) | `5b72e0fb7dcbc762568f567c823485e42d32e4d7` | `DustEffectLayer.swift`, `DustEffectShaders.metal`, `RadialProgressContentNode.swift`: textured particles, bounded lifetime, animation teardown. |
-| [Telegram Desktop](https://github.com/telegramdesktop/tdesktop) | `d8594c011756265de4385408540bd9f7c787a003` | `thanos_effect_renderer.cpp`, `thanos_init.comp`, `thanos_update.comp`: grid particles and staggered removal. This is the Qt desktop client, including macOS. |
-| [FlClash](https://github.com/chen08209/FlClash) | `4b59eca853778d4e7be3de26589252889c899bc5` | `lib/widgets/open_container.dart`: measured source/destination bounds, 300 ms container transform, reversible transition. |
-| [AppMarket](https://github.com/YXBwbWFya2V0/AppMarket) | `af34ee9c3b3c8794b27536ae680f4dc3f335f9a9` | `FloatingBottomBar.kt`, `Lens.kt`, `AppNavigation.kt`, `ThemeSettingsScreen.kt`, `App.kt`: backdrop separation, moving selection, navigation and appearance preferences. Its inspected app root uses `ThemeController(System)`; Fuyao's explicit appearance choices and reveal are its own extension. |
+Particle frames are independent SDR copies. Native HDR presentation and export resources are not flattened. Current zoom, pan, depth presentation and the information-card overlay are retained. The previous image stays visible until the GPU's first frame. The data operation does not wait for the animation. Reduced motion, backgrounding, disposal and deadlines release visual resources. Android replacement events follow the current UI host after activity recreation; stale metadata saves cannot restore a discarded draft.
 
-AppMarket's private `ApplicationInfo` reflection is not used. Navigation uses the public [shared-element predictive-back API](https://developer.android.com/develop/ui/compose/animation/shared-elements/navigation). Snapshots use the public [Compose graphics-layer API](https://developer.android.com/develop/ui/compose/graphics/draw/modifiers). None of the Android navigation or optical code is installed in the Apple client; Apple keeps native navigation and system glass.
+Each safe backdrop layer registers separately with priority and coordinates. Only the SDR ambient background and ordinary controls/lists are sampled. Metadata and color value lists can scroll behind the bottom bar, with content padding keeping their last actions reachable. Fixed photos, current-pixel summaries and selectors remain above the bar. Insets are consumed once.
 
-Unit tests and builds verify code and numerical bounds. Actual gesture feel, snapshot fidelity, AGSL rendering, accessibility and frame pacing require device acceptance.
+## Shared parameters and verification
+
+`tokens.json` and `scripts/generate-motion-tokens.py` retain common control/progress timing and snapshot limits. Both build scripts check the generated Kotlin/Swift constants. Particle physics come from the original platform shaders, not from the common UI tokens.
+
+Source-hash tests verify the imported shaders. Apple tests exercise real offscreen Metal initialization, update bounds, lifetime, image orientation and alpha; hosts without a Metal device explicitly skip GPU tests. Android source tests cover shader identity and grid allocation, with device tests for source-pixel decoding and replacement safety. Source color readouts keep original floating-point components; explicit spaces convert the same sample, with only 8-bit RGB/HEX clipped.
+
+Original particle licenses are in `LICENSES/`. Navigation versions, authors, adaptations and licenses are in `third_party/AndroidNavigation/`, with Android notices included in the APK. Device visual fidelity, Android GPU execution, gestures, accessibility and frame pacing remain separate acceptance checks.

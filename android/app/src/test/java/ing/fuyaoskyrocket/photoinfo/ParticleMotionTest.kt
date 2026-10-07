@@ -1,62 +1,35 @@
 package ing.fuyaoskyrocket.photoinfo
 
 import ing.fuyaoskyrocket.photoinfo.domain.motion.ParticleMotion
-import ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoMotionTokens
+import ing.fuyaoskyrocket.photoinfo.domain.motion.TelegramDustGrid
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
+import java.security.MessageDigest
 
 class ParticleMotionTest {
-    @Test fun particleFramesMatchTheSharedAppleAndroidContract() {
+    @Test fun shadersMatchThePinnedNagramOriginals() {
         val root = generateSequence(File(System.getProperty("user.dir"))) { it.parentFile }.take(6)
-            .first { File(it, "shared/motion/particle-frames.tsv").isFile }
-        File(root, "shared/motion/particle-frames.tsv").readLines().drop(1).filter { it.isNotBlank() }.forEach { line ->
-            val values = line.split('\t').map(String::toDouble)
-            val actual = ParticleMotion.frame(values[0].toInt(), values[1].toInt(), values[2].toFloat())
-            listOf(actual.x, actual.y, actual.scale, actual.alpha).forEachIndexed { index, value ->
-                assertEquals(values[index + 3], value.toDouble(), .00001)
-            }
+            .first { File(it, "android/app/src/main/res/raw/telegram_thanos_vertex.glsl").isFile }
+        val shaders = mapOf(
+            "vertex" to "8602253347b52f544b0968eac9ad06b07a36118e52d0df51dbb2114b5c50043d",
+            "fragment" to "ba663535302f3cedf49e07ed3c2cfbee9b48459db742d8bbc3ea558af4a5e03a",
+        )
+        shaders.forEach { (name, expected) ->
+            val bytes = File(root, "android/app/src/main/res/raw/telegram_thanos_$name.glsl").readBytes()
+            assertEquals(expected, MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) })
         }
     }
 
-    @Test fun particleBudgetHoldsForNarrowWideAndLargeTextRows() {
-        listOf(1f to 10000f, 320f to 48f, 480f to 300f, 1200f to 100f, 10000f to 1f).forEach { (width, height) ->
-            val grid = ParticleMotion.grid(width, height)
-            assertTrue(grid.count in 1..PhotoMotionTokens.maxParticles)
+    @Test fun originalGridKeepsFineParticlesAcrossPhotoAndFormAspectRatios() {
+        for ((width, height) in listOf(1080 to 810, 320 to 96, 2560 to 1600, 100 to 2000)) {
+            val grid = TelegramDustGrid.calculate(width, height, 3f, 60000)
+            val expectedMinimum = (width.toDouble() * height / (1.2 * 1.2)).toInt().coerceIn(10, 60000)
+            assertTrue(grid.columns > 0 && grid.rows > 0)
+            assertTrue(grid.count >= expectedMinimum - 1)
+            assertTrue(grid.count <= expectedMinimum + grid.columns + grid.rows)
+            assertTrue(grid.size.isFinite() && grid.size > 0)
         }
-        assertEquals(0, ParticleMotion.grid(0f, 48f).count)
-        assertEquals(0, ParticleMotion.grid(Float.NaN, 48f).count)
-        assertEquals(0, ParticleMotion.grid(100f, Float.POSITIVE_INFINITY).count)
-    }
-
-    @Test fun removalStartsAsTheIntactRowAndFullyFinishes() {
-        for (index in 0 until 720) {
-            val start = ParticleMotion.frame(index, 36, 0f)
-            assertEquals(0f, start.x, 0f)
-            assertEquals(0f, start.y, 0f)
-            assertEquals(1f, start.alpha, 0f)
-            assertEquals(1f, start.scale, 0f)
-            assertEquals(0f, ParticleMotion.frame(index, 36, 1f).alpha, .00001f)
-        }
-    }
-
-    @Test fun gestureDirectionMirrorsTravelWithoutChangingLifetime() {
-        for (index in 0 until 720) {
-            val forward = ParticleMotion.frame(index, 36, .65f)
-            val reverse = ParticleMotion.frame(index, 36, .65f, reverse = true)
-            assertEquals(-forward.x, reverse.x, 0f)
-            assertEquals(forward.y, reverse.y, 0f)
-            assertEquals(forward.alpha, reverse.alpha, 0f)
-            assertTrue(forward.alpha in 0f..1f && forward.scale in 0f..1f)
-            assertTrue(forward.x.isFinite() && forward.y.isFinite())
-        }
-    }
-
-    @Test fun rightmostFragmentsWaitForTheRemovalWave() {
-        assertTrue(ParticleMotion.frame(0, 10, .1f).x > 0f)
-        assertEquals(0f, ParticleMotion.frame(9, 10, .1f).x, 0f)
-        assertEquals(ParticleMotion.frame(3, 10, 0f), ParticleMotion.frame(3, 10, Float.NaN))
-        assertEquals(ParticleMotion.frame(3, 10, 1f), ParticleMotion.frame(3, 10, 2f))
     }
 
     @Test fun batchProgressNeverInventsAnUnknownTotalOrExceedsItsBounds() {

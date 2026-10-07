@@ -17,6 +17,7 @@ import ing.fuyaoskyrocket.photoinfo.platform.MotionClipSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -62,7 +63,7 @@ open class MetadataViewModel(application: Application, private val saved: SavedS
         }
     }
 
-    fun importPhotos(uris: List<Uri>) {
+    fun importPhotos(uris: List<Uri>, onReplacing: () -> Unit = {}) {
         if (state.busy || uris.isEmpty()) return
         val selected = uris.distinct()
         if (selected.size > PhotoEditSnapshot.MAX_PHOTOS) {
@@ -78,6 +79,7 @@ open class MetadataViewModel(application: Application, private val saved: SavedS
         work = viewModelScope.launch {
             val imported = mutableListOf<PhotoSource>()
             val failures = mutableListOf<String>()
+            var preparedPreview: Bitmap? = null
             try {
                 withContext(Dispatchers.IO) {
                     for (uri in selected) {
@@ -91,17 +93,28 @@ open class MetadataViewModel(application: Application, private val saved: SavedS
                     state = state.copy(busy = false, error = failures.distinct().joinToString("\n"))
                     return@launch
                 }
+                withContext(Dispatchers.IO) {
+                    repository.decode(imported.first(), preview = true).also { preparedPreview = it }
+                }
+                ensureActive()
+                if (sources.isNotEmpty()) onReplacing()
                 sources = imported.toList()
                 publish()
                 saved["metadata.paths"] = ArrayList(sources.map { it.file.absolutePath })
                 saved["metadata.names"] = ArrayList(sources.map { it.details.displayName.orEmpty() })
+                val preview = requireNotNull(preparedPreview)
+                preparedPreview = null
+                load(0, preview, markReady = false)
                 withContext(Dispatchers.IO) { repository.removeOtherDrafts(sources.map { it.file }) }
-                load(0)
+                state = state.copy(busy = false)
                 if (failures.isNotEmpty()) state = state.copy(error = failures.distinct().joinToString("\n"))
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) { report(failure) }
             catch (failure: OutOfMemoryError) { report(failure) }
-            finally { imported.filter { it !in sources }.forEach { it.file.delete() } }
+            finally {
+                preparedPreview?.recycle()
+                imported.filter { it !in sources }.forEach { it.file.delete() }
+            }
         }
     }
 
@@ -113,22 +126,40 @@ open class MetadataViewModel(application: Application, private val saved: SavedS
 
     fun clearError() { state = state.copy(error = null) }
 
+    fun closeSession() {
+        val previous = work
+        previous?.cancel()
+        saved.remove<ArrayList<String>>("metadata.paths")
+        saved.remove<ArrayList<String>>("metadata.names")
+        saved.remove<Int>("metadata.index")
+        state = MetadataPhotos(busy = true)
+        work = viewModelScope.launch {
+            try {
+                previous?.cancelAndJoin()
+                sources = emptyList()
+                withContext(Dispatchers.IO) { repository.removeOtherDrafts(emptyList()) }
+                state = MetadataPhotos()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) { state = MetadataPhotos(error = message(failure)) }
+        }
+    }
+
     private fun publish() {
         state = state.copy(photos = sources.map { PhotoPageItem(it.file.name, it.width, it.height, it.file.absolutePath, it.media.bitDepth) })
     }
 
-    private suspend fun load(index: Int) {
+    private suspend fun load(index: Int, preparedPreview: Bitmap? = null, markReady: Boolean = true) {
         val photo = sources[index]
         val motion = photo.media.motion?.let { MotionClipSource(photo.file, it.offset, it.length) }
         val original = OriginalPhoto(photo.file.name, photo.file, null, photo.details,
             photo.media.hdrHint, photo.media.portraitTail != null, motion, photo.media.bitDepth)
         saved["metadata.index"] = index
         state = state.copy(photoIndex = index, current = original, busy = true)
-        var pending: Bitmap? = null
+        var pending: Bitmap? = preparedPreview
         try {
-            val bitmap = withContext(Dispatchers.IO) { repository.decode(photo, preview = true).also { pending = it } }
+            val bitmap = preparedPreview ?: withContext(Dispatchers.IO) { repository.decode(photo, preview = true).also { pending = it } }
             currentCoroutineContext().ensureActive()
-            state = state.copy(current = original.copy(bitmap = bitmap), busy = false)
+            state = state.copy(current = original.copy(bitmap = bitmap), busy = !markReady)
             pending = null
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) { report(failure) }

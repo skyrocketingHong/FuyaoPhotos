@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
 import ing.fuyaoskyrocket.photoinfo.domain.layout.PageGeometry
+import ing.fuyaoskyrocket.photoinfo.ui.components.navigationBackdropSource
 
 @Composable
 fun FuyaoScrollEdge(modifier: Modifier, topInset: Dp, scrollOffset: () -> Float,
@@ -25,7 +26,7 @@ fun FuyaoScrollEdge(modifier: Modifier, topInset: Dp, scrollOffset: () -> Float,
     val source = rememberGraphicsLayer()
     val blurLayers = listOf(rememberGraphicsLayer(), rememberGraphicsLayer(), rememberGraphicsLayer())
     val masks = listOf(rememberGraphicsLayer(), rememberGraphicsLayer(), rememberGraphicsLayer())
-    Box(modifier.drawWithContent {
+    Box(modifier.navigationBackdropSource().drawWithContent {
         val progress = PageGeometry.scrollEdgeProgress(scrollOffset() / density)
         if (progress == 0f) {
             drawContent()

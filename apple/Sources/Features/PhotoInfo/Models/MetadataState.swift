@@ -60,6 +60,23 @@ import Observation
         requestedID == document.id ? hasPendingAdd(document) : drafts[document.id]?.hasChanges == true
     }
 
+    func discard(_ identifiers: Set<UUID>) {
+        for id in identifiers { drafts[id] = nil }
+        injectedPhotographic.subtract(identifiers)
+        injectedTexture.subtract(identifiers)
+        if let requestedID, identifiers.contains(requestedID) {
+            refreshRevision &+= 1
+            self.requestedID = nil
+            injectStandard = false
+            includeTexture = false
+            options = CardSaveOptions(keepLocation: true)
+            report = nil
+            fileCoverage = (false, false)
+            fileCoverageID = nil
+            saved = false
+        }
+    }
+
     func unavailableReason(_ document: CardDocument) -> LocalizedStringKey {
         switch document.metadata.kind {
         case .motionJPEG, .hdrMotionJPEG: return "metadata.error.motion"

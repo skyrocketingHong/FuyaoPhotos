@@ -322,7 +322,7 @@ struct LensProfilesView: View {
                 departing[oldest] = nil
             }
             departing[profile.id] = DepartingLens(profile: profile, index: index,
-                deadline: .now.advanced(by: .milliseconds(PhotoMotionTokens.dissolveMillis + 120)))
+                deadline: .now.advanced(by: TelegramDustView.lifetime + .milliseconds(120)))
         }
         draft.removeAll { $0.id == profile.id }
     }

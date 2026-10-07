@@ -36,6 +36,13 @@ import SwiftUI
     private let metadataSession = CardSession()
     private let colorsSession = CardSession()
 
+    init() {
+        let edits = metadataEdits
+        for session in [cards, metadataSession, colorsSession] {
+            session.documentsDidClose = { [weak edits] identifiers in edits?.discard(identifiers) }
+        }
+    }
+
     func session(for tab: Tab) -> CardSession {
         let preferences = WorkspacePreferences.shared
         let owner = preferences.shares(tab)

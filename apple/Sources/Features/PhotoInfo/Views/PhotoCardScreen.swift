@@ -19,7 +19,6 @@ struct PhotoCardScreen: View {
     @State private var showingReplace = false
     @State private var showingClose = false
     @State private var showingToolbarReplace = false
-    @State private var showingToolbarClose = false
     @State private var replacementIDs: [String]?
     private var hasUnsavedChanges: Bool { workspace.hasPendingEdits(in: session) }
 
@@ -33,14 +32,6 @@ struct PhotoCardScreen: View {
         session.documents.count == 1 ? "card.replace.confirm.one" : "card.replace.confirm.many"
     }
 
-    private var closeTitle: LocalizedStringKey {
-        session.documents.count == 1 ? "card.close.confirm.one" : "card.close.confirm.many"
-    }
-
-    private var closeActionTitle: LocalizedStringKey {
-        session.documents.count == 1 ? "card.close.one" : "card.close.many"
-    }
-
     private var saveActionTitle: LocalizedStringKey {
         session.documents.count == 1 ? "card.save.action.one" : "card.save.action.many"
     }
@@ -48,6 +39,11 @@ struct PhotoCardScreen: View {
     var body: some View {
         NavigationStack {
             editorContent
+                .modifier(PhotoDepartureOverlay(session: session, imageCapture: {
+                    guard var frame = preview.departureFrame else { return nil }
+                    if preview.original { frame.overlay = nil }
+                    return frame
+                }))
                 .tint(PhotoPreviewTheme.accent(in: forcedDarkroom ? .dark : colorScheme))
                 .toolbar { editorToolbar }
 #if os(macOS)
@@ -179,6 +175,9 @@ struct PhotoCardScreen: View {
 #endif
             }
             ToolbarItem(placement: .primaryAction) {
+                PhotoCloseButton(session: session)
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Menu("card.more", systemImage: "ellipsis") {
                     Button("package.import.action", systemImage: "square.and.arrow.down") { workspace.showingPackagePicker = true }
                     Button("card.style.reset", systemImage: "arrow.counterclockwise") {
@@ -187,15 +186,9 @@ struct PhotoCardScreen: View {
                     if let url = document.exportURL, !document.isLive || document.exportIsMotionPhoto {
                         ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
                     }
-                    Button(closeActionTitle, systemImage: "xmark") {
-                        if hasUnsavedChanges { showingToolbarClose = true } else { session.clear() }
-                    }
                 }
                 .labelStyle(.iconOnly).buttonBorderShape(.circle)
                 .menuIndicator(.hidden)
-                .confirmationDialog(closeTitle, isPresented: $showingToolbarClose, titleVisibility: .visible) {
-                    Button(closeActionTitle, role: .destructive) { session.clear() }
-                }
             }
         }
     }

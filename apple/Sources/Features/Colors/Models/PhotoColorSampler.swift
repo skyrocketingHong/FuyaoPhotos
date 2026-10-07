@@ -62,7 +62,19 @@ actor PhotoColorSampler {
         }
         guard pixel.allSatisfy(\.isFinite) else { throw CocoaError(.fileReadCorruptFile) }
         let alpha = pixel[3] > 0 ? pixel[3] : 1
-        let color = ColorConversions.sample(linearP3: SIMD3(Double(pixel[0] / alpha), Double(pixel[1] / alpha), Double(pixel[2] / alpha)), x: x, y: y)
+        var color = ColorConversions.sample(linearP3: SIMD3(Double(pixel[0] / alpha), Double(pixel[1] / alpha), Double(pixel[2] / alpha)), x: x, y: y)
+        if let sourceSpace = image.colorSpace, sourceSpace.model == .rgb {
+            var sourcePixel = [Float](repeating: 0, count: 4)
+            sourcePixel.withUnsafeMutableBytes {
+                context.render(image, toBitmap: $0.baseAddress!, rowBytes: 16, bounds: rect, format: .RGBAf,
+                    colorSpace: sourceSpace)
+            }
+            guard sourcePixel.allSatisfy(\.isFinite) else { throw CocoaError(.fileReadCorruptFile) }
+            let sourceAlpha = sourcePixel[3] > 0 ? sourcePixel[3] : 1
+            color.sourceProfile = sourceSpace.name as String? ?? "RGB"
+            color.sourceRGB = SampleRGB(values: SIMD3(Double(sourcePixel[0] / sourceAlpha),
+                Double(sourcePixel[1] / sourceAlpha), Double(sourcePixel[2] / sourceAlpha)))
+        }
         let crop = rect.insetBy(dx: -12, dy: -12).intersection(image.extent)
         let patch = context.createCGImage(image, from: crop, format: .RGBA8, colorSpace: CGColorSpace(name: CGColorSpace.displayP3)!)
         try Task.checkCancellation()

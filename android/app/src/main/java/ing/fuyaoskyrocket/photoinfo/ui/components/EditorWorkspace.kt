@@ -21,6 +21,7 @@ import androidx.window.layout.WindowLayoutInfo
 import ing.fuyaoskyrocket.photoinfo.domain.layout.EditorWorkspacePolicy
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoLayout
 import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.LocalBottomNavigationInset
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.emptyFlow
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EditorWorkspace(
+    controlsUnderNavigation: Boolean = false,
     preview: @Composable (Modifier, Boolean) -> Unit,
     controls: @Composable (Modifier) -> Unit,
 ) {
@@ -42,7 +44,17 @@ fun EditorWorkspace(
     val direction = LocalLayoutDirection.current
     var bounds by remember { mutableStateOf(Rect.Zero) }
     val imeVisible = WindowInsets.isImeVisible
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    val navigationInset = LocalBottomNavigationInset.current
+    val controlsInset = if (controlsUnderNavigation) navigationInset else 0.dp
+    val previewWithInset: @Composable (Modifier, Boolean) -> Unit = { modifier, expanded ->
+        val inset = LocalBottomNavigationInset.current
+        CompositionLocalProvider(LocalBottomNavigationInset provides 0.dp) {
+            preview(if (expanded) modifier.padding(bottom = inset) else modifier, expanded)
+        }
+    }
+    Box(Modifier.fillMaxSize().padding(bottom = if (controlsUnderNavigation) 0.dp else navigationInset),
+        contentAlignment = Alignment.TopCenter) {
+        CompositionLocalProvider(LocalBottomNavigationInset provides controlsInset) {
         BoxWithConstraints(Modifier.widthIn(max = FuyaoLayout.editor).fillMaxSize().onGloballyPositioned { bounds = it.boundsInWindow() }) {
             val foldBounds = fold?.bounds
             val verticalFold = fold?.orientation == FoldingFeature.Orientation.VERTICAL && foldBounds != null &&
@@ -63,10 +75,10 @@ fun EditorWorkspace(
                             right = if (useRight) 0.dp else right + gap,
                         )) {
                             AdaptiveEditorRegions(maxWidth.value, maxHeight.value, density.fontScale,
-                                imeVisible, preview, controls)
+                                imeVisible, previewWithInset, controls)
                         }
                     } else Row(Modifier.fillMaxSize()) {
-                        preview(Modifier.width(photoWidth).fillMaxHeight(), true)
+                        previewWithInset(Modifier.width(photoWidth).fillMaxHeight(), true)
                         Spacer(Modifier.width(gap))
                         controls(Modifier.weight(1f).fillMaxHeight())
                     }
@@ -74,25 +86,29 @@ fun EditorWorkspace(
                 horizontalFold -> {
                     val top = with(density) { (foldBounds.top - bounds.top).toDp() }
                     val bottom = with(density) { (bounds.bottom - foldBounds.bottom).toDp() }
+                    val usableBottom = (bottom - controlsInset).coerceAtLeast(0.dp)
                     val gap = with(density) { foldBounds.height().toDp() }
-                    if (top < 120.dp || bottom < 180.dp) {
-                        val useBottom = bottom > top
+                    if (top < 120.dp || usableBottom < 180.dp) {
+                        val useBottom = usableBottom > top
+                        CompositionLocalProvider(LocalBottomNavigationInset provides if (useBottom) controlsInset else 0.dp) {
                         BoxWithConstraints(Modifier.fillMaxSize().absolutePadding(
                             top = if (useBottom) top + gap else 0.dp,
                             bottom = if (useBottom) 0.dp else bottom + gap,
                         )) {
                             AdaptiveEditorRegions(maxWidth.value, maxHeight.value, density.fontScale,
-                                imeVisible, preview, controls)
+                                imeVisible, previewWithInset, controls)
+                        }
                         }
                     } else Column(Modifier.fillMaxSize()) {
-                        preview(Modifier.fillMaxWidth().height(top), false)
+                        previewWithInset(Modifier.fillMaxWidth().height(top), false)
                         Spacer(Modifier.height(gap))
                         controls(Modifier.fillMaxWidth().weight(1f))
                     }
                 }
                 else -> AdaptiveEditorRegions(maxWidth.value, maxHeight.value, density.fontScale,
-                    imeVisible, preview, controls)
+                    imeVisible, previewWithInset, controls)
             }
+        }
         }
     }
 }
@@ -106,7 +122,8 @@ private fun AdaptiveEditorRegions(
     preview: @Composable (Modifier, Boolean) -> Unit,
     controls: @Composable (Modifier) -> Unit,
 ) {
-    val spec = EditorWorkspacePolicy.calculate(width, height, fontScale, imeVisible)
+    val usableHeight = (height - LocalBottomNavigationInset.current.value).coerceAtLeast(0f)
+    val spec = EditorWorkspacePolicy.calculate(width, usableHeight, fontScale, imeVisible)
     if (spec.sideBySide) Row(Modifier.fillMaxSize(),horizontalArrangement=Arrangement.spacedBy(EditorWorkspacePolicy.PANE_GAP.dp)) {
         preview(Modifier.weight(1f).fillMaxHeight(), true)
         controls(Modifier.width(spec.inspectorWidth.dp).fillMaxHeight())

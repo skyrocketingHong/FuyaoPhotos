@@ -3,6 +3,7 @@ import PhotosUI
 import Photos
 import MapKit
 import CoreLocation
+import ImageIO
 import os
 
 @MainActor @Observable final class CardSession {
@@ -11,6 +12,11 @@ import os
     var selectedID: UUID?
     var busy = false
     private(set) var saving = false
+    private(set) var departure: PhotoDeparture?
+    @ObservationIgnored var documentsDidClose: ((Set<UUID>) -> Void)?
+    @ObservationIgnored private var departureSnapshot: (id: UUID, image: CGImage)?
+    @ObservationIgnored private var departureCleanup: Task<Void, Never>?
+    @ObservationIgnored private var departureCapture: (owner: UUID, capture: PhotoViewportCapture?)?
     var progress = 0
     var total = 0
     var errorMessage: String?
@@ -81,7 +87,19 @@ import os
             for document in imported { try? FileManager.default.removeItem(at: document.sourceURL.deletingLastPathComponent()) }
             return
         }
-        if !imported.isEmpty {
+        if let first = imported.first {
+            do {
+                let preview = try await CardImageProcessor.shared.preview(first.sourceURL, card: PhotoCard(),
+                    hdr: false, maxDimension: 1800, decodeImmediately: true)
+                try Task.checkCancellation()
+                first.initialSDRPreview = preview
+            } catch {
+                for document in imported { try? FileManager.default.removeItem(at: document.sourceURL.deletingLastPathComponent()) }
+                if !(error is CancellationError) && !Task.isCancelled {
+                    errorMessage = CardError.invalidImage.localizedDescription
+                }
+                return
+            }
             clear()
             documents = imported
             selectedID = imported.first?.id
@@ -252,11 +270,49 @@ import os
         errorMessage = nil
     }
 
+    func prepareDeparture(_ image: CGImage, for documentID: UUID) {
+        guard current?.id == documentID else { return }
+        departureSnapshot = (documentID, image)
+    }
+
+    func registerDepartureCapture(_ capture: PhotoViewportCapture?, owner: UUID) {
+        departureCapture = (owner, capture)
+    }
+
+    func removeDepartureCapture(owner: UUID) {
+        if departureCapture?.owner == owner { departureCapture = nil }
+    }
+
     func clear() {
+        if let current {
+            let viewport = departureCapture?.capture?()
+            let cached = departureSnapshot?.id == current.id ? departureSnapshot?.image : nil
+            let snapshot = viewport ?? cached ?? current.initialSDRPreview ?? Self.departureThumbnail(current.sourceURL)
+            let departure = PhotoDeparture(documentID: current.id, image: snapshot, coversViewport: viewport != nil)
+            self.departure = departure
+            departureCleanup?.cancel()
+            departureCleanup = Task { [weak self] in
+                do { try await Task.sleep(for: TelegramDustView.lifetime) } catch { return }
+                if self?.departure?.id == departure.id { self?.departure = nil }
+            }
+        }
+        departureSnapshot = nil
+        documentsDidClose?(Set(documents.map(\.id)))
         cancelLocationLookup()
         discardFileExport()
         for document in documents { try? FileManager.default.removeItem(at: document.sourceURL.deletingLastPathComponent()) }
         documents = []; selectedID = nil; savedCount = nil
+    }
+
+    private static func departureThumbnail(_ url: URL) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: 1024,
+            kCGImageSourceDecodeRequest: kCGImageSourceDecodeToSDR,
+            kCGImageSourceGenerateImageSpecificLumaScaling: true
+        ] as CFDictionary)
     }
 }
 

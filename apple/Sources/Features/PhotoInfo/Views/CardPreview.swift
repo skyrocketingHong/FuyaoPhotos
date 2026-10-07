@@ -9,6 +9,7 @@ import UIKit
     var playing = false
     var fullScreen = false
     var isRendering = false
+    @ObservationIgnored var departureFrame: PhotoPreviewSnapshot?
 
     func finishLivePlayback() {
         playing = false
@@ -22,7 +23,8 @@ struct CardPreviewSurface: View {
     var body: some View {
         ZStack {
             CardPreviewImage(document: document, hdr: controls.hdr, fullResolution: false,
-                             original: controls.original, onRenderingChanged: { controls.isRendering = $0 })
+                             original: controls.original, onRenderingChanged: { controls.isRendering = $0 },
+                             onFrame: { controls.departureFrame = $0 })
             if controls.playing, let movie = document.sourceMovieURL {
                 CardLivePhotoPreview(resources: [document.sourceURL, movie], movieURL: movie) {
                     controls.finishLivePlayback()
@@ -37,6 +39,7 @@ struct CardPreviewSurface: View {
             .onDisappear {
                 controls.finishLivePlayback()
                 controls.isRendering = false
+                if controls.departureFrame?.documentID == document.id { controls.departureFrame = nil }
             }
     }
 }
@@ -62,6 +65,7 @@ private struct CardPreviewImage: View {
     let fullResolution: Bool
     var original = false
     var onRenderingChanged: ((Bool) -> Void)?
+    var onFrame: ((PhotoPreviewSnapshot) -> Void)?
     @State private var image: CGImage?
     @State private var cardOverlay: CardOverlayRender?
     @State private var loading = false
@@ -122,14 +126,21 @@ private struct CardPreviewImage: View {
             let requestedHDR = hdr && document.metadata.hdr
             do {
                 let dimension = fullResolution ? CGFloat(max(document.metadata.width, document.metadata.height)) : 1800
-                let rendered = try await CardImageProcessor.shared.preview(document.sourceURL, card: PhotoCard(),
-                    hdr: requestedHDR, maxDimension: dimension)
+                let rendered: CGImage
+                if !requestedHDR, !fullResolution, let initial = document.initialSDRPreview {
+                    rendered = initial
+                } else {
+                    rendered = try await CardImageProcessor.shared.preview(document.sourceURL, card: PhotoCard(),
+                        hdr: requestedHDR, maxDimension: dimension)
+                }
                 let overlay = original ? nil : try await CardImageProcessor.shared.previewOverlay(document.sourceURL,
                     card: document.card, maxDimension: dimension)
                 try Task.checkCancellation()
                 image = rendered
                 cardOverlay = overlay
                 effectiveHDR = requestedHDR
+                onFrame?(PhotoPreviewSnapshot(documentID: document.id, sourceURL: document.sourceURL,
+                    image: rendered, overlay: overlay))
                 loading = false
             } catch is CancellationError { }
             catch {

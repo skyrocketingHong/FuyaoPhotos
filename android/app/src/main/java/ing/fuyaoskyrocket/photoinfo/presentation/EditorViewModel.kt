@@ -31,6 +31,7 @@ private data class SessionPhoto(val source: PhotoSource, val info: PhotoInfo, va
 }
 
 class EditorViewModel(application: Application, private val saved: SavedStateHandle) : AndroidViewModel(application) {
+    val photoDepartureEffects = ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoDepartureEffects()
     private val photos = PhotoRepository(application)
     private val fonts = FontRepository(application)
     private val renderer = CardRenderer()
@@ -117,7 +118,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
 
     fun importPhoto(uri: Uri) = importPhotos(listOf(uri))
 
-    fun importPhotos(uris: List<Uri>) {
+    fun importPhotos(uris: List<Uri>, onReplacing: () -> Unit = {}) {
         if (state.busy || uris.isEmpty()) return
         val selected = uris.distinct()
         if (selected.size > PhotoEditSnapshot.MAX_PHOTOS) {
@@ -127,10 +128,11 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         val style = state.style
         val settings = state.settings
         state = state.copy(busy = true, importing = true, error = null, errorTitle = R.string.error_import_title, rendering = false,
-            notice = null, exported = null, photoDetails = null)
+            notice = null, exported = null)
         workJob = viewModelScope.launch {
             val imported = mutableListOf<SessionPhoto>()
             val failures = mutableListOf<String>()
+            var preparedPreview: Bitmap? = null
             try {
                 selected.forEachIndexed { index, uri ->
                     ensureActive()
@@ -147,20 +149,33 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
                     state = state.copy(busy = false, importing = false, error = failures.joinToString("\n"))
                     renderPreview(); return@launch
                 }
+                withContext(Dispatchers.IO) {
+                    photos.decode(imported.first().source, preview = true).also { preparedPreview = it }
+                }
+                ensureActive()
+                if (drafts.isNotEmpty()) onReplacing()
                 drafts = imported.toList()
                 baselines = drafts.associate { it.source.file.name to fingerprint(it) }
                 publishCollection()
-                // Commit the new private copies before deleting any previous session files.
-                saveSnapshots()
+                val preview = requireNotNull(preparedPreview)
+                preparedPreview = null
+                loadSelected(0, preview, markReady = false)
+                // Persist and publish the decoded replacement before removing the previous copies.
                 withContext(Dispatchers.IO) { photos.removeOtherDrafts(drafts.map { it.source.file }) }
-                loadSelected(0)
+                state = state.copy(busy = false)
+                resolveSelectedLocationIfNeeded()
                 if (failures.isNotEmpty()) state = state.copy(error = failures.joinToString("\n"))
             } catch (cancelled: CancellationException) {
-                imported.filter { added -> drafts.none { it.source.file == added.source.file } }.forEach { it.source.file.delete() }
                 throw cancelled
-            } catch (failure: OutOfMemoryError) {
-                imported.filter { added -> drafts.none { it.source.file == added.source.file } }.forEach { it.source.file.delete() }
+            } catch (failure: Exception) {
                 state = state.copy(busy = false, importing = false, error = errorMessage(failure))
+                renderPreview()
+            } catch (failure: OutOfMemoryError) {
+                state = state.copy(busy = false, importing = false, error = errorMessage(failure))
+                renderPreview()
+            } finally {
+                preparedPreview?.recycle()
+                imported.filter { added -> drafts.none { it.source.file == added.source.file } }.forEach { it.source.file.delete() }
             }
         }
     }
@@ -182,7 +197,7 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         workJob = viewModelScope.launch { loadSelected(index) }
     }
 
-    private suspend fun loadSelected(index: Int) {
+    private suspend fun loadSelected(index: Int, preparedPreview: Bitmap? = null, markReady: Boolean = true) {
         val draft = drafts[index]
         source = draft.source
         resolvedLocation = draft.resolvedLocation
@@ -194,21 +209,25 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
             width = draft.source.width, height = draft.source.height, busy = true, importing = false, loadingPhoto = true,
             rendering = false, previewError = null, hasPhotoGps = draft.source.coordinates != null, locationStatus = LocationStatus.IDLE)
         updateMediaState(draft.source)
-        var decoded: Bitmap? = null
+        var decoded: Bitmap? = preparedPreview
         try {
-            val bitmap = withContext(Dispatchers.IO) { photos.decode(draft.source, preview = true).also { decoded = it } }
+            val bitmap = preparedPreview ?: withContext(Dispatchers.IO) { photos.decode(draft.source, preview = true).also { decoded = it } }
             currentCoroutineContext().ensureActive()
             if (source?.file != draft.source.file) throw CancellationException("Photo changed")
             state = state.copy(original = bitmap, preview = bitmap, previewCardBox = null,
-                previewFieldRects = emptyMap(), busy = false, loadingPhoto = false)
+                previewFieldRects = emptyMap(), busy = !markReady, loadingPhoto = false)
             decoded = null // The visible state now owns the bitmap; never recycle a displayed image.
             persist(); renderPreview()
-            if (!locationEdited && draft.info[FieldId.LOCATION].isBlank()) resolveLocation()
-            else if (resolvedLocation.isNotBlank()) state = state.copy(locationStatus = LocationStatus.RESOLVED)
+            if (markReady) resolveSelectedLocationIfNeeded()
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (failure: Exception) { state = state.copy(busy = false, loadingPhoto = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW)) }
         catch (failure: OutOfMemoryError) { state = state.copy(busy = false, loadingPhoto = false, previewError = errorMessage(failure, PhotoOperation.PREVIEW)) }
         finally { decoded?.recycle() }
+    }
+
+    private fun resolveSelectedLocationIfNeeded() {
+        if (!locationEdited && state.info[FieldId.LOCATION].isBlank()) resolveLocation()
+        else if (resolvedLocation.isNotBlank()) state = state.copy(locationStatus = LocationStatus.RESOLVED)
     }
 
     fun updateField(field: FieldId, value: String, photoId: String? = null) {

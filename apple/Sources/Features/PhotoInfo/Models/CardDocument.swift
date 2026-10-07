@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import CoreLocation
+import CoreGraphics
 
 @MainActor @Observable final class CardDocument: Identifiable {
     let id = UUID()
@@ -11,6 +12,7 @@ import CoreLocation
     private(set) var metadata: CardPhotoMetadata
     private(set) var defaultCard: PhotoCard
     private let workingDirectory: PhotoWorkingDirectory
+    var initialSDRPreview: CGImage?
     var isLive: Bool { sourceMovieURL != nil }
     var card: PhotoCard {
         didSet {
@@ -64,6 +66,7 @@ import CoreLocation
             && self.metadata.latitude == metadata.latitude && self.metadata.longitude == metadata.longitude
         let resolvedLocation = defaultCard[.location]
         sourceURL = source
+        initialSDRPreview = nil
         self.metadata = metadata
         defaultCard = metadata.card
         if keepsCoordinates && defaultCard[.location].isEmpty {

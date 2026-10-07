@@ -42,16 +42,27 @@ nonisolated struct SampledPhotoColor: Sendable {
     let cmyk: SIMD4<Double>
     let cssReference: ColorReference?
     let ralReference: ColorReference?
+    var sourceProfile: String?
+    var sourceRGB: SampleRGB?
+
+    var sourceReadouts: [ColorReadout] {
+        guard let sourceRGB else { return readouts(.xyz) }
+        return [ColorReadout(label: "ICC", value: sourceProfile ?? "RGB"),
+                ColorReadout(label: "RGB", value: ColorConversions.text(sourceRGB.values)),
+                ColorReadout(label: "RGB (8-bit)", value: sourceRGB.rgb),
+                ColorReadout(label: "HEX", value: sourceRGB.hex)]
+    }
 
     func readouts(_ space: ColorResultSpace) -> [ColorReadout] {
         func row(_ label: String, _ value: String) -> ColorReadout { ColorReadout(label: label, value: value) }
         func rgb(_ value: SampleRGB, _ css: String) -> [ColorReadout] {
-            [row("HEX", value.hex), row("RGB", value.rgb), row("CSS", css)]
+            [row("HEX", value.hex), row("RGB (8-bit)", value.rgb),
+             row("RGB", ColorConversions.text(value.values)), row("CSS", css)]
         }
         switch space {
         case .sRGB:
             return rgb(srgb, srgb.css("srgb")) + [
-                row("HSL", String(format: "hsl(%.2f %.2f%% %.2f%%)", hsl.x, hsl.y * 100, hsl.z * 100)),
+                row("HSL", String(format: "hsl(%@ %.2f%% %.2f%%)", hsl.x.isNaN ? "none" : ColorConversions.number(hsl.x), hsl.y * 100, hsl.z * 100)),
                 row("CMYK", [cmyk.x, cmyk.y, cmyk.z, cmyk.w].map { String(format: "%.2f%%", $0 * 100) }.joined(separator: ", "))]
         case .p3: return rgb(p3, p3.css("display-p3"))
         case .rec2020: return rgb(rec2020, cssRec2020.css("rec2020"))
@@ -103,24 +114,25 @@ nonisolated enum ColorConversions {
         let lab = labD50(d50)
         let ok = oklab(xyz)
         let clipped = srgb.clipped
-        let maximum = max(clipped.x, max(clipped.y, clipped.z))
-        let minimum = min(clipped.x, min(clipped.y, clipped.z))
+        let maximum = max(srgb.values.x, max(srgb.values.y, srgb.values.z))
+        let minimum = min(srgb.values.x, min(srgb.values.y, srgb.values.z))
         let delta = maximum - minimum
         let light = (maximum + minimum) / 2
         var hue = 0.0
         if delta > 0 {
-            if maximum == clipped.x { hue = 60 * ((clipped.y - clipped.z) / delta).truncatingRemainder(dividingBy: 6) }
-            else if maximum == clipped.y { hue = 60 * ((clipped.z - clipped.x) / delta + 2) }
-            else { hue = 60 * ((clipped.x - clipped.y) / delta + 4) }
+            if maximum == srgb.values.x { hue = 60 * ((srgb.values.y - srgb.values.z) / delta).truncatingRemainder(dividingBy: 6) }
+            else if maximum == srgb.values.y { hue = 60 * ((srgb.values.z - srgb.values.x) / delta + 2) }
+            else { hue = 60 * ((srgb.values.x - srgb.values.y) / delta + 4) }
         }
-        let hsl = SIMD3((hue + 360).truncatingRemainder(dividingBy: 360), delta == 0 ? 0 : delta / (1 - abs(2 * light - 1)), light)
-        let cmyk = maximum == 0 ? SIMD4(0.0, 0, 0, 1) : SIMD4((maximum - clipped.x) / maximum,
-            (maximum - clipped.y) / maximum, (maximum - clipped.z) / maximum, 1 - maximum)
+        let saturation = delta == 0 || light == 0 || light == 1 ? 0 : delta / (1 - abs(2 * light - 1))
+        let hsl = SIMD3(abs(saturation) <= 0.00001 ? .nan :
+            (hue + (saturation < 0 ? 540 : 360)).truncatingRemainder(dividingBy: 360), abs(saturation), light)
+        let cmykMaximum = max(clipped.x, max(clipped.y, clipped.z))
+        let cmyk = cmykMaximum == 0 ? SIMD4(0.0, 0, 0, 1) : SIMD4((cmykMaximum - clipped.x) / cmykMaximum,
+            (cmykMaximum - clipped.y) / cmykMaximum, (cmykMaximum - clipped.z) / cmykMaximum, 1 - cmykMaximum)
         return SampledPhotoColor(x: x, y: y, srgb: srgb, p3: SampleRGB(values: map(linearP3, encodeSRGB)),
-            rec2020: SampleRGB(values: map(rec) { value in
-                let v = abs(value)
-                return (value < 0 ? -1 : 1) * (v < 0.018053968510807 ? 4.5 * v : 1.09929682680944 * pow(v, 0.45) - 0.09929682680944)
-            }), a98: SampleRGB(values: map(adobe) { signedPower($0, 256.0 / 563) }),
+            rec2020: SampleRGB(values: map(rec) { signedPower($0, 1 / 2.4) }),
+            a98: SampleRGB(values: map(adobe) { signedPower($0, 256.0 / 563) }),
             cssRec2020: SampleRGB(values: map(rec) { signedPower($0, 1 / 2.4) }),
             xyzD65: xyz, xyzD50: d50, lab: lab, okLab: ok, hsl: hsl, cmyk: cmyk,
             cssReference: ColorCatalog.nearestCSS(srgb, ok: ok), ralReference: ColorCatalog.nearestRAL(srgb))

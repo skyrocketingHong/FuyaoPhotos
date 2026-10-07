@@ -38,6 +38,7 @@ import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.features.colors.domain.model.SampledColor
 import ing.fuyaoskyrocket.photoinfo.features.colors.presentation.model.PhotoViewportTransform
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
+import ing.fuyaoskyrocket.photoinfo.ui.components.photoDissolveSource
 
 private data class ImageViewRenderState(
     val bitmap: Bitmap,
@@ -71,6 +72,7 @@ internal fun SampleImagePanel(
         viewportSize = viewportSize,
         transform = viewportTransform,
     )
+    val imageMatrix = remember(layout) { layout?.let(::buildImageMatrix) }
 
     // Re-clamp pan when viewport size changes (rotation, fold unfold).
     LaunchedEffect(viewportSize, bitmap) {
@@ -86,6 +88,7 @@ internal fun SampleImagePanel(
 
     Box(
         modifier = modifier
+            .photoDissolveSource("colors-photo", bitmap, imageMatrix)
             .clip(androidx.compose.ui.graphics.RectangleShape)
             .onSizeChanged { viewportSize = it },
     ) {
@@ -101,8 +104,8 @@ internal fun SampleImagePanel(
                 if (previous?.bitmap !== bitmap) {
                     iv.setImageBitmap(bitmap)
                 }
-                if (layout != null && layout != previous?.layout) {
-                    iv.imageMatrix = buildImageMatrix(layout)
+                if (imageMatrix != null && layout != previous?.layout) {
+                    iv.imageMatrix = imageMatrix
                 }
                 iv.tag = ImageViewRenderState(bitmap = bitmap, layout = layout)
             },

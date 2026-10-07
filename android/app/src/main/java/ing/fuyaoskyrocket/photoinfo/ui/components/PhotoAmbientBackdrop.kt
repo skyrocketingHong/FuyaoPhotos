@@ -51,7 +51,7 @@ internal fun PhotoAmbientBackdrop(bitmap: Bitmap?, featherEdges: Boolean = true,
         }
     }
     val surface = MaterialTheme.colorScheme.surface
-    Box(modifier.clipToBounds()
+    Box(modifier.navigationBackdropSource(priority = 0).clipToBounds()
         .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         .drawWithContent {
             drawContent()

@@ -24,7 +24,7 @@ import androidx.compose.ui.Alignment
 @Composable
 fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex: Int, busy: Boolean,
     onSelect: (Int) -> Unit, onGallery: () -> Unit, onFiles: () -> Unit, onCamera: () -> Unit,
-    onHDR: (Boolean, Boolean) -> Unit) {
+    onHDR: (Boolean, Boolean) -> Unit, onClose: (() -> Unit)? = null) {
     val model: ColorSamplingViewModel = viewModel()
     var showingInfo by remember { mutableStateOf(false) }
     LaunchedEffect(photo?.id) { model.load(photo) }
@@ -55,12 +55,16 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
         IconButton({ showingInfo = true }, enabled = model.info != null) {
             Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_info), stringResource(R.string.cp_photo_info_action))
         }
+        if (onClose != null) IconButton(onClose, enabled = !busy && !model.busy) {
+            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_close), stringResource(R.string.close_photo))
+        }
     }
     FuyaoScaffold("", showTopBar = false) { padding ->
         if (photo == null) {
             FuyaoFormPage(padding) { overview() }
         } else PhotoWorkspaceCanvas(photo.bitmap, padding) {
             EditorWorkspace(
+                controlsUnderNavigation = true,
                 preview = { modifier, expanded ->
                     PhotoPreviewStage(modifier, expanded, media = {
                         image(Modifier.fillMaxSize())

@@ -1,10 +1,40 @@
 package ing.fuyaoskyrocket.photoinfo.features.colors.ui.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.features.colors.domain.model.SampledColor
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
+
+@Composable
+internal fun SourceColorContent(sampledColor: SampledColor?, modifier: Modifier = Modifier) {
+    val value = sampledColor?.sourceRgb
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.small)) {
+        ColorValuePanel(buildList {
+            add(ColorValueItem(stringResource(R.string.colors_source_profile), sampledColor?.sourceColorSpaceName, true))
+            add(ColorValueItem(stringResource(R.string.colors_source_components), value?.normalizedComponents, true))
+            add(ColorValueItem(stringResource(R.string.cp_color_value_rgb), value?.rgbComponents))
+            add(ColorValueItem(stringResource(R.string.cp_color_value_hex), value?.hex))
+            sampledColor?.sourceCssSpace?.let { cssSpace ->
+                add(ColorValueItem(stringResource(R.string.cp_css_color_function_label), value?.cssColorFunction(cssSpace), true))
+            }
+        })
+        Text(stringResource(R.string.colors_source_values_note), style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (value?.wasClamped == true) ColorClippingNote()
+    }
+}
+
+@Composable
+private fun ColorClippingNote() {
+    Text(stringResource(R.string.colors_clipped_values_note), style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
 
 @Composable
 internal fun SrgbContent(sampledColor: SampledColor?, modifier: Modifier = Modifier) {
@@ -13,6 +43,7 @@ internal fun SrgbContent(sampledColor: SampledColor?, modifier: Modifier = Modif
         items = listOf(
             ColorValueItem(stringResource(R.string.cp_color_value_hex), sampledColor?.sRgb?.hex),
             ColorValueItem(stringResource(R.string.cp_color_value_rgb), sampledColor?.sRgb?.rgbComponents),
+            ColorValueItem(stringResource(R.string.colors_converted_components), sampledColor?.sRgb?.normalizedComponents, true),
             ColorValueItem(stringResource(R.string.cp_color_value_hsl), values?.hsl?.componentsText),
             ColorValueItem(stringResource(R.string.cp_color_value_cmyk), values?.cmyk?.componentsText),
             ColorValueItem(
@@ -33,6 +64,9 @@ internal fun SrgbContent(sampledColor: SampledColor?, modifier: Modifier = Modif
         ),
         modifier = modifier,
     )
+    if (sampledColor?.sRgb?.wasClamped == true) ColorClippingNote()
+    Text(stringResource(R.string.colors_cmyk_approximation_note), style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
@@ -41,6 +75,7 @@ internal fun DisplayP3Content(sampledColor: SampledColor?, modifier: Modifier = 
         items = listOf(
             ColorValueItem(stringResource(R.string.cp_color_value_hex), sampledColor?.displayP3?.hex),
             ColorValueItem(stringResource(R.string.cp_color_value_rgb), sampledColor?.displayP3?.rgbComponents),
+            ColorValueItem(stringResource(R.string.colors_converted_components), sampledColor?.displayP3?.normalizedComponents, true),
             ColorValueItem(
                 stringResource(R.string.cp_css_color_function_label),
                 sampledColor?.displayP3?.cssColorFunction("display-p3"),
@@ -49,6 +84,7 @@ internal fun DisplayP3Content(sampledColor: SampledColor?, modifier: Modifier = 
         ),
         modifier = modifier,
     )
+    if (sampledColor?.displayP3?.wasClamped == true) ColorClippingNote()
 }
 
 @Composable
@@ -57,6 +93,7 @@ internal fun Bt2020Content(sampledColor: SampledColor?, modifier: Modifier = Mod
         items = listOf(
             ColorValueItem(stringResource(R.string.cp_color_value_hex), sampledColor?.bt2020?.hex),
             ColorValueItem(stringResource(R.string.cp_color_value_rgb), sampledColor?.bt2020?.rgbComponents),
+            ColorValueItem(stringResource(R.string.colors_converted_components), sampledColor?.bt2020?.normalizedComponents, true),
             ColorValueItem(
                 stringResource(R.string.cp_css_color_function_label),
                 sampledColor?.representations?.cssRec2020?.cssText("rec2020"),
@@ -65,6 +102,9 @@ internal fun Bt2020Content(sampledColor: SampledColor?, modifier: Modifier = Mod
         ),
         modifier = modifier,
     )
+    Text(stringResource(R.string.colors_rec2020_encoding_note), style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
+    if (sampledColor?.bt2020?.wasClamped == true) ColorClippingNote()
 }
 
 @Composable
@@ -73,6 +113,7 @@ internal fun A98RgbContent(sampledColor: SampledColor?, modifier: Modifier = Mod
         items = listOf(
             ColorValueItem(stringResource(R.string.cp_color_value_hex), sampledColor?.adobeRgb?.hex),
             ColorValueItem(stringResource(R.string.cp_color_value_rgb), sampledColor?.adobeRgb?.rgbComponents),
+            ColorValueItem(stringResource(R.string.colors_converted_components), sampledColor?.adobeRgb?.normalizedComponents, true),
             ColorValueItem(
                 stringResource(R.string.cp_css_color_function_label),
                 sampledColor?.representations?.cssA98Rgb?.cssText("a98-rgb"),
@@ -81,6 +122,7 @@ internal fun A98RgbContent(sampledColor: SampledColor?, modifier: Modifier = Mod
         ),
         modifier = modifier,
     )
+    if (sampledColor?.adobeRgb?.wasClamped == true) ColorClippingNote()
 }
 
 @Composable

@@ -45,15 +45,15 @@ internal fun colorRepresentationsFrom(
 }
 
 private fun ColorValue.toHsl(): HslColorValue {
-    val red = redComponent.coerceIn(0.0, 1.0)
-    val green = greenComponent.coerceIn(0.0, 1.0)
-    val blue = blueComponent.coerceIn(0.0, 1.0)
+    val red = redComponent
+    val green = greenComponent
+    val blue = blueComponent
     val maximum = max(red, max(green, blue))
     val minimum = min(red, min(green, blue))
     val delta = maximum - minimum
     val lightness = (maximum + minimum) / 2.0
     if (delta == 0.0) {
-        return HslColorValue(hue = 0.0, saturation = 0.0, lightness = lightness)
+        return HslColorValue(hue = Double.NaN, saturation = 0.0, lightness = lightness)
     }
 
     val rawHue = when (maximum) {
@@ -61,9 +61,12 @@ private fun ColorValue.toHsl(): HslColorValue {
         green -> 60.0 * (((blue - red) / delta) + 2.0)
         else -> 60.0 * (((red - green) / delta) + 4.0)
     }
+    val saturation = if (lightness == 0.0 || lightness == 1.0) 0.0
+        else delta / (1.0 - abs(2.0 * lightness - 1.0))
+    val hue = (rawHue + if (saturation < 0.0) 540.0 else 360.0) % 360.0
     return HslColorValue(
-        hue = (rawHue + 360.0) % 360.0,
-        saturation = delta / (1.0 - abs(2.0 * lightness - 1.0)),
+        hue = if (abs(saturation) <= 0.00001) Double.NaN else hue,
+        saturation = abs(saturation),
         lightness = lightness,
     )
 }

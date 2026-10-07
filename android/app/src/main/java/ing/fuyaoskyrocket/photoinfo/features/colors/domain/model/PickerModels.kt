@@ -1,6 +1,5 @@
 package ing.fuyaoskyrocket.photoinfo.features.colors.domain.model
 
-import android.graphics.Color as AndroidColor
 import java.util.Locale
 
 /**
@@ -17,11 +16,13 @@ internal data class ColorValue(
     val blueComponent: Double = blue / 255.0,
 ) {
     val argb: Int
-        get() = AndroidColor.rgb(red, green, blue)
+        get() = (0xff shl 24) or (red shl 16) or (green shl 8) or blue
     val hex: String
         get() = String.format(Locale.US, "#%02X%02X%02X", red, green, blue)
     val rgbComponents: String
         get() = String.format(Locale.US, "%d, %d, %d", red, green, blue)
+    val normalizedComponents: String
+        get() = listOf(redComponent, greenComponent, blueComponent).joinToString(", ") { formatColorNumber(it) }
 
     fun cssColorFunction(spaceName: String): String = String.format(
         Locale.US,
@@ -39,6 +40,8 @@ internal data class ColorValue(
  */
 internal data class SampledColor(
     val sourceColorSpaceName: String,
+    val sourceRgb: ColorValue,
+    val sourceCssSpace: String?,
     val sRgb: ColorValue,
     val displayP3: ColorValue,
     val bt2020: ColorValue,

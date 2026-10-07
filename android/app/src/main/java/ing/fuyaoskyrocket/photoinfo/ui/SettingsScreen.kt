@@ -44,9 +44,11 @@ import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsSaver
 import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
-import ing.fuyaoskyrocket.photoinfo.domain.model.AppAppearance
 import ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoMotionTokens
 import ing.fuyaoskyrocket.photoinfo.ui.components.ThemeReveal
+import ing.fuyaoskyrocket.photoinfo.ui.components.navigationEnter
+import ing.fuyaoskyrocket.photoinfo.ui.components.navigationExit
+import ing.fuyaoskyrocket.photoinfo.ui.components.navigationBackdropSource
 import androidx.lifecycle.Lifecycle
 
 private enum class SettingsCategory(@StringRes val label: Int, @StringRes val description: Int, @DrawableRes val icon: Int) {
@@ -54,6 +56,7 @@ private enum class SettingsCategory(@StringRes val label: Int, @StringRes val de
     METADATA(R.string.section_metadata, R.string.settings_metadata_description, R.drawable.ic_info),
     EXPORT(R.string.export_defaults, R.string.settings_export_description, R.drawable.ic_export),
     LENSES(R.string.lens_settings, R.string.settings_lenses_description, R.drawable.ic_photo_info),
+    THEME(R.string.theme_settings, R.string.theme_settings_description, R.drawable.cp_ic_colorize),
     WORKSPACE(R.string.workspace_header, R.string.settings_workspace_description, R.drawable.ic_settings),
 }
 
@@ -70,13 +73,13 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     var startPage by rememberSaveable { mutableStateOf(settings.workspace.startPage) }
     var sharing by rememberSaveable { mutableStateOf(settings.workspace.sharing) }
     var sharedNames by rememberSaveable { mutableStateOf(settings.workspace.sharedFeatures.map { it.name }) }
-    var appearance by rememberSaveable { mutableStateOf(settings.workspace.appearance) }
-    var glassNavigation by rememberSaveable { mutableStateOf(settings.workspace.glassNavigation) }
-    val workspace = WorkspaceSettings(startPage, sharing, sharedNames.mapNotNull { name -> PhotoFeature.entries.firstOrNull { it.name == name } }.toSet(),
-        appearance = appearance, glassNavigation = glassNavigation)
+    var theme by rememberSaveable(stateSaver = WorkspaceThemeSaver) { mutableStateOf(settings.workspace) }
+    val workspace = theme.copy(startPage = startPage, sharing = sharing,
+        sharedFeatures = sharedNames.mapNotNull { name -> PhotoFeature.entries.firstOrNull { it.name == name } }.toSet())
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.CARDS) }
     val categoryNavigation = rememberNavController()
     val motionEnabled = LocalPhotoMotionEnabled.current
+    val containerMotion = motionEnabled && settings.workspace.predictiveBackStyle != ing.fuyaoskyrocket.photoinfo.domain.model.PredictiveBackStyle.NONE
     val draft=settings.copy(defaultAuthor=author, resolvePhotoLocation=geocode, fallbackMainFocal=mainFocal,
         exportDefaults=exportDefaults.photoSave(), hevcEncoder=hevcEncoder, workspace=workspace, preferLensPixelCount=preferLensPixelCount)
     val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
@@ -87,7 +90,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
 
     ThemeReveal { changeTheme ->
     fun saveDraft(applyAuthor: Boolean) {
-        if (appearance != settings.workspace.appearance) changeTheme { onSave(draft, applyAuthor) }
+        if (theme != settings.workspace) changeTheme { onSave(draft, applyAuthor) }
         else onSave(draft, applyAuthor)
     }
 
@@ -98,20 +101,8 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     @Composable fun categoryContent(category: SettingsCategory, canEdit: () -> Boolean = { true }) {
         FuyaoPageIntro(stringResource(category.label), stringResource(category.description), category.icon)
         when(category) {
+            SettingsCategory.THEME -> ThemeSettingsContent(workspace) { if (canEdit()) theme = it }
             SettingsCategory.WORKSPACE -> FuyaoFormSection {
-                SettingsChoice(stringResource(R.string.appearance), appearance,
-                    AppAppearance.entries.associateWith { stringResource(when (it) {
-                        AppAppearance.SYSTEM -> R.string.appearance_system
-                        AppAppearance.LIGHT -> R.string.appearance_light
-                        AppAppearance.DARK -> R.string.appearance_dark
-                    }) }) { if (canEdit()) appearance = it }
-                Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).toggleable(glassNavigation, role = Role.Switch,
-                    onValueChange = { if (canEdit()) glassNavigation = it }), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.glass_navigation), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                    Switch(glassNavigation, onCheckedChange = null)
-                }
-                Text(stringResource(R.string.glass_navigation_hint), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SettingsChoice(stringResource(R.string.workspace_startup), startPage,
                     StartPage.entries.associateWith { stringResource(when(it) {
                         StartPage.MAP -> R.string.photo_map_title; StartPage.EDITOR -> R.string.photo_cards_title
@@ -205,8 +196,9 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
     }
 
     FuyaoScaffold("",showTopBar=false,bottomBar={
-        if(changed) Surface(color=MaterialTheme.colorScheme.surface) {
-            Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.ime.union(WindowInsets.safeDrawing).only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal))
+        if(changed) Surface(modifier = Modifier.navigationBackdropSource(priority = 2), color=MaterialTheme.colorScheme.surface) {
+            Row(Modifier.fillMaxWidth().padding(bottom = LocalBottomNavigationInset.current)
+                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.safeDrawing).only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal))
                 .padding(horizontal=FuyaoSpacing.content,vertical=8.dp),horizontalArrangement=Arrangement.End) {
                 Button(onClick={ saveDraft(false) },enabled=canSave&&draft.validFocal) { Text(stringResource(R.string.save_settings)) }
             }
@@ -216,8 +208,10 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
             single = { modifier ->
                 SharedTransitionLayout(modifier) {
                 NavHost(categoryNavigation, startDestination = "overview", modifier = Modifier.fillMaxSize(),
-                    enterTransition = { if (motionEnabled) fadeIn(tween(PhotoMotionTokens.controlMillis)) else EnterTransition.None },
-                    exitTransition = { if (motionEnabled) fadeOut(tween(PhotoMotionTokens.controlMillis)) else ExitTransition.None }) {
+                    enterTransition = { navigationEnter(settings.workspace.predictiveBackStyle, motionEnabled) },
+                    exitTransition = { navigationExit(settings.workspace.predictiveBackStyle, motionEnabled) },
+                    popEnterTransition = { navigationEnter(settings.workspace.predictiveBackStyle, motionEnabled, pop = true) },
+                    popExitTransition = { navigationExit(settings.workspace.predictiveBackStyle, motionEnabled, pop = true) }) {
                     composable("overview") { entry ->
                         val visibility = this
                         rememberConfirmedBack(onBack, hasChanges = changed)
@@ -230,7 +224,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                                         leadingContent = { Icon(painterResource(category.icon), null) },
                                         trailingContent = { Icon(painterResource(R.drawable.ic_chevron), null) },
                                         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                                        modifier = Modifier.fillMaxWidth().then(if (motionEnabled) Modifier.sharedBounds(
+                                        modifier = Modifier.fillMaxWidth().then(if (containerMotion) Modifier.sharedBounds(
                                             rememberSharedContentState("settings-${category.name}"), visibility,
                                             boundsTransform = { _, _ -> tween(PhotoMotionTokens.containerMillis, easing = FastOutSlowInEasing) },
                                             resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.TopStart),
@@ -249,7 +243,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                         }
                     }
                     composable("category") { entry ->
-                        val container = if (motionEnabled) Modifier.sharedBounds(
+                        val container = if (containerMotion) Modifier.sharedBounds(
                             rememberSharedContentState("settings-${selectedCategory.name}"), this,
                             boundsTransform = { _, _ -> tween(PhotoMotionTokens.containerMillis, easing = FastOutSlowInEasing) },
                             resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.TopStart),

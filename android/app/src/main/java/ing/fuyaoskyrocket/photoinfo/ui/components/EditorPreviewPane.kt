@@ -71,7 +71,8 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                     }
                 },userScrollEnabled=(!state.busy || state.loadingPhoto) && !state.closing) { page ->
                     if(page==state.photoIndex)PendingPhotoEffect(updating,Modifier.fillMaxSize()) {
-                        PhotoPreview(if(original && !state.exporting)state.original else state.preview,Modifier.fillMaxSize(),
+                        val displayed = if(original && !state.exporting)state.original else state.preview
+                        PhotoPreview(displayed,Modifier.fillMaxSize().photoDissolveSource("cards-photo", displayed),
                             showsBackdrop=false,original=original)
                         if(playing && motion!=null)MotionPhotoPreview(motion,Modifier.fillMaxSize(),
                             onFinished={ playing=false },onError={ playing=false;playbackError=true })
@@ -104,7 +105,7 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             var overflow by remember { mutableStateOf(false) }
             val optionalCount = 1 + (if (state.motionPhoto) 1 else 0) + (if (showHdr) 1 else 0)
-            val fits = maxWidth >= ((optionalCount + 3) * 48 + 8).dp
+            val fits = maxWidth >= ((optionalCount + 4) * 48 + 8).dp
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceEvenly) {
             if (fits) {

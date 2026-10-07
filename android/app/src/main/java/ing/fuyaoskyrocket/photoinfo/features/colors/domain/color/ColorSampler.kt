@@ -1,34 +1,34 @@
 package ing.fuyaoskyrocket.photoinfo.features.colors.domain.color
 
 import android.graphics.Bitmap
-import android.graphics.Color as AndroidColor
 import android.graphics.ColorSpace
-import android.os.Build
-import androidx.core.graphics.get
 import ing.fuyaoskyrocket.photoinfo.features.colors.domain.model.ColorValue
 import ing.fuyaoskyrocket.photoinfo.features.colors.domain.model.SampledColor
-import kotlin.math.roundToInt
 import kotlin.math.abs
 import kotlin.math.pow
 
 /** Samples one source pixel and converts it independently into each displayed color space. */
 internal fun samplePixel(bitmap: Bitmap, x: Int, y: Int): SampledColor {
-    val sourceColor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        bitmap.getColor(x, y)
-    } else {
-        AndroidColor.valueOf(bitmap[x, y])
-    }
+    val sourceColor = readSourcePixel(bitmap, x, y)
     val xyzD50Components = (sourceColor.colorSpace as? ColorSpace.Rgb)?.let { source ->
         ColorSpace.adapt(source, ColorSpace.ILLUMINANT_D50).toXyz(floatArrayOf(sourceColor.red(), sourceColor.green(), sourceColor.blue()))
     } ?: sourceColor.convert(ColorSpace.get(ColorSpace.Named.CIE_XYZ)).components
     val sRgbValue = xyzD50Components.toRgbValue(ColorSpace.Named.SRGB)
+    val representations = colorRepresentationsFrom(sRgbValue, xyzD50Components)
     return SampledColor(
-        sourceColorSpaceName = bitmap.colorSpace?.name.orEmpty(),
+        sourceColorSpaceName = sourceColor.colorSpace.name,
+        sourceRgb = colorValueFromComponents(sourceColor.red().toDouble(), sourceColor.green().toDouble(), sourceColor.blue().toDouble()),
+        sourceCssSpace = when (sourceColor.colorSpace) {
+            ColorSpace.get(ColorSpace.Named.SRGB), ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB) -> "srgb"
+            ColorSpace.get(ColorSpace.Named.LINEAR_SRGB), ColorSpace.get(ColorSpace.Named.LINEAR_EXTENDED_SRGB) -> "srgb-linear"
+            ColorSpace.get(ColorSpace.Named.DISPLAY_P3) -> "display-p3"
+            else -> null
+        },
         sRgb = sRgbValue,
         displayP3 = xyzD50Components.toRgbValue(ColorSpace.Named.DISPLAY_P3),
-        bt2020 = xyzD50Components.toRgbValue(ColorSpace.Named.BT2020),
-        adobeRgb = xyzD50Components.toRgbValue(ColorSpace.Named.ADOBE_RGB),
-        representations = colorRepresentationsFrom(sRgbValue, xyzD50Components),
+        bt2020 = representations.cssRec2020.let { colorValueFromComponents(it.red, it.green, it.blue) },
+        adobeRgb = representations.cssA98Rgb.let { colorValueFromComponents(it.red, it.green, it.blue) },
+        representations = representations,
         sourceX = x,
         sourceY = y,
         match = RalCatalog.nearestTo(sRgbValue.argb),
@@ -49,20 +49,5 @@ private fun FloatArray.toRgbValue(destination: ColorSpace.Named): ColorValue {
         else (magnitude - transfer.f) / transfer.c
         return ((if (linear < 0) -1 else 1) * encoded).toFloat()
     }
-    return colorValueFromComponents(component(0), component(1), component(2))
-}
-
-/** Builds a [ColorValue] from float components, clamping to [0, 1] if needed. */
-internal fun colorValueFromComponents(red: Float, green: Float, blue: Float): ColorValue {
-    require(red.isFinite() && green.isFinite() && blue.isFinite())
-    val clamped = red !in -0.00001f..1.00001f || green !in -0.00001f..1.00001f || blue !in -0.00001f..1.00001f
-    return ColorValue(
-        red = (red.coerceIn(0f, 1f) * 255f).roundToInt(),
-        green = (green.coerceIn(0f, 1f) * 255f).roundToInt(),
-        blue = (blue.coerceIn(0f, 1f) * 255f).roundToInt(),
-        wasClamped = clamped,
-        redComponent = red.toDouble(),
-        greenComponent = green.toDouble(),
-        blueComponent = blue.toDouble(),
-    )
+    return colorValueFromComponents(component(0).toDouble(), component(1).toDouble(), component(2).toDouble())
 }

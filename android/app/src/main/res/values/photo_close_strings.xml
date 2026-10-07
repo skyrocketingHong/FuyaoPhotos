@@ -1,0 +1,5 @@
+<resources>
+    <string name="close_photo">Close photos</string>
+    <string name="close_photo_title">End photo editing?</string>
+    <string name="close_photo_message">Unsaved changes in this photo workspace will be discarded. Original and exported photos are kept.</string>
+</resources>

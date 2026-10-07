@@ -23,6 +23,7 @@ import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex: Int,
     busy: Boolean, sharesCards: Boolean, controls: OriginalPreviewState, hdrAvailable: Boolean,
     onSelectPhoto: (Int) -> Unit, onGallery: () -> Unit, onFiles: () -> Unit,
+    onClose: (() -> Unit)? = null,
     edit: MetadataEditViewModel = viewModel()) {
     var editing by rememberSaveable { mutableStateOf(false) }
     var showOpen by remember { mutableStateOf(false) }
@@ -36,9 +37,10 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
             }
         } else {
             PhotoWorkspaceCanvas(photo.bitmap, padding) {
-                EditorWorkspace(preview = { modifier, expanded ->
+                EditorWorkspace(controlsUnderNavigation = true, preview = { modifier, expanded ->
                     OriginalPhotoSummary(photo, controls, "", hdrAvailable, busy,
                         workspaceModifier = modifier, expanded = expanded,
+                        dissolveSource = "metadata-photo",
                         overlay = { PhotoPageNavigation(photos.size, photoIndex, busy, onSelectPhoto) },
                         actions = {
                             Text(photo.details.displayName ?: stringResource(R.string.photo_details),
@@ -55,6 +57,9 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
                                         onClick = { showOpen = false; onFiles() })
                                 }
                             }
+                            if (onClose != null) IconButton(onClick = onClose, enabled = !edit.busy) {
+                                Icon(painterResource(R.drawable.ic_close), stringResource(R.string.close_photo))
+                            }
                         })
                 }, controls = { modifier ->
                     Column(modifier) {
@@ -66,7 +71,7 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        if (editing) FuyaoPageColumn(Modifier.weight(1f), topInset = 0.dp) { MetadataEditPanel(photo, edit) }
+                        if (editing) FuyaoPageColumn(Modifier.weight(1f), topInset = 0.dp) { MetadataEditPanel(photo, edit, sourceBusy = busy) }
                         else PhotoInfoContent(photo, controls, hdrAvailable, busy, Modifier.weight(1f),
                             topInset = 0.dp, display = PhotoInfoDisplay.FACTS)
                     }

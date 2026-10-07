@@ -65,6 +65,7 @@ struct ColorsScreen: View {
                     }
                 }
             }
+            .modifier(PhotoDepartureOverlay(session: session, viewportCapture: { sampling.departureCapture?() }))
             .onGeometryChange(for: Bool.self) { $0.size.width >= PhotoPreviewMetrics.wideThreshold } action: { wideWorkspace = $0 }
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)
@@ -72,7 +73,10 @@ struct ColorsScreen: View {
             .navigationTitle("tab.colors")
             .navigationSubtitle(session.current?.originalName ?? "")
             .toolbar {
-                if session.current != nil { ToolbarItem(placement: .primaryAction) { inputMenu } }
+                if session.current != nil {
+                    ToolbarItem(placement: .primaryAction) { inputMenu }
+                    ToolbarItem(placement: .primaryAction) { PhotoCloseButton(session: session) }
+                }
             }
 #endif
         }
@@ -131,7 +135,7 @@ struct ColorsScreen: View {
 #if os(macOS)
         PhotoPreviewActionRow(fillsWidth: false) { colorTools }.disabled(session.busy)
 #else
-        let actionCount = (cameraAvailable ? 3 : 2) + (hasHDR ? 2 : 1)
+        let actionCount = (cameraAvailable ? 3 : 2) + (hasHDR ? 2 : 1) + 1
         return Group {
             if metrics.width - PhotoPageLayout.margin * 2 >= CGFloat(actionCount) * 64 {
                 PhotoPreviewActionRow(fillsWidth: !metrics.isWide) {
@@ -142,9 +146,10 @@ struct ColorsScreen: View {
                     if cameraAvailable { inputAction(.camera, title: "colors.camera", symbol: "camera") }
 #endif
                     colorTools
+                    PhotoCloseButton(session: session)
                 }
             } else {
-                PhotoPreviewActionRow(fillsWidth: !metrics.isWide) { inputMenu; colorTools }
+                PhotoPreviewActionRow(fillsWidth: !metrics.isWide) { inputMenu; colorTools; PhotoCloseButton(session: session) }
             }
         }
         .disabled(session.busy)
@@ -218,7 +223,8 @@ struct ColorsScreen: View {
         ZStack {
             if let document = session.current {
                 if let image = sampling.image {
-                    ColorPhotoViewport(image: image, hdr: sampling.hdr, point: sampling.point, hex: sampling.sample?.color.srgb.hex) {
+                    ColorPhotoViewport(image: image, hdr: sampling.hdr, point: sampling.point, hex: sampling.sample?.color.srgb.hex,
+                        onCaptureReady: { sampling.departureCapture = $0 }) {
                         sampling.sample(at: $0, document: document)
                     }
                 }

@@ -87,7 +87,7 @@ fun FuyaoPageColumn(modifier: Modifier = Modifier, topInset: Dp = LocalPaneTopIn
     horizontalPadding: Dp = FuyaoSpacing.content,
     content: @Composable ColumnScope.() -> Unit) {
     val scroll = rememberScrollState()
-    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding() + LocalBottomNavigationInset.current
     Box(modifier, contentAlignment = Alignment.TopCenter) {
         FuyaoScrollEdge(Modifier.widthIn(max = FuyaoLayout.readable).fillMaxSize(), topInset,
             scrollOffset = { scroll.value.toFloat() }) {
@@ -102,7 +102,7 @@ fun FuyaoPageColumn(modifier: Modifier = Modifier, topInset: Dp = LocalPaneTopIn
 @Composable
 fun FuyaoPageList(modifier: Modifier = Modifier, topInset: Dp = LocalPaneTopInset.current, content: LazyListScope.() -> Unit) {
     val scroll = rememberLazyListState()
-    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding() + LocalBottomNavigationInset.current
     FuyaoScrollEdge(modifier, topInset, scrollOffset = {
         if (scroll.firstVisibleItemIndex > 0) Float.MAX_VALUE else scroll.firstVisibleItemScrollOffset.toFloat()
     }) {
@@ -127,7 +127,7 @@ fun FixedPhotoPreviewListPage(
     content: LazyListScope.() -> Unit,
 ) {
     val density = LocalDensity.current
-    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding() + LocalBottomNavigationInset.current
     var barHeight by remember { mutableIntStateOf(0) }
     val barSpacing = FuyaoSpacing.content
     val barArea = with(density) { barHeight.toDp() + barSpacing }

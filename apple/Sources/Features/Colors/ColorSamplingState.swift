@@ -10,6 +10,7 @@ import SwiftUI
     var point = CGPoint(x: 0.5, y: 0.5)
     @ObservationIgnored private var sampling: Task<Void, Never>?
     @ObservationIgnored private var documentID: UUID?
+    @ObservationIgnored var departureCapture: PhotoViewportCapture?
 
     func load(_ document: CardDocument?) async {
         sampling?.cancel()

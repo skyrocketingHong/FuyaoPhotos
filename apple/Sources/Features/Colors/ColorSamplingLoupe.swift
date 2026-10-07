@@ -11,6 +11,7 @@ struct ColorPhotoViewport: View {
     let hdr: Bool
     let point: CGPoint
     var hex: String?
+    var onCaptureReady: ((PhotoViewportCapture?) -> Void)?
     let onSample: (CGPoint) -> Void
     @State private var contact: ColorLoupeContact?
     @State private var showingLoupe = false
@@ -20,7 +21,8 @@ struct ColorPhotoViewport: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .topLeading) {
-                NativeColorPhotoViewport(image: image, hdr: hdr, point: point, onSample: onSample, onLoupe: updateLoupe)
+                NativeColorPhotoViewport(image: image, hdr: hdr, point: point, onSample: onSample,
+                    onLoupe: updateLoupe, onCaptureReady: onCaptureReady)
                 if showingLoupe, let contact {
                     let placement = ColorLoupePlacement(finger: contact.location, panel: geometry.size)
                     ColorSamplingLens(image: image, contact: contact, hex: hex)

@@ -17,10 +17,10 @@ import ing.fuyaoskyrocket.photoinfo.presentation.OriginalPhoto
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 
 @Composable
-fun MetadataEditPanel(photo: OriginalPhoto, model: MetadataEditViewModel) {
+fun MetadataEditPanel(photo: OriginalPhoto, model: MetadataEditViewModel, sourceBusy: Boolean = false) {
     val options = model.options(photo)
     val folder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { directory ->
-        if (directory != null) model.save(photo, options, directory)
+        if (directory != null && !sourceBusy) model.save(photo, options, directory)
     }
     Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.fillMaxWidth().padding(FuyaoSpacing.cardInset), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -29,7 +29,7 @@ fun MetadataEditPanel(photo: OriginalPhoto, model: MetadataEditViewModel) {
             ExportOptionsControls(options, { model.change(photo, it) }, jpegRequired = photo.hdr || photo.hasDepth || photo.motion != null,
                 hasMotion = photo.motion != null, hasPortrait = photo.hasDepth,
                 showLiveOption = photo.motion != null, showPortraitOption = photo.hasDepth,
-                avifRequired = photo.bitDepth > 8, editMetadata = true, enabled = !model.busy)
+                avifRequired = photo.bitDepth > 8, editMetadata = true, enabled = !model.busy && !sourceBusy)
             val compatible = ing.fuyaoskyrocket.photoinfo.platform.ImageEncoderSupport.supports(options.format) &&
                 (photo.bitDepth <= 8 || options.format in setOf(ExportFormat.HEIC, ExportFormat.AVIF)) &&
                 (!photo.hasDepth || options.format == if (options.applePortrait) ExportFormat.HEIC else ExportFormat.JPEG) &&
@@ -37,7 +37,7 @@ fun MetadataEditPanel(photo: OriginalPhoto, model: MetadataEditViewModel) {
             Button(onClick = {
                 if (options.separateLivePhoto && photo.motion != null) folder.launch(null)
                 else model.save(photo, options)
-            }, enabled = !model.busy && compatible && model.hasChanges(photo.id), modifier = Modifier.fillMaxWidth()) {
+            }, enabled = !model.busy && !sourceBusy && compatible && model.hasChanges(photo.id), modifier = Modifier.fillMaxWidth()) {
                 SavingSymbol(model.busy, Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(if (model.busy) stringResource(R.string.save_progress, 0, 1)

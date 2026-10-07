@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableFuyaoEdgeToEdge()
         if (savedInstanceState == null) receivePhotos(intent)
-        setContent { PhotoInfoTheme(appearance = editor.state.settings.workspace.appearance) {
+        setContent { PhotoInfoTheme(workspace = editor.state.settings.workspace) {
             EditorScreen(vm = editor, onExit = ::finishAndRemoveTask)
         } }
     }

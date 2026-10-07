@@ -1,31 +1,34 @@
 package ing.fuyaoskyrocket.photoinfo.ui.theme
 
 import android.os.Build
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
-import androidx.activity.compose.LocalActivity
+import androidx.compose.runtime.remember
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.WindowCompat
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.domain.model.AppAppearance
-
-private val LightColors=lightColorScheme(
-    primary=Color(0xFF6750A4),onPrimary=Color.White,secondary=Color(0xFF625B71),tertiary=Color(0xFF7D5260),
-    surface=Color(0xFFFEF7FF),onSurface=Color(0xFF1D1B20),onSurfaceVariant=Color(0xFF49454F),surfaceContainerLow=Color(0xFFF7F2FA))
-private val DarkColors=darkColorScheme(
-    primary=Color(0xFFD0BCFF),onPrimary=Color(0xFF381E72),secondary=Color(0xFFCCC2DC),tertiary=Color(0xFFEFB8C8),
-    surface=Color(0xFF141218),onSurface=Color(0xFFE6E0E9),onSurfaceVariant=Color(0xFFCAC4D0),surfaceContainerLow=Color(0xFF1D1B20))
-private val FuyaoTypography = Typography()
-private val FuyaoShapes=Shapes(RoundedCornerShape(4.dp),RoundedCornerShape(8.dp),RoundedCornerShape(12.dp),RoundedCornerShape(16.dp),RoundedCornerShape(28.dp))
+import ing.fuyaoskyrocket.photoinfo.domain.model.WorkspaceSettings
 
 @Composable
-fun PhotoInfoTheme(appearance: AppAppearance = AppAppearance.SYSTEM, content:@Composable ()->Unit) {
-    val dark=appearance.isDark(isSystemInDarkTheme());val context=LocalContext.current
+fun PhotoInfoTheme(
+    appearance: AppAppearance = AppAppearance.SYSTEM,
+    workspace: WorkspaceSettings = WorkspaceSettings(appearance = appearance),
+    content: @Composable () -> Unit,
+) {
+    val dark = workspace.appearance.isDark(isSystemInDarkTheme())
+    val seed = if (workspace.dynamicTheme && Build.VERSION.SDK_INT >= 31) {
+        colorResource(android.R.color.system_accent1_500).toArgb()
+    } else workspace.themeSeed.toInt()
+    val colors = remember(seed, dark, workspace.themePalette, workspace.themeContrast, workspace.themeColorSpec, workspace.pureBlackTheme) {
+        photoColorScheme(seed, dark, workspace.themePalette, workspace.themeContrast, workspace.themeColorSpec, workspace.pureBlackTheme)
+    }
     val window = LocalActivity.current?.window
     SideEffect {
         window?.let {
@@ -35,9 +38,7 @@ fun PhotoInfoTheme(appearance: AppAppearance = AppAppearance.SYSTEM, content:@Co
             }
         }
     }
-    val colors=if(Build.VERSION.SDK_INT>=31) { if(dark)dynamicDarkColorScheme(context) else dynamicLightColorScheme(context) }
-        else if(dark)DarkColors else LightColors
     CompositionLocalProvider(LocalPhotoMotionEnabled provides rememberSystemMotionEnabled()) {
-        MaterialTheme(colorScheme=colors,typography=FuyaoTypography,shapes=FuyaoShapes,content=content)
+        MaterialTheme(colorScheme = colors, typography = Typography(), shapes = Shapes(), content = content)
     }
 }

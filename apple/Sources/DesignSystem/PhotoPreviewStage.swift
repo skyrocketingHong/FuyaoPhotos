@@ -21,6 +21,11 @@ struct PhotoPreviewStage<Media: View, Accessories: View>: View {
         media()
             .frame(maxWidth: .infinity)
             .frame(height: metrics.imageHeight)
+            .background {
+                GeometryReader { geometry in
+                    Color.clear.preference(key: PhotoViewportFrameKey.self, value: geometry.frame(in: .global))
+                }
+            }
             .clipped()
             .background { PhotoImageShadow(aspectRatio: imageAspectRatio) }
             .padding(.horizontal, PhotoPageLayout.margin)

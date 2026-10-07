@@ -7,19 +7,23 @@ internal data class HslColorValue(
     val saturation: Double,
     val lightness: Double,
 ) {
+    private val hueText: String
+        get() = if (hue.isNaN()) "N/A" else String.format(Locale.US, "%.2f°", hue)
+    private val cssHueText: String
+        get() = if (hue.isNaN()) "none" else String.format(Locale.US, "%.2f", hue)
     val componentsText: String
         get() = String.format(
             Locale.US,
-            "%.2f°, %.2f%%, %.2f%%",
-            hue,
+            "%s, %.2f%%, %.2f%%",
+            hueText,
             saturation * 100.0,
             lightness * 100.0,
         )
     val cssText: String
         get() = String.format(
             Locale.US,
-            "hsl(%.2f %.2f%% %.2f%%)",
-            hue,
+            "hsl(%s %.2f%% %.2f%%)",
+            cssHueText,
             saturation * 100.0,
             lightness * 100.0,
         )

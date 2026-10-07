@@ -31,6 +31,7 @@ class OriginalPreviewState {
 internal fun OriginalPhotoSummary(photo: OriginalPhoto, controls: OriginalPreviewState,
     subtitle: String, hdrAvailable: Boolean, busy: Boolean,
     workspaceModifier: Modifier? = null, expanded: Boolean = false,
+    dissolveSource: String? = null,
     overlay: @Composable BoxScope.() -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {}) {
     val loadedDepth = rememberPortraitDepthLayer(photo.file.takeIf { photo.hasDepth && controls.depthBitmap == null })
@@ -47,7 +48,7 @@ internal fun OriginalPhotoSummary(photo: OriginalPhoto, controls: OriginalPrevie
                 val displayed = if (controls.mode == OriginalPreviewMode.DEPTH) depth else photo.bitmap
                 if (displayed != null) Image(displayed.asImageBitmap(),
                     stringResource(if (controls.mode == OriginalPreviewMode.DEPTH) R.string.portrait_depth_preview else R.string.original_preview),
-                    Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                    Modifier.fillMaxSize().then(if (dissolveSource != null) Modifier.photoDissolveSource(dissolveSource, displayed) else Modifier), contentScale = ContentScale.Fit)
                 else if (busy) CircularProgressIndicator(Modifier.size(28.dp))
                 else Text(stringResource(R.string.error_preview_title), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (controls.mode == OriginalPreviewMode.MOTION && photo.motion != null) {

@@ -96,13 +96,15 @@ actor CardImageProcessor {
                                  lensMegapixels: lens?.profile.originalMegapixels)
     }
 
-    func preview(_ url: URL, card: PhotoCard, hdr: Bool, maxDimension: CGFloat = 1800) throws -> CGImage {
+    func preview(_ url: URL, card: PhotoCard, hdr: Bool, maxDimension: CGFloat = 1800,
+                 decodeImmediately: Bool = false) throws -> CGImage {
         try Task.checkCancellation()
         if card.rows.isEmpty {
             guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
                   let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                     kCGImageSourceCreateThumbnailFromImageAlways: true,
                     kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceShouldCacheImmediately: decodeImmediately,
                     kCGImageSourceThumbnailMaxPixelSize: max(1, Int(maxDimension)),
                     kCGImageSourceDecodeRequest: hdr ? kCGImageSourceDecodeToHDR : kCGImageSourceDecodeToSDR,
                     kCGImageSourceGenerateImageSpecificLumaScaling: true

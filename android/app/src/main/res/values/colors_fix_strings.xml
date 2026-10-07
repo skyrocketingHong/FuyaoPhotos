@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="colors_current_pixel">Selected pixel</string>
+    <string name="colors_source_profile">Source color space</string>
+    <string name="colors_source_components">Source RGB components</string>
+    <string name="colors_converted_components">Converted RGB components</string>
+    <string name="colors_source_values_note">Automatic shows the decoded source pixel in its own color space. RGB and HEX use that same encoding on a 0–255 scale. Choose a color space to convert this pixel.</string>
+    <string name="colors_clipped_values_note">This color exceeds the 0–1 range. RGB and HEX are clipped; floating-point components and CSS retain the full values.</string>
+    <string name="colors_rec2020_encoding_note">Rec.2020 uses the CSS Color 4 BT.1886 transfer function. Automatic retains the source encoding, including HLG and PQ.</string>
+    <string name="colors_cmyk_approximation_note">CMYK approximates the clipped sRGB color without a printer profile.</string>
+</resources>
