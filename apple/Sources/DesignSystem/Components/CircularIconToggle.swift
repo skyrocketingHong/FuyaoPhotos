@@ -30,16 +30,8 @@ struct CircularIconToggle: View {
             .labelStyle(.iconOnly)
         }
         .toggleStyle(.button)
-#if os(macOS)
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-#else
-        .buttonStyle(.glass)
-        .controlSize(.large)
-#endif
-        .buttonBorderShape(.circle)
+        .photoIconControlStyle()
         .accessibilityLabel(Text(title))
         .help(Text(title))
-        .padding(6)
     }
 }

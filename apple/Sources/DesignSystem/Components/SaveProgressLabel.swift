@@ -10,20 +10,25 @@ struct SaveProgressLabel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var symbol: some View {
-        OperationProgressSymbol(active: active, completed: total > 1 ? completed : nil, total: total, saved: saved)
+        OperationProgressSymbol(active: active, completed: total > 1 ? completed : nil,
+            total: total, saved: saved, showsIcon: !compact || !active)
     }
 
     var body: some View {
         Group {
             if compact {
-                VStack(spacing: 2) {
+                ZStack {
                     symbol
                     if active {
                         Text("\(completed)/\(max(1, total))")
                             .font(.caption2.monospacedDigit())
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .frame(width: 24)
                             .contentTransition(reduceMotion ? .identity : .numericText())
                     }
                 }
+                .frame(width: 28, height: 28)
             } else {
                 HStack(spacing: 8) {
                     symbol

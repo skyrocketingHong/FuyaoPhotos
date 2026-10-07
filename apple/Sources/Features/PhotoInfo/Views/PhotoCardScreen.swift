@@ -44,7 +44,7 @@ struct PhotoCardScreen: View {
                     if preview.original { frame.overlay = nil }
                     return frame
                 }))
-                .tint(PhotoPreviewTheme.accent(in: forcedDarkroom ? .dark : colorScheme))
+                .tint(PhotoPreviewTheme.accent)
                 .toolbar { editorToolbar }
 #if os(macOS)
                 .navigationTitle("tab.cards")

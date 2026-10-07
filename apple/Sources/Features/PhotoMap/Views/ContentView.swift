@@ -23,12 +23,14 @@ struct ContentView: View {
         TabView(selection: $workspace.selectedTab) {
             Tab("tab.map", systemImage: "map", value: PhotoWorkspace.Tab.map) {
                 PhotoMapScreen()
+                    .tint(.accentColor)
 #if !os(macOS)
                     .toolbarBackground(.hidden, for: .tabBar)
 #endif
             }
             Tab("tab.cards", systemImage: "photo.badge.plus", value: PhotoWorkspace.Tab.cards) {
                 PhotoCardScreen(session: workspace.cards)
+                    .tint(.accentColor)
 #if !os(macOS)
                     .toolbarBackground(.visible, for: .tabBar)
                     .toolbarColorScheme(darkroomCards ? .dark : nil, for: .tabBar)
@@ -36,21 +38,25 @@ struct ContentView: View {
             }
             Tab("tab.metadata", systemImage: "info.circle", value: PhotoWorkspace.Tab.metadata) {
                 MetadataScreen(state: workspace.metadataEdits)
+                    .tint(.accentColor)
 #if !os(macOS)
                     .toolbarBackground(.visible, for: .tabBar)
 #endif
             }
             Tab("tab.colors", systemImage: "eyedropper.halffull", value: PhotoWorkspace.Tab.colors) {
                 ColorsScreen()
+                    .tint(.accentColor)
             }
 #if !os(macOS)
             if #available(iOS 27, *) {
                 Tab("settings.title", systemImage: "gearshape", value: PhotoWorkspace.Tab.settings, role: .prominent) {
                     SettingsView()
+                        .tint(.accentColor)
                 }
             } else {
                 Tab("settings.title", systemImage: "gearshape", value: PhotoWorkspace.Tab.settings) {
                     SettingsView()
+                        .tint(.accentColor)
                 }
             }
 #endif
@@ -104,7 +110,6 @@ struct PhotoMapScreen: View {
                         .fixedSize(horizontal: true, vertical: true)
                         .labelStyle(.iconOnly)
                         .buttonStyle(.plain)
-                        .foregroundStyle(.primary)
                         .padding(20)
                     }
 #endif
@@ -261,6 +266,7 @@ private struct MapActionLabel: View {
 #if os(iOS)
             .frame(width: 52, height: 52)
             .contentShape(Rectangle())
+            .modifier(PhotoActionForeground())
 #endif
     }
 }

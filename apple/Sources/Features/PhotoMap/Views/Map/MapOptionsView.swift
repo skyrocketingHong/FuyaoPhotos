@@ -36,7 +36,6 @@ struct MapOptionsView: View {
                 Text(L10n.YearFilter.all).tag(nil as Int?)
                 ForEach(session.availableYears, id: \.self) { Text($0, format: .number.grouping(.never)).tag(Optional($0)) }
             }
-            .tint(.secondary)
         }
         if session.displayMode == .heatmap {
             Section("sidebar.display.mode") {
@@ -55,7 +54,6 @@ struct MapOptionsView: View {
                 Text("map.coordinates.gcj02").tag(MapCoordinateSystem.gcj02)
                 Text("map.coordinates.wgs84").tag(MapCoordinateSystem.wgs84)
             }
-            .tint(.secondary)
         } footer: {
             Text("map.coordinates.description")
         }
@@ -63,7 +61,6 @@ struct MapOptionsView: View {
             Picker("map.appearance", selection: $session.options.appearance) {
                 ForEach(MapAppearance.allCases) { Text($0.title).tag($0) }
             }
-            .tint(.secondary)
             Group {
                 Toggle("map.traffic", isOn: $session.options.traffic)
                 Toggle("map.points", isOn: $session.options.pointsOfInterest)

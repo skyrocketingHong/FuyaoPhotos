@@ -6,6 +6,6 @@ struct PhotoPreviewActionIcon: View {
     var body: some View {
         image.resizable().scaledToFit()
             .frame(width: 22, height: 22)
-            .frame(width: 20, height: 20)
+            .frame(width: 28, height: 28)
     }
 }

@@ -53,17 +53,21 @@ struct OriginalSummaryActions<Actions: View>: View {
     var body: some View {
         Group(subviews: actions) { extraActions in
             let tools = mediaTools
-            let room = metrics.width - PhotoPageLayout.margin * 2 - (showsFileSummary ? 128 : 0)
+            let contentWidth = metrics.width - PhotoPageLayout.margin * 2
+            let minimumTools = extraActions.count + (tools.isEmpty ? 0 : 1)
+            let displaysFileSummary = showsFileSummary
+                && contentWidth >= 128 + CGFloat(minimumTools) * PhotoPreviewMetrics.inlineToolWidth
+            let room = contentWidth - (displaysFileSummary ? 128 : 0)
             let maximum = max(extraActions.count + 1, Int(room / PhotoPreviewMetrics.inlineToolWidth))
             let visibleCount = extraActions.count + tools.count <= maximum
                 ? tools.count : max(0, maximum - extraActions.count - 1)
             HStack(spacing: 8) {
-                if showsFileSummary {
+                if displaysFileSummary {
                     PhotoInformationHeading(name: document.originalName,
                         fileExtension: document.sourceURL.pathExtension, fileSize: document.metadata.fileSize)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                PhotoPreviewActionRow(fillsWidth: !showsFileSummary) {
+                PhotoPreviewActionRow(fillsWidth: !displaysFileSummary) {
                     ForEach(extraActions) { $0 }
                     ForEach(Array(tools.prefix(visibleCount)), id: \.self) { tool in
                         mediaControl(tool)

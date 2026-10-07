@@ -232,10 +232,10 @@ private struct MobileCardInspector: View {
                     Text(LocalizedStringKey(information
                          ? "card.field." + field.rawValue + ".hint"
                          : "card.style." + adjustment.rawValue + ".hint"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-                .font(.caption)
-                .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: descriptionHeight, alignment: .topLeading)
@@ -246,9 +246,9 @@ private struct MobileCardInspector: View {
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selectionID)
 
             HStack(spacing: 6) {
-                restoreButton("card.restore.current", symbol: "arrow.counterclockwise",
+                restoreButton("card.restore.current",
                               height: buttonHeight, action: restoreCurrent)
-                restoreButton("card.restore.all", symbol: "arrow.counterclockwise.circle",
+                restoreButton("card.restore.all",
                               height: buttonHeight, action: restoreAll)
             }
             .frame(height: buttonHeight)
@@ -258,23 +258,19 @@ private struct MobileCardInspector: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    private func restoreButton(_ title: LocalizedStringKey, symbol: String, height: CGFloat,
+    private func restoreButton(_ title: LocalizedStringKey, height: CGFloat,
                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 2) {
-                Image(systemName: symbol)
-                    .font(.caption)
-                    .accessibilityHidden(true)
-                Text(title)
-                    .font(.caption2.weight(.medium))
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-            }
+            Text(title)
+                .font(.callout)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
+        .tint(.accentColor)
         .frame(maxWidth: .infinity)
     }
 

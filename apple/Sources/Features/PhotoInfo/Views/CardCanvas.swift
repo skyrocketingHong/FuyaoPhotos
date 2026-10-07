@@ -81,17 +81,15 @@ private struct CardActionStrip: View {
     var body: some View {
         GeometryReader { geometry in
             let visible = visibleTools(for: geometry.size.width)
-            HStack(spacing: 0) {
+            PhotoPreviewActionRow(fillsWidth: geometry.size.width <= 520) {
                 ForEach(visible, id: \.self) { tool in
                     control(for: tool, width: geometry.size.width)
-                        .frame(width: geometry.size.width > 520 ? 68 : geometry.size.width / CGFloat(visible.count))
-                        .frame(height: 64)
                 }
             }
             .frame(maxWidth: .infinity)
             .frame(maxHeight: .infinity, alignment: .center)
         }
-        .frame(height: 64)
+        .frame(height: PhotoPreviewMetrics.toolHeight)
     }
 
     private enum Tool: Hashable {
@@ -126,7 +124,7 @@ private struct CardActionStrip: View {
 #if os(macOS)
         return optionalTools
 #else
-        let slots = min(7, max(3, Int(max(0, width) / 68)))
+        let slots = min(7, max(3, Int(max(0, width) / PhotoPreviewMetrics.inlineToolWidth)))
         return Array(optionalTools.prefix(slots - 3)) + [.save, .close, .more]
 #endif
     }
@@ -161,9 +159,7 @@ private struct CardActionStrip: View {
                 SaveProgressLabel(title: photoCount == 1 ? "card.save.action.one" : "card.save.action.many",
                     active: saving, completed: completed, total: total, compact: true, saved: saved)
             }
-            .buttonStyle(.glass)
-            .controlSize(.large)
-            .buttonBorderShape(.circle)
+            .photoIconControlStyle(.primary)
         case .close:
             CircularIconButton(closeLabel, systemImage: "xmark", action: close)
                 .confirmationDialog(closePrompt, isPresented: $closeConfirmation, titleVisibility: .visible) {

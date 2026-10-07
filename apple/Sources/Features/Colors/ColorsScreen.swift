@@ -137,7 +137,7 @@ struct ColorsScreen: View {
 #else
         let actionCount = (cameraAvailable ? 3 : 2) + (hasHDR ? 2 : 1) + 1
         return Group {
-            if metrics.width - PhotoPageLayout.margin * 2 >= CGFloat(actionCount) * 64 {
+            if metrics.width - PhotoPageLayout.margin * 2 >= CGFloat(actionCount) * PhotoPreviewMetrics.inlineToolWidth {
                 PhotoPreviewActionRow(fillsWidth: !metrics.isWide) {
                     if session.documents.count > 1 { inputMenu }
                     else { inputAction(.photos, title: "card.open", symbol: "photo.badge.plus") }

@@ -5,6 +5,7 @@ struct OperationProgressSymbol: View {
     var completed: Int?
     var total = 0
     var saved = false
+    var showsIcon = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var fraction = 0.0
@@ -12,10 +13,12 @@ struct OperationProgressSymbol: View {
 
     var body: some View {
         ZStack {
-            Image(systemName: saved && !active ? "checkmark.circle.fill" : "square.and.arrow.down")
-                .resizable().scaledToFit()
-                .padding(active && (!reduceMotion || completed != nil) ? 6 : 2)
-                .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+            if showsIcon {
+                Image(systemName: saved && !active ? "checkmark.circle.fill" : "square.and.arrow.down")
+                    .resizable().scaledToFit()
+                    .padding(active && (!reduceMotion || completed != nil) ? 6 : 3)
+                    .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+            }
             if active && (!reduceMotion || completed != nil) {
                 TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || scenePhase != .active)) { _ in
                     let elapsed = ProcessInfo.processInfo.systemUptime - started
@@ -31,7 +34,7 @@ struct OperationProgressSymbol: View {
                 }
             }
         }
-        .frame(width: 24, height: 24)
+        .frame(width: 28, height: 28)
         .animation(reduceMotion ? nil : .smooth(duration: Double(PhotoMotionTokens.controlMillis) / 1000), value: active)
         .onChange(of: completed, initial: true) { _, _ in updateProgress() }
         .onChange(of: total) { _, _ in updateProgress() }

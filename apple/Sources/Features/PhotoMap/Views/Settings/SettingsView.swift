@@ -64,7 +64,7 @@ struct SettingsView: View {
                 NavigationSplitView {
                     VStack(spacing: 0) {
                         List(Category.allCases, id: \.self, selection: Binding(get: { selectedCategory }, set: selectCategory)) { category in
-                            Label(category.title, systemImage: category.symbol).tag(category)
+                            SettingsCategoryLabel(title: category.title, symbol: category.symbol).tag(category)
                         }
                         .listStyle(.sidebar)
 #if os(macOS)
@@ -100,11 +100,11 @@ struct SettingsView: View {
                                         if !lensesDirty { lensWorkspace = LensWorkspaceDraft(profiles: LensProfileStore.shared.profiles) }
                                         showLenses = true
                                     } label: {
-                                        Label(category.title, systemImage: category.symbol)
+                                        SettingsCategoryLabel(title: category.title, symbol: category.symbol)
                                     }
                                 } else {
                                     NavigationLink(value: category) {
-                                        Label(category.title, systemImage: category.symbol)
+                                        SettingsCategoryLabel(title: category.title, symbol: category.symbol)
                                     }
                                 }
                             }
@@ -126,7 +126,6 @@ struct SettingsView: View {
             }
         }
         .modifier(NativePresentationDefaults())
-        .tint(.secondary)
         .toggleStyle(NativeFormToggleStyle())
 #if os(macOS)
         .background(SettingsWindowChrome())
@@ -216,8 +215,6 @@ struct SettingsView: View {
                 }
             }
         } footer: { Text("workspace.sharing.description") }
-        .tint(.secondary)
-        .toggleStyle(NativeFormToggleStyle())
         .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: workspacePreferences.sharing)
     }
 

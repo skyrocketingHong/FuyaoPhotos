@@ -9,5 +9,6 @@ struct NativePresentationDefaults: ViewModifier {
             .controlSize(.regular)
             .buttonStyle(.automatic)
             .labelStyle(.automatic)
+            .tint(.accentColor)
     }
 }

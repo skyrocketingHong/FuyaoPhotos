@@ -6,7 +6,6 @@ struct PhotoPreviewStage<Media: View, Accessories: View>: View {
     let imageAspectRatio: CGFloat
     @ViewBuilder let media: () -> Media
     @ViewBuilder let accessories: () -> Accessories
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 8) {
@@ -30,7 +29,7 @@ struct PhotoPreviewStage<Media: View, Accessories: View>: View {
             .background { PhotoImageShadow(aspectRatio: imageAspectRatio) }
             .padding(.horizontal, PhotoPageLayout.margin)
             .frame(width: metrics.width)
-            .tint(PhotoPreviewTheme.accent(in: colorScheme))
+            .tint(PhotoPreviewTheme.accent)
     }
 
     /// The accessory row pinned under the photo.
@@ -40,7 +39,7 @@ struct PhotoPreviewStage<Media: View, Accessories: View>: View {
             .frame(height: metrics.accessoryHeight, alignment: .bottom)
             .padding(.horizontal, PhotoPageLayout.margin)
             .frame(width: metrics.width)
-            .tint(PhotoPreviewTheme.accent(in: colorScheme))
+            .tint(PhotoPreviewTheme.accent)
     }
 }
 
@@ -122,6 +121,14 @@ struct PhotoPreviewActionRow<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
+#if os(iOS)
+        GlassEffectContainer(spacing: 8) { row }
+#else
+        row
+#endif
+    }
+
+    private var row: some View {
         HStack(spacing: 0) {
             ForEach(subviews: content()) { subview in
                 subview.frame(maxWidth: fillsWidth ? .infinity : nil)

@@ -9,7 +9,5 @@ enum PhotoPreviewTheme {
 #endif
     }
 
-    static func accent(in scheme: ColorScheme) -> Color {
-        scheme == .dark ? .yellow : Color(red: 107 / 255, green: 74 / 255, blue: 0)
-    }
+    static var accent: Color { .accentColor }
 }

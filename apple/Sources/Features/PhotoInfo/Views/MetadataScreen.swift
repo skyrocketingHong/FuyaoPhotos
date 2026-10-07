@@ -219,6 +219,7 @@ struct MetadataScreen: View {
                     Button { showingSave = true } label: {
                         SaveProgressLabel(title: "metadata.save", active: state.busy)
                     }
+                        .photoActionStyle(.primary)
                         .disabled(!state.hasPendingAdd(document))
 #endif
                 }

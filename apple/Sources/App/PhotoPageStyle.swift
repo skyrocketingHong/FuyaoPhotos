@@ -11,19 +11,13 @@ struct PhotoPageIntro: View {
     let symbol: String
     var prominent = false
 
-    /// The camera-at-work mark frames the page symbol with viewfinder brackets,
-    /// every empty workspace reads as a camera waiting for a photo.
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 16) {
-                ZStack {
-                    Image(systemName: "viewfinder")
-                        .font(.largeTitle)
-                        .foregroundStyle(.tertiary)
-                    Image(systemName: symbol)
-                        .font(.title3.weight(.medium))
-                        .foregroundStyle(.tint)
-                }
+                Image(systemName: symbol)
+                    .font(prominent ? .largeTitle : .title2)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
                 Text(title)
                     .font(prominent ? .title.bold() : .title2.bold())
@@ -44,7 +38,7 @@ struct PhotoPageFormStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .formStyle(.grouped)
-            .tint(.secondary)
+            .tint(.accentColor)
             .toggleStyle(NativeFormToggleStyle())
 #if !os(macOS)
             .contentMargins(.horizontal, PhotoPageLayout.margin, for: .scrollContent)

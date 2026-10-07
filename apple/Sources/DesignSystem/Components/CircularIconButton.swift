@@ -15,19 +15,14 @@ struct CircularIconButton: View {
     var body: some View {
         Button(action: action) {
             PhotoPreviewActionIcon(image: Image(systemName: systemImage))
+#if os(iOS)
+                .modifier(PhotoActionForeground())
+#endif
                 .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
                 .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: systemImage)
         }
-#if os(macOS)
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
-#else
-            .buttonStyle(.glass)
-            .controlSize(.large)
-#endif
-            .buttonBorderShape(.circle)
+            .photoIconControlStyle()
             .accessibilityLabel(Text(title))
             .help(Text(title))
-            .padding(6)
     }
 }

@@ -8,19 +8,16 @@ struct PhotoPreviewMenu<Content: View>: View {
     var body: some View {
         Menu(content: content) {
             PhotoPreviewActionIcon(image: Image(systemName: systemImage))
+#if os(iOS)
+                .modifier(PhotoActionForeground())
+#endif
         }
 #if os(macOS)
         .menuStyle(.button)
-        .menuIndicator(.hidden)
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-#else
-        .buttonStyle(.glass)
-        .controlSize(.large)
 #endif
-        .buttonBorderShape(.circle)
+        .menuIndicator(.hidden)
+        .photoIconControlStyle()
         .accessibilityLabel(Text(title))
         .help(Text(title))
-        .padding(6)
     }
 }
