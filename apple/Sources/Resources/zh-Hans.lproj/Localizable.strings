@@ -636,3 +636,18 @@
 
 "card.preferLensPixelCount" = "默认使用镜头像素数";
 "card.preferLensPixelCount.hint" = "导入照片或恢复卡片字段时，优先使用匹配镜头的官方像素数。关闭或无可用配置时，按照片实际宽 × 高计算。";
+
+"lens.import.description" = "从文件或剪贴板读取 Fuyao Photos 镜头配置，核对设备与镜头后加入列表草稿。";
+"lens.import.reading" = "正在读取配置…";
+"lens.import.preview" = "配置预览";
+"lens.import.lensCount" = "镜头数量";
+"lens.import.addDraft" = "加入列表草稿";
+"lens.import.replaceDraft" = "替换列表草稿中的配置";
+"lens.import.draftOnly" = "此操作只更新列表草稿。返回列表点击“保存配置”后，才会应用于之后导入的照片。";
+"lens.import.replacingCount" = "将替换列表草稿中同一 EXIF 型号的 %d 个镜头，保留其他设备。点击“保存配置”后生效。";
+"lens.list.unsaved" = "列表中有未保存的修改";
+"lens.hardware.scanning" = "正在匹配本设备镜头…";
+"lens.device.addLens" = "为此设备添加镜头";
+"lens.row.actions" = "镜头操作";
+"lens.device.sharedName" = "同一 EXIF 型号的镜头共用产品名称。应用名称修改时，会同步更新该设备的整组镜头。";
+"lens.import.capacity" = "加入此配置后将超过 64 个镜头的上限。请先从列表中移除不需要的镜头，再导入此配置。";

@@ -637,3 +637,18 @@
 
 "card.preferLensPixelCount" = "Use Lens Pixel Count by Default";
 "card.preferLensPixelCount.hint" = "Use the matched lens's official pixel count when importing or restoring card fields. When off, or if unavailable, use the photo's actual width × height.";
+
+"lens.import.description" = "Open a Fuyao Photos lens configuration from a file or the clipboard, review its device and lenses, then add it to the list draft.";
+"lens.import.reading" = "Reading configuration…";
+"lens.import.preview" = "Configuration Preview";
+"lens.import.lensCount" = "Lenses";
+"lens.import.addDraft" = "Add to List Draft";
+"lens.import.replaceDraft" = "Replace in List Draft";
+"lens.import.draftOnly" = "This updates the list draft only. Choose Save Profiles on the list to apply it to future photo imports.";
+"lens.import.replacingCount" = "This replaces %d existing lenses for the same EXIF model in the list draft. Other devices are kept. Save Profiles applies the changes.";
+"lens.list.unsaved" = "Unsaved changes in this list";
+"lens.hardware.scanning" = "Matching this device's lenses…";
+"lens.device.addLens" = "Add Lens to This Device";
+"lens.row.actions" = "Lens Options";
+"lens.device.sharedName" = "The product name is shared by all lenses with the same EXIF model. Applying a name change updates that device's whole group.";
+"lens.import.capacity" = "Adding this configuration would exceed the limit of 64 lenses. Remove unneeded lenses from the list before importing it.";

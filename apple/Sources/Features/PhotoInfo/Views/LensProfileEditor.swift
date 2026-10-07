@@ -17,17 +17,17 @@ struct LensProfileEditor: View {
                     Text(title).font(.headline)
                     Spacer()
                     cancelButton
-                    applyButton
+                    applyButton.photoActionStyle(.primary)
                 }.padding(20)
             }
             GeometryReader { geometry in
                 if geometry.size.width >= 820 && !dynamicTypeSize.isAccessibilitySize {
                     HStack(alignment: .top, spacing: 0) {
-                        Form { identity; physical }.photoPageForm()
+                        Form { editingScope; identity; physical }.photoPageForm()
                         Form { equivalent; zoom; validation }.photoPageForm()
                     }
                 } else {
-                    Form { identity; equivalent; physical; zoom; validation }.photoPageForm()
+                    Form { editingScope; identity; equivalent; physical; zoom; validation }.photoPageForm()
                 }
             }
             .navigationTitle(title)
@@ -74,7 +74,14 @@ struct LensProfileEditor: View {
                 }
             }
         } header: { Text("lens.identity.header") }
-        footer: { Text("lens.identity.footer") }
+        footer: {
+            Text("lens.identity.footer")
+            Text("lens.device.sharedName")
+        }
+    }
+
+    private var editingScope: some View {
+        Section { Text("lens.apply.footer").font(.subheadline).foregroundStyle(.secondary) }
     }
 
     private func identityField(_ title: LocalizedStringKey, text: Binding<String>) -> some View {
@@ -114,14 +121,13 @@ struct LensProfileEditor: View {
         footer: { Text("lens.zoom.footer") }
     }
 
-    private var validation: some View {
-        Section {
-            if let issue = draft.validationKey {
+    @ViewBuilder private var validation: some View {
+        if let issue = draft.validationKey {
+            Section {
                 Label(LocalizedStringKey(issue), systemImage: "info.circle")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text("lens.apply.footer").font(.footnote).foregroundStyle(.secondary)
         }
     }
 

@@ -10,12 +10,9 @@ struct LensProfilesView: View {
     @State private var confirmDiscard = false
     @State private var saveFailed = false
     @State private var showingImport = false
-    @State private var importing = false
-    @State private var transferring = false
     @State private var exporting = false
     @State private var exportDocument: LensProfileFileDocument?
     @State private var exportName = "Camera.json"
-    @State private var incoming: LensProfileFile?
     @State private var transferMessage: String?
     @State private var transferStatus: String?
     @State private var copiedDevice: String?
@@ -100,19 +97,21 @@ struct LensProfilesView: View {
                     }
                     ToolbarItemGroup(placement: .primaryAction) {
                         Button("lens.add", systemImage: "plus") { requestEditor(LensProfileDraft()) }
-                            .disabled(draft.count >= 64 || transferring)
-                        Menu("card.more", systemImage: "ellipsis") {
+                            .disabled(draft.count >= 64)
+                        Menu {
                             Button("lens.hardware.scan", systemImage: "camera") { Task { await scanCameras() } }
-                                .disabled(scanning || transferring || editor != nil)
+                                .disabled(scanning || editor != nil)
                             if embedded && hasPendingChanges {
                                 Button("lens.discard", systemImage: "arrow.uturn.backward", role: .destructive) { confirmDiscard = true }
                             }
+                        } label: {
+                            Label("card.more", systemImage: "ellipsis").labelStyle(.iconOnly)
                         }
-                        .menuIndicator(.hidden).labelStyle(.iconOnly).buttonBorderShape(.circle)
+                        .menuIndicator(.hidden).buttonBorderShape(.circle)
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("lens.save", action: save)
-                            .disabled(!hasChanges || editor?.hasChanges == true || LensBindings.hasDuplicates(draft))
+                            .disabled(!hasChanges || scanning || editor?.hasChanges == true || LensBindings.hasDuplicates(draft))
                             .keyboardShortcut("s", modifiers: .command)
                     }
                 }
@@ -140,6 +139,9 @@ struct LensProfilesView: View {
             Button("lens.keepEditing", role: .cancel) { queuedEditor = nil }
         } message: { Text("lens.editor.discard.message") }
         .alert("lens.save.failed", isPresented: $saveFailed) { Button("done", role: .cancel) { } }
+        .sheet(isPresented: $showingImport) {
+            LensImportView(profiles: draft, apply: apply)
+        }
         .sheet(item: $bindingProfile) { profile in
             LensHardwareBindingView(profile: profile, profiles: draft, hardware: inventory?.lenses ?? [], hardwareDevice: hardwareDevice) { cameraID in
                 do {
@@ -157,22 +159,12 @@ struct LensProfilesView: View {
             }
             .presentationSizing(.form)
         }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.json], allowsMultipleSelection: false) { result in
-            if case .success(let urls) = result, let url = urls.first { importModel(url) }
-            else if case .failure(let error) = result, (error as NSError).code != NSUserCancelledError {
-                transferMessage = String.localized("lens.file.invalid")
-            }
-        }
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: exportName) { result in
             if case .success = result { transferStatus = String.localized("lens.file.exported") }
             else if case .failure(let error) = result, (error as NSError).code != NSUserCancelledError {
                 transferMessage = String.localized("lens.file.export.failed")
             }
         }
-        .confirmationDialog("lens.file.replace.title", isPresented: Binding(get: { incoming != nil }, set: { if !$0 { incoming = nil } }), titleVisibility: .visible) {
-            Button("lens.file.replace", role: .destructive) { if let incoming { apply(incoming) }; incoming = nil }
-            Button("cancel", role: .cancel) { incoming = nil }
-        } message: { if let incoming { Text(String(format: String.localized("lens.file.replace.message"), incoming.device)) } }
         .alert("lens.profiles.title", isPresented: Binding(get: { transferMessage != nil }, set: { if !$0 { transferMessage = nil } })) {
             Button("done", role: .cancel) { transferMessage = nil }
         } message: { Text(transferMessage ?? "") }
@@ -184,15 +176,15 @@ struct LensProfilesView: View {
                 PhotoPageIntro(title: "lens.profiles.title", description: "lens.profiles.description", symbol: "camera.aperture")
             }
             Section {
-                DisclosureGroup("lens.import.configuration", isExpanded: $showingImport) {
-                    PasteButton(payloadType: String.self, onPaste: importClipboard)
-                        .labelStyle(LensPasteLabelStyle())
-                        .disabled(transferring || editor?.hasChanges == true)
-                    Button("lens.file.import", systemImage: "folder") { showingImport = false; importing = true }
-                        .disabled(transferring || editor?.hasChanges == true)
-                    Text("lens.file.description").font(.footnote).foregroundStyle(.secondary)
+                Button("lens.import.configuration", systemImage: "square.and.arrow.down") { showingImport = true }
+                    .photoActionStyle(.secondary)
+                    .disabled(editor?.hasChanges == true)
+                if hasChanges {
+                    Label("lens.list.unsaved", systemImage: "pencil.circle")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-                if scanning || transferring { ProgressView() }
+                if scanning { ProgressView("lens.hardware.scanning") }
                 if let transferStatus {
                     Label(transferStatus, systemImage: "checkmark").font(.footnote).foregroundStyle(.secondary)
                 }
@@ -203,7 +195,7 @@ struct LensProfilesView: View {
                         Label("lens.empty.title", systemImage: "camera.aperture").font(.headline)
                         Text("lens.empty.description").foregroundStyle(.secondary)
                         Button("lens.add", systemImage: "plus") { requestEditor(LensProfileDraft()) }
-                            .disabled(transferring)
+                            .photoActionStyle(.primary)
                     }
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.vertical, 8)
@@ -218,6 +210,9 @@ struct LensProfilesView: View {
                             Text(group.exifModel).font(.subheadline).foregroundStyle(.secondary)
                         }
                         Menu("lens.device.actions", systemImage: "ellipsis") {
+                            Button("lens.device.addLens", systemImage: "plus") { addLens(to: group) }
+                                .disabled(draft.count >= 64)
+                            Divider()
                             Button("lens.clipboard.copy", systemImage: "doc.on.doc") { copyModel(group.id) }
                             Button("lens.file.export", systemImage: "square.and.arrow.up") { exportModel(group.id) }
                             if !group.isCurrent {
@@ -231,7 +226,8 @@ struct LensProfilesView: View {
                                     reconcile()
                                 }.disabled(hardwareDevice.isEmpty)
                             }
-                        }.disabled(transferring || editor?.hasChanges == true)
+                        }
+                        .disabled(editor?.hasChanges == true)
                         if copiedDevice == group.device {
                             Label(String(format: String.localized("lens.clipboard.copied"), group.device), systemImage: "checkmark")
                                 .font(.footnote).foregroundStyle(.secondary)
@@ -253,7 +249,10 @@ struct LensProfilesView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(group.device).font(.headline).foregroundStyle(.primary)
-                            if group.isCurrent { Text("lens.group.current").font(.subheadline).foregroundStyle(.secondary) }
+                            if group.isCurrent {
+                                Label("lens.group.current", systemImage: "checkmark.circle.fill")
+                                    .font(.subheadline).foregroundStyle(.tint)
+                            }
                             Text(group.profiles.count == 1 ? String.localized("lens.group.one")
                                 : String(format: String.localized("lens.group.count"), group.profiles.count))
                                 .font(.footnote).foregroundStyle(.secondary)
@@ -267,11 +266,8 @@ struct LensProfilesView: View {
 
     private func editorView(_ session: LensEditingSession, inline: Bool) -> some View {
         LensProfileEditor(session: session, inline: inline) { profile in
-            if let index = draft.firstIndex(where: { $0.id == profile.id }) {
-                var profile = profile
-                if !draft[index].acceptsExif(profile.exifModel) { profile.hardwareDevice = nil; profile.hardwareModel = nil }
-                draft[index] = profile
-            } else { draft.append(profile) }
+            model.apply(profile)
+            expandedDevices.insert(LensProfile.normalize(profile.exifModel))
             reconcile()
         } close: { editor = nil }
     }
@@ -282,6 +278,14 @@ struct LensProfilesView: View {
         else { editor = LensEditingSession(draft: value) }
     }
 
+    private func addLens(to group: LensBindings.DeviceGroup) {
+        var value = LensProfileDraft()
+        value.device = group.device
+        value.exifModel = group.exifModel
+        value.hardwareModel = group.profiles.first?.hardwareDevice ?? group.profiles.first?.hardwareModel
+        requestEditor(value)
+    }
+
     private func equivalentRange(_ profile: LensProfile) -> String {
         let low = profile.equivalentMin.formatted(.number.precision(.fractionLength(0...2)))
         let high = profile.equivalentMax.formatted(.number.precision(.fractionLength(0...2)))
@@ -290,19 +294,31 @@ struct LensProfilesView: View {
 
     private func lensRow(_ profile: LensProfile) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Button { requestEditor(LensProfileDraft(profile: profile)) } label: {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(profile.name).font(.headline).foregroundStyle(.primary)
-                        Text(equivalentRange(profile)).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
-                    }
-                    .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.forward").font(.caption).foregroundStyle(.tertiary).accessibilityHidden(true)
-                }.contentShape(.rect)
-            }.buttonStyle(.plain)
-            Button("lens.hardware.bind", systemImage: "link") { bindingProfile = profile }
-                .buttonStyle(.borderless).disabled(scanning || editor != nil)
+            HStack(spacing: 12) {
+                Button { requestEditor(LensProfileDraft(profile: profile)) } label: {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(profile.name).font(.headline).foregroundStyle(.primary)
+                            Text(equivalentRange(profile)).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.forward").font(.caption).foregroundStyle(.tertiary).accessibilityHidden(true)
+                    }.contentShape(.rect)
+                }.buttonStyle(.plain)
+                Menu {
+                    Button("lens.edit", systemImage: "pencil") { requestEditor(LensProfileDraft(profile: profile)) }
+                    Button("lens.hardware.bind", systemImage: "link") { bindingProfile = profile }
+                        .disabled(scanning || editor != nil)
+                    Button("lens.delete", systemImage: "trash", role: .destructive) { remove(profile) }
+                        .disabled(editor != nil)
+                } label: {
+                    Label("lens.row.actions", systemImage: "ellipsis")
+                        .labelStyle(.iconOnly)
+                        .modifier(PhotoActionForeground())
+                }
+                .menuIndicator(.hidden).buttonBorderShape(.circle)
+            }
             if let id = profile.cameraID, !id.isEmpty {
                 Text(String(format: String.localized(profile.hardwareDevice == hardwareDevice ? "lens.hardware.bound" : "lens.hardware.hint"), id))
                     .font(.footnote).foregroundStyle(.secondary).textSelection(.enabled)
@@ -357,39 +373,11 @@ struct LensProfilesView: View {
         } catch { transferMessage = String.localized("lens.clipboard.copy.failed") }
     }
 
-    private func importClipboard(_ values: [String]) {
-        do {
-            guard values.count == 1, let text = values.first, !text.isEmpty,
-                  text.utf8.count <= LensProfileFile.maximumBytes else { throw LensProfileFileError.invalid }
-            receive(try LensProfileFile.decode(Data(text.utf8)))
-        } catch { transferMessage = String.localized("lens.clipboard.invalid") }
-    }
-
-    private func receive(_ file: LensProfileFile) {
-        if draft.contains(where: { $0.acceptsExif(file.exifModel) }) { incoming = file }
-        else { apply(file) }
-    }
-
-    private func importModel(_ url: URL) {
-        transferring = true
-        Task {
-            defer { transferring = false }
-            do {
-                let file = try await Task.detached(priority: .userInitiated) {
-                    let scope = url.startAccessingSecurityScopedResource()
-                    defer { if scope { url.stopAccessingSecurityScopedResource() } }
-                    let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                    guard size > 0 && size <= LensProfileFile.maximumBytes else { throw LensProfileFileError.invalid }
-                    return try LensProfileFile.decode(Data(contentsOf: url))
-                }.value
-                receive(file)
-            } catch { transferMessage = String.localized("lens.file.invalid") }
-        }
-    }
-
     private func apply(_ file: LensProfileFile) {
         do {
-            draft = try file.merging(into: draft); editor = nil; reconcile(); showingImport = false
+            try model.importConfiguration(file)
+            reconcile(); showingImport = false
+            expandedDevices.insert(LensProfile.normalize(file.exifModel))
             transferStatus = String.localized("lens.file.imported")
         }
         catch { transferMessage = String.localized("lens.file.invalid") }
@@ -406,12 +394,5 @@ struct LensProfilesView: View {
         guard !Task.isCancelled else { scanning = false; return }
         inventory = result; scanning = false
         reconcile()
-    }
-}
-
-private struct LensPasteLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        Label { Text("lens.clipboard.import") } icon: { configuration.icon }
-            .labelStyle(.titleAndIcon)
     }
 }
