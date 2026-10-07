@@ -39,7 +39,7 @@ struct PhotoCardScreen: View {
     var body: some View {
         NavigationStack {
             editorContent
-                .modifier(PhotoDepartureOverlay(session: session, imageCapture: {
+                .modifier(PhotoDepartureOverlay(session: session, page: .cards, imageCapture: {
                     guard var frame = preview.departureFrame else { return nil }
                     if preview.original { frame.overlay = nil }
                     return frame

@@ -8,6 +8,7 @@ struct PhotoImportPage<Actions: View>: View {
     @ViewBuilder let actions: () -> Actions
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.photoImportContentVisible) private var importContentVisible
 
     var body: some View {
         GeometryReader { geometry in
@@ -29,6 +30,12 @@ struct PhotoImportPage<Actions: View>: View {
             .photoPageForm()
             .frame(maxWidth: 960)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .opacity(importContentVisible ? 1 : 0)
+            .disabled(!importContentVisible)
+            .allowsHitTesting(importContentVisible)
+            .accessibilityHidden(!importContentVisible)
+            .animation(reduceMotion ? nil : .easeInOut(duration: Double(PhotoMotionTokens.containerMillis) / 1000),
+                       value: importContentVisible)
         }
     }
 
@@ -69,11 +76,24 @@ struct PhotoImportAction: View {
     private var button: some View {
         Button(action: action) {
             Label(title, systemImage: symbol)
+                .labelStyle(PhotoImportActionLabelStyle())
                 .frame(maxWidth: .infinity)
                 .fixedSize(horizontal: false, vertical: true)
         }
 #if os(iOS)
         .keyboardShortcut(prominence == .primary ? KeyboardShortcut("o") : nil)
 #endif
+    }
+}
+
+private struct PhotoImportActionLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        // Form's automatic label tint must not override the native button foreground.
+        HStack(spacing: 8) {
+            configuration.icon
+                .symbolRenderingMode(.monochrome)
+                .accessibilityHidden(true)
+            configuration.title
+        }
     }
 }

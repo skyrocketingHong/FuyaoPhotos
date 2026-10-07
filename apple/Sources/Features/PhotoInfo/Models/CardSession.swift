@@ -16,7 +16,8 @@ import os
     @ObservationIgnored var documentsDidClose: ((Set<UUID>) -> Void)?
     @ObservationIgnored private var departureSnapshot: (id: UUID, image: CGImage)?
     @ObservationIgnored private var departureCleanup: Task<Void, Never>?
-    @ObservationIgnored private var departureCapture: (owner: UUID, capture: PhotoViewportCapture?)?
+    @ObservationIgnored private var departurePlayback = PhotoDeparturePlayback()
+    @ObservationIgnored private var departureCapture: (owner: UUID, capture: PhotoViewportCapture?, eligible: @MainActor () -> Bool)?
     var progress = 0
     var total = 0
     var errorMessage: String?
@@ -275,25 +276,70 @@ import os
         departureSnapshot = (documentID, image)
     }
 
-    func registerDepartureCapture(_ capture: PhotoViewportCapture?, owner: UUID) {
-        departureCapture = (owner, capture)
+    func registerDepartureCapture(_ capture: PhotoViewportCapture?, owner: UUID,
+                                  eligible: @escaping @MainActor () -> Bool) {
+        guard eligible() else { return }
+        departureCapture = (owner, capture, eligible)
     }
 
     func removeDepartureCapture(owner: UUID) {
         if departureCapture?.owner == owner { departureCapture = nil }
+        if departurePlayback.cancel(ownerID: owner) {
+            departureCleanup?.cancel()
+            departureCleanup = nil
+            departure = nil
+        }
+    }
+
+    func claimDeparture(id: UUID, owner: UUID) -> PhotoDeparture? {
+        guard let departure, departure.id == id,
+              departurePlayback.claim(id: id, ownerID: owner, now: .now) != nil else { return nil }
+        return departure
+    }
+
+    func finishDeparture(id: UUID, owner: UUID) {
+        guard departurePlayback.finish(id: id, ownerID: owner) else { return }
+        departureCleanup?.cancel()
+        departureCleanup = nil
+        departure = nil
+    }
+
+    func cancelDeparturePresentation() {
+        if let ticket = departurePlayback.ticket {
+            finishDeparture(id: ticket.id, owner: ticket.ownerID)
+        }
+    }
+
+    func revealDeparture(id: UUID, owner: UUID) -> Bool {
+        departurePlayback.reveal(id: id, ownerID: owner, now: .now)
+    }
+
+    func isDepartureCurrent(id: UUID, owner: UUID) -> Bool {
+        departure?.id == id && departurePlayback.isCurrent(id: id, ownerID: owner, now: .now)
+    }
+
+    func departureHidesImportContent(owner: UUID) -> Bool {
+        departure != nil && departurePlayback.hidesImportContent(ownerID: owner, now: .now)
     }
 
     func clear() {
-        if let current {
-            let viewport = departureCapture?.capture?()
+        if current != nil, let previous = departure {
+            finishDeparture(id: previous.id, owner: previous.ticket.ownerID)
+        }
+        if let current, let capture = departureCapture, capture.eligible() {
+            let viewport = capture.capture?()
             let cached = departureSnapshot?.id == current.id ? departureSnapshot?.image : nil
             let snapshot = viewport ?? cached ?? current.initialSDRPreview ?? Self.departureThumbnail(current.sourceURL)
-            let departure = PhotoDeparture(documentID: current.id, image: snapshot, coversViewport: viewport != nil)
-            self.departure = departure
-            departureCleanup?.cancel()
-            departureCleanup = Task { [weak self] in
-                do { try await Task.sleep(for: TelegramDustView.lifetime) } catch { return }
-                if self?.departure?.id == departure.id { self?.departure = nil }
+            if let snapshot {
+                let ticket = departurePlayback.publish(ownerID: capture.owner, now: .now,
+                    lifetime: TelegramDustView.lifetime)
+                departure = PhotoDeparture(ticket: ticket, documentID: current.id,
+                    image: snapshot, coversViewport: viewport != nil)
+                departureCleanup?.cancel()
+                departureCleanup = Task { [weak self] in
+                    do { try await ContinuousClock().sleep(until: ticket.expiresAt) } catch { return }
+                    self?.finishDeparture(id: ticket.id, owner: ticket.ownerID)
+                }
             }
         }
         departureSnapshot = nil

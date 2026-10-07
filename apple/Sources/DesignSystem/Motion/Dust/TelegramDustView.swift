@@ -1,12 +1,27 @@
 import SwiftUI
 import MetalKit
 
+@MainActor final class DustPlaybackPermit {
+    private var consumed = false
+
+    func claim() -> Bool {
+        guard !consumed else { return false }
+        consumed = true
+        return true
+    }
+}
+
 /// MTKView integration for Telegram's original DustEffect compute and instanced-quad shaders.
 struct TelegramDustView: View {
     static let lifetime: Duration = .seconds(4)
+    // Original shader: 0.8 s sweep + 1.5 s maximum lifetime with a 2x physical time step.
+    static var revealPhase: Float { max(0, 0.8 + 1.5 / 2 - Float(PhotoMotionTokens.containerMillis) / 1000) }
     static let overflow: CGFloat = 160
     let image: CGImage
     let sourceSize: CGSize
+    var playbackPermit: DustPlaybackPermit?
+    var onReveal: (@MainActor @Sendable () -> Void)?
+    var onUnavailable: (@MainActor @Sendable () -> Void)?
     @State private var ready = false
 
     var body: some View {
@@ -16,7 +31,8 @@ struct TelegramDustView: View {
                     .resizable()
                     .frame(width: sourceSize.width, height: sourceSize.height)
             }
-            DustMetalSurface(image: image, sourceSize: sourceSize) { ready = true }
+            DustMetalSurface(image: image, sourceSize: sourceSize, playbackPermit: playbackPermit,
+                onReady: { ready = true }, onReveal: onReveal, onUnavailable: onUnavailable)
         }
         .frame(width: sourceSize.width + Self.overflow * 2,
                height: sourceSize.height + Self.overflow * 2)
@@ -28,10 +44,15 @@ struct TelegramDustView: View {
 private struct DustMetalSurface {
     let image: CGImage
     let sourceSize: CGSize
+    let playbackPermit: DustPlaybackPermit?
     let onReady: @MainActor @Sendable () -> Void
+    let onReveal: (@MainActor @Sendable () -> Void)?
+    let onUnavailable: (@MainActor @Sendable () -> Void)?
 
     func makeCoordinator() -> DustMetalRenderer? {
-        DustMetalRenderer(image: image, sourceSize: sourceSize, onReady: onReady)
+        if let playbackPermit, !playbackPermit.claim() { return nil }
+        return DustMetalRenderer(image: image, sourceSize: sourceSize, onReady: onReady,
+            onReveal: onReveal, onUnavailable: onUnavailable)
     }
 
     private func makeView(_ coordinator: DustMetalRenderer?) -> MTKView {
@@ -51,7 +72,12 @@ private struct DustMetalSurface {
         view.isUserInteractionEnabled = false
 #endif
         view.delegate = coordinator
-        if coordinator == nil { Task { @MainActor in onReady() } }
+        if coordinator == nil {
+            Task { @MainActor in
+                onReady()
+                onUnavailable?()
+            }
+        }
         return view
     }
 }
@@ -86,12 +112,16 @@ extension DustMetalSurface: UIViewRepresentable {
     private let resolution: SIMD2<UInt32>
     private let count: Int
     private let onReady: @MainActor @Sendable () -> Void
+    private let onReveal: (@MainActor @Sendable () -> Void)?
+    private let onUnavailable: (@MainActor @Sendable () -> Void)?
+    private var revealed = false
     private var initialized = false
     private var firstFrame = true
     private var phase: Float = 0
     private var lastTimestamp: CFTimeInterval?
 
-    init?(image: CGImage, sourceSize: CGSize, onReady: @escaping @MainActor @Sendable () -> Void) {
+    init?(image: CGImage, sourceSize: CGSize, onReady: @escaping @MainActor @Sendable () -> Void,
+          onReveal: (@MainActor @Sendable () -> Void)?, onUnavailable: (@MainActor @Sendable () -> Void)?) {
         let columns = Int(sourceSize.width)
         let rows = Int(sourceSize.height)
         guard columns > 0, rows > 0, columns <= 16_384, rows <= 16_384,
@@ -110,6 +140,8 @@ extension DustMetalSurface: UIViewRepresentable {
         self.resolution = SIMD2(UInt32(columns), UInt32(rows))
         self.count = columns * rows
         self.onReady = onReady
+        self.onReveal = onReveal
+        self.onUnavailable = onUnavailable
     }
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
@@ -164,10 +196,22 @@ extension DustMetalSurface: UIViewRepresentable {
         render.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6, instanceCount: count)
         render.endEncoding()
         command.present(drawable)
-        if firstFrame {
-            firstFrame = false
+        let reportsFirstFrame = firstFrame
+        let reportsTail = !revealed && phase >= TelegramDustView.revealPhase
+        firstFrame = false
+        if reportsTail { revealed = true }
+        if reportsFirstFrame || reportsTail {
             let ready = onReady
-            command.addCompletedHandler { _ in Task { @MainActor in ready() } }
+            let reveal = onReveal
+            let unavailable = onUnavailable
+            command.addCompletedHandler { completed in
+                let succeeded = completed.status == .completed
+                Task { @MainActor in
+                    guard succeeded else { unavailable?(); return }
+                    if reportsFirstFrame { ready() }
+                    if reportsTail { reveal?() }
+                }
+            }
         }
         command.commit()
     }

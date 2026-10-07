@@ -45,7 +45,7 @@ struct MetadataScreen: View {
                     }
                 }
             }
-            .modifier(PhotoDepartureOverlay(session: session, imageCapture: {
+            .modifier(PhotoDepartureOverlay(session: session, page: .metadata, imageCapture: {
                 if summaryState.showsDepth, let depth = summaryState.depthImage, let document = session.current {
                     return PhotoPreviewSnapshot(documentID: document.id, sourceURL: document.sourceURL,
                         image: depth, overlay: nil, usesPhotoBackdrop: false)

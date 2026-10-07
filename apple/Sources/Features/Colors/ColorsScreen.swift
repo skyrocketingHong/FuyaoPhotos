@@ -60,12 +60,12 @@ struct ColorsScreen: View {
                         PhotoImportAction(title: "card.open", symbol: "photo.badge.plus", prominence: .primary) { request(.photos) }
                         PhotoImportAction(title: "colors.files", symbol: "folder") { request(.files) }
                         if cameraAvailable {
-                            PhotoImportAction(title: "colors.camera", symbol: "camera", prominence: .tertiary) { request(.camera) }
+                            PhotoImportAction(title: "colors.camera", symbol: "camera", prominence: .secondary) { request(.camera) }
                         }
                     }
                 }
             }
-            .modifier(PhotoDepartureOverlay(session: session, viewportCapture: { sampling.departureCapture?() }))
+            .modifier(PhotoDepartureOverlay(session: session, page: .colors, viewportCapture: { sampling.departureCapture?() }))
             .onGeometryChange(for: Bool.self) { $0.size.width >= PhotoPreviewMetrics.wideThreshold } action: { wideWorkspace = $0 }
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)

@@ -17,7 +17,14 @@ import SwiftUI
             }
         }
     }
-    var selectedTab: Tab = WorkspacePreferences.shared.startup
+    var selectedTab: Tab = WorkspacePreferences.shared.startup {
+        didSet {
+            guard oldValue != selectedTab else { return }
+            for session in [cards, metadataSession, colorsSession] {
+                session.cancelDeparturePresentation()
+            }
+        }
+    }
     var showingPackagePicker = false
     var incomingPackage: PackageImportRequest?
     private var packageQueue: [URL] = []
