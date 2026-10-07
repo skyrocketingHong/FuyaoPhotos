@@ -6,3 +6,6 @@ gradlew text eol=lf
 *.bat text eol=crlf
 *.png binary
 *.jpg binary
+# These upstream shaders are kept byte-for-byte, including their original spacing.
+android/app/src/main/res/raw/telegram_thanos_*.glsl whitespace=-blank-at-eol
+apple/Sources/DesignSystem/Motion/Dust/*.metal whitespace=-blank-at-eol,-blank-at-eof
