@@ -17,7 +17,7 @@ struct MapModesView: View {
                             ForEach(MapStyleMode.allCases) { style in
                                 Button { session.options.style = style } label: {
                                     choice(title: style.localizedName, selected: session.options.style == style) {
-                                        MapStylePreview(style: style, region: session.currentRegion)
+                                        MapStylePreview(style: style)
                                             .environment(\.colorScheme, session.options.appearance.colorScheme ?? colorScheme)
                                     }
                                 }
@@ -77,7 +77,6 @@ struct MapModesView: View {
 
 private struct MapStylePreview: View {
     let style: MapStyleMode
-    let region: MKCoordinateRegion
     @Environment(\.colorScheme) private var colorScheme
     @State private var image: Image?
     @State private var request: MKMapSnapshotter?
@@ -99,9 +98,8 @@ private struct MapStylePreview: View {
             request?.cancel()
             image = nil; failed = false
             let options = MKMapSnapshotter.Options()
-            options.region = MKCoordinateRegion(center: region.center,
-                span: MKCoordinateSpan(latitudeDelta: min(region.span.latitudeDelta, 0.02),
-                                       longitudeDelta: min(region.span.longitudeDelta, 0.02)))
+            // One fixed Apple Park composition keeps the four styles directly comparable.
+            options.region = Self.appleParkRegion
             options.size = CGSize(width: 180, height: 180)
             switch style {
             case .explore: options.preferredConfiguration = MKStandardMapConfiguration()
@@ -127,5 +125,15 @@ private struct MapStylePreview: View {
             } catch { if !Task.isCancelled { failed = true } }
         }
         .onDisappear { request?.cancel() }
+    }
+
+    private static var appleParkRegion: MKCoordinateRegion {
+        // Apple Maps place 559098170073364042: 37.334859, -122.0090403.
+        // A southwest offset places the ring toward the upper right, like the Maps icon.
+        MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 37.3336, longitude: -122.0117),
+            latitudinalMeters: 1_000,
+            longitudinalMeters: 1_000
+        )
     }
 }
