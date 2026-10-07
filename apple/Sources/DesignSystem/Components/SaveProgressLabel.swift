@@ -24,11 +24,11 @@ struct SaveProgressLabel: View {
                             .font(.caption2.monospacedDigit())
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
-                            .frame(width: 24)
+                            .frame(width: 22)
                             .contentTransition(reduceMotion ? .identity : .numericText())
                     }
                 }
-                .frame(width: 28, height: 28)
+                .frame(width: 24, height: 24)
             } else {
                 HStack(spacing: 8) {
                     symbol

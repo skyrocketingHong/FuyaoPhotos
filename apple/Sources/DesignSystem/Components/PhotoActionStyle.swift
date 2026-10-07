@@ -34,12 +34,15 @@ private struct PhotoIconControlStyle: ViewModifier {
                 case .secondary: content.buttonStyle(.glass)
                 }
             }
-            .controlSize(.large)
+            .controlSize(.regular)
 #endif
         }
         .tint(.accentColor)
         .buttonBorderShape(.circle)
-        .padding(6)
+#if os(iOS)
+        .frame(minWidth: 44, minHeight: 44)
+#endif
+        .padding(2)
     }
 }
 

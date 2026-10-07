@@ -62,7 +62,7 @@ struct ClusterPhotosView: View {
             .navigationSubtitle(Text("map.cluster.member.count \(selection.cluster.count)"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("card.close", systemImage: "xmark") {
+                    Button("close", systemImage: "xmark") {
                         if let onClose { onClose() } else { dismiss() }
                     }
                         .buttonBorderShape(.circle)

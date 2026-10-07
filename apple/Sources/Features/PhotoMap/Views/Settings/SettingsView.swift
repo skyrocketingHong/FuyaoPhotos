@@ -201,9 +201,11 @@ struct SettingsView: View {
             Picker("workspace.startup", selection: $workspacePreferences.startup) {
                 ForEach(PhotoWorkspace.Tab.featureTabs) { Text($0.title).tag($0) }
             }
+            .photoFormMenuPickerStyle()
             Picker("workspace.sharing", selection: $workspacePreferences.sharing) {
                 ForEach(PhotoSharingMode.allCases) { Text($0.title).tag($0) }
             }
+            .photoFormMenuPickerStyle()
             if workspacePreferences.sharing == .partial {
                 ForEach(PhotoWorkspace.Tab.photoTabs) { tab in
                     Toggle(tab.title, isOn: Binding(
@@ -226,6 +228,7 @@ struct SettingsView: View {
             } label: {
                 settingLabel("settings.card.appearance", hint: "settings.appearance.hint")
             }
+            .photoFormMenuPickerStyle()
         } header: {
             Text("settings.editor.header")
         } footer: {
@@ -269,18 +272,21 @@ struct SettingsView: View {
             } label: {
                 settingLabel("settings.default.display.mode", hint: "settings.map.mode.hint")
             }
+            .photoFormMenuPickerStyle()
             Picker(selection: $startYear) {
                 Text("settings.year.auto").tag(0)
                 ForEach(Array((1900...currentYear).reversed()), id: \.self) { Text(String($0)).tag($0) }
             } label: {
                 settingLabel("settings.start.year", hint: "settings.start.year.footer")
             }
+            .photoFormMenuPickerStyle()
             Picker(selection: $selectedYear) {
                 Text("year.filter.all").tag(0)
                 ForEach(Array((1900...currentYear).reversed()), id: \.self) { Text(String($0)).tag($0) }
             } label: {
                 settingLabel("settings.default.year", hint: "settings.default.year.footer")
             }
+            .photoFormMenuPickerStyle()
         } header: {
             Text("settings.map.header")
         }

@@ -37,7 +37,7 @@ struct ColorResultsPanel: View {
                     .tag(nil as ColorResultSpace?)
                 ForEach(ColorResultSpace.allCases) { Text($0.rawValue).tag(Optional($0)) }
             }
-            .pickerStyle(.menu)
+            .photoFormMenuPickerStyle()
         }
         Section {
             LabeledContent("colors.sample") {

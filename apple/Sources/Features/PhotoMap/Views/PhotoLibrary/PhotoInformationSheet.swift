@@ -29,7 +29,7 @@ struct PhotoInformationSheet: View {
 #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("card.close", systemImage: "xmark", action: dismiss.callAsFunction)
+                    Button("close", systemImage: "xmark", action: dismiss.callAsFunction)
                         .buttonBorderShape(.circle)
                 }
             }

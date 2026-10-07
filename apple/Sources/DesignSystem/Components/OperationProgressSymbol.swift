@@ -16,7 +16,7 @@ struct OperationProgressSymbol: View {
             if showsIcon {
                 Image(systemName: saved && !active ? "checkmark.circle.fill" : "square.and.arrow.down")
                     .resizable().scaledToFit()
-                    .padding(active && (!reduceMotion || completed != nil) ? 6 : 3)
+                    .padding(active && (!reduceMotion || completed != nil) ? 5 : 2)
                     .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
             }
             if active && (!reduceMotion || completed != nil) {
@@ -34,7 +34,7 @@ struct OperationProgressSymbol: View {
                 }
             }
         }
-        .frame(width: 28, height: 28)
+        .frame(width: 24, height: 24)
         .animation(reduceMotion ? nil : .smooth(duration: Double(PhotoMotionTokens.controlMillis) / 1000), value: active)
         .onChange(of: completed, initial: true) { _, _ in updateProgress() }
         .onChange(of: total) { _, _ in updateProgress() }

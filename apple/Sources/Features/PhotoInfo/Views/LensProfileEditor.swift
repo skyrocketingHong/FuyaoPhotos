@@ -73,6 +73,7 @@ struct LensProfileEditor: View {
                     Text(LocalizedStringKey(direction.titleKey)).tag(direction)
                 }
             }
+            .photoFormMenuPickerStyle()
         } header: { Text("lens.identity.header") }
         footer: {
             Text("lens.identity.footer")

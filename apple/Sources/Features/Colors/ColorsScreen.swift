@@ -279,7 +279,12 @@ private struct ColorInformationSheet: View {
             Form { ColorInformationSections(information: information) }
             .photoPageForm()
             .navigationTitle("colors.source")
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("done", action: dismiss.callAsFunction) } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("close", systemImage: "xmark", action: dismiss.callAsFunction)
+                        .labelStyle(.iconOnly)
+                }
+            }
         }
     }
 }

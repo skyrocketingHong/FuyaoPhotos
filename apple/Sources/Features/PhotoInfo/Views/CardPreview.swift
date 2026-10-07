@@ -180,8 +180,16 @@ struct CardFullPreview: View {
         .background(PhotoPreviewTheme.surface)
         .onGeometryChange(for: Bool.self) { $0.size.width >= 800 } action: { isWide = $0 }
         .navigationTitle("card.preview")
+#if os(iOS)
+        .toolbarVisibility(.visible, for: .navigationBar)
+#endif
         .toolbar {
-            ToolbarItem(placement: .confirmationAction) { Button("done") { if let close { close() } else { dismiss() } } }
+#if os(macOS)
+            ToolbarItem(placement: .cancellationAction) {
+                Button("close", systemImage: "xmark") { if let close { close() } else { dismiss() } }
+                    .labelStyle(.iconOnly)
+            }
+#endif
             ToolbarItem(placement: .automatic) {
                 if !isWide {
                     Button("card.preview.reset", systemImage: "1.magnifyingglass", action: resetPreview)

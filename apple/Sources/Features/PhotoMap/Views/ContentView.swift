@@ -99,13 +99,13 @@ struct PhotoMapScreen: View {
 #if !os(macOS)
                     .overlay(alignment: .bottomTrailing) {
                         VStack(spacing: 0) {
-                            mapStyleMenu.frame(width: 52, height: 52)
-                            mapOptionsButton.frame(width: 52, height: 52)
-                            fitPhotosButton.frame(width: 52, height: 52)
-                            Divider().frame(width: 28)
-                            locationButton.frame(width: 52, height: 52)
+                            mapStyleMenu.frame(width: 44, height: 44)
+                            mapOptionsButton.frame(width: 44, height: 44)
+                            fitPhotosButton.frame(width: 44, height: 44)
+                            Divider().frame(width: 24)
+                            locationButton.frame(width: 44, height: 44)
                         }
-                        .frame(width: 52)
+                        .frame(width: 44)
                         .glassEffect(.regular.interactive(), in: .capsule)
                         .fixedSize(horizontal: true, vertical: true)
                         .labelStyle(.iconOnly)
@@ -258,13 +258,13 @@ private struct MapActionLabel: View {
         } icon: {
             Image(systemName: symbol)
 #if os(iOS)
-                .resizable().scaledToFit().frame(width: 22, height: 22)
+                .resizable().scaledToFit().frame(width: 20, height: 20)
 #endif
                 .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
                 .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: symbol)
         }
 #if os(iOS)
-            .frame(width: 52, height: 52)
+            .frame(width: 44, height: 44)
             .contentShape(Rectangle())
             .modifier(PhotoActionForeground())
 #endif

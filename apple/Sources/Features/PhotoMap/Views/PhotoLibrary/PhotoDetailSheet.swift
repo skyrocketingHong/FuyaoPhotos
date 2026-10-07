@@ -20,7 +20,7 @@ struct PhotoDetailSheet: View {
 #endif
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("card.close", systemImage: "xmark") {
+                        Button("close", systemImage: "xmark") {
                             if let onClose { onClose() } else { dismiss() }
                         }
                             .buttonBorderShape(.circle)

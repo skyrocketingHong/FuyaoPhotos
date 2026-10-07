@@ -256,6 +256,7 @@ struct MetadataSaveSheet: View {
                             Text("metadata.save.copy").tag(false)
                             Text("metadata.save.update").tag(true)
                         }
+                        .photoFormMenuPickerStyle()
                     } else {
                         LabeledContent("metadata.save.destination") { Text("metadata.save.copy") }
                     }

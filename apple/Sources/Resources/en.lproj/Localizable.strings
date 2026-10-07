@@ -8,6 +8,7 @@
 // MARK: - App General
 "app.title" = "Fuyao Photos";
 "done" = "Done";
+"close" = "Close";
 "loading" = "Loading...";
 "all" = "All";
 
@@ -652,3 +653,9 @@
 "lens.row.actions" = "Lens Options";
 "lens.device.sharedName" = "The product name is shared by all lenses with the same EXIF model. Applying a name change updates that device's whole group.";
 "lens.import.capacity" = "Adding this configuration would exceed the limit of 64 lenses. Remove unneeded lenses from the list before importing it.";
+"map.heat.radius.minimum" = "Smaller";
+"map.heat.radius.maximum" = "Larger";
+"map.heat.opacity.minimum" = "Lighter";
+"map.heat.opacity.maximum" = "Stronger";
+"card.save.quality.minimum" = "Smaller File";
+"card.save.quality.maximum" = "Higher Quality";

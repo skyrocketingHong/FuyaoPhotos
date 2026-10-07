@@ -41,7 +41,7 @@ struct PhotoImportPage<Actions: View>: View {
             actions()
             if busy { ProgressView("photo.import.loading").transition(.opacity) }
         }
-        .controlSize(.large)
+        .controlSize(.regular)
         .disabled(busy)
         .padding(.vertical, 8)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: busy)
@@ -70,7 +70,6 @@ struct PhotoImportAction: View {
         Button(action: action) {
             Label(title, systemImage: symbol)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
                 .fixedSize(horizontal: false, vertical: true)
         }
 #if os(iOS)

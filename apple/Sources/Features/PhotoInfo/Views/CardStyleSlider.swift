@@ -1,7 +1,4 @@
 import SwiftUI
-#if os(iOS)
-import UIKit
-#endif
 
 struct CardStyleSlider: View {
     @Binding var value: Double
@@ -11,6 +8,7 @@ struct CardStyleSlider: View {
     let minimumSymbol: String
     let maximumSymbol: String
     let formattedValue: String
+    var showsLabels = true
     @ScaledMetric(relativeTo: .headline) private var valueSlotWidth: CGFloat = 56
 
     private var atMinimum: Bool {
@@ -22,25 +20,25 @@ struct CardStyleSlider: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            SliderEndpointIcon(symbol: minimumSymbol, active: atMinimum)
-#if os(iOS)
-            ContinuousReferenceSlider(value: $value, range: range, reference: defaultValue)
+        VStack(spacing: 4) {
+            if showsLabels {
+                HStack(spacing: 8) {
+                    SliderEndpointIcon(symbol: minimumSymbol, active: atMinimum)
+                    Spacer(minLength: 8)
+                    Text(formattedValue)
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: valueSlotWidth, alignment: .center)
+                        .accessibilityHidden(true)
+                    Spacer(minLength: 8)
+                    SliderEndpointIcon(symbol: maximumSymbol, active: atMaximum)
+                }
+            }
+            PhotoContinuousSlider(value: $value, range: range, reference: defaultValue)
                 .accessibilityLabel(Text(label))
                 .accessibilityValue(Text(formattedValue))
-#else
-            Slider(value: $value, in: range) { Text(label) }
-                .labelsHidden()
-                .accessibilityValue(Text(formattedValue))
-#endif
-            SliderEndpointIcon(symbol: maximumSymbol, active: atMaximum)
-            Text(formattedValue)
-                .font(.headline.monospacedDigit())
-                .foregroundStyle(.tint)
-                .frame(width: valueSlotWidth, alignment: .trailing)
-                .accessibilityHidden(true)
         }
-        .frame(maxWidth: 320, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(maxHeight: .infinity)
     }
 }
@@ -60,40 +58,3 @@ private struct SliderEndpointIcon: View {
             .accessibilityHidden(true)
     }
 }
-
-#if os(iOS)
-private struct ContinuousReferenceSlider: UIViewRepresentable {
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-    let reference: Double
-
-    func makeUIView(context: Context) -> UISlider {
-        let slider = UISlider()
-        slider.addTarget(context.coordinator, action: #selector(Coordinator.valueChanged(_:)), for: .valueChanged)
-        return slider
-    }
-
-    func updateUIView(_ slider: UISlider, context: Context) {
-        context.coordinator.parent = self
-        slider.minimumValue = Float(range.lowerBound)
-        slider.maximumValue = Float(range.upperBound)
-        let fraction = Float((reference - range.lowerBound) / (range.upperBound - range.lowerBound))
-        let configuration = UISlider.TrackConfiguration(
-            allowsTickValuesOnly: false,
-            neutralValue: fraction,
-            enabledRange: 0...1,
-            ticks: [.init(position: fraction)]
-        )
-        if slider.trackConfiguration != configuration { slider.trackConfiguration = configuration }
-        if abs(Double(slider.value) - value) > 0.0001 { slider.value = Float(value) }
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    final class Coordinator: NSObject {
-        var parent: ContinuousReferenceSlider
-        init(_ parent: ContinuousReferenceSlider) { self.parent = parent }
-        @objc func valueChanged(_ sender: UISlider) { parent.value = Double(sender.value) }
-    }
-}
-#endif

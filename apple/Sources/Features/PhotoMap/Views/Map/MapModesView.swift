@@ -3,7 +3,6 @@ import MapKit
 
 struct MapModesView: View {
     @Bindable var session: MapSession
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.colorScheme) private var colorScheme
 
@@ -47,11 +46,6 @@ struct MapModesView: View {
 #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
 #endif
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("done", systemImage: "xmark", action: dismiss.callAsFunction).labelStyle(.iconOnly)
-                }
-            }
         }
 #if os(macOS)
         .frame(width: 460, height: 470)

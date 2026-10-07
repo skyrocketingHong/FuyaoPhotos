@@ -153,13 +153,14 @@ private struct MobileCardInspector: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @FocusState.Binding var editingText: Bool
+    @ScaledMetric(relativeTo: .body) private var preferredControlHeight: CGFloat = 72
 
     var body: some View {
         GeometryReader { geometry in
             let height = geometry.size.height
             let compact = height < 240 || dynamicTypeSize.isAccessibilitySize
             let buttonHeight: CGFloat = compact ? 0 : 44
-            let controlHeight: CGFloat = min(dynamicTypeSize.isAccessibilitySize ? 88 : 64, max(44, height - 24))
+            let controlHeight = min(preferredControlHeight, max(44, height - 24))
             let descriptionHeight: CGFloat = compact ? 0 : 44
             let availablePreviewHeight = height - controlHeight - descriptionHeight - buttonHeight - 24
             let previewHeight = availablePreviewHeight >= 44
@@ -217,7 +218,8 @@ private struct MobileCardInspector: View {
                         maximumSymbol: adjustment.symbols.1,
                         formattedValue: adjustment.percentage
                             ? document.card.style[keyPath: adjustment.keyPath].formatted(.percent.precision(.fractionLength(0)))
-                            : document.card.style[keyPath: adjustment.keyPath].formatted(.number.precision(.fractionLength(0))))
+                            : document.card.style[keyPath: adjustment.keyPath].formatted(.number.precision(.fractionLength(0))),
+                        showsLabels: controlHeight >= preferredControlHeight)
                         .id(selectionID)
                         .transition(.opacity)
                 }

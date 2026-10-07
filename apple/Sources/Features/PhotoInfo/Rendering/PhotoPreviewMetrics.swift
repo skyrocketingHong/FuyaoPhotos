@@ -4,7 +4,7 @@ nonisolated struct PhotoPreviewMetrics: Sendable {
     static let pageMargin: CGFloat = 20
     static let columnWidth: CGFloat = 480
     static let toolHeight: CGFloat = 64
-    static let inlineToolWidth: CGFloat = 68
+    static let inlineToolWidth: CGFloat = 56
     static let wideThreshold: CGFloat = 760
 
     let width: CGFloat

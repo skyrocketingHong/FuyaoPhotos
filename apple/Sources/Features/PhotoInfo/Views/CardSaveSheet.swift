@@ -34,6 +34,7 @@ struct CardSaveSheet: View {
                             Text(copyTitle).tag(false)
                             Text(updateTitle).tag(true)
                         }
+                        .photoFormMenuPickerStyle()
                     } else {
                         LabeledContent("card.save.destination") {
                             Text(copyTitle)
@@ -104,35 +105,23 @@ struct CardSaveControls: View {
                         && (format != .png || (!hasHDR && !hasLive)) { Text(format.title).tag(format) }
                 }
             }
+            .photoFormMenuPickerStyle()
             if hasLive && !requiresHEIC {
                 Picker("card.save.motion.format", selection: $options.exportsMotionPhoto) {
                     Text("Live Photo").tag(false)
                     Text("Motion Photo").tag(true)
                 }
+                .photoFormMenuPickerStyle()
                 .onChange(of: options.exportsMotionPhoto) { _, enabled in
                     if enabled { options.format = .jpeg; options.updateOriginal = false }
                 }
                 if options.exportsMotionPhoto { Text("card.save.motion.description").font(.footnote).foregroundStyle(.secondary) }
             }
             if options.format != .png {
-                LabeledContent("card.save.quality") {
-                    HStack {
-                        Slider(value: $options.quality, in: 0...100, step: 1)
-                            .frame(minWidth: 80, maxWidth: 180)
-                            .accessibilityLabel(Text("card.save.quality"))
-                        Text("100%")
-                            .monospacedDigit()
-                            .hidden()
-                            .overlay(alignment: .trailing) {
-                                Text("\(Int(options.quality))%")
-                                    .monospacedDigit().foregroundStyle(.secondary)
-                            }
-                            .fixedSize()
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(Text("card.save.quality"))
-                            .accessibilityValue(Text("\(Int(options.quality))%"))
-                    }
-                }
+                PhotoFormSlider(title: "card.save.quality", value: $options.quality, range: 0...100,
+                    minimumLabel: "card.save.quality.minimum", maximumLabel: "card.save.quality.maximum",
+                    step: 1, formattedValue: (options.quality / 100).formatted(.percent.precision(.fractionLength(0))),
+                    maximumValueText: 1.0.formatted(.percent.precision(.fractionLength(0))))
             }
         } header: {
             Text("card.save.output.header")

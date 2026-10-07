@@ -3,7 +3,6 @@ import PhotoMapCore
 
 struct MapOptionsView: View {
     @Bindable var session: MapSession
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
 #if os(macOS)
@@ -22,9 +21,6 @@ struct MapOptionsView: View {
             .photoPageForm()
             .navigationTitle("map.options")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("done", action: dismiss.callAsFunction) }
-            }
         }
 #endif
     }
@@ -36,17 +32,16 @@ struct MapOptionsView: View {
                 Text(L10n.YearFilter.all).tag(nil as Int?)
                 ForEach(session.availableYears, id: \.self) { Text($0, format: .number.grouping(.never)).tag(Optional($0)) }
             }
+            .photoFormMenuPickerStyle()
         }
         if session.displayMode == .heatmap {
-            Section("sidebar.display.mode") {
-                LabeledContent("map.heat.radius") {
-                    Slider(value: $session.options.heatRadius, in: 32...120)
-                        .accessibilityLabel(Text("map.heat.radius"))
-                }
-                LabeledContent("map.heat.opacity") {
-                    Slider(value: $session.options.heatOpacity, in: 0.3...1)
-                        .accessibilityLabel(Text("map.heat.opacity"))
-                }
+            Section("map.heat.radius") {
+                PhotoFormSlider(title: "map.heat.radius", value: $session.options.heatRadius, range: 32...120,
+                    minimumLabel: "map.heat.radius.minimum", maximumLabel: "map.heat.radius.maximum", showsTitle: false)
+            }
+            Section("map.heat.opacity") {
+                PhotoFormSlider(title: "map.heat.opacity", value: $session.options.heatOpacity, range: 0.3...1,
+                    minimumLabel: "map.heat.opacity.minimum", maximumLabel: "map.heat.opacity.maximum", showsTitle: false)
             }
         }
         Section {
@@ -54,6 +49,7 @@ struct MapOptionsView: View {
                 Text("map.coordinates.gcj02").tag(MapCoordinateSystem.gcj02)
                 Text("map.coordinates.wgs84").tag(MapCoordinateSystem.wgs84)
             }
+            .photoFormMenuPickerStyle()
         } footer: {
             Text("map.coordinates.description")
         }
@@ -61,6 +57,7 @@ struct MapOptionsView: View {
             Picker("map.appearance", selection: $session.options.appearance) {
                 ForEach(MapAppearance.allCases) { Text($0.title).tag($0) }
             }
+            .photoFormMenuPickerStyle()
             Group {
                 Toggle("map.traffic", isOn: $session.options.traffic)
                 Toggle("map.points", isOn: $session.options.pointsOfInterest)

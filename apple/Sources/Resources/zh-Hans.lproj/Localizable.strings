@@ -8,6 +8,7 @@
 // MARK: - App General
 "app.title" = "Fuyao Photos";
 "done" = "完成";
+"close" = "关闭";
 "loading" = "加载中...";
 "all" = "全部";
 
@@ -651,3 +652,9 @@
 "lens.row.actions" = "镜头操作";
 "lens.device.sharedName" = "同一 EXIF 型号的镜头共用产品名称。应用名称修改时，会同步更新该设备的整组镜头。";
 "lens.import.capacity" = "加入此配置后将超过 64 个镜头的上限。请先从列表中移除不需要的镜头，再导入此配置。";
+"map.heat.radius.minimum" = "小";
+"map.heat.radius.maximum" = "大";
+"map.heat.opacity.minimum" = "低";
+"map.heat.opacity.maximum" = "高";
+"card.save.quality.minimum" = "文件较小";
+"card.save.quality.maximum" = "画质较高";
