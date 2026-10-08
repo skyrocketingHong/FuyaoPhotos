@@ -25,6 +25,8 @@ struct TelegramDustView: View {
     @State private var ready = false
 
     var body: some View {
+        let reveal: (@MainActor @Sendable () -> Void)? = onReveal
+        let unavailable: (@MainActor @Sendable () -> Void)? = onUnavailable
         ZStack {
             if !ready {
                 Image(decorative: image, scale: 1)
@@ -32,7 +34,7 @@ struct TelegramDustView: View {
                     .frame(width: sourceSize.width, height: sourceSize.height)
             }
             DustMetalSurface(image: image, sourceSize: sourceSize, playbackPermit: playbackPermit,
-                onReady: { ready = true }, onReveal: onReveal, onUnavailable: onUnavailable)
+                onReady: { ready = true }, onReveal: reveal, onUnavailable: unavailable)
         }
         .frame(width: sourceSize.width + Self.overflow * 2,
                height: sourceSize.height + Self.overflow * 2)
@@ -51,8 +53,11 @@ private struct DustMetalSurface {
 
     func makeCoordinator() -> DustMetalRenderer? {
         if let playbackPermit, !playbackPermit.claim() { return nil }
-        return DustMetalRenderer(image: image, sourceSize: sourceSize, onReady: onReady,
-            onReveal: onReveal, onUnavailable: onUnavailable)
+        let ready: @MainActor @Sendable () -> Void = onReady
+        let reveal: (@MainActor @Sendable () -> Void)? = onReveal
+        let unavailable: (@MainActor @Sendable () -> Void)? = onUnavailable
+        return DustMetalRenderer(image: image, sourceSize: sourceSize, onReady: ready,
+            onReveal: reveal, onUnavailable: unavailable)
     }
 
     private func makeView(_ coordinator: DustMetalRenderer?) -> MTKView {
