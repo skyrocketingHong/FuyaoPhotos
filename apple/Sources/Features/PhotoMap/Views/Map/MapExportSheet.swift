@@ -12,6 +12,8 @@ struct MapExportSheet: View {
     @State private var exportName = "FuyaoPhotos-Map"
     @State private var saveFailed = false
     @State private var saved = false
+    @State private var fullScreen = false
+    @Namespace private var previewTransition
 
     @MainActor init(session: MapSession) {
         _state = State(initialValue: MapExportState(session: session))
@@ -19,41 +21,25 @@ struct MapExportSheet: View {
     }
 
     var body: some View {
-        @Bindable var state = state
         NavigationStack {
-            GeometryReader { geometry in
-                if geometry.size.width >= 900 && !dynamicTypeSize.isAccessibilitySize {
-                    HStack(alignment: .top, spacing: 0) {
-                        ScrollView { previewContent.padding(20) }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        Form { configurationSections(settings: $state.settings) }
-                            .photoPageForm()
-                            .frame(width: 380)
-                    }
-                } else {
-                    Form {
-                        Section("map.export.preview") { previewContent }
-                        configurationSections(settings: $state.settings)
-                    }
-                    .photoPageForm()
-                }
+#if os(macOS)
+            if fullScreen, let artifact = state.artifact {
+                MapExportFullPreview(artifact: artifact, close: { fullScreen = false })
+            } else {
+                workspace
             }
-            .navigationTitle("map.export.title")
-#if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
+#else
+            workspace
+                .navigationDestination(isPresented: $fullScreen) {
+                    if let artifact = state.artifact {
+                        MapExportFullPreview(artifact: artifact)
+                            .navigationTransition(.zoom(sourceID: artifact.url, in: previewTransition))
+                    }
+                }
 #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("close", systemImage: "xmark") { state.cancel(); dismiss() }
-                        .labelStyle(.iconOnly)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(state.artifact == nil ? "map.export.generate" : "map.export.regenerate", action: generate)
-                        .disabled(state.busy)
-                }
-            }
         }
         .modifier(NativePresentationDefaults())
+        .background { MapExportRenderingContextBridge(context: state.renderingContext).frame(width: 0, height: 0) }
         .onChange(of: state.settings) { _, _ in
             state.invalidate()
             saved = false
@@ -71,6 +57,9 @@ struct MapExportSheet: View {
         .alert("map.export.save.failed", isPresented: $saveFailed) {
             Button("done", role: .cancel) {}
         }
+        .alert("map.export.saved", isPresented: $saved) {
+            Button("done", role: .cancel) {}
+        }
 #if os(macOS)
         .frame(minWidth: 680, idealWidth: 1020, minHeight: 560, idealHeight: 780)
         .presentationSizing(.fitted)
@@ -80,150 +69,89 @@ struct MapExportSheet: View {
 #endif
     }
 
-    @ViewBuilder
-    private func configurationSections(settings: Binding<MapExportSettings>) -> some View {
-        Section {
-            LabeledContent("year.filter.title") {
-                if let selectedYear { Text(selectedYear, format: .number.grouping(.never)) }
-                else { Text("year.filter.all") }
+    private var workspace: some View {
+        GeometryReader { geometry in
+            let available = CGSize(width: dynamicTypeSize.isAccessibilitySize
+                ? min(geometry.size.width, PhotoPreviewMetrics.columnWidth) : geometry.size.width,
+                height: geometry.size.height)
+            let metrics = PhotoPreviewMetrics(available: available, compactImageAspectRatio: 1)
+            PhotoPreviewPage(sourceURL: state.artifact?.url, metrics: metrics, imageAspectRatio: 1) {
+                MapExportPreview(state: state, transition: previewTransition)
+            } accessories: {
+                MapExportPreviewActions(artifact: state.artifact, busy: state.busy,
+                    generate: generate, cancel: state.cancel,
+                    fullScreen: { fullScreen = true }, save: save)
+            } content: {
+                MapExportConfiguration(state: state, selectedYear: selectedYear)
             }
-            Picker("map.export.scope", selection: settings.scope) {
-                ForEach(MapExportScopeChoice.allCases) { choice in
-                    Text(choice.title).tag(choice)
-                }
-            }
-            .photoFormMenuPickerStyle()
-            Picker("map.export.size", selection: settings.resolution) {
-                ForEach(Array(MapExportResolution.allCases), id: \.rawValue) { resolution in
-                    Text(String(format: String.localized("map.export.size.value"),
-                        Int64(resolution.rawValue), Int64(resolution.rawValue)))
-                        .tag(resolution)
-                }
-            }
-            .photoFormMenuPickerStyle()
-            Picker("map.appearance", selection: settings.mapOptions.appearance) {
-                ForEach(MapAppearance.allCases) { Text($0.title).tag($0) }
-            }
-            .photoFormMenuPickerStyle()
-        } footer: {
-            Text("map.export.options.description")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .disabled(state.busy)
-        Section("sidebar.map.style") {
-            MapStyleChoiceGrid(selection: settings.mapOptions.style, appearance: settings.wrappedValue.mapOptions.appearance)
-        }
-        .disabled(state.busy)
-        Section("sidebar.display.mode") {
-            MapDisplayModeChoiceGrid(selection: settings.displayMode)
-        }
-        .disabled(state.busy)
-    }
-
-    @ViewBuilder
-    private var previewContent: some View {
-        if let artifact = state.artifact {
-            VStack(alignment: .leading, spacing: 12) {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline) {
-                        resultCount(artifact)
-                        Spacer(minLength: 12)
-                        Text(artifact.yearSpan).foregroundStyle(.secondary)
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        resultCount(artifact)
-                        Text(artifact.yearSpan).foregroundStyle(.secondary)
-                    }
-                }
-                .font(.subheadline)
-                Image(decorative: artifact.image, scale: 1)
-                    .resizable().scaledToFit()
-                    .accessibilityLabel(Text("map.export.preview"))
-                Text(String(format: String.localized("map.export.size.value"),
-                    Int64(artifact.pixelSize), Int64(artifact.pixelSize)))
-                    .font(.footnote).foregroundStyle(.secondary)
-                if state.busy {
-                    generationProgress
-                    Button("map.export.cancel", action: state.cancel)
-                }
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 12) { resultActions(artifact) }
-                    VStack(alignment: .leading, spacing: 12) { resultActions(artifact) }
-                }
-                .buttonStyle(.bordered)
-                .disabled(state.busy)
-                if saved {
-                    Label("map.export.saved", systemImage: "checkmark.circle")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }
-                if let error = state.errorMessage {
-                    Text(error).font(.footnote).foregroundStyle(.secondary)
-                }
+        .navigationTitle("map.export.title")
+#if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+#endif
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("close", systemImage: "xmark") { state.cancel(); dismiss() }
+                    .labelStyle(.iconOnly)
             }
-        } else {
-            ZStack {
-                Rectangle().fill(.fill.quaternary)
-                if state.busy {
-                    VStack(spacing: 12) {
-                        generationProgress
-                        Button("map.export.cancel", action: state.cancel)
-                    }
-                    .padding(20)
-                } else if let error = state.errorMessage {
-                    ContentUnavailableView {
-                        Label("map.export.failed", systemImage: "exclamationmark.triangle")
-                    } description: {
-                        Text(error)
-                    } actions: {
-                        Button("action.retry", action: generate)
-                    }
-                } else {
-                    ContentUnavailableView("map.export.preview.empty", systemImage: "map",
-                        description: Text("map.export.preview.description"))
-                }
-            }
-            .aspectRatio(1, contentMode: .fit)
         }
     }
 
-    private func resultCount(_ artifact: MapExportArtifact) -> some View {
-        Text(String(format: String.localized("map.export.header.count"), Int64(artifact.totalCount)))
-            .monospacedDigit()
-    }
-
-    @ViewBuilder
-    private func resultActions(_ artifact: MapExportArtifact) -> some View {
-        ShareLink(item: artifact, preview: SharePreview(Text("map.export.title"),
-            image: Image(decorative: artifact.image, scale: 1))) {
-                Label("card.share", systemImage: "square.and.arrow.up")
-            }
-        Button {
-            exportDocument = MapExportPNGDocument(data: artifact.data)
-            exportName = artifact.url.deletingPathExtension().lastPathComponent
-            exporting = true
-        } label: {
-            Label("map.export.save", systemImage: "square.and.arrow.down")
-        }
-    }
-
-    @ViewBuilder
-    private var generationProgress: some View {
-        switch state.stage {
-        case .collecting:
-            ProgressView("map.export.stage.collecting")
-        case .map:
-            ProgressView("map.export.stage.map")
-        case let .markers(completed, total):
-            ProgressView(value: Double(completed), total: Double(max(1, total))) {
-                Text(String(format: String.localized("map.export.stage.markers"), Int64(completed), Int64(total)))
-            }
-        case .compositing:
-            ProgressView("map.export.stage.compositing")
-        }
+    private func save(_ artifact: MapExportArtifact) {
+        exportDocument = MapExportPNGDocument(data: artifact.data)
+        exportName = artifact.url.deletingPathExtension().lastPathComponent
+        exporting = true
     }
 
     private func generate() {
         saved = false
         Task { await state.generate(colorScheme: colorScheme) }
+    }
+}
+
+private struct MapExportConfiguration: View {
+    @Bindable var state: MapExportState
+    let selectedYear: Int?
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent("year.filter.title") {
+                    if let selectedYear { Text(selectedYear, format: .number.grouping(.never)) }
+                    else { Text("year.filter.all") }
+                }
+                Picker("map.export.scope", selection: $state.settings.scope) {
+                    ForEach(MapExportScopeChoice.allCases) { choice in
+                        Text(choice.title).tag(choice)
+                    }
+                }
+                .photoFormMenuPickerStyle()
+                Picker("map.export.size", selection: $state.settings.resolution) {
+                    ForEach(Array(MapExportResolution.allCases), id: \.rawValue) { resolution in
+                        Text(String(format: String.localized("map.export.size.value"),
+                            Int64(resolution.rawValue), Int64(resolution.rawValue)))
+                            .tag(resolution)
+                    }
+                }
+                .photoFormMenuPickerStyle()
+                Picker("map.appearance", selection: $state.settings.mapOptions.appearance) {
+                    ForEach(MapAppearance.allCases) { Text($0.title).tag($0) }
+                }
+                .photoFormMenuPickerStyle()
+            } footer: {
+                Text("map.export.options.description")
+            }
+            Section("sidebar.map.style") {
+                MapStyleChoiceGrid(selection: $state.settings.mapOptions.style,
+                    appearance: state.settings.mapOptions.appearance)
+            }
+            Section("sidebar.display.mode") {
+                MapDisplayModeChoiceGrid(selection: $state.settings.displayMode)
+            }
+        }
+        .photoPageForm()
+        .disabled(state.busy)
     }
 }
 

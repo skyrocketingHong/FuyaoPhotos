@@ -14,6 +14,17 @@ struct PhotoPreviewMetricsTests {
         #expect(large.width + large.inspectorWidth == 1500)
     }
 
+    @Test func squarePreviewFitsBothDimensionsWithoutChangingPhotoDefaults() {
+        let available = CGSize(width: 390, height: 760)
+        let square = PhotoPreviewMetrics(available: available, compactImageAspectRatio: 1)
+        let photo = PhotoPreviewMetrics(available: available)
+        #expect(square.imageHeight == square.width - 2 * PhotoPreviewMetrics.pageMargin)
+        #expect(square.imageHeight > photo.imageHeight)
+        let short = PhotoPreviewMetrics(available: CGSize(width: 390, height: 400), compactImageAspectRatio: 1)
+        #expect(short.imageHeight < square.imageHeight)
+        #expect(short.imageHeight + short.accessoryHeight + 8 <= 400)
+    }
+
     @Test func compactAndShortWindowsKeepNonnegativeGeometry() {
         let compact = PhotoPreviewMetrics(available: CGSize(width: 390, height: 760))
         #expect(!compact.isWide && compact.width == 390)

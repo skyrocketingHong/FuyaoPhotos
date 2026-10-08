@@ -100,53 +100,6 @@ import CoreText
         }
     }
 
-    func drawHeader(snapshot: MapExportSnapshot, projection: MapExportProjection) throws {
-        let count = String(format: String.localized("map.export.header.count"), Int64(snapshot.totalCount))
-        let years: String
-        if let minimum = snapshot.minYear, let maximum = snapshot.maxYear {
-            years = minimum == maximum ? String(minimum) : "\(minimum)-\(maximum)"
-        } else {
-            years = String.localized("map.export.header.years.unknown")
-        }
-        let countWidth = max(textWidth(count, size: 16, bold: true), textWidth(years, size: 12))
-        fill(CGRect(x: 20, y: 20, width: countWidth + 28, height: 44), radius: 16, color: surface)
-        text(count, at: CGPoint(x: 34, y: 25), size: 16, bold: true)
-        text(years, at: CGPoint(x: 34, y: 45), size: 12)
-        drawScale(projection: projection)
-        let compass = try MapExportNativeArtwork.compass(colorScheme: colorScheme, scale: scale)
-        draw(compass, in: CGRect(x: 448, y: 20, width: 44, height: 44))
-    }
-
-    private func drawScale(projection: MapExportProjection) {
-        let metersPerPoint = MKMetersPerMapPointAtLatitude(projection.centerMapPoint.coordinate.latitude)
-            * projection.mapPointsPerPoint
-        let maximum = metersPerPoint * 88
-        let power = pow(10, floor(log10(maximum)))
-        let units = maximum / power
-        let step = units >= 5 ? 5.0 : (units >= 2 ? 2.0 : 1.0)
-        let meters = step * power
-        let width = meters / metersPerPoint
-        let distance = Measurement(value: meters >= 1_000 ? meters / 1_000 : meters,
-                                   unit: meters >= 1_000 ? UnitLength.kilometers : UnitLength.meters)
-        let formatter = MeasurementFormatter()
-        formatter.unitOptions = .providedUnit
-        formatter.unitStyle = .short
-        formatter.numberFormatter.maximumFractionDigits = meters < 1 ? 2 : 0
-        let label = formatter.string(from: distance)
-        let centerX = 382.0
-        fill(CGRect(x: 324, y: 20, width: 112, height: 44), radius: 12, color: surface)
-        text(label, at: CGPoint(x: centerX, y: 25), size: 12, bold: true, centered: true)
-        context.setStrokeColor(ink)
-        context.setLineWidth(1.5)
-        let left = centerX - width / 2
-        let right = centerX + width / 2
-        context.move(to: CGPoint(x: left, y: 46))
-        context.addLine(to: CGPoint(x: left, y: 52))
-        context.addLine(to: CGPoint(x: right, y: 52))
-        context.addLine(to: CGPoint(x: right, y: 46))
-        context.strokePath()
-    }
-
     func drawAttribution() {
         let label = "Apple Maps"
         let width = textWidth(label, size: 10) + 12

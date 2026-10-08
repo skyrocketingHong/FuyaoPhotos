@@ -4,31 +4,12 @@ struct MapHeader<Controls: View>: View {
     let count: Int?
     var reservesNativeScale = false
     @ViewBuilder var controls: Controls
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
             if let count {
-                VStack(spacing: 0) {
-                    Text(count, format: .number)
-                        .font(.title3.weight(.semibold).monospacedDigit())
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.4)
-                        .allowsTightening(true)
-                        .contentTransition(.numericText(value: Double(count)))
-                        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: count)
-                    Text("photo.count.unit")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 2)
-                .frame(maxWidth: 140)
-                .frame(maxHeight: .infinity)
-                .glassEffect(in: .capsule)
-                .layoutPriority(1)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Text("photo.count.visible \(count)"))
+                MapPhotoCountBadge(count: count)
+                    .layoutPriority(1)
             }
             Spacer(minLength: 8)
             HStack(alignment: .center, spacing: 8) { controls }
@@ -38,6 +19,33 @@ struct MapHeader<Controls: View>: View {
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 20)
         .padding(.top, reservesNativeScale ? 56 : 12)
+    }
+}
+
+struct MapPhotoCountBadge: View {
+    let count: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(count, format: .number)
+                .font(.title3.weight(.semibold).monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.4)
+                .allowsTightening(true)
+                .contentTransition(.numericText(value: Double(count)))
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: count)
+            Text(verbatim: String.localized("photo.count.unit"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 2)
+        .frame(maxWidth: 140)
+        .frame(maxHeight: .infinity)
+        .glassEffect(.regular, in: .capsule)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("photo.count.visible \(count)"))
     }
 }
 

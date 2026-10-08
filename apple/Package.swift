@@ -6,6 +6,13 @@ let package = Package(
     platforms: [.macOS("26.0"), .iOS("26.0")],
     products: [.library(name: "PhotoRenderingCore", targets: ["PhotoRenderingCore"])],
     targets: [
+        .target(name: "PhotoMapExportBitmapCore", path: "Sources/Features/PhotoMap/Export",
+            exclude: ["MapExportTypes.swift", "MapExportState.swift", "MapExportRenderer.swift",
+                      "MapExportRendererCanvas.swift", "MapExportRendererNative.swift", "MapExportHeaderArtwork.swift",
+                      "MapExportGlassRenderer.swift", "MapExportRenderingContext.swift"],
+            sources: ["MapExportBitmap.swift"]),
+        .testTarget(name: "PhotoMapExportTests", dependencies: ["PhotoMapExportBitmapCore"],
+                    path: "Tests/PhotoMapExportTests"),
         .target(name: "PhotoMotionCore", path: "Sources/DesignSystem/Motion", exclude: ["Dust"]),
         .testTarget(name: "PhotoMotionTests", dependencies: ["PhotoMotionCore"], path: "Tests/PhotoMotionTests"),
         .target(name: "PhotoColorsCore", path: "Sources/Features/Colors/Models", resources: [.process("Resources")]),

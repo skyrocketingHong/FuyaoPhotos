@@ -10,6 +10,7 @@ import UIKit
 #endif
 
 @MainActor @Observable final class MapExportState {
+    let renderingContext = MapExportRenderingContext()
     var settings: MapExportSettings
     private(set) var busy = false
     private(set) var stage = MapExportRenderStage.collecting
@@ -40,6 +41,7 @@ import UIKit
         let token = UUID()
         generation = token
         let settings = settings
+        let context = renderingContext
         let scope: MapExportScope = settings.scope == .allFiltered ? .allFiltered : .viewport(viewport)
         let scheme = settings.mapOptions.appearance.colorScheme ?? colorScheme
         errorMessage = nil
@@ -59,7 +61,7 @@ import UIKit
                 }, progress: { [weak self] stage in
                     guard let self, self.generation == token else { return }
                     self.stage = stage
-                })
+                }, renderingContext: context)
             try await library.validateExportSnapshot(snapshot)
             try Task.checkCancellation()
             guard rendered.image.width == settings.resolution.rawValue,

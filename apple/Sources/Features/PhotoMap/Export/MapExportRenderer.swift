@@ -12,8 +12,10 @@ import UniformTypeIdentifiers
         settings: MapExportSettings,
         colorScheme: ColorScheme,
         thumbnail: @escaping @MainActor (String, Int) async throws -> CGImage?,
-        progress: @escaping @MainActor (MapExportRenderStage) -> Void
+        progress: @escaping @MainActor (MapExportRenderStage) -> Void,
+        renderingContext: MapExportRenderingContext? = nil
     ) async throws -> MapExportRenderedImage {
+        let renderingContext = renderingContext ?? MapExportRenderingContext()
         guard snapshot.totalCount > 0 else { throw MapExportError.empty }
         try Task.checkCancellation()
         let radius = min(120, max(32, settings.mapOptions.heatRadius))
@@ -63,9 +65,9 @@ import UniformTypeIdentifiers
         }
         progress(.compositing)
         try Task.checkCancellation()
-        try canvas.drawHeader(snapshot: snapshot, projection: projection)
         canvas.drawAttribution()
-        let image = try canvas.finish()
+        let image = try await MapExportHeaderArtwork.render(background: canvas.finish(), snapshot: snapshot,
+            projection: projection, scale: canvas.scale, colorScheme: colorScheme, context: renderingContext)
         let data = try await encode(image)
         try Task.checkCancellation()
         return MapExportRenderedImage(pngData: data, image: image)
@@ -130,7 +132,15 @@ import UniformTypeIdentifiers
                 }
                 try verifyCenterMapping(of: snapshot, originX: originX, originY: originY,
                     tileSpan: tileSpan, tilePoints: tilePoints)
+#if os(macOS)
                 guard let cgImage = snapshot.exportCGImage else { throw MapExportError.imageFailed }
+#else
+                // UIImage.cgImage ignores imageOrientation; device snapshots can carry
+                // flipped backing data, so redraw through UIImage to normalize first.
+                guard let cgImage = Self.normalizedTileBitmap(of: snapshot.image) else {
+                    throw MapExportError.imageFailed
+                }
+#endif
                 pieces.append((CGRect(x: CGFloat(column * tilePixels), y: CGFloat(row * tilePixels),
                     width: CGFloat(tilePixels), height: CGFloat(tilePixels)), cgImage))
             }
@@ -160,6 +170,17 @@ import UniformTypeIdentifiers
     static func mercatorLatitude(y fraction: Double) -> Double {
         atan(sinh(.pi * (1 - 2 * fraction))) * 180 / .pi
     }
+
+    #if os(iOS)
+    private static func normalizedTileBitmap(of image: UIImage) -> CGImage? {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }.cgImage
+    }
+    #endif
 
     @concurrent private static func encode(_ image: CGImage) async throws -> Data {
         try Task.checkCancellation()
@@ -197,44 +218,10 @@ extension MKMapSnapshotter.Snapshot {
 
     init(stitching pieces: [(rect: CGRect, cgImage: CGImage)], pixels: Int,
          originX: Double, originY: Double, span: Double) throws {
-        guard pieces.allSatisfy({ $0.cgImage.width > 0 && $0.cgImage.height > 0 }),
-              let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
-              let context = CGContext(data: nil, width: pixels, height: pixels, bitsPerComponent: 8,
-                bytesPerRow: 0, space: colorSpace,
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        else { throw MapExportError.imageFailed }
-        context.interpolationQuality = .none
-        // Match MapExportCanvas.draw's flipped-context placement so tiles and the final
-        // canvas share one orientation: row 0 is the northern half of the window.
-        context.translateBy(x: 0, y: CGFloat(pixels))
-        context.scaleBy(x: 1, y: -1)
-        for piece in pieces {
-            guard let scaled = piece.cgImage.scaled(toFill: piece.rect.size) else {
-                throw MapExportError.imageFailed
-            }
-            context.draw(scaled, in: piece.rect)
-        }
-        guard let composite = context.makeImage() else { throw MapExportError.imageFailed }
-        self.cgImage = composite
+        self.cgImage = try MapExportBitmap.stitch(pieces, pixels: pixels)
         self.originX = originX
         self.originY = originY
         self.span = span
-    }
-}
-
-extension CGImage {
-    /// Tiles carry their own pixel density; normalize them to the export resolution before
-    /// stitching so seam columns stay aligned without subpixel resampling.
-    func scaled(toFill size: CGSize) -> CGImage? {
-        guard width != Int(size.width.rounded()) || height != Int(size.height.rounded()) else { return self }
-        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
-              let context = CGContext(data: nil, width: Int(size.width.rounded()),
-                height: Int(size.height.rounded()), bitsPerComponent: 8, bytesPerRow: 0,
-                space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        else { return nil }
-        context.interpolationQuality = .high
-        context.draw(self, in: CGRect(origin: .zero, size: size))
-        return context.makeImage()
     }
 }
 

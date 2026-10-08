@@ -254,87 +254,9 @@ struct CardFullPreview: View {
             }.onEnded { _ in committedZoom = zoom })
         }
 #else
-        CardZoomablePreview(document: document, hdr: hdr, original: original, resetVersion: resetVersion)
+        NativeZoomablePreview(resetVersion: resetVersion) {
+            CardPreviewImage(document: document, hdr: hdr, fullResolution: true, original: original)
+        }
 #endif
     }
 }
-
-#if !os(macOS)
-private struct CardZoomablePreview: UIViewControllerRepresentable {
-    let document: CardDocument
-    let hdr: Bool
-    let original: Bool
-    let resetVersion: Int
-
-    func makeUIViewController(context: Context) -> CardZoomController {
-        CardZoomController(preview: CardPreviewImage(document: document, hdr: hdr,
-                                                     fullResolution: true, original: original))
-    }
-
-    func updateUIViewController(_ controller: CardZoomController, context: Context) {
-        controller.preview = CardPreviewImage(document: document, hdr: hdr,
-                                               fullResolution: true, original: original)
-        controller.resetZoom(ifNeededFor: resetVersion)
-    }
-}
-
-private final class CardZoomController: UIViewController, UIScrollViewDelegate {
-    private let scrollView = UIScrollView()
-    private let previewController: UIHostingController<CardPreviewImage>
-    private var lastSize: CGSize = .zero
-    private var lastResetVersion = 0
-
-    var preview: CardPreviewImage {
-        get { previewController.rootView }
-        set { previewController.rootView = newValue }
-    }
-
-    init(preview: CardPreviewImage) {
-        previewController = UIHostingController(rootView: preview)
-        super.init(nibName: nil, bundle: nil)
-    }
-
-    @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .clear
-        scrollView.backgroundColor = .clear
-        previewController.view.backgroundColor = .clear
-        scrollView.minimumZoomScale = 1
-        scrollView.maximumZoomScale = 8
-        scrollView.bouncesZoom = true
-        scrollView.delegate = self
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(scrollView)
-        NSLayoutConstraint.activate([
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
-
-        addChild(previewController)
-        scrollView.addSubview(previewController.view)
-        previewController.didMove(toParent: self)
-    }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        let size = scrollView.bounds.size
-        guard size.width > 0, size.height > 0, size != lastSize else { return }
-        lastSize = size
-        scrollView.setZoomScale(1, animated: false)
-        previewController.view.frame = CGRect(origin: .zero, size: size)
-        scrollView.contentSize = size
-    }
-
-    func resetZoom(ifNeededFor version: Int) {
-        guard version != lastResetVersion else { return }
-        lastResetVersion = version
-        scrollView.setZoomScale(1, animated: true)
-    }
-
-    func viewForZooming(in scrollView: UIScrollView) -> UIView? { previewController.view }
-}
-#endif
