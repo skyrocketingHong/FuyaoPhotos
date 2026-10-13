@@ -53,6 +53,7 @@ struct ColorsScreen: View {
                             }
                         } else {
                             Form { results }.photoPageForm().scrollContentBackground(.hidden)
+                                .contentMargins(.top, metrics.isWide ? nil : 0, for: .scrollContent)
                                 .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: sampling.sample != nil)
                         }
                     }

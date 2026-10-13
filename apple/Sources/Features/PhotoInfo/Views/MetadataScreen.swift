@@ -182,10 +182,14 @@ struct MetadataScreen: View {
     }
 
     private func detailsForm(_ document: CardDocument) -> some View {
-        Form { details(document) }
-            .photoPageForm()
-            .scrollContentBackground(.hidden)
-            .safeAreaBar(edge: .top, spacing: 0) { modeControls }
+        VStack(spacing: 0) {
+            modeControls
+            Form { details(document) }
+                .photoPageForm()
+                .scrollContentBackground(.hidden)
+                .contentMargins(.top, 0, for: .scrollContent)
+                .clipped()
+        }
     }
 
     @ViewBuilder private func details(_ document: CardDocument) -> some View {

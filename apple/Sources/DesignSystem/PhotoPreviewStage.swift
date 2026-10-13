@@ -77,8 +77,9 @@ struct PhotoPreviewPage<Media: View, Accessories: View, Content: View>: View {
             VStack(spacing: 0) {
                 stage.mediaColumn
                     .padding(.bottom, 8)
+                stage.accessoryBar
                 content()
-                    .safeAreaBar(edge: .top, spacing: 0) { stage.accessoryBar }
+                    .clipped()
             }
         }
     }
