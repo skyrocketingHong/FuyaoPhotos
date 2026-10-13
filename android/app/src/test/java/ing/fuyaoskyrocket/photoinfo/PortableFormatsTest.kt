@@ -1,6 +1,7 @@
 package ing.fuyaoskyrocket.photoinfo
 
 import ing.fuyaoskyrocket.photoinfo.domain.lens.LensProfileFile
+import ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoReassemblyGeometry
 import ing.fuyaoskyrocket.photoinfo.domain.media.*
 import ing.fuyaoskyrocket.photoinfo.domain.model.ExportOptions
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.CaptureMakerNote
@@ -18,6 +19,21 @@ import java.io.File
 
 /** Runs in testAndroidDom, with Android's real JSON/DOM implementation. */
 class PortableFormatsTest {
+    @Test fun bothPlatformsFollowTheSharedHighPrecisionReference() {
+        val fixture = JSONObject(File(root(), "shared/motion/reassembly-progress.json").readText())
+        val tolerance = fixture.getDouble("absoluteTolerance")
+        val samples = fixture.getJSONArray("samples")
+        for (index in 0 until samples.length()) {
+            val sample = samples.getJSONObject(index)
+            val t = sample.getDouble("t").toFloat()
+            val actual = PhotoReassemblyGeometry.progress(t)
+            for ((name, value) in listOf("travel" to actual.travel, "scatter" to actual.scatter,
+                "color" to actual.color, "cellScale" to actual.cellScale)) {
+                assertEquals("$name at t=$t", sample.getDouble(name), value.toDouble(), tolerance)
+            }
+        }
+    }
+
     @Test fun xiaomiPrivatePacketReadsOnlyAnExplicitStyleName() {
         val json = File(root(), "shared/fixtures/xiaomi-style-standard.json").readBytes()
         val packet = XiaomiPhotographicStyleReader.prefix + byteArrayOf(1, 1) + json

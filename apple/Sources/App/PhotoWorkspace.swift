@@ -25,15 +25,24 @@ import SwiftUI
             }
         }
     }
-    var showingPackagePicker = false
+    var showingPackagePicker = false {
+        willSet {
+            if newValue, !showingPackagePicker { cancelImportDepartures() }
+        }
+    }
     var incomingPackage: PackageImportRequest?
     private var packageQueue: [URL] = []
     func importPackage(_ url: URL) {
+        cancelImportDepartures()
         if incomingPackage == nil { incomingPackage = PackageImportRequest(url: url) }
         else if packageQueue.count < 50 { packageQueue.append(url) }
     }
     func nextPackage() {
         if !packageQueue.isEmpty { incomingPackage = PackageImportRequest(url: packageQueue.removeFirst()) }
+    }
+
+    private func cancelImportDepartures() {
+        for session in [cards, metadataSession, colorsSession] { session.cancelDeparturePresentation() }
     }
     var pendingAssetIDs: [String]?
     /// Photos handed off from another tab for the metadata page to open.

@@ -16,6 +16,15 @@ object PhotoMotionTokens {
     const val reassemblyMaxParticles = 24000
     const val reassemblyScatter = 0.12f
     const val reassemblyTravelStart = 0.22f
+    const val reassemblySettleStart = 0.9f
     const val reassemblyColorStart = 0.35f
     const val reassemblyColorEnd = 0.88f
+    const val reassemblyScatterCurveX1 = 0.23f
+    const val reassemblyScatterCurveY1 = 1.0f
+    const val reassemblyScatterCurveX2 = 0.32f
+    const val reassemblyScatterCurveY2 = 1.0f
+    const val reassemblyTravelCurveX1 = 0.77f
+    const val reassemblyTravelCurveY1 = 0.0f
+    const val reassemblyTravelCurveX2 = 0.175f
+    const val reassemblyTravelCurveY2 = 1.0f
 }

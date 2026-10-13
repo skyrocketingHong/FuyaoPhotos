@@ -8,10 +8,71 @@ import UIKit
 #endif
 
 struct PhotoImportTransitionTarget {
-    let requestID: UUID
+    let attempt: PhotoImportTargetLifecycle.Attempt
     let image: CGImage
     let frame: CGRect
     let contentFrame: CGRect
+    let appearance: PhotoImportAppearance
+    var requestID: UUID { attempt.requestID }
+}
+
+struct PhotoImportAppearance: Equatable {
+    let colorScheme: ColorScheme
+    let contrast: ColorSchemeContrast
+    let dynamicTypeSize: DynamicTypeSize
+    let localeIdentifier: String
+    let layoutDirection: LayoutDirection
+    let displayScale: CGFloat
+    let reduceTransparency: Bool
+    let legibilityWeight: LegibilityWeight?
+    let font: Font?
+    let enabled: Bool
+    let accent: SIMD4<Float>
+#if os(macOS)
+    let controlActiveState: ControlActiveState
+#endif
+
+    init(environment: EnvironmentValues) {
+        colorScheme = environment.colorScheme
+        contrast = environment.colorSchemeContrast
+        dynamicTypeSize = environment.dynamicTypeSize
+        localeIdentifier = environment.locale.identifier
+        layoutDirection = environment.layoutDirection
+        displayScale = environment.displayScale
+        reduceTransparency = environment.accessibilityReduceTransparency
+        legibilityWeight = environment.legibilityWeight
+        font = environment.font
+        enabled = environment.isEnabled
+        let color = Color.accentColor.resolve(in: environment)
+        accent = SIMD4(color.red, color.green, color.blue, color.opacity)
+#if os(macOS)
+        controlActiveState = environment.controlActiveState
+#endif
+    }
+}
+
+struct PhotoImportSnapshotAppearance: ViewModifier {
+    let appearance: PhotoImportAppearance
+    var contentVisible = false
+
+    func body(content: Content) -> some View {
+        // Keep the new host's layout environment; only carry public appearance values across hosts.
+        content
+            .environment(\.colorScheme, appearance.colorScheme)
+            .environment(\.dynamicTypeSize, appearance.dynamicTypeSize)
+            .environment(\.locale, Locale(identifier: appearance.localeIdentifier))
+            .environment(\.layoutDirection, appearance.layoutDirection)
+            .environment(\.displayScale, appearance.displayScale)
+            .environment(\.legibilityWeight, appearance.legibilityWeight)
+            .environment(\.font, appearance.font)
+            .environment(\.isEnabled, appearance.enabled)
+            .environment(\.photoImportContentVisible, contentVisible)
+            .accentColor(Color(.sRGB, red: Double(appearance.accent.x), green: Double(appearance.accent.y),
+                blue: Double(appearance.accent.z), opacity: Double(appearance.accent.w)))
+#if os(macOS)
+            .environment(\.controlActiveState, appearance.controlActiveState)
+#endif
+    }
 }
 
 @MainActor @Observable final class PhotoImportTransitionCapture {
@@ -24,30 +85,43 @@ struct PhotoImportTransitionTarget {
     private(set) var target: PhotoImportTransitionTarget?
     private(set) var failedID: UUID?
     private(set) var liveContentFrame: CGRect?
+    @ObservationIgnored private var lifecycle = PhotoImportTargetLifecycle()
 
     func begin(id: UUID, deadline: ContinuousClock.Instant) {
+        lifecycle.begin(id: id)
         target = nil
         failedID = nil
         liveContentFrame = nil
         request = Request(id: id, deadline: deadline)
     }
 
+    func nextAttempt(id: UUID) -> PhotoImportTargetLifecycle.Attempt? {
+        guard let request, request.id == id, .now < request.deadline else { return nil }
+        return lifecycle.nextAttempt(id: id)
+    }
+
     func submit(_ value: PhotoImportTransitionTarget) {
         guard let request, request.id == value.requestID, .now < request.deadline,
-              target == nil else { return }
+              target == nil, lifecycle.complete(value.attempt) else { return }
         target = value
     }
 
     func cancel(id: UUID? = nil) {
         guard id == nil || request?.id == id else { return }
+        lifecycle.cancel(id: id)
         request = nil
         target = nil
         failedID = nil
         liveContentFrame = nil
     }
 
-    func fail(id: UUID) {
-        guard request?.id == id, target == nil else { return }
+    func fail(_ attempt: PhotoImportTargetLifecycle.Attempt) {
+        guard lifecycle.fail(attempt) else { return }
+        failedID = attempt.requestID
+    }
+
+    func invalidate(id: UUID) {
+        guard request?.id == id, lifecycle.cancel(id: id) else { return }
         failedID = id
     }
 
@@ -156,13 +230,14 @@ extension PhotoImportNativeContextReader: UIViewRepresentable {
         pointSize: CGSize,
         measurement: Measurement,
         colorScheme: ColorScheme,
+        displayScale: CGFloat,
         context: PhotoImportNativeContext,
         deadline: ContinuousClock.Instant
     ) async throws -> Snapshot {
         let foreground = try await render(content: content, pointSize: pointSize, measurement: measurement,
-            colorScheme: colorScheme, context: context, deadline: deadline)
+            colorScheme: colorScheme, displayScale: displayScale, context: context, deadline: deadline)
         let background = try await render(content: background, pointSize: pointSize, measurement: nil,
-            colorScheme: colorScheme, context: context, deadline: deadline)
+            colorScheme: colorScheme, displayScale: displayScale, context: context, deadline: deadline)
         try check(deadline)
         let contentPixels = CGRect(x: foreground.contentFrame.minX * foreground.scale,
             y: foreground.contentFrame.minY * foreground.scale, width: foreground.contentFrame.width * foreground.scale,
@@ -183,16 +258,18 @@ extension PhotoImportNativeContextReader: UIViewRepresentable {
         pointSize: CGSize,
         measurement: Measurement?,
         colorScheme: ColorScheme,
+        displayScale: CGFloat,
         context: PhotoImportNativeContext,
         deadline: ContinuousClock.Instant
     ) async throws -> RenderedForm {
         try check(deadline)
         guard pointSize.width.isFinite, pointSize.height.isFinite,
+              displayScale.isFinite, displayScale > 0,
               pointSize.width >= 8, pointSize.height >= 8,
               pointSize.width <= 16_384, pointSize.height <= 16_384,
               let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue(),
               let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else { throw Failure.unavailable }
-        let scale = min(2, sqrt(Double(PhotoMotionTokens.snapshotPixelLimit) / (pointSize.width * pointSize.height)))
+        let scale = min(displayScale, sqrt(Double(PhotoMotionTokens.snapshotPixelLimit) / (pointSize.width * pointSize.height)))
         let width = max(1, Int((pointSize.width * scale).rounded()))
         let height = max(1, Int((pointSize.height * scale).rounded()))
         guard width <= 8192, height <= 8192 else { throw Failure.invalidBounds }

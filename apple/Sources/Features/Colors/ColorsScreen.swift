@@ -260,6 +260,7 @@ struct ColorsScreen: View {
         }
     }
     private func request(_ input: Input, fromMenu: Bool = false) {
+        session.cancelDeparturePresentation()
         confirmationUsesMenu = fromMenu
         if session.current != nil {
             pendingInput = input; confirmReplace = true

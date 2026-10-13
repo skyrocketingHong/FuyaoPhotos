@@ -14,6 +14,32 @@ nonisolated public enum PhotoReassemblyGeometry {
         public let colorFraction: Float
     }
 
+    public struct Progress: Equatable, Sendable {
+        public let travel: Float
+        public let scatter: Float
+        public let color: Float
+        public let cellScale: Float
+    }
+
+    public static func progress(_ value: Float) -> Progress {
+        precondition(value.isFinite)
+        let t = min(1, max(0, value))
+        if t == 0 { return Progress(travel: 0, scatter: 0, color: 0, cellScale: 1) }
+        if t >= Float(PhotoMotionTokens.reassemblySettleStart) {
+            return Progress(travel: 1, scatter: 0, color: 1, cellScale: 1)
+        }
+        let travel = travelCurve(interval(t, Float(PhotoMotionTokens.reassemblyTravelStart), Float(PhotoMotionTokens.reassemblySettleStart)))
+        let scatter: Double
+        if t < Float(PhotoMotionTokens.reassemblyTravelStart) {
+            scatter = cubicBezier(interval(t, 0, Float(PhotoMotionTokens.reassemblyTravelStart)),
+                Float(PhotoMotionTokens.reassemblyScatterCurveX1), Float(PhotoMotionTokens.reassemblyScatterCurveY1),
+                Float(PhotoMotionTokens.reassemblyScatterCurveX2), Float(PhotoMotionTokens.reassemblyScatterCurveY2))
+        } else { scatter = 1 - travel }
+        return Progress(travel: Float(travel), scatter: Float(scatter),
+            color: Float(travelCurve(interval(t, Float(PhotoMotionTokens.reassemblyColorStart), Float(PhotoMotionTokens.reassemblyColorEnd)))),
+            cellScale: Float(1 - 0.55 * scatter))
+    }
+
     public static func grid(source: CGRect, target: CGRect) -> Grid? {
         guard valid(source), valid(target) else { return nil }
         let limit = PhotoMotionTokens.reassemblyMaxParticles
@@ -46,24 +72,53 @@ nonisolated public enum PhotoReassemblyGeometry {
     public static func particle(index: Int, grid: Grid, source: CGRect, target: CGRect,
                                 progress: Float) -> Particle? {
         guard index >= 0, index < grid.count, valid(source), valid(target), progress.isFinite else { return nil }
-        let t = min(1, max(0, progress))
-        let travel = smoothstep(Float(PhotoMotionTokens.reassemblyTravelStart), 1, t)
-        let spread: Float = t <= 0 || t >= 1 ? 0 : sin(.pi * t)
+        let weights = Self.progress(progress)
         let resolution = SIMD2<Float>(Float(grid.columns), Float(grid.rows))
         let uv = (SIMD2<Float>(Float(index % grid.columns), Float(index / grid.columns)) + SIMD2(repeating: 0.5)) / resolution
         let sourceSize = SIMD2<Float>(Float(source.width), Float(source.height))
         let targetSize = SIMD2<Float>(Float(target.width), Float(target.height))
         let sourceCenter = SIMD2<Float>(Float(source.minX), Float(source.minY)) + uv * sourceSize
         let targetCenter = SIMD2<Float>(Float(target.minX), Float(target.minY)) + uv * targetSize
-        let center = sourceCenter + (targetCenter - sourceCenter) * travel + offset(index: index) * scatterRadius(source: source) * spread
-        let size = (sourceSize + (targetSize - sourceSize) * travel) / resolution * (1 - 0.55 * spread)
-        return Particle(center: center, size: size,
-            colorFraction: smoothstep(Float(PhotoMotionTokens.reassemblyColorStart), Float(PhotoMotionTokens.reassemblyColorEnd), t))
+        let center: SIMD2<Float>
+        let size: SIMD2<Float>
+        if weights.travel == 1 {
+            center = targetCenter
+            size = targetSize / resolution
+        } else if weights.scatter == 0 && weights.travel == 0 {
+            center = sourceCenter
+            size = sourceSize / resolution
+        } else {
+            center = sourceCenter + (targetCenter - sourceCenter) * weights.travel
+                + offset(index: index) * scatterRadius(source: source) * weights.scatter
+            size = (sourceSize + (targetSize - sourceSize) * weights.travel) / resolution * weights.cellScale
+        }
+        return Particle(center: center, size: size, colorFraction: weights.color)
     }
 
-    private static func smoothstep(_ start: Float, _ end: Float, _ value: Float) -> Float {
-        let x = min(1, max(0, (value - start) / (end - start)))
-        return x * x * (3 - 2 * x)
+    private static func interval(_ value: Float, _ start: Float, _ end: Float) -> Double {
+        min(1, max(0, (Double(value) - Double(start)) / (Double(end) - Double(start))))
+    }
+
+    private static func travelCurve(_ value: Double) -> Double {
+        cubicBezier(value, Float(PhotoMotionTokens.reassemblyTravelCurveX1), Float(PhotoMotionTokens.reassemblyTravelCurveY1),
+            Float(PhotoMotionTokens.reassemblyTravelCurveX2), Float(PhotoMotionTokens.reassemblyTravelCurveY2))
+    }
+
+    private static func cubicBezier(_ value: Double, _ x1: Float, _ y1: Float, _ x2: Float, _ y2: Float) -> Double {
+        if value <= 0 || value >= 1 { return min(1, max(0, value)) }
+        func coordinate(_ t: Double, _ first: Float, _ second: Float) -> Double {
+            let inverse = 1 - t
+            return 3 * inverse * inverse * t * Double(first) + 3 * inverse * t * t * Double(second) + t * t * t
+        }
+        var low = 0.0
+        var high = 1.0
+        // Solve the time coordinate before evaluating the curve's displacement.
+        for _ in 0..<28 {
+            let parameter = (low + high) / 2
+            if coordinate(parameter, x1, x2) < value { low = parameter }
+            else { high = parameter }
+        }
+        return coordinate((low + high) / 2, y1, y2)
     }
 
     private static func offset(index: Int) -> SIMD2<Float> {
@@ -88,8 +143,8 @@ nonisolated public struct PhotoReassemblyUniforms: Sendable {
         sourceRect = SIMD4(Float(source.minX), Float(source.minY), Float(source.width), Float(source.height))
         targetRect = SIMD4(Float(target.minX), Float(target.minY), Float(target.width), Float(target.height))
         canvasAndGrid = SIMD4(Float(canvas.width), Float(canvas.height), Float(grid.columns), Float(grid.rows))
-        animation = SIMD4(progress, PhotoReassemblyGeometry.scatterRadius(source: source),
-            Float(PhotoMotionTokens.reassemblyTravelStart), Float(PhotoMotionTokens.reassemblyColorStart))
-        colorAndPadding = SIMD4(Float(PhotoMotionTokens.reassemblyColorEnd), 0, 0, 0)
+        let weights = PhotoReassemblyGeometry.progress(progress)
+        animation = SIMD4(weights.travel, PhotoReassemblyGeometry.scatterRadius(source: source), weights.scatter, weights.cellScale)
+        colorAndPadding = SIMD4(weights.color, 0, 0, 0)
     }
 }

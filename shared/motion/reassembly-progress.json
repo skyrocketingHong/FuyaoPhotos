@@ -1,0 +1,18 @@
+{
+  "reference": "Independent Decimal reference: 70-digit arithmetic and 240-step bisection of the Bezier x coordinate; controls and phase boundaries use their exact shared decimal values.",
+  "absoluteTolerance": 0.000002,
+  "samples": [
+    {"t": 0.0, "travel": 0.0, "scatter": 0.0, "color": 0.0, "cellScale": 1.0},
+    {"t": 0.055, "travel": 0.0, "scatter": 0.7753816553289054, "color": 0.0, "cellScale": 0.5735400895691021},
+    {"t": 0.11, "travel": 0.0, "scatter": 0.9659825602658049, "color": 0.0, "cellScale": 0.46870959185380734},
+    {"t": 0.22, "travel": 0.0, "scatter": 1.0, "color": 0.0, "cellScale": 0.45},
+    {"t": 0.35, "travel": 0.027435088439781784, "scatter": 0.9725649115602182, "color": 0.0, "cellScale": 0.46508929864188},
+    {"t": 0.45, "travel": 0.12231054709826097, "scatter": 0.877689452901739, "color": 0.026599056911304524, "cellScale": 0.5172708009040435},
+    {"t": 0.55, "travel": 0.5289645611077989, "scatter": 0.4710354388922012, "color": 0.17499514790827148, "cellScale": 0.7409305086092893},
+    {"t": 0.7, "travel": 0.9339287976960771, "scatter": 0.06607120230392288, "color": 0.902133321025624, "cellScale": 0.9636608387328424},
+    {"t": 0.88, "travel": 0.9995617997971556, "scatter": 0.0004382002028444049, "color": 1.0, "cellScale": 0.9997589898884356},
+    {"t": 0.9, "travel": 1.0, "scatter": 0.0, "color": 1.0, "cellScale": 1.0},
+    {"t": 0.95, "travel": 1.0, "scatter": 0.0, "color": 1.0, "cellScale": 1.0},
+    {"t": 1.0, "travel": 1.0, "scatter": 0.0, "color": 1.0, "cellScale": 1.0}
+  ]
+}

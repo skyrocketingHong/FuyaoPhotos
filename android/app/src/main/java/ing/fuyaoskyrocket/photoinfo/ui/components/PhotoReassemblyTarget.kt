@@ -1,5 +1,6 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
+import android.os.Build
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +19,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.hideFromAccessibility
@@ -33,8 +35,10 @@ fun PhotoReassemblyTarget(id: String, ready: Boolean, modifier: Modifier = Modif
     val layer = rememberGraphicsLayer()
     val owner = remember { Any() }
     val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
     val appearance = listOf(density.density, density.fontScale, LocalLayoutDirection.current,
-        MaterialTheme.colorScheme, MaterialTheme.typography)
+        MaterialTheme.colorScheme, MaterialTheme.typography, configuration.locales.toLanguageTags(),
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) configuration.fontWeightAdjustment else 0)
     var bounds by remember { mutableStateOf(Rect.Zero) }
     var measured by remember { mutableStateOf(IntSize.Zero) }
     val currentReady by rememberUpdatedState(ready)
@@ -84,7 +88,11 @@ fun PhotoReassemblyTarget(id: String, ready: Boolean, modifier: Modifier = Modif
         .drawWithContent {
             layer.record { this@drawWithContent.drawContent() }
             recorded.complete(Unit)
-            if (!hidden) drawLayer(layer)
+            controller.reassemblyRequest(id)?.let { request ->
+                controller.nativeTargetRecorded(request, id, owner, currentReady, bounds, currentAppearance)
+            }
+            // Read the current request in the draw phase so cancellation and handoff share this frame.
+            if (controller.reassemblyRequest(id) == null) drawLayer(layer)
         }) {
         content()
     }

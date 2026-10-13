@@ -29,15 +29,22 @@ void main() {
     vec2 cell = vec2(mod(index, gridSize.x), floor(index / gridSize.x));
     vec2 centerUV = (cell + 0.5) / gridSize;
     vec2 local = corners[gl_VertexID];
-    uint hash = particleHash(uint(gl_InstanceID));
-    float angle = 6.28318530718 * float(hash & 65535u) / 65535.0;
-    float distance = 0.35 + 0.65 * float((hash >> 16u) & 65535u) / 65535.0;
-    vec2 drift = vec2(cos(angle), sin(angle)) * distance * scatterRadius * scatter;
-    vec2 center = mix(sourceRect.xy + centerUV * sourceRect.zw,
-        targetRect.xy + centerUV * targetRect.zw, travel) + drift;
-    vec2 particleSize = mix(sourceRect.zw, targetRect.zw, travel) / gridSize * cellScale;
-    vec2 position = center + local * particleSize;
     textureUV = (cell + local + 0.5) / gridSize;
+    vec2 position;
+    if (travel >= 1.0 && scatter <= 0.0) {
+        position = targetRect.xy + textureUV * targetRect.zw;
+    } else if (travel <= 0.0 && scatter <= 0.0) {
+        position = sourceRect.xy + textureUV * sourceRect.zw;
+    } else {
+        uint hash = particleHash(uint(gl_InstanceID));
+        float angle = 6.28318530718 * float(hash & 65535u) / 65535.0;
+        float distance = 0.35 + 0.65 * float((hash >> 16u) & 65535u) / 65535.0;
+        vec2 drift = vec2(cos(angle), sin(angle)) * distance * scatterRadius * scatter;
+        vec2 center = mix(sourceRect.xy + centerUV * sourceRect.zw,
+            targetRect.xy + centerUV * targetRect.zw, travel) + drift;
+        vec2 particleSize = mix(sourceRect.zw, targetRect.zw, travel) / gridSize * cellScale;
+        position = center + local * particleSize;
+    }
     gl_Position = vec4(position.x / viewportSize.x * 2.0 - 1.0,
         1.0 - position.y / viewportSize.y * 2.0, 0.0, 1.0);
 }

@@ -193,7 +193,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         else closePhotos(feature)
     }
     fun importCards(uris: List<Uri>, sourceID: String = "cards-photo") {
-        dust.cancelReassembly("new_import")
+        dust.clear()
         val previous = vm.state.photos.map { it.id }.toSet()
         vm.importPhotos(uris) { departureEffects.dispatch(sourceID); metadataEdits.discard(previous) }
     }
@@ -216,10 +216,14 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         it.destination.route == page.name && it.lifecycle.currentState == Lifecycle.State.RESUMED
     } == true
     fun openPage(from: PhotoPage, to: PhotoPage) {
-        if (atPage(from)) navigation.navigate(to.name) { launchSingleTop = true }
+        if (atPage(from)) {
+            dust.clear()
+            navigation.navigate(to.name) { launchSingleTop = true }
+        }
     }
-    fun returnFrom(page: PhotoPage) { if (atPage(page)) navigation.popBackStack() }
+    fun returnFrom(page: PhotoPage) { if (atPage(page)) { dust.clear(); navigation.popBackStack() } }
     fun navigateToTab(page: PhotoPage) {
+        dust.clear()
         val leavingSettings = currentEntry?.destination?.route == PhotoPage.SETTINGS.name
         navigation.navigate(page.name) {
             popUpTo(navigation.graph.startDestinationId) { saveState = !leavingSettings }
@@ -228,7 +232,10 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         }
     }
     fun selectTab(page: PhotoPage) {
-        if (page in topLevelPages) requestedTab = page
+        if (page in topLevelPages) {
+            if (navigation.currentBackStackEntry?.destination?.route != page.name) dust.clear()
+            requestedTab = page
+        }
     }
     LaunchedEffect(requestedTab, currentEntry) {
         val target = requestedTab ?: return@LaunchedEffect
@@ -248,6 +255,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     }
     val importConfirmedPhotos: (List<Uri>) -> Unit = { uris ->
         if (uris.isNotEmpty()) {
+            dust.clear()
             navigation.popBackStack(PhotoPage.EDITOR.name, false)
             if (Build.VERSION.SDK_INT >= 29 &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -259,19 +267,28 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     var replacementPhotos by rememberSaveable { mutableStateOf<List<String>?>(null) }
     val importSelectedPhotos: (List<Uri>) -> Unit = { uris ->
         if (uris.isNotEmpty() && !vm.state.busy && !metadataEdits.busy) {
+            dust.clear()
             if (vm.state.hasChanges || vm.state.photos.any { metadataEdits.hasChanges(it.id) }) replacementPhotos = uris.map(Uri::toString)
             else importConfirmedPhotos(uris)
         }
     }
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments(), importSelectedPhotos)
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(PhotoEditSnapshot.MAX_PHOTOS), importSelectedPhotos)
+    fun launchCardsGallery() {
+        dust.clear()
+        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+    fun launchCardsFiles() {
+        dust.clear()
+        filePicker.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream"))
+    }
     var metadataPendingPhotos by rememberSaveable { mutableStateOf<List<String>?>(null) }
     var metadataReplacement by rememberSaveable { mutableStateOf<List<String>?>(null) }
     var metadataImportSharesCards by rememberSaveable { mutableStateOf(false) }
     var importFeature by rememberSaveable { mutableStateOf(ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA) }
     var importOwner by rememberSaveable { mutableStateOf(ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA) }
     fun importMetadataPhotos(uris: List<Uri>) {
-        dust.cancelReassembly("new_import")
+        dust.clear()
         val sourceID = dissolveID(importFeature)
         val previous = photosFor(importOwner).map { it.id }.toSet()
         val replacing = { departureEffects.dispatch(sourceID); metadataEdits.discard(previous) }
@@ -288,6 +305,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         }
     }
     val confirmMetadataImport: (List<Uri>) -> Unit = { uris ->
+        dust.clear()
         if (Build.VERSION.SDK_INT >= 29 && ContextCompat.checkSelfPermission(context,
                 Manifest.permission.ACCESS_MEDIA_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             metadataPendingPhotos = uris.map(Uri::toString)
@@ -296,6 +314,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     }
     val selectMetadataPhotos: (List<Uri>) -> Unit = { uris ->
         if (uris.isNotEmpty()) {
+            dust.clear()
             importOwner = vm.state.settings.workspace.owner(importFeature)
             metadataImportSharesCards = importOwner == ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.CARDS
             val replaced = when (importOwner) {
@@ -311,6 +330,16 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         ActivityResultContracts.PickMultipleVisualMedia(PhotoEditSnapshot.MAX_PHOTOS), selectMetadataPhotos)
     val metadataFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments(), selectMetadataPhotos)
     val captureColorPhoto = ing.fuyaoskyrocket.photoinfo.features.colors.rememberColorCamera(selectMetadataPhotos)
+    fun launchMetadataGallery(feature: PhotoFeature) {
+        dust.clear()
+        importFeature = feature
+        metadataGallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+    fun launchMetadataFiles(feature: PhotoFeature) {
+        dust.clear()
+        importFeature = feature
+        metadataFiles.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream"))
+    }
     var folderFormat by rememberSaveable { mutableStateOf(ExportFormat.JPEG.name) }
     val exportFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) vm.export(ExportFormat.valueOf(folderFormat), directory = uri)
@@ -329,6 +358,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     LaunchedEffect(vm.sharedPhotos, state.busy, state.error, currentEntry, replacementPhotos, pendingPhotos, metadataPendingPhotos, metadataReplacement, metadataEdits.busy, closingFeature) {
         val incoming=vm.sharedPhotos
         if(incoming!=null && !state.busy && !metadataEdits.busy && closingFeature==null && state.error==null && currentEntry!=null && replacementPhotos==null && pendingPhotos==null && metadataPendingPhotos==null && metadataReplacement==null) {
+            dust.clear()
             showExport=false;showPhotoMenu=false
             if(cardChanges || currentEntry?.destination?.route!=PhotoPage.EDITOR.name) replacementPhotos=incoming.map(Uri::toString)
             else importConfirmedPhotos(incoming)
@@ -422,9 +452,9 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                     FuyaoAppBarAction(R.drawable.ic_photo_add,stringResource(R.string.select_photo),{ showPhotoMenu=true },enabled=!state.busy)
                     DropdownMenu(showPhotoMenu,onDismissRequest={ showPhotoMenu=false }) {
                         DropdownMenuItem(text={ Text(stringResource(R.string.from_gallery)) },onClick={
-                            showPhotoMenu=false;photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            showPhotoMenu=false;launchCardsGallery()
                         })
-                        DropdownMenuItem(text={ Text(stringResource(R.string.from_file)) },onClick={ showPhotoMenu=false;filePicker.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) })
+                        DropdownMenuItem(text={ Text(stringResource(R.string.from_file)) },onClick={ showPhotoMenu=false;launchCardsFiles() })
                     }
                 }
                 val exportNotice=exportBlockingNotice(state)
@@ -450,8 +480,8 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                             PhotoReassemblyTarget("cards-photo", ready = !state.busy) {
                             PhotoImportCard(stringResource(R.string.photo_cards_title),
                                 stringResource(R.string.empty_hint,PhotoEditSnapshot.MAX_PHOTOS),R.drawable.ic_photo_add,state.busy,
-                                onGallery={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                                onFiles={ filePicker.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) })
+                                onGallery=::launchCardsGallery,
+                                onFiles=::launchCardsFiles)
                             }
                         }
                     } else {
@@ -486,8 +516,8 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 busy = metadataEdits.busy || if (sharesCards) state.busy else metadataState.busy, sharesCards = sharesCards,
                 controls = metadataControls, hdrAvailable = metadataHdrAvailable,
                 onSelectPhoto = { if (sharesCards) vm.selectPhoto(it) else metadata.selectPhoto(it) },
-                onGallery = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA; metadataGallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                onFiles = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA; metadataFiles.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) },
+                onGallery = { launchMetadataGallery(PhotoFeature.METADATA) },
+                onFiles = { launchMetadataFiles(PhotoFeature.METADATA) },
                 onClose = { requestClose(PhotoFeature.METADATA) }, edit = metadataEdits)
         }
         composable(PhotoPage.COLORS.name) {
@@ -498,9 +528,9 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 if (cardOwner) state.photoIndex else ownerPhotos.photoIndex,
                 if (cardOwner) state.busy else ownerPhotos.busy,
                 onSelect = { if (cardOwner) vm.selectPhoto(it) else if (colorOwner == ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA) metadata.selectPhoto(it) else colors.selectPhoto(it) },
-                onGallery = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.COLORS; metadataGallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                onFiles = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.COLORS; metadataFiles.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) },
-                onCamera = { importFeature = ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.COLORS; captureColorPhoto() },
+                onGallery = { launchMetadataGallery(PhotoFeature.COLORS) },
+                onFiles = { launchMetadataFiles(PhotoFeature.COLORS) },
+                onCamera = { dust.clear(); importFeature = PhotoFeature.COLORS; captureColorPhoto() },
                 onHDR = { available, enabled -> colorHasHDR = available; colorShowsHDR = enabled },
                 onClose = { requestClose(PhotoFeature.COLORS) })
         }
@@ -525,14 +555,14 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 onSave = { profiles ->
                     if (!vm.state.busy && !metadataEdits.busy && atPage(PhotoPage.LENSES)) {
                         vm.updateSettings { it.copy(lenses = profiles) }
-                        navigation.popBackStack()
+                        returnFrom(PhotoPage.LENSES)
                     }
                 })
         }
         composable(PhotoPage.LENS_EDIT.name) {
             editingLens?.let { fields ->
                 LensEditScreen(lensFromFields(fields), currentExifModel = state.sourceModel, onBack = { returnFrom(PhotoPage.LENS_EDIT) },
-                    onSave = { if (atPage(PhotoPage.LENS_EDIT)) { editedLens = it.fields(); navigation.popBackStack() } })
+                    onSave = { if (atPage(PhotoPage.LENS_EDIT)) { editedLens = it.fields(); returnFrom(PhotoPage.LENS_EDIT) } })
             }
         }
         composable(PhotoPage.PREVIEW.name) {

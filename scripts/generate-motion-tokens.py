@@ -13,7 +13,10 @@ header = "// Generated from shared/motion/tokens.json by scripts/generate-motion
 kotlin = header + "package ing.fuyaoskyrocket.photoinfo.domain.motion\n\nobject PhotoMotionTokens {\n"
 swift = header + "nonisolated public enum PhotoMotionTokens {\n"
 for key, value in tokens.items():
-    if not isinstance(value, (int, float)) or not 0 < value <= 3_000_000:
+    curve_coordinate = key.endswith(("CurveX1", "CurveY1", "CurveX2", "CurveY2"))
+    valid_number = isinstance(value, (int, float)) and not isinstance(value, bool)
+    valid_range = (0 <= value <= 1 if curve_coordinate else 0 < value <= 3_000_000) if valid_number else False
+    if not valid_range:
         raise ValueError(f"Invalid motion token: {key}")
     kotlin += f"    const val {key} = {value}{'f' if isinstance(value, float) else ''}\n"
     swift += f"    public static let {key}: {'Double' if isinstance(value, float) else 'Int'} = {value}\n"

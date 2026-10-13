@@ -87,6 +87,15 @@ struct PhotoReassemblyTests {
         #expect(pixelMismatches(resizedStart, fixture: source, frame: sourceFrame, canvas: tallerCanvas) == 0)
         #expect(pixelMismatches(resizedFinish, fixture: target, frame: targetFrame, canvas: tallerCanvas) == 0)
 
+        for phase: Float in [Float(PhotoMotionTokens.reassemblySettleStart), 0.95, 0.999] {
+            let settled = try renderer.render(source: source.image, target: target.image,
+                sourceFrame: sourceFrame, targetFrame: targetFrame, canvas: canvas, progress: phase)
+            let resizedSettled = try renderer.render(source: source.image, target: target.image,
+                sourceFrame: sourceFrame, targetFrame: targetFrame, canvas: tallerCanvas, progress: phase)
+            #expect(settled == finish)
+            #expect(resizedSettled == resizedFinish)
+        }
+
         let middle = try renderer.render(source: source.image, target: target.image,
             sourceFrame: sourceFrame, targetFrame: targetFrame, canvas: canvas, progress: 0.57)
         #expect(middle != start && middle != finish)

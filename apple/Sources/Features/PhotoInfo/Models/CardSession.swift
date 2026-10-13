@@ -53,6 +53,7 @@ import os
 
     private func open(_ items: [CardImportSource]) async {
         guard !busy, !items.isEmpty else { return }
+        cancelDeparturePresentation()
         busy = true; total = min(Self.selectionLimit, items.count); progress = 0; savedCount = nil
         defer { busy = false }
         var imported: [CardDocument] = []

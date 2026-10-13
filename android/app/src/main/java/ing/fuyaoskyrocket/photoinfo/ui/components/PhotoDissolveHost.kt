@@ -43,7 +43,10 @@ private data class ReassemblyPresentation(
     val target: ReassemblySnapshot? = null,
     val targetOwner: Any? = null,
     val appearance: Any? = null,
+    val phase: PhotoReassemblyLifecycle.Phase = PhotoReassemblyLifecycle.Phase.WAITING_TARGET,
 )
+
+private data class ReassemblyViewHandle(val generation: Long, val view: PhotoReassemblyView)
 
 @Stable
 class PhotoDissolveController internal constructor() {
@@ -55,6 +58,7 @@ class PhotoDissolveController internal constructor() {
     private val destinations = mutableMapOf<String, ReassemblyDestination>()
     private val reassemblyLifecycle = PhotoReassemblyLifecycle()
     private var reassembly by mutableStateOf<ReassemblyPresentation?>(null)
+    private var reassemblyView: ReassemblyViewHandle? = null
 
     internal fun register(id: String, owner: Any, bitmap: Bitmap?, bounds: Rect, imageMatrix: Matrix?) {
         if (bitmap != null && !bitmap.isRecycled && bounds.width > 0 && bounds.height > 0)
@@ -121,12 +125,42 @@ class PhotoDissolveController internal constructor() {
         catch (failure: RuntimeException) { failReassembly(generation, "target_snapshot_${failure.javaClass.simpleName}"); null }
         catch (failure: OutOfMemoryError) { failReassembly(generation, "target_snapshot_${failure.javaClass.simpleName}"); null }
         if (snapshot == null) return
-        if (!enabled || !reassemblyLifecycle.acceptsTarget(generation, id, SystemClock.uptimeMillis())) {
+        if (!enabled || !reassemblyLifecycle.acceptsTarget(generation, id,
+                PhotoReassemblyLifecycle.Target(owner, bounds, appearance), SystemClock.uptimeMillis())) {
             snapshot.recycle()
             failReassembly(generation, "target_expired")
             return
         }
-        reassembly = active.copy(target = ReassemblySnapshot(snapshot, bounds.translate(-origin)), targetOwner = owner, appearance = appearance)
+        reassembly = active.copy(target = ReassemblySnapshot(snapshot, bounds.translate(-origin)), targetOwner = owner,
+            appearance = appearance, phase = PhotoReassemblyLifecycle.Phase.ANIMATING)
+    }
+
+    private fun currentDestination(active: ReassemblyPresentation): PhotoReassemblyLifecycle.Target? {
+        val destination = destinations[active.request.feature] ?: return null
+        if (!enabled || !destination.ready || destination.owner !== active.targetOwner ||
+            destination.bounds.translate(-origin) != active.target?.bounds || destination.appearance != active.appearance) return null
+        return PhotoReassemblyLifecycle.Target(destination.owner, destination.bounds, destination.appearance)
+    }
+
+    private fun terminalPresented(generation: Long) {
+        val active = reassembly?.takeIf { it.request.generation == generation } ?: return
+        val target = currentDestination(active) ?: run { failReassembly(generation, "terminal_target_changed"); return }
+        if (reassemblyLifecycle.terminalPresented(generation, active.request.feature, target, SystemClock.uptimeMillis()))
+            reassembly = active.copy(phase = PhotoReassemblyLifecycle.Phase.BRIDGE)
+    }
+
+    private fun bridgeDrawn(generation: Long) {
+        val active = reassembly?.takeIf { it.request.generation == generation } ?: return
+        val target = currentDestination(active) ?: run { failReassembly(generation, "bridge_target_changed"); return }
+        if (reassemblyLifecycle.bridgeDrawn(generation, active.request.feature, target, SystemClock.uptimeMillis()))
+            reassembly = active.copy(phase = PhotoReassemblyLifecycle.Phase.NATIVE_READY)
+    }
+
+    internal fun nativeTargetRecorded(generation: Long, id: String, owner: Any, ready: Boolean, bounds: Rect, appearance: Any) {
+        val active = reassembly?.takeIf { it.request.generation == generation && it.request.feature == id } ?: return
+        val target = currentDestination(active) ?: return
+        if (!ready || !target.matches(PhotoReassemblyLifecycle.Target(owner, bounds, appearance))) return
+        if (reassemblyLifecycle.nativeRecorded(generation, id, target, SystemClock.uptimeMillis())) reassembly = null
     }
 
     internal fun failReassembly(generation: Long, stage: String) {
@@ -135,6 +169,8 @@ class PhotoDissolveController internal constructor() {
 
     internal fun cancelReassembly(reason: String = "cancelled") {
         reassembly?.let { logReassembly(reason, it.request.feature) }
+        reassemblyView?.view?.handOffToCompose()
+        reassemblyView = null
         reassemblyLifecycle.cancel()
         reassembly = null
     }
@@ -180,19 +216,40 @@ class PhotoDissolveController internal constructor() {
         }
         if (assembly != null) key(assembly.request.generation) {
             var gpuReady by remember { mutableStateOf(false) }
-            if (!gpuReady) Canvas(Modifier.fillMaxSize().clearAndSetSemantics { }) {
-                drawSnapshot(assembly.source.bitmap, assembly.source.bounds)
-            }
             assembly.target?.let { target ->
                 AndroidView(factory = {
                     PhotoReassemblyView(context, assembly.source.bitmap, assembly.source.bounds.toAndroidRect(),
                         target.bitmap, target.bounds.toAndroidRect(), density,
-                        onReady = { gpuReady = true },
-                        onComplete = {
-                            if (reassemblyLifecycle.finish(assembly.request.generation)) reassembly = null
+                        onReady = {
+                            if (reassemblyLifecycle.acceptsReady(assembly.request.generation, assembly.request.feature,
+                                    SystemClock.uptimeMillis())) gpuReady = true
                         },
-                        onFailure = { failReassembly(assembly.request.generation, "gpu_$it") })
-                }, modifier = Modifier.fillMaxSize().clearAndSetSemantics { }, onRelease = { it.release() })
+                        onComplete = { terminalPresented(assembly.request.generation) },
+                        onFailure = { failReassembly(assembly.request.generation, "gpu_$it") }).also {
+                        if (reassembly?.request?.generation == assembly.request.generation)
+                            reassemblyView = ReassemblyViewHandle(assembly.request.generation, it)
+                        else it.handOffToCompose()
+                    }
+                }, modifier = Modifier.fillMaxSize().clearAndSetSemantics { }, onRelease = {
+                    if (reassemblyView?.view === it) reassemblyView = null
+                    it.release()
+                })
+            }
+            Canvas(Modifier.fillMaxSize().clearAndSetSemantics { }) {
+                val active = reassembly?.takeIf { it.request.generation == assembly.request.generation } ?: return@Canvas
+                val view = reassemblyView?.takeIf { it.generation == active.request.generation }?.view
+                when (active.phase) {
+                    PhotoReassemblyLifecycle.Phase.WAITING_TARGET, PhotoReassemblyLifecycle.Phase.ANIMATING -> {
+                        // The source and GPU visibility change in the same draw pass.
+                        if (gpuReady && view != null) view.showPresentedFrame()
+                        else drawSnapshot(active.source.bitmap, active.source.bounds)
+                    }
+                    PhotoReassemblyLifecycle.Phase.BRIDGE, PhotoReassemblyLifecycle.Phase.NATIVE_READY -> {
+                        active.target?.let { drawSnapshot(it.bitmap, it.bounds) }
+                        view?.handOffToCompose()
+                        bridgeDrawn(assembly.request.generation)
+                    }
+                }
             }
         }
     }

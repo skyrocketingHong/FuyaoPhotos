@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.ui.geometry.Rect
+import ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoMotionTokens
 import ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoReassemblyGeometry
 import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoDissolveController
 import java.io.ByteArrayOutputStream
@@ -128,11 +129,13 @@ class PhotoReassemblyShaderTest {
             assertPixel(6, 2, intArrayOf(0, 255, 0, 255))
             assertPixel(2, 6, intArrayOf(0, 0, 255, 255))
             assertPixel(10, 10, intArrayOf(0, 0, 0, 0))
-            draw(1f)
-            assertPixel(2, 2, intArrayOf(0, 0, 0, 0))
-            assertPixel(10, 10, intArrayOf(0, 128, 128, 128))
-            assertPixel(14, 10, intArrayOf(255, 0, 255, 255))
-            assertPixel(10, 14, intArrayOf(255, 255, 0, 255))
+            for (phase in listOf(PhotoMotionTokens.reassemblySettleStart, .95f, 1f)) {
+                draw(phase)
+                assertPixel(2, 2, intArrayOf(0, 0, 0, 0))
+                assertPixel(10, 10, intArrayOf(0, 128, 128, 128))
+                assertPixel(14, 10, intArrayOf(255, 0, 255, 255))
+                assertPixel(10, 14, intArrayOf(255, 255, 0, 255))
+            }
         } finally {
             if (context != EGL14.EGL_NO_CONTEXT && surface != EGL14.EGL_NO_SURFACE) {
                 GL.glDeleteTextures(2, textures, 0)

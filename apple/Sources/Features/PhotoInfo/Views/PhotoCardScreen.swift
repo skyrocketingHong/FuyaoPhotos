@@ -238,10 +238,12 @@ struct PhotoCardScreen: View {
     }
 
     private func choosePhotos() {
+        session.cancelDeparturePresentation()
         replacementIDs = nil
         if session.current != nil { showingReplace = true } else { showingPicker = true }
     }
     private func choosePhotosFromToolbar() {
+        session.cancelDeparturePresentation()
         replacementIDs = nil
         if session.current != nil { showingToolbarReplace = true } else { showingPicker = true }
     }

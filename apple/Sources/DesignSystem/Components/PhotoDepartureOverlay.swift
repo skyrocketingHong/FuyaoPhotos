@@ -25,10 +25,6 @@ enum PhotoDepartureSourceImage {
     }
 }
 
-extension EnvironmentValues {
-    @Entry var photoImportContentVisible = true
-}
-
 struct PhotoViewportFrameKey: PreferenceKey {
     static var defaultValue: CGRect { .zero }
     static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
@@ -136,6 +132,10 @@ struct PhotoDepartureOverlay: ViewModifier {
                         }
                     }
                 }
+                .transaction { transaction in
+                    transaction.animation = nil
+                    transaction.disablesAnimations = true
+                }
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
             }
@@ -205,10 +205,12 @@ struct PhotoDepartureOverlay: ViewModifier {
             return
         }
         guard let event = session.claimDeparture(id: value.id, owner: captureOwner) else { return }
-        revealedID = nil
-        departing = VisualCopy(ticket: event.ticket, session: session, image: event.image,
-            frame: event.sourceFrame, targetDeadline: event.targetDeadline)
-        if let deadline = event.targetDeadline { targetCapture.begin(id: event.id, deadline: deadline) }
+        withoutAnimation {
+            revealedID = nil
+            departing = VisualCopy(ticket: event.ticket, session: session, image: event.image,
+                frame: event.sourceFrame, targetDeadline: event.targetDeadline)
+            if let deadline = event.targetDeadline { targetCapture.begin(id: event.id, deadline: deadline) }
+        }
     }
 
     private func receiveTarget() {
@@ -216,16 +218,27 @@ struct PhotoDepartureOverlay: ViewModifier {
               target.requestID == copy.ticket.id, copy.target == nil,
               eligible, copy.session === session,
               copy.session.isDepartureCurrent(id: copy.ticket.id, owner: captureOwner) else { return }
-        departing?.target = target
-        departing?.playbackOrigin = canvasFrame.origin
+        withoutAnimation {
+            departing?.target = target
+            departing?.playbackOrigin = canvasFrame.origin
+        }
     }
 
     private func finish(_ id: UUID) {
-        let ownerSession = departing?.ticket.id == id ? departing?.session : session
-        if departing?.ticket.id == id { departing = nil }
-        if revealedID == id { revealedID = nil }
-        targetCapture.cancel(id: id)
-        ownerSession?.finishDeparture(id: id, owner: captureOwner)
+        withoutAnimation {
+            let ownerSession = departing?.ticket.id == id ? departing?.session : session
+            if departing?.ticket.id == id { departing = nil }
+            if revealedID == id { revealedID = nil }
+            targetCapture.cancel(id: id)
+            ownerSession?.finishDeparture(id: id, owner: captureOwner)
+        }
+    }
+
+    private func withoutAnimation(_ operation: () -> Void) {
+        var transaction = Transaction()
+        transaction.animation = nil
+        transaction.disablesAnimations = true
+        withTransaction(transaction, operation)
     }
 
     private func reveal(_ id: UUID) {

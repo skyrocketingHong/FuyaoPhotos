@@ -40,21 +40,27 @@ vertex PhotoReassemblyVertex photoReassemblyVertex(
     float2 cell = float2(particleID % columns, particleID / columns);
     float2 corner = reassemblyCorners[vertexID];
     float2 centerUV = (cell + 0.5f) / grid;
-    float t = clamp(uniforms.animation.x, 0.0f, 1.0f);
-    float travel = smoothstep(uniforms.animation.z, 1.0f, t);
-    float spread = t <= 0.0f || t >= 1.0f ? 0.0f : sin(M_PI_F * t);
-    float2 sourceCenter = uniforms.sourceRect.xy + centerUV * uniforms.sourceRect.zw;
-    float2 targetCenter = uniforms.targetRect.xy + centerUV * uniforms.targetRect.zw;
-    float2 center = mix(sourceCenter, targetCenter, travel)
-        + reassemblyOffset(particleID) * uniforms.animation.y * spread;
-    float2 size = mix(uniforms.sourceRect.zw, uniforms.targetRect.zw, travel) / grid
-        * (1.0f - 0.55f * spread);
-    float2 position = center + (corner - 0.5f) * size;
+    float travel = uniforms.animation.x;
+    float spread = uniforms.animation.z;
+    float2 uv = (cell + corner) / grid;
+    float2 position;
+    if (travel >= 1.0f && spread <= 0.0f) {
+        position = uniforms.targetRect.xy + uv * uniforms.targetRect.zw;
+    } else if (travel <= 0.0f && spread <= 0.0f) {
+        position = uniforms.sourceRect.xy + uv * uniforms.sourceRect.zw;
+    } else {
+        float2 sourceCenter = uniforms.sourceRect.xy + centerUV * uniforms.sourceRect.zw;
+        float2 targetCenter = uniforms.targetRect.xy + centerUV * uniforms.targetRect.zw;
+        float2 center = mix(sourceCenter, targetCenter, travel)
+            + reassemblyOffset(particleID) * uniforms.animation.y * spread;
+        float2 size = mix(uniforms.sourceRect.zw, uniforms.targetRect.zw, travel) / grid * uniforms.animation.w;
+        position = center + (corner - 0.5f) * size;
+    }
     PhotoReassemblyVertex out;
     out.position = float4(position.x / uniforms.canvasAndGrid.x * 2.0f - 1.0f,
                           1.0f - position.y / uniforms.canvasAndGrid.y * 2.0f, 0, 1);
-    out.uv = (cell + corner) / grid;
-    out.colorFraction = smoothstep(uniforms.animation.w, uniforms.colorAndPadding.x, t);
+    out.uv = uv;
+    out.colorFraction = uniforms.colorAndPadding.x;
     return out;
 }
 

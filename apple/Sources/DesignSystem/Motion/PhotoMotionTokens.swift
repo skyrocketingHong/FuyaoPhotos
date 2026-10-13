@@ -14,6 +14,15 @@ nonisolated public enum PhotoMotionTokens {
     public static let reassemblyMaxParticles: Int = 24000
     public static let reassemblyScatter: Double = 0.12
     public static let reassemblyTravelStart: Double = 0.22
+    public static let reassemblySettleStart: Double = 0.9
     public static let reassemblyColorStart: Double = 0.35
     public static let reassemblyColorEnd: Double = 0.88
+    public static let reassemblyScatterCurveX1: Double = 0.23
+    public static let reassemblyScatterCurveY1: Double = 1.0
+    public static let reassemblyScatterCurveX2: Double = 0.32
+    public static let reassemblyScatterCurveY2: Double = 1.0
+    public static let reassemblyTravelCurveX1: Double = 0.77
+    public static let reassemblyTravelCurveY1: Double = 0.0
+    public static let reassemblyTravelCurveX2: Double = 0.175
+    public static let reassemblyTravelCurveY2: Double = 1.0
 }

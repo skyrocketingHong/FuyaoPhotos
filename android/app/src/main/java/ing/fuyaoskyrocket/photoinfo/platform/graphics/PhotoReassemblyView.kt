@@ -56,6 +56,7 @@ internal class PhotoReassemblyView(
     }
 
     init {
+        alpha = 0f
         isOpaque = false
         isClickable = false
         isFocusable = false
@@ -122,6 +123,15 @@ internal class PhotoReassemblyView(
         released = true
         choreographer.removeFrameCallback(callback)
         worker?.stop()
+    }
+
+    fun handOffToCompose() {
+        alpha = 0f
+        release()
+    }
+
+    fun showPresentedFrame() {
+        if (ready && !released) alpha = 1f
     }
 
     override fun onDetachedFromWindow() {

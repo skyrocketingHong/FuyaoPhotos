@@ -175,6 +175,7 @@ struct MetadataScreen: View {
     }
 
     private func choosePhoto() {
+        session.cancelDeparturePresentation()
         replacementIDs = nil
         if session.current != nil { confirmReplace = true }
         else { showingPicker = true }

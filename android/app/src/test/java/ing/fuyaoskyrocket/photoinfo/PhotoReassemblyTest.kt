@@ -10,10 +10,11 @@ class PhotoReassemblyTest {
     @Test fun endpointsUseTheExactSourceAndTargetWithoutResidualScatter() {
         assertEquals(PhotoReassemblyGeometry.Progress(0f, 0f, 0f, 1f), PhotoReassemblyGeometry.progress(0f))
         assertEquals(PhotoReassemblyGeometry.Progress(1f, 0f, 1f, 1f), PhotoReassemblyGeometry.progress(1f))
-        val middle = PhotoReassemblyGeometry.progress(.5f)
-        assertTrue(middle.travel in 0f..1f)
-        assertEquals(1f, middle.scatter, .00001f)
-        assertEquals(.45f, middle.cellScale, .00001f)
+        val peak = PhotoReassemblyGeometry.progress(PhotoMotionTokens.reassemblyTravelStart)
+        assertEquals(1f, peak.scatter, 0f)
+        assertEquals(.45f, peak.cellScale, .00001f)
+        assertEquals(PhotoReassemblyGeometry.Progress(1f, 0f, 1f, 1f),
+            PhotoReassemblyGeometry.progress(PhotoMotionTokens.reassemblySettleStart))
         assertEquals(0f, PhotoReassemblyGeometry.progress(PhotoMotionTokens.reassemblyTravelStart).travel, 0f)
     }
 
@@ -30,26 +31,30 @@ class PhotoReassemblyTest {
 
     @Test fun oldCaptureAndCompletionCannotReplaceANewerClose() {
         val lifecycle = PhotoReassemblyLifecycle()
+        val target = PhotoReassemblyLifecycle.Target(Any(), "bounds", "appearance")
         val old = lifecycle.begin("metadata-photo", 100)
         lifecycle.cancel()
         val current = lifecycle.begin("colors-photo", 120)
-        assertFalse(lifecycle.acceptsTarget(old.generation, old.feature, 130))
-        assertFalse(lifecycle.finish(old.generation))
+        assertFalse(lifecycle.acceptsTarget(old.generation, old.feature, target, 130))
+        assertFalse(lifecycle.terminalPresented(old.generation, old.feature, target, 130))
         assertEquals(current, lifecycle.current)
-        assertTrue(lifecycle.acceptsTarget(current.generation, current.feature, 150))
-        assertFalse(lifecycle.acceptsTarget(current.generation, current.feature, 160))
-        assertTrue(lifecycle.finish(current.generation))
+        assertTrue(lifecycle.acceptsTarget(current.generation, current.feature, target, 150))
+        assertFalse(lifecycle.acceptsTarget(current.generation, current.feature, target, 160))
+        assertTrue(lifecycle.terminalPresented(current.generation, current.feature, target, 170))
+        assertTrue(lifecycle.bridgeDrawn(current.generation, current.feature, target, 180))
+        assertTrue(lifecycle.nativeRecorded(current.generation, current.feature, target, 190))
         assertNull(lifecycle.current)
     }
 
     @Test fun waitingAndRenderingHaveIndependentDeadlines() {
         val lifecycle = PhotoReassemblyLifecycle()
+        val target = PhotoReassemblyLifecycle.Target(Any(), "bounds", "appearance")
         val missing = lifecycle.begin("metadata-photo", 0)
         assertNull(lifecycle.expiry(missing.targetDeadline - 1))
         assertEquals(PhotoReassemblyLifecycle.Expiry.TARGET_WAIT, lifecycle.expiry(missing.targetDeadline))
-        assertFalse(lifecycle.acceptsTarget(missing.generation, missing.feature, missing.targetDeadline))
+        assertFalse(lifecycle.acceptsTarget(missing.generation, missing.feature, target, missing.targetDeadline))
         val ready = lifecycle.begin("cards-photo", 1000)
-        assertTrue(lifecycle.acceptsTarget(ready.generation, ready.feature, 1001))
+        assertTrue(lifecycle.acceptsTarget(ready.generation, ready.feature, target, 1001))
         assertNull(lifecycle.expiry(ready.targetDeadline + 1))
         assertEquals(PhotoReassemblyLifecycle.Expiry.LIFETIME, lifecycle.expiry(ready.deadline))
     }
