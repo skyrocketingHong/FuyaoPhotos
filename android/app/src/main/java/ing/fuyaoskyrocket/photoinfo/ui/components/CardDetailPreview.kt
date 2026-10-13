@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.layout.CardBox
+import ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoMotionTokens
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -50,6 +51,7 @@ internal fun CardDetailPreview(
     bitmap: Bitmap?,
     box: CardBox?,
     rendering: Boolean,
+    selectionKey: String,
     errorMessage: String? = null,
     editingActive: Boolean = false,
     highlightRects: List<RectF> = emptyList(),
@@ -77,7 +79,7 @@ internal fun CardDetailPreview(
                 highlightStyle != null -> listOf(cardBoxRect)
                 else -> emptyList()
             }
-            val animatedRects = rememberAnimatedRects(targets)
+            val animatedRects = rememberAnimatedRects(targets, selectionKey, bitmap, crop)
             val fieldMode = selectedRows.isNotEmpty()
             PendingPhotoEffect(rendering || editingActive, Modifier.fillMaxSize()) {
                 Canvas(Modifier.fillMaxSize()) {
@@ -140,18 +142,29 @@ internal fun CardDetailPreview(
     }
 }
 
-/** Moves the highlight between selections with an eased, non-linear slide. */
 @Composable
-private fun rememberAnimatedRects(targets: List<RectF>): List<RectF> {
-    val animated = remember { mutableStateOf(targets) }
+private fun rememberAnimatedRects(
+    targets: List<RectF>,
+    selectionKey: String,
+    bitmap: Bitmap,
+    crop: CardCrop,
+): List<RectF> {
+    var animated by remember(bitmap, crop) { mutableStateOf(targets) }
+    var previousSelection by remember(bitmap, crop) { mutableStateOf(selectionKey) }
+    var previousTargets by remember(bitmap, crop) { mutableStateOf(targets) }
     val motionEnabled = LocalPhotoMotionEnabled.current
-    LaunchedEffect(targets, motionEnabled) {
-        if (!motionEnabled) { animated.value = targets; return@LaunchedEffect }
-        val from = animated.value
-        if (from == targets) return@LaunchedEffect
+    LaunchedEffect(bitmap, crop, selectionKey, targets, motionEnabled) {
+        val selectionChanged = previousSelection != selectionKey
+        previousSelection = selectionKey
+        previousTargets = targets
+        val from = animated
+        if (!motionEnabled || !selectionChanged || from.isEmpty() || targets.isEmpty() || from == targets) {
+            animated = targets
+            return@LaunchedEffect
+        }
         val progress = Animatable(0f)
-        progress.animateTo(1f, tween(durationMillis = 280, easing = CubicBezierEasing(.2f, 0f, 0f, 1f))) {
-            animated.value = targets.mapIndexed { index, target ->
+        progress.animateTo(1f, tween(durationMillis = PhotoMotionTokens.controlMillis, easing = CubicBezierEasing(.2f, 0f, 0f, 1f))) {
+            animated = targets.mapIndexed { index, target ->
                 val start = from.getOrNull(index) ?: target
                 RectF(
                     start.left + (target.left - start.left) * value,
@@ -161,9 +174,10 @@ private fun rememberAnimatedRects(targets: List<RectF>): List<RectF> {
                 )
             }
         }
-        animated.value = targets
+        animated = targets
     }
-    return if (motionEnabled) animated.value else targets
+    // A new render must align on its first frame, before the effect cancels the old animation.
+    return if (!motionEnabled || previousSelection == selectionKey && previousTargets != targets) targets else animated
 }
 
 private fun cardCrop(bitmap: Bitmap, box: CardBox): CardCrop {

@@ -1,8 +1,6 @@
 package ing.fuyaoskyrocket.photoinfo.ui.components
 
 import androidx.activity.compose.LocalActivity
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +18,6 @@ import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
 import ing.fuyaoskyrocket.photoinfo.domain.layout.EditorWorkspacePolicy
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoLayout
-import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.LocalBottomNavigationInset
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -127,15 +124,8 @@ private fun AdaptiveEditorRegions(
     if (spec.sideBySide) Row(Modifier.fillMaxSize(),horizontalArrangement=Arrangement.spacedBy(EditorWorkspacePolicy.PANE_GAP.dp)) {
         preview(Modifier.weight(1f).fillMaxHeight(), true)
         controls(Modifier.width(spec.inspectorWidth.dp).fillMaxHeight())
-    } else {
-        val previewHeight by animateDpAsState(
-            targetValue = spec.previewHeight.dp,
-            animationSpec = tween(durationMillis = if (LocalPhotoMotionEnabled.current) 220 else 0),
-            label = "editor photo region",
-        )
-        Column(Modifier.fillMaxSize()) {
-            preview(Modifier.fillMaxWidth().height(previewHeight), false)
-            controls(Modifier.fillMaxWidth().weight(1f))
-        }
+    } else Column(Modifier.fillMaxSize()) {
+        preview(Modifier.fillMaxWidth().height(spec.previewHeight.dp), false)
+        controls(Modifier.fillMaxWidth().weight(1f))
     }
 }

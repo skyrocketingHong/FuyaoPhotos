@@ -24,6 +24,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -32,6 +35,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
+import ing.fuyaoskyrocket.photoinfo.ui.components.LocalThemeRevealKeyboardCancel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +49,7 @@ internal fun <T> SettingsChoiceRow(
     onSelect: (T) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val cancelThemeRevealForKeyboard = LocalThemeRevealKeyboardCancel.current
     LaunchedEffect(enabled) {
         if (!enabled) expanded = false
     }
@@ -77,7 +82,11 @@ internal fun <T> SettingsChoiceRow(
                 )
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && enabled)
             }
-            DropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
+            DropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false },
+                modifier = Modifier.onPreviewKeyEvent {
+                    if (it.type == KeyEventType.KeyDown) cancelThemeRevealForKeyboard()
+                    false
+                }) {
                 options.forEach { (value, label) ->
                     DropdownMenuItem(
                         text = { Text(label) },

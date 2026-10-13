@@ -12,12 +12,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
@@ -111,6 +114,7 @@ fun EditorControls(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CompactEditorControl(state: EditorState, tab: Int, fieldIndex: Int, styleIndex: Int,
     onChoice: (Int, Int) -> Unit, fieldContent: @Composable () -> Unit, onStyle: (CardStyle) -> Unit,
@@ -122,32 +126,45 @@ private fun CompactEditorControl(state: EditorState, tab: Int, fieldIndex: Int, 
     Row(modifier.padding(horizontal = FuyaoSpacing.content), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.weight(.34f)) {
-            OutlinedButton(onClick = { menu = true }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { menu = true }, enabled = !state.busy,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
                 Text(stringResource(if (tab == 0) fieldLabel(field) else setting?.label ?: R.string.font),
-                    style = MaterialTheme.typography.labelMedium)
+                    Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center)
+                Spacer(Modifier.width(4.dp))
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = menu)
             }
             DropdownMenu(menu, onDismissRequest = { menu = false }) {
                 Text(stringResource(R.string.tab_info), Modifier.padding(12.dp), style = MaterialTheme.typography.labelLarge)
                 FieldId.entries.forEachIndexed { index, item ->
-                    DropdownMenuItem(text = { Text(stringResource(fieldLabel(item))) },
+                    val active = tab == 0 && fieldIndex == index
+                    DropdownMenuItem(text = { Text(stringResource(fieldLabel(item))) }, enabled = !state.busy,
+                        modifier = Modifier.semantics { selected = active },
+                        trailingIcon = { if (active) Icon(painterResource(R.drawable.ic_check), null) },
                         onClick = { menu = false; onChoice(0, index) })
                 }
                 HorizontalDivider()
                 Text(stringResource(R.string.tab_style), Modifier.padding(12.dp), style = MaterialTheme.typography.labelLarge)
                 StyleSetting.entries.forEachIndexed { index, item ->
-                    DropdownMenuItem(text = { Text(stringResource(item.label)) },
+                    val active = tab == 1 && styleIndex == index
+                    DropdownMenuItem(text = { Text(stringResource(item.label)) }, enabled = !state.busy,
+                        modifier = Modifier.semantics { selected = active },
+                        trailingIcon = { if (active) Icon(painterResource(R.drawable.ic_check), null) },
                         onClick = { menu = false; onChoice(1, index) })
                 }
                 DropdownMenuItem(text = { Text(stringResource(R.string.font)) },
+                    enabled = !state.busy,
+                    modifier = Modifier.semantics { selected = tab == 1 && styleIndex == StyleSetting.entries.size },
+                    trailingIcon = { if (tab == 1 && styleIndex == StyleSetting.entries.size) Icon(painterResource(R.drawable.ic_check), null) },
                     onClick = { menu = false; onChoice(1, StyleSetting.entries.size) })
                 HorizontalDivider()
-                DropdownMenuItem(text = { Text(stringResource(R.string.restore_current)) }, onClick = {
+                DropdownMenuItem(text = { Text(stringResource(R.string.restore_current)) }, enabled = !state.busy, onClick = {
                     menu = false
                     if (tab == 0) onResetField(field)
                     else if (setting == null) onResetFont()
                     else onStyle(setting.update(state.style, setting.value(CardStyle())))
                 })
-                DropdownMenuItem(text = { Text(stringResource(R.string.restore_all)) }, onClick = {
+                DropdownMenuItem(text = { Text(stringResource(R.string.restore_all)) }, enabled = !state.busy, onClick = {
                     menu = false
                     if (tab == 0) onResetAll() else { onResetFont(); onStyle(CardStyle()) }
                 })
@@ -221,6 +238,7 @@ private fun EditorInspector(
                     bitmap = state.preview,
                     box = state.previewCardBox,
                     rendering = state.rendering || state.loadingPhoto,
+                    selectionKey = if (tab == 0) "field:${currentField.name}" else "style:${currentStyle?.name ?: "font"}",
                     errorMessage = state.previewError,
                     editingActive = editingActive,
                     highlightRects = if (tab == 0) state.previewFieldRects[currentField].orEmpty() else emptyList(),
@@ -337,14 +355,29 @@ private fun FieldControl(state: EditorState, field: FieldId, onField: (FieldId, 
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FontControl(state: EditorState, onImportFont: () -> Unit, enabled: Boolean = !state.busy) {
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-        Text(state.fontName ?: stringResource(R.string.system_mono),
-            style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        OutlinedButton(onClick = onImportFont, enabled = enabled,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text(stringResource(R.string.import_font), maxLines = 1)
+    val fontName = state.fontName ?: stringResource(R.string.system_mono)
+    var expanded by remember { mutableStateOf(false) }
+    LaunchedEffect(enabled) { if (!enabled) expanded = false }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { expanded = true }, enabled = enabled,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .semantics { stateDescription = fontName }) {
+                Text(stringResource(R.string.font))
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && enabled)
+            }
+            DropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false },
+                modifier = Modifier.widthIn(max = 320.dp)) {
+                Text(fontName, Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.bodyMedium)
+                HorizontalDivider()
+                DropdownMenuItem(text = { Text(stringResource(R.string.import_font)) }, enabled = enabled,
+                    onClick = { expanded = false; onImportFont() })
+            }
         }
     }
 }

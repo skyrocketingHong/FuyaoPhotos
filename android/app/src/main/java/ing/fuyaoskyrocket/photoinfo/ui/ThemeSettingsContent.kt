@@ -10,6 +10,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.colorResource
@@ -22,6 +25,7 @@ import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.SectionHeading
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.SettingsChoiceRow
 import ing.fuyaoskyrocket.photoinfo.ui.theme.photoColorScheme
+import ing.fuyaoskyrocket.photoinfo.ui.components.LocalThemeRevealKeyboardCancel
 
 @Composable
 internal fun ThemeSettingsContent(
@@ -137,6 +141,7 @@ private fun ThemeSwitch(title: String, hint: String, checked: Boolean, enabled: 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ThemeSeedPicker(seed: Long, enabled: Boolean, onSelect: (Long) -> Unit) {
+    val cancelThemeRevealForKeyboard = LocalThemeRevealKeyboardCancel.current
     var editing by rememberSaveable { mutableStateOf(false) }
     var input by rememberSaveable(seed) { mutableStateOf("%06X".format(seed and 0xFFFFFF)) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -159,6 +164,10 @@ private fun ThemeSeedPicker(seed: Long, enabled: Boolean, onSelect: (Long) -> Un
     if (editing) {
         val valid = input.matches(Regex("[0-9a-fA-F]{6}"))
         AlertDialog(onDismissRequest = { editing = false }, title = { Text(stringResource(R.string.theme_seed_custom)) },
+            modifier = Modifier.onPreviewKeyEvent {
+                if (it.type == KeyEventType.KeyDown) cancelThemeRevealForKeyboard()
+                false
+            },
             text = { OutlinedTextField(input, { if (it.length <= 6) input = it }, enabled = enabled, singleLine = true,
                 label = { Text(stringResource(R.string.theme_seed_format)) }, prefix = { Text("#") }, isError = !valid,
                 supportingText = { if (!valid) Text(stringResource(R.string.theme_seed_invalid)) }) },

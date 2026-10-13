@@ -85,7 +85,15 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,enabled:Boolean=true
         FuyaoPageIntro(stringResource(category.label), stringResource(category.description), category.icon)
         when(category) {
             SettingsCategory.THEME -> ThemeSettingsContent(workspace, enabled = enabled) { update ->
-                if (canEdit()) changeTheme { onUpdate { current -> current.copy(workspace = update(current.workspace)) } }
+                if (canEdit()) {
+                    val next = update(workspace)
+                    val colorsChanged = next.appearance != workspace.appearance || next.dynamicTheme != workspace.dynamicTheme ||
+                        next.themeSeed != workspace.themeSeed || next.themePalette != workspace.themePalette ||
+                        next.themeContrast != workspace.themeContrast || next.themeColorSpec != workspace.themeColorSpec ||
+                        next.pureBlackTheme != workspace.pureBlackTheme
+                    val apply = { onUpdate { current -> current.copy(workspace = update(current.workspace)) } }
+                    if (colorsChanged) changeTheme(apply) else apply()
+                }
             }
             SettingsCategory.WORKSPACE -> FuyaoFormSection {
                 SettingsChoiceRow(stringResource(R.string.workspace_startup), startPage,
