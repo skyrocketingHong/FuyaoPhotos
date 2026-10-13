@@ -9,9 +9,11 @@ struct SaveProgressLabel: View {
     var saved = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private var showsCount: Bool { active && (total > 1 || reduceMotion) }
+
     private var symbol: some View {
         OperationProgressSymbol(active: active, completed: total > 1 ? completed : nil,
-            total: total, saved: saved, showsIcon: !compact || !active)
+            total: total, saved: saved, showsIcon: !compact || !showsCount)
     }
 
     var body: some View {
@@ -19,8 +21,9 @@ struct SaveProgressLabel: View {
             if compact {
                 ZStack {
                     symbol
-                    if active {
-                        Text("\(completed)/\(max(1, total))")
+                    if showsCount {
+                        let count = max(0, min(completed, max(1, total)))
+                        Text(total > 1 ? "\(count)" : "\(count)/\(max(1, total))")
                             .font(.caption2.monospacedDigit())
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)

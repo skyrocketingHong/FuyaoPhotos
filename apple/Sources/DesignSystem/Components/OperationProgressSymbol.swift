@@ -20,13 +20,14 @@ struct OperationProgressSymbol: View {
                     .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
             }
             if active && (!reduceMotion || completed != nil) {
-                TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion || scenePhase != .active)) { _ in
+                TimelineView(.animation(minimumInterval: 1.0 / 30,
+                                        paused: completed != nil || reduceMotion || scenePhase != .active)) { _ in
                     let elapsed = ProcessInfo.processInfo.systemUptime - started
                     let period = Double(PhotoMotionTokens.rotationMillis) / 1000
-                    let rotation = reduceMotion ? 0 : elapsed.truncatingRemainder(dividingBy: period) / period * 360
+                    let rotation = reduceMotion || completed != nil ? 0 : elapsed.truncatingRemainder(dividingBy: period) / period * 360
                     Circle().stroke(.foreground.opacity(0.18), lineWidth: 1.8)
                         .overlay {
-                            Circle().trim(from: 0, to: completed == nil ? 0.25 : max(reduceMotion ? 0 : 1.0 / 30, fraction))
+                            Circle().trim(from: 0, to: completed == nil ? 0.25 : fraction)
                                 .stroke(.foreground, style: StrokeStyle(lineWidth: 1.8, lineCap: .round))
                                 .rotationEffect(.degrees(rotation - 90))
                         }
@@ -36,6 +37,7 @@ struct OperationProgressSymbol: View {
         }
         .frame(width: 24, height: 24)
         .animation(reduceMotion ? nil : .smooth(duration: Double(PhotoMotionTokens.controlMillis) / 1000), value: active)
+        .animation(reduceMotion ? nil : .smooth(duration: Double(PhotoMotionTokens.controlMillis) / 1000), value: saved)
         .onChange(of: completed, initial: true) { _, _ in updateProgress() }
         .onChange(of: total) { _, _ in updateProgress() }
         .onChange(of: active) { _, new in if new { started = ProcessInfo.processInfo.systemUptime }; updateProgress() }

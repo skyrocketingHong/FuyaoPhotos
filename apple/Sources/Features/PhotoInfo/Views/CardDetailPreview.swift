@@ -36,6 +36,8 @@ struct CardDetailPreview: View {
                         Image(decorative: render.image, scale: 1, orientation: .up)
                             .resizable()
                         CardSelectionHighlight(render: render, field: highlightedField, style: highlightedStyle)
+                            .id(CardHighlightRenderIdentity(image: ObjectIdentifier(render.image),
+                                width: geometry.size.width, height: geometry.size.height, reduceMotion: reduceMotion))
                     }
                     .frame(width: imageWidth, height: imageHeight)
                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -108,6 +110,11 @@ private struct CardSelectionHighlight: View {
     let style: CardAdjustment?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private struct Selection: Equatable {
+        let field: CardField?
+        let style: CardAdjustment?
+    }
+
     private struct Box: Equatable {
         var rect: CGRect
         var filled = false
@@ -145,13 +152,22 @@ private struct CardSelectionHighlight: View {
                         }
                         .frame(width: box.rect.width * scale, height: box.rect.height * scale)
                         .position(x: origin.x + box.rect.midX * scale, y: origin.y + box.rect.midY * scale)
-                        .animation(reduceMotion ? nil : .snappy(duration: 0.32, extraBounce: 0.08), value: box.rect)
                 }
             }
+            .animation(reduceMotion ? nil : .smooth(duration: Double(PhotoMotionTokens.controlMillis) / 1000),
+                       value: Selection(field: field, style: style))
         }
+        .transaction { $0.animation = nil }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
+}
+
+private struct CardHighlightRenderIdentity: Hashable {
+    let image: ObjectIdentifier
+    let width: CGFloat
+    let height: CGFloat
+    let reduceMotion: Bool
 }
 
 private struct HighlightBoxShape: Shape {

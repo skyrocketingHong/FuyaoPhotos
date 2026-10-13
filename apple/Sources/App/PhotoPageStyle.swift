@@ -10,15 +10,25 @@ struct PhotoPageIntro: View {
     let description: LocalizedStringKey
     let symbol: String
     var prominent = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .title2) private var symbolWidth: CGFloat = 32
+    @ScaledMetric(relativeTo: .largeTitle) private var prominentSymbolWidth: CGFloat = 44
+
+    private var headingLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 16))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 16) {
+            headingLayout {
                 Image(systemName: symbol)
                     .font(prominent ? .largeTitle : .title2)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(Color.accentColor)
-                .accessibilityHidden(true)
+                    .frame(width: prominent ? prominentSymbolWidth : symbolWidth)
+                    .accessibilityHidden(true)
                 Text(title)
                     .font(prominent ? .title.bold() : .title2.bold())
                     .fixedSize(horizontal: false, vertical: true)

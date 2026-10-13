@@ -24,5 +24,10 @@ struct CircularIconButton: View {
             .photoIconControlStyle()
             .accessibilityLabel(Text(title))
             .help(Text(title))
+#if os(iOS)
+            .accessibilityShowsLargeContentViewer {
+                Label(title, systemImage: systemImage)
+            }
+#endif
     }
 }

@@ -33,5 +33,15 @@ struct CircularIconToggle: View {
         .photoIconControlStyle()
         .accessibilityLabel(Text(title))
         .help(Text(title))
+#if os(iOS)
+        .accessibilityShowsLargeContentViewer {
+            Label {
+                Text(title)
+            } icon: {
+                if let imageAsset { Image(imageAsset) }
+                else if let systemImage { Image(systemName: systemImage) }
+            }
+        }
+#endif
     }
 }
