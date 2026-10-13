@@ -43,7 +43,7 @@ fun PhotoImportCard(title: String, description: String, @DrawableRes icon: Int, 
         OutlinedButton(onFiles, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !busy) {
             Text(stringResource(R.string.from_file), textAlign = TextAlign.Center)
         }
-        if (onCamera != null) TextButton(onCamera, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !busy) {
+        if (onCamera != null) OutlinedButton(onCamera, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !busy) {
             Text(stringResource(R.string.colors_camera), textAlign = TextAlign.Center)
         }
     }
