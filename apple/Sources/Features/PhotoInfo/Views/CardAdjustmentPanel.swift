@@ -202,7 +202,7 @@ private struct MobileCardInspector: View {
                         .foregroundStyle(.primary)
                         .padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: controlHeight, alignment: .top)
+                        .frame(height: controlHeight, alignment: .leading)
                         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12))
                         .focused($editingText)
                         .accessibilityLabel(Text(LocalizedStringKey(field.titleKey)))
