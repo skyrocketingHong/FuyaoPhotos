@@ -18,6 +18,7 @@ import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoWorkspaceCanvas
 import ing.fuyaoskyrocket.photoinfo.ui.components.EditorWorkspace
 import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoPreviewStage
 import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoPageNavigation
+import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoReassemblyTarget
 import androidx.compose.ui.Alignment
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -30,8 +31,10 @@ fun ColorsScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, photoIndex:
     LaunchedEffect(photo?.id) { model.load(photo) }
     LaunchedEffect(model.hdr, model.info?.hasHdrContent) { onHDR(model.info?.hasHdrContent == true, model.hdr) }
     @Composable fun overview() {
+        PhotoReassemblyTarget("colors-photo", ready = !busy) {
         PhotoImportCard(stringResource(R.string.colors_title), stringResource(R.string.colors_description),
             R.drawable.cp_ic_colorize,busy,onGallery,onFiles,onCamera)
+        }
     }
     @Composable fun image(modifier: Modifier) {
         Box(modifier) {

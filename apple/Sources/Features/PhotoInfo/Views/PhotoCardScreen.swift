@@ -5,6 +5,7 @@ struct PhotoCardScreen: View {
     @Bindable var session: CardSession
     @State private var preview: CardPreviewState
     @State private var inspector: CardInspectorSelection
+    @State private var departureOwner = UUID()
     @Environment(PhotoWorkspace.self) private var workspace
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -39,7 +40,7 @@ struct PhotoCardScreen: View {
     var body: some View {
         NavigationStack {
             editorContent
-                .modifier(PhotoDepartureOverlay(session: session, page: .cards, imageCapture: {
+                .modifier(PhotoDepartureOverlay(session: session, page: .cards, captureOwner: departureOwner, imageCapture: {
                     guard var frame = preview.departureFrame else { return nil }
                     if preview.original { frame.overlay = nil }
                     return frame
@@ -131,7 +132,7 @@ struct PhotoCardScreen: View {
                     save: presentSaveOptions,
                     close: closeSessionIfSafe,
                     confirmReplace: replacePhotos,
-                    confirmClose: { session.clear() }, preview: preview, inspectorSelection: inspector)
+                    confirmClose: { session.clear(departureOwner: departureOwner) }, preview: preview, inspectorSelection: inspector)
                 // The canvas has no vertically scrolling content; a top scroll edge here only
                 // hazes the photo without ever reacting to scrolling.
                 .scrollEdgeEffectHidden(true, for: .top)
@@ -175,7 +176,7 @@ struct PhotoCardScreen: View {
 #endif
             }
             ToolbarItem(placement: .primaryAction) {
-                PhotoCloseButton(session: session)
+                PhotoCloseButton(session: session, departureOwner: departureOwner)
             }
             ToolbarItem(placement: .primaryAction) {
                 Menu("card.more", systemImage: "ellipsis") {
@@ -210,7 +211,7 @@ struct PhotoCardScreen: View {
     }
 
     private func closeSessionIfSafe() {
-        if hasUnsavedChanges { showingClose = true } else { session.clear() }
+        if hasUnsavedChanges { showingClose = true } else { session.clear(departureOwner: departureOwner) }
     }
 
     private var pickerSheet: some View {

@@ -15,6 +15,7 @@ struct ColorsScreen: View {
     @State private var pendingInput: Input?
     @State private var confirmReplace = false
     @State private var confirmationUsesMenu = false
+    @State private var departureOwner = UUID()
     private enum Input: Equatable { case photos, files, camera }
     private var session: CardSession { workspace.session(for: .colors) }
     private var inlineInformation: Bool {
@@ -65,7 +66,8 @@ struct ColorsScreen: View {
                     }
                 }
             }
-            .modifier(PhotoDepartureOverlay(session: session, page: .colors, viewportCapture: { sampling.departureCapture?() }))
+            .modifier(PhotoDepartureOverlay(session: session, page: .colors, captureOwner: departureOwner,
+                viewportCapture: { sampling.departureCapture?() }))
             .onGeometryChange(for: Bool.self) { $0.size.width >= PhotoPreviewMetrics.wideThreshold } action: { wideWorkspace = $0 }
 #if !os(macOS)
             .toolbarVisibility(.hidden, for: .navigationBar)
@@ -75,7 +77,7 @@ struct ColorsScreen: View {
             .toolbar {
                 if session.current != nil {
                     ToolbarItem(placement: .primaryAction) { inputMenu }
-                    ToolbarItem(placement: .primaryAction) { PhotoCloseButton(session: session) }
+                    ToolbarItem(placement: .primaryAction) { PhotoCloseButton(session: session, departureOwner: departureOwner) }
                 }
             }
 #endif
@@ -146,10 +148,12 @@ struct ColorsScreen: View {
                     if cameraAvailable { inputAction(.camera, title: "colors.camera", symbol: "camera") }
 #endif
                     colorTools
-                    PhotoCloseButton(session: session)
+                    PhotoCloseButton(session: session, departureOwner: departureOwner)
                 }
             } else {
-                PhotoPreviewActionRow(fillsWidth: !metrics.isWide) { inputMenu; colorTools; PhotoCloseButton(session: session) }
+                PhotoPreviewActionRow(fillsWidth: !metrics.isWide) {
+                    inputMenu; colorTools; PhotoCloseButton(session: session, departureOwner: departureOwner)
+                }
             }
         }
         .disabled(session.busy)

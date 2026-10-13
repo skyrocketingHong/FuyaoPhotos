@@ -17,7 +17,13 @@ import os
     @ObservationIgnored private var departureSnapshot: (id: UUID, image: CGImage)?
     @ObservationIgnored private var departureCleanup: Task<Void, Never>?
     @ObservationIgnored private var departurePlayback = PhotoDeparturePlayback()
-    @ObservationIgnored private var departureCapture: (owner: UUID, capture: PhotoViewportCapture?, eligible: @MainActor () -> Bool)?
+    private struct DepartureCapture {
+        let owner: UUID
+        let capture: PhotoViewportCapture?
+        let frame: @MainActor () -> CGRect
+        let eligible: @MainActor () -> Bool
+    }
+    @ObservationIgnored private var departureCaptures = PhotoDepartureCaptureRegistry<DepartureCapture>()
     var progress = 0
     var total = 0
     var errorMessage: String?
@@ -276,14 +282,14 @@ import os
         departureSnapshot = (documentID, image)
     }
 
-    func registerDepartureCapture(_ capture: PhotoViewportCapture?, owner: UUID,
+    func registerDepartureCapture(_ capture: PhotoViewportCapture?, frame: @escaping @MainActor () -> CGRect, owner: UUID,
                                   eligible: @escaping @MainActor () -> Bool) {
         guard eligible() else { return }
-        departureCapture = (owner, capture, eligible)
+        departureCaptures.register(DepartureCapture(owner: owner, capture: capture, frame: frame, eligible: eligible), ownerID: owner)
     }
 
     func removeDepartureCapture(owner: UUID) {
-        if departureCapture?.owner == owner { departureCapture = nil }
+        departureCaptures.remove(ownerID: owner)
         if departurePlayback.cancel(ownerID: owner) {
             departureCleanup?.cancel()
             departureCleanup = nil
@@ -322,19 +328,33 @@ import os
         departure != nil && departurePlayback.hidesImportContent(ownerID: owner, now: .now)
     }
 
-    func clear() {
+    func clear(departureOwner: UUID? = nil) {
         if current != nil, let previous = departure {
             finishDeparture(id: previous.id, owner: previous.ticket.ownerID)
         }
-        if let current, let capture = departureCapture, capture.eligible() {
+        let capture: DepartureCapture?
+        if let departureOwner { capture = departureCaptures.capture(for: departureOwner) }
+        else {
+            capture = departureCaptures.replacementCandidates.first { $0.eligible() }
+        }
+        if let current, let capture, capture.eligible() {
+            let viewportFrame = capture.frame()
             let viewport = capture.capture?()
             let cached = departureSnapshot?.id == current.id ? departureSnapshot?.image : nil
-            let snapshot = viewport ?? cached ?? current.initialSDRPreview ?? Self.departureThumbnail(current.sourceURL)
-            if let snapshot {
-                let ticket = departurePlayback.publish(ownerID: capture.owner, now: .now,
-                    lifetime: TelegramDustView.lifetime)
+            let candidate = viewport ?? cached ?? current.initialSDRPreview ?? Self.departureThumbnail(current.sourceURL)
+            if let candidate, !viewportFrame.isEmpty, !viewportFrame.isNull, !viewportFrame.isInfinite,
+               let snapshot = PhotoDepartureSourceImage.freeze(candidate) {
+                let scale = min(viewportFrame.width / CGFloat(snapshot.width), viewportFrame.height / CGFloat(snapshot.height))
+                let imageSize = CGSize(width: CGFloat(snapshot.width) * scale, height: CGFloat(snapshot.height) * scale)
+                let frame = viewport != nil ? viewportFrame : CGRect(x: viewportFrame.midX - imageSize.width / 2,
+                    y: viewportFrame.midY - imageSize.height / 2, width: imageSize.width, height: imageSize.height)
+                let now = ContinuousClock.now
+                let reassembles = departureOwner != nil
+                let ticket = departurePlayback.publish(ownerID: capture.owner, now: now,
+                    lifetime: reassembles ? .milliseconds(PhotoMotionTokens.reassemblyLifetimeMillis) : TelegramDustView.lifetime)
                 departure = PhotoDeparture(ticket: ticket, documentID: current.id,
-                    image: snapshot, coversViewport: viewport != nil)
+                    image: snapshot, sourceFrame: frame,
+                    targetDeadline: reassembles ? now.advanced(by: .milliseconds(PhotoMotionTokens.reassemblyTargetWaitMillis)) : nil)
                 departureCleanup?.cancel()
                 departureCleanup = Task { [weak self] in
                     do { try await ContinuousClock().sleep(until: ticket.expiresAt) } catch { return }

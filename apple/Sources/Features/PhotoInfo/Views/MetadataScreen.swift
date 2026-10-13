@@ -11,6 +11,7 @@ struct MetadataScreen: View {
     @State private var confirmReplace = false
     @State private var replacementIDs: [String]?
     @State private var summaryState = OriginalSummaryState()
+    @State private var departureOwner = UUID()
     private enum Mode: Hashable { case view, edit }
     private var session: CardSession { workspace.session(for: .metadata) }
     private var replacementTitle: LocalizedStringKey {
@@ -32,7 +33,7 @@ struct MetadataScreen: View {
                             actions: {
 #if !os(macOS)
                                 openPhotoButton
-                                PhotoCloseButton(session: session)
+                                PhotoCloseButton(session: session, departureOwner: departureOwner)
 #endif
                             })
                     } content: {
@@ -45,7 +46,7 @@ struct MetadataScreen: View {
                     }
                 }
             }
-            .modifier(PhotoDepartureOverlay(session: session, page: .metadata, imageCapture: {
+            .modifier(PhotoDepartureOverlay(session: session, page: .metadata, captureOwner: departureOwner, imageCapture: {
                 if summaryState.showsDepth, let depth = summaryState.depthImage, let document = session.current {
                     return PhotoPreviewSnapshot(documentID: document.id, sourceURL: document.sourceURL,
                         image: depth, overlay: nil, usesPhotoBackdrop: false)
@@ -60,7 +61,7 @@ struct MetadataScreen: View {
             .toolbar {
                 if let document = session.current {
                     ToolbarItem(placement: .primaryAction) { openPhotoButton }
-                    ToolbarItem(placement: .primaryAction) { PhotoCloseButton(session: session) }
+                    ToolbarItem(placement: .primaryAction) { PhotoCloseButton(session: session, departureOwner: departureOwner) }
                     ToolbarItem(placement: .primaryAction) {
                         Button { showingSave = true } label: {
                             SaveProgressLabel(title: "metadata.save", active: state.busy, compact: true)

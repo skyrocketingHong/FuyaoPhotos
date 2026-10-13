@@ -31,9 +31,11 @@ fun PhotoMetadataScreen(photo: OriginalPhoto?, photos: List<PhotoPageItem>, phot
     FuyaoScaffold("", showTopBar = false) { padding ->
         if (photo == null) {
             FuyaoFormPage(padding) {
+                PhotoReassemblyTarget("metadata-photo", ready = !busy) {
                 PhotoImportCard(stringResource(R.string.photo_metadata_title),
                     stringResource(if (sharesCards) R.string.metadata_shared_description else R.string.photo_metadata_description),
                     R.drawable.ic_info,busy,onGallery,onFiles)
+                }
             }
         } else {
             PhotoWorkspaceCanvas(photo.bitmap, padding) {

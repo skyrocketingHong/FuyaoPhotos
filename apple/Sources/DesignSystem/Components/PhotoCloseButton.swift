@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PhotoCloseButton: View {
     let session: CardSession
+    let departureOwner: UUID
     @Environment(PhotoWorkspace.self) private var workspace
     @State private var confirmsDiscard = false
     private var label: LocalizedStringKey { session.documents.count == 1 ? "card.close.one" : "card.close.many" }
@@ -18,13 +19,13 @@ struct PhotoCloseButton: View {
         }
         .disabled(session.busy)
         .confirmationDialog(prompt, isPresented: $confirmsDiscard, titleVisibility: .visible) {
-            Button(label, role: .destructive) { session.clear() }
+            Button(label, role: .destructive) { session.clear(departureOwner: departureOwner) }
             Button("card.cancel", role: .cancel) {}
         }
     }
 
     private func close() {
         if workspace.hasPendingEdits(in: session) { confirmsDiscard = true }
-        else { session.clear() }
+        else { session.clear(departureOwner: departureOwner) }
     }
 }

@@ -44,11 +44,13 @@ internal fun OriginalPhotoSummary(photo: OriginalPhoto, controls: OriginalPrevie
         onDispose { if (controls.mode == OriginalPreviewMode.MOTION) controls.mode = OriginalPreviewMode.PHOTO }
     }
     val media: @Composable BoxScope.() -> Unit = {
-            DevelopVeil(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                val displayed = if (controls.mode == OriginalPreviewMode.DEPTH) depth else photo.bitmap
+            val displayed = if (controls.mode == OriginalPreviewMode.DEPTH) depth else photo.bitmap
+            DevelopVeil(Modifier.fillMaxSize()
+                .then(if (dissolveSource != null) Modifier.photoDissolveSource(dissolveSource, displayed) else Modifier),
+                contentAlignment = Alignment.Center) {
                 if (displayed != null) Image(displayed.asImageBitmap(),
                     stringResource(if (controls.mode == OriginalPreviewMode.DEPTH) R.string.portrait_depth_preview else R.string.original_preview),
-                    Modifier.fillMaxSize().then(if (dissolveSource != null) Modifier.photoDissolveSource(dissolveSource, displayed) else Modifier), contentScale = ContentScale.Fit)
+                    Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 else if (busy) CircularProgressIndicator(Modifier.size(28.dp))
                 else Text(stringResource(R.string.error_preview_title), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (controls.mode == OriginalPreviewMode.MOTION && photo.motion != null) {

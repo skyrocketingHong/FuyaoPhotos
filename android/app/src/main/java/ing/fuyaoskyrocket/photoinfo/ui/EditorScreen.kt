@@ -22,6 +22,7 @@ import ing.fuyaoskyrocket.photoinfo.ui.components.navigationEnter
 import ing.fuyaoskyrocket.photoinfo.ui.components.navigationExit
 import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoDissolveHost
 import ing.fuyaoskyrocket.photoinfo.ui.components.rememberPhotoDissolveController
+import ing.fuyaoskyrocket.photoinfo.ui.components.PhotoReassemblyTarget
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature
 import ing.fuyaoskyrocket.photoinfo.domain.model.WorkspaceSettings
 import androidx.compose.ui.platform.LocalFocusManager
@@ -176,8 +177,8 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         if (metadataEdits.busy || vm.state.exporting) return
         val owner = vm.state.settings.workspace.owner(feature)
         val ids = photosFor(owner).map { it.id }.toSet()
+        dust.reassemble(dissolveID(feature))
         focus.clearFocus(force = true)
-        dust.dissolve(dissolveID(feature))
         metadataEdits.discard(ids)
         when (owner) {
             PhotoFeature.CARDS -> vm.closeSession(showProgress = false) { }
@@ -192,6 +193,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         else closePhotos(feature)
     }
     fun importCards(uris: List<Uri>, sourceID: String = "cards-photo") {
+        dust.cancelReassembly("new_import")
         val previous = vm.state.photos.map { it.id }.toSet()
         vm.importPhotos(uris) { departureEffects.dispatch(sourceID); metadataEdits.discard(previous) }
     }
@@ -269,6 +271,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     var importFeature by rememberSaveable { mutableStateOf(ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA) }
     var importOwner by rememberSaveable { mutableStateOf(ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature.METADATA) }
     fun importMetadataPhotos(uris: List<Uri>) {
+        dust.cancelReassembly("new_import")
         val sourceID = dissolveID(importFeature)
         val previous = photosFor(importOwner).map { it.id }.toSet()
         val replacing = { departureEffects.dispatch(sourceID); metadataEdits.discard(previous) }
@@ -444,10 +447,12 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             } }) { padding ->
                     if(state.photos.isEmpty()) {
                         FuyaoFormPage(padding) {
+                            PhotoReassemblyTarget("cards-photo", ready = !state.busy) {
                             PhotoImportCard(stringResource(R.string.photo_cards_title),
                                 stringResource(R.string.empty_hint,PhotoEditSnapshot.MAX_PHOTOS),R.drawable.ic_photo_add,state.busy,
                                 onGallery={ photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                                 onFiles={ filePicker.launch(arrayOf("image/*", ing.fuyaoskyrocket.photoinfo.domain.media.FuyaoPhotosPackage.MIME, "application/octet-stream")) })
+                            }
                         }
                     } else {
                         PhotoWorkspaceCanvas(state.original ?: state.preview, padding) {

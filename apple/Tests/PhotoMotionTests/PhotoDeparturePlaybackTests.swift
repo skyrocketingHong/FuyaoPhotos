@@ -3,6 +3,36 @@ import Testing
 import PhotoMotionCore
 
 struct PhotoDeparturePlaybackTests {
+    @Test func closingTheFirstWindowKeepsItsOwnViewportAfterAnotherWindowRegisters() {
+        let firstWindow = UUID(), secondWindow = UUID()
+        var captures = PhotoDepartureCaptureRegistry<String>()
+        captures.register("first-window-viewport", ownerID: firstWindow)
+        captures.register("second-window-viewport", ownerID: secondWindow)
+        #expect(captures.capture(for: firstWindow) == "first-window-viewport")
+        #expect(captures.capture(for: secondWindow) == "second-window-viewport")
+    }
+
+    @Test func detachingOneWindowDoesNotRemoveAnotherWindowsCapture() {
+        let firstWindow = UUID(), secondWindow = UUID()
+        var captures = PhotoDepartureCaptureRegistry<Int>()
+        captures.register(1, ownerID: firstWindow)
+        captures.register(2, ownerID: secondWindow)
+        captures.remove(ownerID: secondWindow)
+        #expect(captures.capture(for: firstWindow) == 1)
+        #expect(captures.capture(for: secondWindow) == nil)
+        #expect(captures.replacementCandidates == [1])
+    }
+
+    @Test func refreshingCaptureReplacesOnlyThatOwnersSnapshot() {
+        let firstWindow = UUID(), secondWindow = UUID()
+        var captures = PhotoDepartureCaptureRegistry<Int>()
+        captures.register(1, ownerID: firstWindow)
+        captures.register(2, ownerID: secondWindow)
+        captures.register(3, ownerID: firstWindow)
+        #expect(captures.capture(for: secondWindow) == 2)
+        #expect(captures.replacementCandidates == [3, 2])
+    }
+
     @Test func retainedSharedPagesCannotConsumeOrReplayAnotherOwnersEvent() {
         let now = ContinuousClock.now
         let owner = UUID()
