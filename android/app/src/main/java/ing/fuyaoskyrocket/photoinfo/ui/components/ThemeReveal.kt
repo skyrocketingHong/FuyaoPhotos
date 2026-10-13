@@ -31,7 +31,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlin.math.hypot
 
-/** Settings-only snapshot: keep the new live tree and its draft while revealing its theme. */
+/** Keep the live settings tree while revealing its new theme over the previous appearance. */
 @Composable
 internal fun ThemeReveal(content: @Composable (change: (() -> Unit) -> Unit) -> Unit) {
     val layer = rememberGraphicsLayer()
@@ -88,6 +88,11 @@ internal fun ThemeReveal(content: @Composable (change: (() -> Unit) -> Unit) -> 
                             }
                         }
                     }
+                } else {
+                    revealJob?.cancel()
+                    snapshot = null
+                    capturing = false
+                    apply()
                 }
             }
         }

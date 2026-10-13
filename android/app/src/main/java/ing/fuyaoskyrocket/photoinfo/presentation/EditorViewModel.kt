@@ -259,13 +259,18 @@ class EditorViewModel(application: Application, private val saved: SavedStateHan
         updateField(field,value,photoId)
     }
 
-    fun saveSettings(settings: EditorSettings) {
+    fun updateSettings(update: (EditorSettings) -> EditorSettings) {
+        val previous = state.settings
+        val settings = update(previous)
         if (state.busy || !settings.validFocal || settings.defaultAuthor.length > 512) return
+        if (settings == previous) return
         settingsRepository.save(settings)
         state = state.copy(settings = settingsRepository.read().also {
             ing.fuyaoskyrocket.photoinfo.platform.HevcEncoders.preferred = it.hevcEncoder })
-        if (!settings.resolvePhotoLocation) { cancelLocation(); state = state.copy(locationStatus = LocationStatus.DISABLED) }
-        else if (state.info[FieldId.LOCATION].isBlank() && !locationEdited) resolveLocation()
+        if (previous.resolvePhotoLocation != settings.resolvePhotoLocation) {
+            if (!settings.resolvePhotoLocation) { cancelLocation(); state = state.copy(locationStatus = LocationStatus.DISABLED) }
+            else if (state.info[FieldId.LOCATION].isBlank() && !locationEdited) resolveLocation()
+        }
     }
     fun applyDefaultAuthor() = updateField(FieldId.AUTHOR, state.settings.defaultAuthor)
 

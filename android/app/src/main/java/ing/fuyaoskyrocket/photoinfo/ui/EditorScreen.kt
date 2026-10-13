@@ -209,10 +209,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
     var showPhotoMenu by remember { mutableStateOf(false) }
     val navigation = rememberNavController()
     val currentEntry by navigation.currentBackStackEntryAsState()
-    var settingsDirty by remember { mutableStateOf(false) }
-    var pendingTab by remember { mutableStateOf<PhotoPage?>(null) }
     var requestedTab by remember { mutableStateOf<PhotoPage?>(null) }
-    var settingsLenses by rememberSaveable(stateSaver = ProfilesSaver) { mutableStateOf(state.settings.lenses) }
     fun atPage(page: PhotoPage) = navigation.currentBackStackEntry?.let {
         it.destination.route == page.name && it.lifecycle.currentState == Lifecycle.State.RESUMED
     } == true
@@ -239,11 +236,7 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
         if (requestedTab != target || navigation.currentBackStackEntry != entry) return@LaunchedEffect
         requestedTab = null
         if (entry.destination.route == target.name) return@LaunchedEffect
-        if (entry.destination.route == PhotoPage.SETTINGS.name && settingsDirty) pendingTab = target
-        else {
-            if (target == PhotoPage.SETTINGS) settingsLenses = state.settings.lenses
-            navigateToTab(target)
-        }
+        navigateToTab(target)
     }
     var editingLens by rememberSaveable { mutableStateOf<List<String>?>(null) }
     var editedLens by rememberSaveable { mutableStateOf<List<String>?>(null) }
@@ -506,28 +499,26 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                 onClose = { requestClose(PhotoFeature.COLORS) })
         }
         composable(PhotoPage.SETTINGS.name) {
-            SettingsScreen(state.settings.copy(lenses = settingsLenses), state.photos.isNotEmpty(),
-                canSave = !state.busy,
+            SettingsScreen(state.settings, state.photos.isNotEmpty(),
+                enabled = !state.busy && !metadataEdits.busy,
                 onManageLenses = { editedLens = null; openPage(PhotoPage.SETTINGS, PhotoPage.LENSES) },
-                onBack = { returnFrom(PhotoPage.SETTINGS) },
-                onDirtyChanged = { settingsDirty = it },
-                onSave = { settings, apply ->
-                    if (!vm.state.busy && navigation.currentBackStackEntry?.destination?.route == PhotoPage.SETTINGS.name) {
-                        vm.saveSettings(settings)
-                        if (apply) vm.applyDefaultAuthor()
-                        settingsDirty = false
+                onUpdate = { update ->
+                    if (!vm.state.busy && !metadataEdits.busy && atPage(PhotoPage.SETTINGS)) {
+                        vm.updateSettings(update)
                     }
+                },
+                onApplyAuthor = {
+                    if (!vm.state.busy && !metadataEdits.busy && atPage(PhotoPage.SETTINGS)) vm.applyDefaultAuthor()
                 })
         }
         composable(PhotoPage.LENSES.name) {
-            LensProfilesScreen(settingsLenses, state.sourceModel, editedLens,
+            LensProfilesScreen(state.settings.lenses, state.sourceModel, editedLens,
                 onEditConsumed = { editedLens = null },
                 onEdit = { if(atPage(PhotoPage.LENSES)) { editingLens = it.fields(); openPage(PhotoPage.LENSES, PhotoPage.LENS_EDIT) } },
                 onBack = { returnFrom(PhotoPage.LENSES) },
                 onSave = { profiles ->
-                    if (!vm.state.busy && atPage(PhotoPage.LENSES)) {
-                        vm.saveSettings(state.settings.copy(lenses = profiles))
-                        settingsLenses = profiles
+                    if (!vm.state.busy && !metadataEdits.busy && atPage(PhotoPage.LENSES)) {
+                        vm.updateSettings { it.copy(lenses = profiles) }
                         navigation.popBackStack()
                     }
                 })
@@ -559,19 +550,6 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
             text = { Text(stringResource(R.string.close_photo_message)) },
             confirmButton = { TextButton(onClick = { closingFeature = null; closePhotos(feature) }) { Text(stringResource(R.string.close_photo)) } },
             dismissButton = { TextButton(onClick = { closingFeature = null }) { Text(stringResource(R.string.continue_editing)) } })
-    }
-    pendingTab?.let { page ->
-        AlertDialog(onDismissRequest = { pendingTab = null },
-            title = { Text(stringResource(R.string.discard_title)) },
-            text = { Text(stringResource(R.string.settings_leave_message)) },
-            confirmButton = { TextButton(onClick = {
-                pendingTab = null
-                settingsDirty = false
-                navigateToTab(page)
-            }) { Text(stringResource(R.string.discard_changes)) } },
-            dismissButton = { TextButton(onClick = { pendingTab = null }) {
-                Text(stringResource(R.string.continue_editing))
-            } })
     }
     metadataReplacement?.let { selected ->
         AlertDialog(onDismissRequest = { metadataReplacement = null },

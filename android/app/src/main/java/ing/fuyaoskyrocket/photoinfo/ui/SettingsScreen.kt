@@ -34,21 +34,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.model.EditorSettings
-import ing.fuyaoskyrocket.photoinfo.domain.model.WorkspaceSettings
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoSharing
 import ing.fuyaoskyrocket.photoinfo.domain.model.PhotoFeature
 import ing.fuyaoskyrocket.photoinfo.domain.model.StartPage
 import ing.fuyaoskyrocket.photoinfo.ui.components.AboutContent
 import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsControls
-import ing.fuyaoskyrocket.photoinfo.ui.components.ExportOptionsSaver
-import ing.fuyaoskyrocket.photoinfo.ui.components.rememberConfirmedBack
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.*
 import ing.fuyaoskyrocket.photoinfo.ui.theme.LocalPhotoMotionEnabled
 import ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoMotionTokens
 import ing.fuyaoskyrocket.photoinfo.ui.components.ThemeReveal
 import ing.fuyaoskyrocket.photoinfo.ui.components.navigationEnter
 import ing.fuyaoskyrocket.photoinfo.ui.components.navigationExit
-import ing.fuyaoskyrocket.photoinfo.ui.components.navigationBackdropSource
 import androidx.lifecycle.Lifecycle
 
 private enum class SettingsCategory(@StringRes val label: Int, @StringRes val description: Int, @DrawableRes val icon: Int) {
@@ -62,71 +58,67 @@ private enum class SettingsCategory(@StringRes val label: Int, @StringRes val de
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true,onManageLenses:()->Unit,onBack:()->Unit,
-    onDirtyChanged:(Boolean)->Unit,onSave:(EditorSettings,Boolean)->Unit) {
+fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,enabled:Boolean=true,onManageLenses:()->Unit,
+    onUpdate:((EditorSettings)->EditorSettings)->Unit,onApplyAuthor:()->Unit) {
     var author by rememberSaveable { mutableStateOf(settings.defaultAuthor) }
-    var geocode by rememberSaveable { mutableStateOf(settings.resolvePhotoLocation) }
-    var preferLensPixelCount by rememberSaveable { mutableStateOf(settings.preferLensPixelCount) }
     var mainFocal by rememberSaveable { mutableStateOf(settings.fallbackMainFocal) }
-    var exportDefaults by rememberSaveable(stateSaver=ExportOptionsSaver) { mutableStateOf(settings.exportDefaults) }
-    var hevcEncoder by rememberSaveable { mutableStateOf(settings.hevcEncoder) }
-    var startPage by rememberSaveable { mutableStateOf(settings.workspace.startPage) }
-    var sharing by rememberSaveable { mutableStateOf(settings.workspace.sharing) }
-    var sharedNames by rememberSaveable { mutableStateOf(settings.workspace.sharedFeatures.map { it.name }) }
-    var theme by rememberSaveable(stateSaver = WorkspaceThemeSaver) { mutableStateOf(settings.workspace) }
-    val workspace = theme.copy(startPage = startPage, sharing = sharing,
-        sharedFeatures = sharedNames.mapNotNull { name -> PhotoFeature.entries.firstOrNull { it.name == name } }.toSet())
+    val geocode = settings.resolvePhotoLocation
+    val preferLensPixelCount = settings.preferLensPixelCount
+    val exportDefaults = settings.exportDefaults
+    val hevcEncoder = settings.hevcEncoder
+    val workspace = settings.workspace
+    val startPage = workspace.startPage
+    val sharing = workspace.sharing
+    val validMainFocal = settings.copy(fallbackMainFocal = mainFocal).validFocal
     var selectedCategory by rememberSaveable { mutableStateOf(SettingsCategory.CARDS) }
     val categoryNavigation = rememberNavController()
     val motionEnabled = LocalPhotoMotionEnabled.current
     val containerMotion = motionEnabled && settings.workspace.predictiveBackStyle != ing.fuyaoskyrocket.photoinfo.domain.model.PredictiveBackStyle.NONE
-    val draft=settings.copy(defaultAuthor=author, resolvePhotoLocation=geocode, fallbackMainFocal=mainFocal,
-        exportDefaults=exportDefaults.photoSave(), hevcEncoder=hevcEncoder, workspace=workspace, preferLensPixelCount=preferLensPixelCount)
-    val changed = ing.fuyaoskyrocket.photoinfo.domain.session.EditChanges.form(
-        listOf(settings.defaultAuthor, settings.resolvePhotoLocation.toString(), settings.fallbackMainFocal),
-        listOf(author, geocode.toString(), mainFocal), setOf(2)) || exportDefaults != settings.exportDefaults ||
-        hevcEncoder != settings.hevcEncoder || workspace != settings.workspace || preferLensPixelCount != settings.preferLensPixelCount
-    SideEffect { onDirtyChanged(changed) }
 
     ThemeReveal { changeTheme ->
-    fun saveDraft(applyAuthor: Boolean) {
-        if (theme != settings.workspace) changeTheme { onSave(draft, applyAuthor) }
-        else onSave(draft, applyAuthor)
-    }
 
     @Composable fun overview() {
         FuyaoPageIntro(stringResource(R.string.settings), stringResource(R.string.settings_overview_description), R.drawable.ic_settings)
     }
 
-    @Composable fun categoryContent(category: SettingsCategory, canEdit: () -> Boolean = { true }) {
+    @Composable fun categoryContent(category: SettingsCategory, canEdit: () -> Boolean = { enabled }) {
         FuyaoPageIntro(stringResource(category.label), stringResource(category.description), category.icon)
         when(category) {
-            SettingsCategory.THEME -> ThemeSettingsContent(workspace) { if (canEdit()) theme = it }
+            SettingsCategory.THEME -> ThemeSettingsContent(workspace, enabled = enabled) { update ->
+                if (canEdit()) changeTheme { onUpdate { current -> current.copy(workspace = update(current.workspace)) } }
+            }
             SettingsCategory.WORKSPACE -> FuyaoFormSection {
-                SettingsChoice(stringResource(R.string.workspace_startup), startPage,
+                SettingsChoiceRow(stringResource(R.string.workspace_startup), startPage,
                     StartPage.entries.associateWith { stringResource(when(it) {
                         StartPage.MAP -> R.string.photo_map_title; StartPage.EDITOR -> R.string.photo_cards_title
                         StartPage.METADATA -> R.string.photo_metadata_title; StartPage.COLORS -> R.string.colors_title
-                    }) }) { if (canEdit()) startPage = it }
-                SettingsChoice(stringResource(R.string.workspace_sharing), sharing,
+                    }) }, enabled = enabled) { value ->
+                        if (canEdit()) onUpdate { it.copy(workspace = it.workspace.copy(startPage = value)) }
+                    }
+                SettingsChoiceRow(stringResource(R.string.workspace_sharing), sharing,
                     PhotoSharing.entries.associateWith { stringResource(when(it) {
                         PhotoSharing.ALL -> R.string.workspace_sharing_all; PhotoSharing.INDEPENDENT -> R.string.workspace_sharing_none
                         PhotoSharing.PARTIAL -> R.string.workspace_sharing_partial
-                    }) }) { if (canEdit()) sharing = it }
+                    }) }, enabled = enabled) { value ->
+                        if (canEdit()) onUpdate { it.copy(workspace = it.workspace.copy(sharing = value)) }
+                    }
                 AnimatedVisibility(visible = sharing == PhotoSharing.PARTIAL,
                     enter = if (motionEnabled) fadeIn(tween(180)) + expandVertically(tween(200)) else EnterTransition.None,
                     exit = if (motionEnabled) fadeOut(tween(120)) + shrinkVertically(tween(180)) else ExitTransition.None) {
                 Column {
                 PhotoFeature.entries.forEach { feature ->
-                    val selected = feature.name in sharedNames
-                    Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(selected, enabled = sharing == PhotoSharing.PARTIAL, role=Role.Checkbox,
-                        onValueChange={ enabled -> if (canEdit()) sharedNames = if (enabled) (sharedNames + feature.name).distinct() else sharedNames - feature.name }),
+                    val selected = feature in workspace.sharedFeatures
+                    Row(Modifier.fillMaxWidth().heightIn(min=48.dp).toggleable(selected, enabled = enabled && sharing == PhotoSharing.PARTIAL, role=Role.Checkbox,
+                        onValueChange={ checked -> if (canEdit()) onUpdate {
+                            it.copy(workspace = it.workspace.copy(sharedFeatures = if (checked)
+                                it.workspace.sharedFeatures + feature else it.workspace.sharedFeatures - feature))
+                        } }),
                         verticalAlignment=Alignment.CenterVertically) {
                         Text(stringResource(when(feature) {
                             PhotoFeature.CARDS -> R.string.photo_cards_title; PhotoFeature.METADATA -> R.string.photo_metadata_title
                             PhotoFeature.COLORS -> R.string.colors_title
                         }), Modifier.weight(1f))
-                        Checkbox(selected, onCheckedChange=null)
+                        Checkbox(selected, onCheckedChange=null, enabled=enabled)
                     }
                 }
                 }
@@ -135,22 +127,25 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             SettingsCategory.CARDS -> FuyaoFormSection {
-                OutlinedTextField(author,{ if(canEdit() && it.length<=512)author=it },Modifier.fillMaxWidth(),
+                OutlinedTextField(author,{ value -> if(canEdit() && value.length<=512) {
+                    author=value
+                    onUpdate { it.copy(defaultAuthor=value) }
+                } },Modifier.fillMaxWidth(), enabled=enabled,
                     label={ Text(stringResource(R.string.field_author)) },maxLines=3,
                     supportingText={ Text(stringResource(R.string.default_author_hint)) })
-                TextButton(onClick={ if (canEdit()) saveDraft(true) },enabled=canSave&&hasPhoto&&draft.validFocal) {
-                    Text(stringResource(R.string.save_apply_author))
+                TextButton(onClick={ if (canEdit()) onApplyAuthor() },enabled=enabled&&hasPhoto) {
+                    Text(stringResource(R.string.apply_author_to_photo))
                 }
-                Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=preferLensPixelCount, role=Role.Switch,
-                    onValueChange={ if (canEdit()) preferLensPixelCount=it }), verticalAlignment=Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=preferLensPixelCount, enabled=enabled, role=Role.Switch,
+                    onValueChange={ value -> if (canEdit()) onUpdate { it.copy(preferLensPixelCount=value) } }), verticalAlignment=Alignment.CenterVertically) {
                     Text(stringResource(R.string.prefer_lens_pixel_count), Modifier.weight(1f), style=MaterialTheme.typography.bodyLarge)
-                    Switch(preferLensPixelCount, onCheckedChange=null)
+                    Switch(preferLensPixelCount, onCheckedChange=null, enabled=enabled)
                 }
                 Text(stringResource(R.string.prefer_lens_pixel_count_hint), style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             SettingsCategory.EXPORT -> FuyaoFormSection {
-                ExportOptionsControls(exportDefaults,{ if (canEdit()) exportDefaults=it })
+                ExportOptionsControls(exportDefaults,{ value -> if (canEdit()) onUpdate { it.copy(exportDefaults=value.photoSave()) } }, enabled=enabled)
                 Text(stringResource(R.string.export_defaults_hint), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 HorizontalDivider()
@@ -158,52 +153,48 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 val encoderLabel=stringResource(R.string.hevc_encoder)
                 Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(
                         value=hevcEncoder==ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265,
-                        enabled=x265Available,role=Role.Switch,
-                        onValueChange={ if (canEdit()) hevcEncoder=if(it) ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265
-                            else ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.PLATFORM }),
+                        enabled=enabled&&x265Available,role=Role.Switch,
+                        onValueChange={ value -> if (canEdit()) onUpdate { it.copy(hevcEncoder=if(value)
+                            ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265
+                            else ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.PLATFORM) } }),
                     verticalAlignment=Alignment.CenterVertically) {
                     Text(encoderLabel,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
                     Switch(hevcEncoder==ing.fuyaoskyrocket.photoinfo.platform.HevcEncoderKind.X265,
-                        onCheckedChange=null,enabled=x265Available)
+                        onCheckedChange=null,enabled=enabled&&x265Available)
                 }
                 Text(stringResource(if(x265Available)R.string.hevc_encoder_hint else R.string.hevc_encoder_unavailable),
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             SettingsCategory.METADATA -> FuyaoFormSection {
                 val locationLabel=stringResource(R.string.resolve_location)
-                Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=geocode,role=Role.Switch,
-                    onValueChange={ if (canEdit()) geocode=it }),verticalAlignment=Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().heightIn(min=56.dp).toggleable(value=geocode,enabled=enabled,role=Role.Switch,
+                    onValueChange={ value -> if (canEdit()) onUpdate { it.copy(resolvePhotoLocation=value) } }),verticalAlignment=Alignment.CenterVertically) {
                     Text(locationLabel,Modifier.weight(1f),style=MaterialTheme.typography.bodyLarge)
-                    Switch(geocode,onCheckedChange=null)
+                    Switch(geocode,onCheckedChange=null,enabled=enabled)
                 }
                 Text(stringResource(R.string.resolve_location_hint),style=MaterialTheme.typography.bodySmall,
                     color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             SettingsCategory.LENSES -> FuyaoFormSection {
-                TextButton(onClick={ if (canEdit()) onManageLenses() },contentPadding=PaddingValues(0.dp),modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
+                TextButton(onClick={ if (canEdit()) onManageLenses() },enabled=enabled,contentPadding=PaddingValues(0.dp),modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
                     Text(stringResource(R.string.manage_lenses,settings.lenses.size),Modifier.weight(1f),
                         style=MaterialTheme.typography.bodyLarge)
                     Icon(painterResource(R.drawable.ic_chevron),null)
                 }
-                OutlinedTextField(mainFocal,{ if(canEdit() && it.length<=12)mainFocal=it },Modifier.fillMaxWidth(),
+                OutlinedTextField(mainFocal,{ value -> if(canEdit() && value.length<=12) {
+                    mainFocal=value
+                    if (settings.copy(fallbackMainFocal=value).validFocal) onUpdate { it.copy(fallbackMainFocal=value) }
+                } },Modifier.fillMaxWidth(), enabled=enabled,
                     label={ Text(stringResource(R.string.main_focal)) },
                     placeholder={ Text(stringResource(R.string.focal_example)) },singleLine=true,
                     keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),
-                    isError=!draft.validFocal,
-                    supportingText={ Text(stringResource(if(draft.validFocal)R.string.main_focal_hint else R.string.main_focal_error)) })
+                    isError=!validMainFocal,
+                    supportingText={ Text(stringResource(if(validMainFocal)R.string.main_focal_hint else R.string.main_focal_error)) })
             }
         }
     }
 
-    FuyaoScaffold("",showTopBar=false,bottomBar={
-        if(changed) Surface(modifier = Modifier.navigationBackdropSource(priority = 2), color=MaterialTheme.colorScheme.surface) {
-            Row(Modifier.fillMaxWidth().padding(bottom = LocalBottomNavigationInset.current)
-                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.safeDrawing).only(WindowInsetsSides.Bottom+WindowInsetsSides.Horizontal))
-                .padding(horizontal=FuyaoSpacing.content,vertical=8.dp),horizontalArrangement=Arrangement.End) {
-                Button(onClick={ saveDraft(false) },enabled=canSave&&draft.validFocal) { Text(stringResource(R.string.save_settings)) }
-            }
-        }
-    }) { padding ->
+    FuyaoScaffold("",showTopBar=false) { padding ->
         FuyaoAdaptivePage(padding,contentUnderTopEdge=true,leadingPaneWidth=280.dp,
             single = { modifier ->
                 SharedTransitionLayout(modifier) {
@@ -214,7 +205,6 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                     popExitTransition = { navigationExit(settings.workspace.predictiveBackStyle, motionEnabled, pop = true) }) {
                     composable("overview") { entry ->
                         val visibility = this
-                        rememberConfirmedBack(onBack, hasChanges = changed)
                         FuyaoPageColumn {
                             overview()
                             FuyaoFormSection(contentPadding = PaddingValues(4.dp), verticalSpacing = 0.dp) {
@@ -259,7 +249,7 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                             FuyaoPageColumn(Modifier.fillMaxSize().consumeWindowInsets(categoryPadding),
                                 topInset = categoryPadding.calculateTopPadding()) {
                                 categoryContent(selectedCategory) {
-                                    entry.lifecycle.currentState == Lifecycle.State.RESUMED && categoryNavigation.currentBackStackEntry == entry
+                                    enabled && entry.lifecycle.currentState == Lifecycle.State.RESUMED && categoryNavigation.currentBackStackEntry == entry
                                 }
                             }
                         }
@@ -269,7 +259,6 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 }
             },
             leading = { modifier ->
-                rememberConfirmedBack(onBack, hasChanges = changed)
                 FuyaoPageColumn(modifier) {
                     overview()
                     SettingsCategory.entries.forEach { category ->
@@ -291,20 +280,5 @@ fun SettingsScreen(settings:EditorSettings,hasPhoto:Boolean,canSave:Boolean=true
                 }
             })
     }
-    }
-}
-
-@Composable
-private fun <T> SettingsChoice(title: String, selected: T, options: Map<T, String>, onSelect: (T) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically) {
-        Text(title, Modifier.weight(1f))
-        Box {
-            TextButton({ expanded = true }) { Text(options[selected].orEmpty()) }
-            DropdownMenu(expanded, { expanded = false }) {
-                options.forEach { (value, label) -> DropdownMenuItem(text={ Text(label) },
-                    onClick={ onSelect(value); expanded = false }) }
-            }
-        }
     }
 }
