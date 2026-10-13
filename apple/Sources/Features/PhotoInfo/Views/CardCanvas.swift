@@ -12,6 +12,7 @@ struct CardCanvas: View {
     let confirmClose: () -> Void
     @Bindable var preview: CardPreviewState
     @State private var textEditingActive = false
+    @FocusState private var focusedField: CardField?
     let inspectorSelection: CardInspectorSelection
 
     var body: some View {
@@ -27,6 +28,19 @@ struct CardCanvas: View {
 #endif
             }
         }
+        .onChange(of: focusedField) { _, field in
+            if let field { inspectorSelection.field = field }
+            else { textEditingActive = false }
+        }
+        .onChange(of: session.selectedID) { _, _ in
+            finishEditing()
+            preview.playing = false
+            preview.original = false
+        }
+        .onChange(of: preview.fullScreen) { _, fullScreen in
+            if fullScreen { finishEditing() }
+        }
+        .onDisappear { finishEditing() }
     }
 
     private func workspace(_ document: CardDocument, size: CGSize) -> some View {
@@ -45,11 +59,8 @@ struct CardCanvas: View {
                             saved: session.savedCount != nil && session.errorMessage == nil)
         } content: {
             CardAdjustmentPanel(document: document, selection: inspectorSelection, textEditingActive: $textEditingActive,
-                                expanded: metrics.isWide)
+                                expanded: metrics.isWide, focusedField: $focusedField)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .onChange(of:session.selectedID) { _,_ in
-            preview.playing=false; preview.original=false; textEditingActive=false
         }
 #if os(iOS)
         .navigationDestination(isPresented: $preview.fullScreen) {
@@ -60,6 +71,11 @@ struct CardCanvas: View {
                 .toolbarVisibility(.hidden, for: .tabBar)
         }
 #endif
+    }
+
+    private func finishEditing() {
+        focusedField = nil
+        textEditingActive = false
     }
 }
 
@@ -124,8 +140,9 @@ private struct CardActionStrip: View {
 #if os(macOS)
         return optionalTools
 #else
-        let slots = min(7, max(3, Int(max(0, width) / PhotoPreviewMetrics.inlineToolWidth)))
-        return Array(optionalTools.prefix(slots - 3)) + [.save, .close, .more]
+        let persistentTools: [Tool] = [.save, .close, .more]
+        let slots = max(persistentTools.count, Int(max(0, width) / PhotoPreviewMetrics.inlineToolWidth))
+        return Array(optionalTools.prefix(slots - persistentTools.count)) + persistentTools
 #endif
     }
 
@@ -180,14 +197,27 @@ private struct CardActionStrip: View {
     }
 
     private func moreMenu(for width: CGFloat) -> some View {
-        PhotoPreviewMenu(title: "card.more") {
-            PackageImportButton()
-            ForEach(overflowTools(for: width), id: \.self) { menuAction(for: $0) }
-            if let url = document.exportURL, !document.isLive || document.exportIsMotionPhoto {
-                ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
+        let overflow = overflowTools(for: width)
+        let previewTools = overflow.filter { $0 != .open }
+        return PhotoPreviewMenu(title: "card.more") {
+            Section {
+                if overflow.contains(.open) { menuAction(for: .open) }
+                PackageImportButton()
             }
-            Button("card.style.reset", systemImage: "arrow.counterclockwise") {
-                document.card.style = PhotoCardStyle()
+            if !previewTools.isEmpty {
+                Section {
+                    ForEach(previewTools, id: \.self) { menuAction(for: $0) }
+                }
+            }
+            if let url = document.exportURL, !document.isLive || document.exportIsMotionPhoto {
+                Section {
+                    ShareLink(item: url) { Label("card.share", systemImage: "square.and.arrow.up") }
+                }
+            }
+            Section {
+                Button("card.style.reset", systemImage: "arrow.counterclockwise") {
+                    document.card.style = PhotoCardStyle()
+                }
             }
         }
     }

@@ -26,6 +26,7 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                         ForEach(0..<(items.count*101),id:\.self) { slot in
                             let item=items[slot%items.count]
                             Button {
+                                selectItem(at: slot)
                                 withAnimation(motionIsReduced ? nil : .snappy) { position=slot }
                             } label: {
                                 Text(title(item))
@@ -58,17 +59,15 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
                     ],startPoint:.top,endPoint:.bottom)
                 }
                 .onScrollPhaseChange { _,phase in
-                    guard phase == .idle,let position,
-                          !(items.count*49..<items.count*52).contains(position) else { return }
+                    guard phase == .idle, let position, !items.isEmpty else { return }
+                    selectItem(at: position)
+                    guard !(items.count*49..<items.count*52).contains(position) else { return }
                     var transaction=Transaction();transaction.disablesAnimations=true
                     withTransaction(transaction) { self.position=items.count*50+position%items.count }
                 }
             }
         }
         .onAppear { if position==nil { position=items.count*50+(items.firstIndex(of:selection) ?? 0) } }
-        .onChange(of:position) { _,value in
-            if let value { selection=items[value%items.count] }
-        }
         .onChange(of:selection) { _,value in
             guard let index=items.firstIndex(of:value),position.map({ $0%items.count }) != index else { return }
             position=items.count*50+index
@@ -77,10 +76,18 @@ struct CameraItemSelector<Item: Hashable & Identifiable>: View {
         .accessibilityLabel(Text("card.edit.field"))
         .accessibilityValue(Text(title(selection)))
         .accessibilityAdjustableAction { direction in
+            guard !items.isEmpty else { return }
             let current=items.firstIndex(of:selection) ?? 0
             let next=(current+(direction == .increment ? 1 : items.count-1))%items.count
+            selectItem(at: next)
             position=items.count*50+next
         }
         .sensoryFeedback(.selection,trigger:selection)
+    }
+
+    private func selectItem(at slot: Int) {
+        guard !items.isEmpty else { return }
+        let item = items[slot % items.count]
+        if item != selection { selection = item }
     }
 }

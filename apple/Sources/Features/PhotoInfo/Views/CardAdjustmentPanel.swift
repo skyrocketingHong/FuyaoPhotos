@@ -1,7 +1,4 @@
 import SwiftUI
-#if os(iOS)
-import UIKit
-#endif
 
 enum CardAdjustment: String, CaseIterable, Identifiable {
     case scale, textScale, opacity, blur, rightInset, bottomInset, cornerRadius
@@ -54,16 +51,18 @@ struct CardAdjustmentPanel: View {
     @Bindable var selection: CardInspectorSelection
     @Binding var textEditingActive: Bool
     var expanded = false
-    @FocusState private var editingText: Bool
+    @FocusState.Binding var focusedField: CardField?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
 #if os(macOS)
-        RegularCardInspector(document: document, selection: selection, textEditingActive: $textEditingActive)
+        RegularCardInspector(document: document, selection: selection, textEditingActive: $textEditingActive,
+                             focusedField: $focusedField)
 #else
         if expanded {
-            RegularCardInspector(document: document, selection: selection, textEditingActive: $textEditingActive)
+            RegularCardInspector(document: document, selection: selection, textEditingActive: $textEditingActive,
+                                 focusedField: $focusedField)
         } else { panel }
 #endif
     }
@@ -73,73 +72,158 @@ struct CardAdjustmentPanel: View {
             let contentWidth = max(0, geometry.size.width - 40)
             let selectorWidth = min(180, contentWidth * 0.32)
             let detailWidth = max(0, contentWidth - selectorWidth - 12)
+            let usesMenu = geometry.size.height < 320 || dynamicTypeSize.isAccessibilitySize
+            let condensed = geometry.size.height < 160
+            let stacked = usesMenu && !condensed
+            let editorLayout = stacked
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
             VStack(spacing: 12) {
-                Picker("card.edit.mode", selection: $selection.mode) {
-                    Label("card.information", systemImage: "info.circle").tag(CardInspectorSelection.Mode.information)
-                    Label("card.style", systemImage: "slider.horizontal.3").tag(CardInspectorSelection.Mode.style)
+                if !condensed {
+                    Picker("card.edit.mode", selection: modeSelection) {
+                        Label("card.information", systemImage: "info.circle").tag(CardInspectorSelection.Mode.information)
+                        Label("card.style", systemImage: "slider.horizontal.3").tag(CardInspectorSelection.Mode.style)
+                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
-                HStack(alignment: .top, spacing: 12) {
+                editorLayout {
                     ZStack {
-                        if geometry.size.height < 320 || dynamicTypeSize.isAccessibilitySize {
-                            Menu {
-                                if selection.mode == .information {
-                                    Picker("card.information", selection: $selection.field) {
-                                        ForEach(CardField.allCases) { Text(LocalizedStringKey($0.titleKey)).tag($0) }
-                                    }
-                                    if selection.field == .imageSize {
-                                        CardImageSizeMenu(document: document) { editingText = false; textEditingActive = false }.actions
-                                    }
-                                } else {
-                                    Picker("card.style", selection: $selection.adjustment) {
-                                        ForEach(CardAdjustment.allCases) { Text($0.title).tag($0) }
-                                    }
-                                }
-                                Button("card.restore.current", systemImage: "arrow.counterclockwise") {
-                                    if selection.mode == .information { document.restoreField(selection.field, preferLensPixelCount: CardPreferences.shared.preferLensPixelCount) }
-                                    else { document.card.style[keyPath: selection.adjustment.keyPath] = PhotoCardStyle()[keyPath: selection.adjustment.keyPath] }
-                                }
-                                Button("card.restore.all", systemImage: "arrow.counterclockwise.circle") {
-                                    if selection.mode == .information {
-                                        document.restoreInformation(preferLensPixelCount: CardPreferences.shared.preferLensPixelCount)
-                                    } else { document.card.style = PhotoCardStyle() }
-                                }
-                            } label: {
-                                Label(selection.mode == .information ? LocalizedStringKey(selection.field.titleKey) : selection.adjustment.title,
-                                      systemImage: "chevron.up.chevron.down")
-                            }
-                            .frame(minHeight: 44)
+                        if usesMenu {
+                            CardInspectorSelectionMenu(document: document, selection: selection,
+                                                       includesMode: condensed, prepare: finishEditing)
                         } else if selection.mode == .information {
-                            EditorItemPicker(items: CardField.allCases, selection: $selection.field) {
+                            EditorItemPicker(items: CardField.allCases, selection: fieldSelection) {
                                 $0 == .focalLength ? "card.field.focalLength.short" : LocalizedStringKey($0.titleKey)
                             }
                             .transition(.opacity)
                         } else {
-                            EditorItemPicker(items: CardAdjustment.allCases, selection: $selection.adjustment) { $0.title }
+                            EditorItemPicker(items: CardAdjustment.allCases, selection: adjustmentSelection) { $0.title }
                                 .transition(.opacity)
                         }
                     }
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selection.mode)
-                    .frame(width: selectorWidth)
+                    .frame(width: stacked ? nil : selectorWidth)
+                    .frame(maxWidth: stacked ? .infinity : nil, alignment: .leading)
 
                     MobileCardInspector(document: document, field: selection.field, adjustment: selection.adjustment,
                                         information: selection.mode == .information, selectionID: detailID,
-                                        textEditingActive: $textEditingActive, editingText: $editingText)
-                        .frame(width: detailWidth)
+                                        compact: usesMenu, textEditingActive: $textEditingActive,
+                                        focusedField: $focusedField)
+                        .frame(width: stacked ? contentWidth : detailWidth)
                         .frame(maxHeight: .infinity)
                 }
                 .frame(width: contentWidth)
                 .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 8)
+            .padding(.bottom, condensed ? 0 : 8)
 
         }
-        .onChange(of: selection.mode) { _, _ in textEditingActive = false }
+        .onChange(of: selection.mode) { _, _ in finishEditing() }
+#if os(iOS)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                if focusedField != nil {
+                    Spacer()
+                    Button("done", action: finishEditing)
+                }
+            }
+        }
+#endif
+    }
+
+    private var modeSelection: Binding<CardInspectorSelection.Mode> {
+        Binding(get: { selection.mode }, set: { value in
+            guard value != selection.mode else { return }
+            finishEditing()
+            selection.mode = value
+        })
+    }
+
+    private var fieldSelection: Binding<CardField> {
+        Binding(get: { selection.field }, set: { value in
+            guard selection.mode == .information, value != selection.field else { return }
+            finishEditing()
+            selection.field = value
+        })
+    }
+
+    private var adjustmentSelection: Binding<CardAdjustment> {
+        Binding(get: { selection.adjustment }, set: { value in
+            guard selection.mode == .style, value != selection.adjustment else { return }
+            finishEditing()
+            selection.adjustment = value
+        })
+    }
+
+    private func finishEditing() {
+        focusedField = nil
+        textEditingActive = false
     }
 
     private var detailID: String {
         selection.mode == .information ? "field-\(selection.field.rawValue)" : "style-\(selection.adjustment.rawValue)"
+    }
+}
+
+private struct CardInspectorSelectionMenu: View {
+    @Bindable var document: CardDocument
+    @Bindable var selection: CardInspectorSelection
+    var includesMode = false
+    let prepare: () -> Void
+
+    var body: some View {
+        Menu {
+            if includesMode {
+                Picker("card.edit.mode", selection: Binding(get: { selection.mode }, set: {
+                    prepare()
+                    selection.mode = $0
+                })) {
+                    Text("card.information").tag(CardInspectorSelection.Mode.information)
+                    Text("card.style").tag(CardInspectorSelection.Mode.style)
+                }
+            }
+            if selection.mode == .information {
+                Picker("card.information", selection: Binding(get: { selection.field }, set: {
+                    prepare()
+                    selection.field = $0
+                })) {
+                    ForEach(CardField.allCases) { Text(LocalizedStringKey($0.titleKey)).tag($0) }
+                }
+                if selection.field == .imageSize {
+                    CardImageSizeMenu(document: document, prepare: prepare).actions
+                }
+            } else {
+                Picker("card.style", selection: Binding(get: { selection.adjustment }, set: {
+                    prepare()
+                    selection.adjustment = $0
+                })) {
+                    ForEach(CardAdjustment.allCases) { Text($0.title).tag($0) }
+                }
+            }
+            Section {
+                Button("card.restore.current", systemImage: "arrow.counterclockwise") {
+                    prepare()
+                    if selection.mode == .information {
+                        document.restoreField(selection.field, preferLensPixelCount: CardPreferences.shared.preferLensPixelCount)
+                    } else {
+                        document.card.style[keyPath: selection.adjustment.keyPath] = PhotoCardStyle()[keyPath: selection.adjustment.keyPath]
+                    }
+                }
+                Button("card.restore.all", systemImage: "arrow.counterclockwise.circle") {
+                    prepare()
+                    if selection.mode == .information {
+                        document.restoreInformation(preferLensPixelCount: CardPreferences.shared.preferLensPixelCount)
+                    } else { document.card.style = PhotoCardStyle() }
+                }
+            }
+        } label: {
+            Label(selection.mode == .information ? LocalizedStringKey(selection.field.titleKey) : selection.adjustment.title,
+                  systemImage: "chevron.up.chevron.down")
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.bordered)
+        .frame(minHeight: 44)
     }
 }
 
@@ -149,49 +233,40 @@ private struct MobileCardInspector: View {
     let adjustment: CardAdjustment
     let information: Bool
     let selectionID: String
+    let compact: Bool
     @Binding var textEditingActive: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @FocusState.Binding var editingText: Bool
+    @FocusState.Binding var focusedField: CardField?
     @ScaledMetric(relativeTo: .body) private var preferredControlHeight: CGFloat = 72
 
     var body: some View {
         GeometryReader { geometry in
             let height = geometry.size.height
-            let compact = height < 240 || dynamicTypeSize.isAccessibilitySize
             let buttonHeight: CGFloat = compact ? 0 : 44
-            let controlHeight = min(preferredControlHeight, max(44, height - 24))
+            let controlHeight = min(preferredControlHeight, max(44, height - (compact ? 0 : 24)))
             let descriptionHeight: CGFloat = compact ? 0 : 44
-            let availablePreviewHeight = height - controlHeight - descriptionHeight - buttonHeight - 24
+            let availablePreviewHeight = height - controlHeight - descriptionHeight - buttonHeight - (compact ? 8 : 24)
             let previewHeight = availablePreviewHeight >= 44
                 ? min(geometry.size.width / CardDetailPreview.referenceAspect, availablePreviewHeight) : 0
             inspectorContents(controlHeight: controlHeight, descriptionHeight: descriptionHeight,
                               buttonHeight: buttonHeight, previewHeight: previewHeight, compact: compact)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .onChange(of: selectionID) { _, _ in editingText = false; textEditingActive = false }
-        .onChange(of: document.id) { _, _ in editingText = false; textEditingActive = false }
-        .onChange(of: editingText) { _, active in if !active { textEditingActive = false } }
         .onChange(of: document.card[field]) { oldValue, newValue in
-            if editingText && oldValue != newValue { textEditingActive = true }
+            if focusedField == field && oldValue != newValue { textEditingActive = true }
         }
-#if os(iOS)
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
-            editingText = false
-            textEditingActive = false
-        }
-#endif
     }
 
     private func inspectorContents(controlHeight: CGFloat, descriptionHeight: CGFloat,
                                    buttonHeight: CGFloat, previewHeight: CGFloat, compact: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: compact ? 0 : 8) {
             if previewHeight > 0 {
                 CardDetailPreview(document: document, processing: textEditingActive,
                                   highlightedField: information ? field : nil,
                                   highlightedStyle: information ? nil : adjustment)
                     .frame(maxWidth: .infinity)
                     .frame(height: previewHeight)
+                    .padding(.bottom, compact ? 8 : 0)
             }
 
             ZStack(alignment: .leading) {
@@ -204,7 +279,7 @@ private struct MobileCardInspector: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .frame(height: controlHeight, alignment: .leading)
                         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12))
-                        .focused($editingText)
+                        .focused($focusedField, equals: field)
                         .accessibilityLabel(Text(LocalizedStringKey(field.titleKey)))
                         .id(selectionID)
                         .transition(.opacity)
@@ -229,7 +304,7 @@ private struct MobileCardInspector: View {
 
             Group {
                 if information && field == .imageSize {
-                    CardImageSizeMenu(document: document) { editingText = false; textEditingActive = false }
+                    CardImageSizeMenu(document: document) { focusedField = nil; textEditingActive = false }
                 } else {
                     Text(LocalizedStringKey(information
                          ? "card.field." + field.rawValue + ".hint"
@@ -242,6 +317,8 @@ private struct MobileCardInspector: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: descriptionHeight, alignment: .topLeading)
                 .clipped()
+                .disabled(compact)
+                .allowsHitTesting(!compact)
                 .accessibilityHidden(compact)
                 .id(selectionID)
                 .transition(.opacity)
@@ -255,6 +332,8 @@ private struct MobileCardInspector: View {
             }
             .frame(height: buttonHeight)
             .clipped()
+            .disabled(compact)
+            .allowsHitTesting(!compact)
             .accessibilityHidden(compact)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -277,6 +356,8 @@ private struct MobileCardInspector: View {
     }
 
     private func restoreCurrent() {
+        focusedField = nil
+        textEditingActive = false
         if information {
             document.restoreField(field, preferLensPixelCount: CardPreferences.shared.preferLensPixelCount)
         } else {
@@ -285,6 +366,8 @@ private struct MobileCardInspector: View {
     }
 
     private func restoreAll() {
+        focusedField = nil
+        textEditingActive = false
         if information {
             document.restoreInformation(preferLensPixelCount: CardPreferences.shared.preferLensPixelCount)
         } else {

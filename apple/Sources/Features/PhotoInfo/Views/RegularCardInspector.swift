@@ -4,7 +4,7 @@ struct RegularCardInspector: View {
     @Bindable var document: CardDocument
     @Bindable var selection: CardInspectorSelection
     @Binding var textEditingActive: Bool
-    @FocusState private var focusedField: CardField?
+    @FocusState.Binding var focusedField: CardField?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -21,24 +21,35 @@ struct RegularCardInspector: View {
                 .padding(20)
                 if detailHeight > 0 {
                     CardDetailPreview(document: document, processing: textEditingActive,
-                        highlightedField: selection.mode == .information ? focusedField : nil,
+                        highlightedField: selection.mode == .information ? selection.field : nil,
                         highlightedStyle: selection.mode == .style ? selection.adjustment : nil)
                         .frame(height: detailHeight)
                         .padding(.horizontal, PhotoPageLayout.margin)
                         .padding(.bottom, 16)
                 }
-                Form {
-                    if selection.mode == .information {
-                        Section("card.group.photo") { fieldRows([.device, .camera, .imageSize]) }
-                        Section("card.group.capture") { fieldRows([.focalLength, .exposure, .aperture, .iso, .photographicStyle]) }
-                        Section("card.group.credit") { fieldRows([.author, .location]) }
-                    } else {
-                        Section("card.group.layout") { styleRows([.scale, .textScale, .rightInset, .bottomInset]) }
-                        Section("card.group.appearance") { styleRows([.opacity, .blur, .cornerRadius]) }
+                ScrollViewReader { proxy in
+                    Form {
+                        if selection.mode == .information {
+                            Section("card.group.photo") { fieldRows([.device, .camera, .imageSize]) }
+                            Section("card.group.capture") { fieldRows([.focalLength, .exposure, .aperture, .iso, .photographicStyle]) }
+                            Section("card.group.credit") { fieldRows([.author, .location]) }
+                        } else {
+                            Section("card.group.layout") { styleRows([.scale, .textScale, .rightInset, .bottomInset]) }
+                            Section("card.group.appearance") { styleRows([.opacity, .blur, .cornerRadius]) }
+                        }
                     }
+                    .photoPageForm()
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selection.mode)
+                    .task(id: ScrollTarget(documentID: document.id, mode: selection.mode)) {
+                        await Task.yield()
+                        guard !Task.isCancelled else { return }
+                        if selection.mode == .information { proxy.scrollTo(selection.field, anchor: .center) }
+                        else { proxy.scrollTo(selection.adjustment, anchor: .center) }
+                    }
+#if os(iOS)
+                    .scrollDismissesKeyboard(.interactively)
+#endif
                 }
-                .photoPageForm()
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: selection.mode)
                 ViewThatFits(in: .horizontal) {
                     HStack { restoreActions }
                     VStack { restoreActions }
@@ -47,14 +58,23 @@ struct RegularCardInspector: View {
                 .padding(20)
             }
         }
-        .onChange(of: focusedField) { _, field in
-            if let field { selection.field = field }
-            else { textEditingActive = false }
-        }
         .onChange(of: document.card) { _, _ in textEditingActive = focusedField != nil }
-        .onChange(of: document.id) { _, _ in focusedField = nil; textEditingActive = false }
         .onChange(of: selection.mode) { _, _ in focusedField = nil; textEditingActive = false }
-        .onDisappear { textEditingActive = false }
+#if os(iOS)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                if focusedField != nil {
+                    Spacer()
+                    Button("done") { focusedField = nil; textEditingActive = false }
+                }
+            }
+        }
+#endif
+    }
+
+    private struct ScrollTarget: Hashable {
+        let documentID: UUID
+        let mode: CardInspectorSelection.Mode
     }
 
     private func fieldRows(_ fields: [CardField]) -> some View {
@@ -69,6 +89,7 @@ struct RegularCardInspector: View {
                     CardImageSizeMenu(document: document) { focusedField = nil; textEditingActive = false }
                 }
             }
+            .id(field)
         }
     }
 
@@ -84,11 +105,13 @@ struct RegularCardInspector: View {
                         : document.card.style[keyPath: adjustment.keyPath].formatted(.number.precision(.fractionLength(0))))
                     .frame(minHeight: 44)
             }
+            .id(adjustment)
         }
     }
 
     private func styleBinding(_ adjustment: CardAdjustment) -> Binding<Double> {
         Binding(get: { document.card.style[keyPath: adjustment.keyPath] }, set: { value in
+            guard selection.mode == .style else { return }
             selection.adjustment = adjustment
             document.card.style[keyPath: adjustment.keyPath] = value
         })
