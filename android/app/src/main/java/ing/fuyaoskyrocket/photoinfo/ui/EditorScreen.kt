@@ -7,6 +7,7 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import android.content.Intent
 import android.os.Build
 import androidx.compose.animation.EnterTransition
@@ -112,7 +113,7 @@ private fun PhotoSideRail(selected: PhotoPage, enabled: Boolean, onSelect: (Phot
                 onClick = { onSelect(tab.page) },
                 enabled = enabled,
                 icon = { Icon(painterResource(tab.icon), contentDescription = null, Modifier.size(24.dp)) },
-                label = { Text(stringResource(tab.label)) },
+                label = { Text(stringResource(tab.label), textAlign = TextAlign.Center) },
                 colors = NavigationRailItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.onPrimary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,

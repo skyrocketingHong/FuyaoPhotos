@@ -95,9 +95,9 @@ fun EditorPreviewPane(state:EditorState,onSelectPhoto:(Int)->Unit,original:Boole
                             Icon(painterResource(R.drawable.ic_chevron),next,Modifier.size(20.dp))
                         }
                     }
-                    Text(position,Modifier.padding(horizontal=10.dp,vertical=5.dp)
+                    Text(position,Modifier.align(Alignment.BottomCenter).padding(bottom=8.dp)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha=.84f),MaterialTheme.shapes.extraLarge)
-                        .align(Alignment.BottomCenter).padding(bottom=8.dp),style=MaterialTheme.typography.labelMedium)
+                        .padding(horizontal=10.dp,vertical=5.dp),style=MaterialTheme.typography.labelMedium)
                 }
                 }
             }

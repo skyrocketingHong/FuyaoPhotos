@@ -6,6 +6,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun FuyaoPrimaryTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Unit,
@@ -13,7 +14,8 @@ fun FuyaoPrimaryTabs(labels: List<String>, selected: Int, onSelect: (Int) -> Uni
     PrimaryTabRow(selectedTabIndex = selected, modifier = modifier,
         containerColor = Color.Transparent, divider = {}) {
         labels.forEachIndexed { index, label ->
-            Tab(selected = selected == index, onClick = { onSelect(index) }, text = { Text(label) })
+            Tab(selected = selected == index, onClick = { onSelect(index) },
+                text = { Text(label, textAlign = TextAlign.Center) })
         }
     }
 }

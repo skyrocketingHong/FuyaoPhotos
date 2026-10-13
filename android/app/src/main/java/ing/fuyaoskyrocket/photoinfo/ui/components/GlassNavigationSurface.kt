@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
@@ -43,7 +44,8 @@ internal fun FuyaoBottomNavigation(
                 items.forEachIndexed { index, item ->
                     LiquidBottomTab(onClick = { onSelect(index) }, selected = selectedIndex == index, enabled = enabled) {
                         Icon(painterResource(item.icon), null, Modifier.size(24.dp))
-                        Text(stringResource(item.label), style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(item.label), style = MaterialTheme.typography.labelSmall,
+                            textAlign = TextAlign.Center)
                     }
                 }
             }
@@ -64,7 +66,7 @@ internal fun FuyaoBottomNavigation(
             items.forEachIndexed { index, item ->
                 NavigationBarItem(selectedIndex == index, onClick = { onSelect(index) }, enabled = enabled,
                     icon = { Icon(painterResource(item.icon), null, Modifier.size(24.dp)) },
-                    label = { Text(stringResource(item.label)) })
+                    label = { Text(stringResource(item.label), textAlign = TextAlign.Center) })
             }
         }
     }

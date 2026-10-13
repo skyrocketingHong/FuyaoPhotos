@@ -80,9 +80,8 @@ fun LiquidBottomTabs(
         contentAlignment = Alignment.CenterStart
     ) {
         val density = LocalDensity.current
-        val tabWidth = with(density) {
-            (constraints.maxWidth.toFloat() - 8f.dp.toPx()) / tabsCount
-        }
+        val horizontalInset = with(density) { 4.dp.toPx() }
+        val tabWidth = (constraints.maxWidth.toFloat() - horizontalInset * 2f) / tabsCount
 
         val offsetAnimation = remember { Animatable(0f) }
         val panelOffset by remember(density, constraints.maxWidth) {
@@ -143,8 +142,8 @@ fun LiquidBottomTabs(
                 animationScope = animationScope,
                 position = { size, offset ->
                     Offset(
-                        if (isLtr) (dampedDragAnimation.value + 0.5f) * tabWidth + panelOffset
-                        else size.width - (dampedDragAnimation.value + 0.5f) * tabWidth + panelOffset,
+                        if (isLtr) horizontalInset + (dampedDragAnimation.value + 0.5f) * tabWidth
+                        else size.width - horizontalInset - (dampedDragAnimation.value + 0.5f) * tabWidth,
                         size.height / 2f
                     )
                 }
