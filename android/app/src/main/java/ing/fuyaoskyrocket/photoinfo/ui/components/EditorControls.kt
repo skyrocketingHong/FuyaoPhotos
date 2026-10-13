@@ -23,9 +23,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
+import ing.fuyaoskyrocket.photoinfo.domain.layout.EditorWorkspacePolicy
 import ing.fuyaoskyrocket.photoinfo.domain.model.CardStyle
 import ing.fuyaoskyrocket.photoinfo.domain.model.FieldId
 import ing.fuyaoskyrocket.photoinfo.domain.metadata.MetadataFormatting
+import ing.fuyaoskyrocket.photoinfo.domain.motion.PhotoMotionTokens
 import ing.fuyaoskyrocket.photoinfo.presentation.EditorState
 import ing.fuyaoskyrocket.photoinfo.presentation.LocationStatus
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
@@ -53,7 +55,7 @@ fun EditorControls(
     var fieldFocused by remember { mutableStateOf(false) }
     var imeSeen by remember { mutableStateOf(false) }
     val focus = LocalFocusManager.current
-    val transitionMillis = if (LocalPhotoMotionEnabled.current) 180 else 0
+    val transitionMillis = if (LocalPhotoMotionEnabled.current) PhotoMotionTokens.controlMillis else 0
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val editingCallback = rememberUpdatedState(onEditingActiveChange)
     fun setEditingActive(active: Boolean) {
@@ -61,6 +63,14 @@ fun EditorControls(
             editingActive = active
             editingCallback.value(active)
         }
+    }
+    fun selectControl(nextTab: Int, nextIndex: Int = if (nextTab == 0) fieldIndex else styleIndex) {
+        val currentIndex = if (nextTab == 0) fieldIndex else styleIndex
+        if (tab == nextTab && currentIndex == nextIndex) return
+        focus.clearFocus()
+        setEditingActive(false)
+        tab = nextTab
+        if (nextTab == 0) fieldIndex = nextIndex else styleIndex = nextIndex
     }
     LaunchedEffect(imeVisible) {
         if (imeVisible) imeSeen = true
@@ -83,17 +93,18 @@ fun EditorControls(
                 { if (fieldFocused) setEditingActive(true) })
         }
     }
-    BoxWithConstraints(modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))) {
+    Box(modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+        contentAlignment = Alignment.TopCenter) {
+    BoxWithConstraints(Modifier.widthIn(max = EditorWorkspacePolicy.COMPACT_COLUMN_WIDTH.dp).fillMaxSize()) {
     if (maxHeight < 240.dp || maxWidth < 320.dp || LocalDensity.current.fontScale > 1.6f) {
         CompactEditorControl(state, tab, fieldIndex, styleIndex, { nextTab, nextIndex ->
-            focus.clearFocus(); setEditingActive(false); tab = nextTab
-            if (nextTab == 0) fieldIndex = nextIndex else styleIndex = nextIndex
+            selectControl(nextTab, nextIndex)
         }, fieldContent, onStyle, onResetField, onResetAllFields, onImportFont, onResetFont, Modifier.fillMaxSize())
     } else Column(Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally) {
         FuyaoPrimaryTabs(listOf(stringResource(R.string.tab_info), stringResource(R.string.tab_style)), tab,
-            { focus.clearFocus(); setEditingActive(false); tab = it })
-        Row(Modifier.widthIn(max = 640.dp).fillMaxWidth().weight(1f).padding(horizontal = FuyaoSpacing.content),
+            { selectControl(it) }, Modifier.fillMaxWidth().padding(horizontal = FuyaoSpacing.content))
+        Row(Modifier.fillMaxWidth().weight(1f).padding(horizontal = FuyaoSpacing.content),
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Crossfade(targetState = tab, animationSpec = tween(transitionMillis), label = "editor wheel",
                 modifier = Modifier.weight(.34f).fillMaxHeight()) { pickerTab ->
@@ -101,8 +112,7 @@ fun EditorControls(
                 CyclicItemSelector(pickerLabels, if (pickerTab == 0) fieldIndex else styleIndex, !state.busy && pickerTab == tab,
                     Modifier.fillMaxSize().semantics { if (pickerTab != tab) hideFromAccessibility() }) { index ->
                     if (tab == pickerTab && index in pickerLabels.indices) {
-                        focus.clearFocus(); setEditingActive(false)
-                        if (pickerTab == 0) fieldIndex = index else styleIndex = index
+                        selectControl(pickerTab, index)
                     }
                 }
             }
@@ -110,6 +120,7 @@ fun EditorControls(
                 onResetAllFields, onImportFont, onResetFont, editingActive,
                 Modifier.weight(.66f).fillMaxHeight())
         }
+    }
     }
     }
 }
@@ -170,7 +181,7 @@ private fun CompactEditorControl(state: EditorState, tab: Int, fieldIndex: Int, 
                 })
             }
         }
-        Box(Modifier.weight(.66f).heightIn(max = 88.dp)) {
+        Box(Modifier.weight(.66f).heightIn(max = 88.dp), contentAlignment = Alignment.Center) {
             if (tab == 0) fieldContent()
             else if (setting == null) FontControl(state, onImportFont)
             else CardStyleSlider(setting.value(state.style), { onStyle(setting.update(state.style, it)) },
@@ -196,11 +207,11 @@ private fun EditorInspector(
     editingActive: Boolean,
     modifier: Modifier,
 ) {
-    val transitionMillis = if (LocalPhotoMotionEnabled.current) 180 else 0
+    val transitionMillis = if (LocalPhotoMotionEnabled.current) PhotoMotionTokens.controlMillis else 0
     BoxWithConstraints(modifier) {
         val tight = maxHeight < 200.dp
         val controlHeight = if (tight) 56.dp else 72.dp
-        val hintHeight = 32.dp
+        val hintHeight = with(LocalDensity.current) { MaterialTheme.typography.bodySmall.lineHeight.toDp() * 2 }
         val showHint = maxHeight >= controlHeight + 48.dp + hintHeight + 96.dp && LocalDensity.current.fontScale <= 1.4f
         val previewRoom = maxHeight - controlHeight - 48.dp -
             (if (showHint) hintHeight + 16.dp else 8.dp)
@@ -253,11 +264,11 @@ private fun EditorInspector(
                 )
                 Spacer(Modifier.height(8.dp))
             }
-            Box(Modifier.fillMaxWidth().height(controlHeight)) {
+            Box(Modifier.fillMaxWidth().height(controlHeight), contentAlignment = Alignment.Center) {
                 if (tab == 0) fieldContent()
                 else Crossfade(targetState = styleIndex, animationSpec = tween(transitionMillis), label = "editor style") { selectedIndex ->
                 val current = selectedIndex == styleIndex && tab == 1
-                Box(Modifier.fillMaxSize().semantics { if (!current) hideFromAccessibility() }) {
+                Box(Modifier.fillMaxSize().semantics { if (!current) hideFromAccessibility() }, contentAlignment = Alignment.Center) {
                 if (selectedIndex == StyleSetting.entries.size) {
                     FontControl(state, { if (current) onImportFont() }, enabled = !state.busy && current)
                 } else {

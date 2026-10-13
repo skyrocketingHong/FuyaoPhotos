@@ -430,8 +430,6 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                     saving = state.exporting, completed = state.exportCompleted, total = state.exportTotal, enabled = !state.busy) {
                     if(exportNotice!=null)showExportBlocked=true else showExport=true
                 }
-                FuyaoIconButton(R.drawable.ic_close, stringResource(R.string.close_photo), { requestClose(PhotoFeature.CARDS) },
-                    enabled = !state.exporting && !state.closing && !metadataEdits.busy)
             }
             FuyaoScaffold(title="",showTopBar=false,
                 snackbarHost={ SnackbarHost(snackbar, Modifier.padding(bottom = LocalBottomNavigationInset.current)
@@ -458,7 +456,10 @@ fun EditorScreen(vm: EditorViewModel = viewModel(), onExit: () -> Unit = {}) {
                             preview = { modifier, bottomSafe ->
                                 EditorPreviewPane(state, vm::selectPhoto, original, { original = !original },
                                     { openPage(PhotoPage.EDITOR, PhotoPage.PREVIEW) }, vm.motionClip(photoId),state.hdrPhoto || hasHdrContent,
-                                    hdrEnabled,hdrAvailable,{ hdrEnabled=!hdrEnabled },modifier,bottomSafe,editingPhotoText,editorActions)
+                                    hdrEnabled,hdrAvailable,{ hdrEnabled=!hdrEnabled },
+                                    onClose = { requestClose(PhotoFeature.CARDS) },
+                                    closeEnabled = !state.exporting && !state.closing && !metadataEdits.busy,
+                                    modifier = modifier, bottomSafe = bottomSafe, editingText = editingPhotoText, actions = editorActions)
                             },
                             controls = { modifier ->
                                 key(photoId) {
