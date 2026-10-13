@@ -19,6 +19,7 @@ xcrun swiftc -O -parse-as-library -swift-version 5 -default-isolation MainActor 
     "$PROBE_ROOT/Sources/Features/PhotoInfo/Rendering/PhotoPreviewMetrics.swift" \
     "$PROBE_ROOT/Sources/App/PhotoPageStyle.swift" \
     "$PROBE_ROOT/Sources/DesignSystem/PhotoImportForm.swift" \
+    "$PROBE_ROOT/Tests/NativePhotoImportCapture/DifferenceBoundsChecks.swift" \
     "$PROBE_ROOT/Tests/NativePhotoImportCapture/Probe.swift" \
     -o "$PROBE_BUILD_DIR/NativePhotoImportCaptureProbe"
 "$PROBE_BUILD_DIR/NativePhotoImportCaptureProbe" "$PROBE_ROOT/Sources/Resources" "$@"

@@ -179,7 +179,10 @@ extension PhotoReassemblySurface: UIViewRepresentable {
         self.onUnavailable = onUnavailable
     }
 
-    func attach(to view: MTKView) { self.view = view }
+    func attach(to view: MTKView) {
+        self.view = view
+        PhotoDepartureDiagnostics.emit("renderer.attached")
+    }
 
     func cancel() {
         active = false
@@ -189,6 +192,7 @@ extension PhotoReassemblySurface: UIViewRepresentable {
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         guard active else { return }
+        PhotoDepartureDiagnostics.emit("renderer.drawable-size", values: [Double(size.width), Double(size.height)])
         viewportGeneration += 1
         finalSubmitted = false
         view.isPaused = false
@@ -203,7 +207,10 @@ extension PhotoReassemblySurface: UIViewRepresentable {
             return
         }
         let now = CACurrentMediaTime()
-        if startedAt == nil { startedAt = now }
+        if startedAt == nil {
+            startedAt = now
+            PhotoDepartureDiagnostics.emit("renderer.draw")
+        }
         let duration = Double(PhotoMotionTokens.reassemblyMillis) / 1000
         let progress = Float(min(1, max(0, (now - (startedAt ?? now)) / duration)))
         // IME dismissal changes the canvas height, not the frozen source and target frames.
@@ -228,6 +235,7 @@ extension PhotoReassemblySurface: UIViewRepresentable {
             guard generation == self.viewportGeneration else { return }
             if !self.reportedReady {
                 self.reportedReady = true
+                PhotoDepartureDiagnostics.emit("renderer.ready")
                 self.playback.ready(self.onReady)
             }
             if reportsFinished {

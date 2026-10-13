@@ -1,11 +1,27 @@
 import SwiftUI
 import Metal
 import QuartzCore
+import Accelerate
+import os
 #if os(macOS)
 import AppKit
 #else
 import UIKit
 #endif
+
+@MainActor enum PhotoDepartureDiagnostics {
+#if DEBUG
+    static var observer: ((_ stage: String, _ values: [Double]) -> Void)?
+    private static let logger = Logger(subsystem: "ing.fuyaoskyrocket.photomap", category: "PhotoDeparture")
+#endif
+
+    static func emit(_ stage: String, values: [Double] = []) {
+#if DEBUG
+        observer?(stage, values)
+        logger.debug("\(stage, privacy: .public) \(values.description, privacy: .public)")
+#endif
+    }
+}
 
 struct PhotoImportTransitionTarget {
     let attempt: PhotoImportTargetLifecycle.Attempt
@@ -88,6 +104,7 @@ struct PhotoImportSnapshotAppearance: ViewModifier {
     @ObservationIgnored private var lifecycle = PhotoImportTargetLifecycle()
 
     func begin(id: UUID, deadline: ContinuousClock.Instant) {
+        PhotoDepartureDiagnostics.emit("target.request")
         lifecycle.begin(id: id)
         target = nil
         failedID = nil
@@ -104,6 +121,7 @@ struct PhotoImportSnapshotAppearance: ViewModifier {
         guard let request, request.id == value.requestID, .now < request.deadline,
               target == nil, lifecycle.complete(value.attempt) else { return }
         target = value
+        PhotoDepartureDiagnostics.emit("target.ready")
     }
 
     func cancel(id: UUID? = nil) {
@@ -117,11 +135,13 @@ struct PhotoImportSnapshotAppearance: ViewModifier {
 
     func fail(_ attempt: PhotoImportTargetLifecycle.Attempt) {
         guard lifecycle.fail(attempt) else { return }
+        PhotoDepartureDiagnostics.emit("target.failed")
         failedID = attempt.requestID
     }
 
     func invalidate(id: UUID) {
         guard request?.id == id, lifecycle.cancel(id: id) else { return }
+        PhotoDepartureDiagnostics.emit("target.invalidated")
         failedID = id
     }
 
@@ -167,6 +187,7 @@ extension PhotoImportNativeContextReader: NSViewRepresentable {
                 guard let self, let captureContext else { return }
                 captureContext.window = window
                 captureContext.attached = window != nil
+                PhotoDepartureDiagnostics.emit(window == nil ? "context.detached" : "context.attached")
             }
         }
     }
@@ -191,6 +212,7 @@ extension PhotoImportNativeContextReader: UIViewRepresentable {
                 guard let self, let captureContext else { return }
                 captureContext.windowScene = window?.windowScene
                 captureContext.attached = window != nil
+                PhotoDepartureDiagnostics.emit(window == nil ? "context.detached" : "context.attached")
             }
         }
     }
@@ -236,14 +258,18 @@ extension PhotoImportNativeContextReader: UIViewRepresentable {
     ) async throws -> Snapshot {
         let foreground = try await render(content: content, pointSize: pointSize, measurement: measurement,
             colorScheme: colorScheme, displayScale: displayScale, context: context, deadline: deadline)
+        PhotoDepartureDiagnostics.emit("capture.foreground-ready")
         let background = try await render(content: background, pointSize: pointSize, measurement: nil,
             colorScheme: colorScheme, displayScale: displayScale, context: context, deadline: deadline)
+        PhotoDepartureDiagnostics.emit("capture.background-ready")
         try check(deadline)
         let contentPixels = CGRect(x: foreground.contentFrame.minX * foreground.scale,
             y: foreground.contentFrame.minY * foreground.scale, width: foreground.contentFrame.width * foreground.scale,
             height: foreground.contentFrame.height * foreground.scale)
+        PhotoDepartureDiagnostics.emit("capture.difference-start")
         let crop = try differenceBounds(foreground.image, background.image,
             content: contentPixels, deadline: deadline)
+        PhotoDepartureDiagnostics.emit("capture.difference-ready")
         let calibration = CGRect(x: 0, y: 0, width: ceil(4 * foreground.scale), height: ceil(4 * foreground.scale))
         guard !crop.intersects(calibration) else { throw Failure.invalidBounds }
         guard let image = foreground.image.cropping(to: crop) else { throw Failure.invalidBounds }
@@ -318,64 +344,91 @@ extension PhotoImportNativeContextReader: UIViewRepresentable {
         return RenderedForm(image: image, scale: scale, contentFrame: contentFrame)
     }
 
-    private static func differenceBounds(_ foreground: CGImage, _ background: CGImage,
-                                         content: CGRect, deadline: ContinuousClock.Instant) throws -> CGRect {
+    static func differenceBounds(_ foreground: CGImage, _ background: CGImage,
+                                 content: CGRect, deadline: ContinuousClock.Instant) throws -> CGRect {
         guard foreground.width == background.width, foreground.height == background.height,
               foreground.bitsPerPixel == 32, background.bitsPerPixel == 32,
               let firstData = foreground.dataProvider?.data, let secondData = background.dataProvider?.data,
               let first = CFDataGetBytePtr(firstData), let second = CFDataGetBytePtr(secondData)
         else { throw Failure.invalidBounds }
         let width = foreground.width, height = foreground.height
-        var mask = [UInt8](repeating: 0, count: width * height)
+        guard width > 0, height > 0, width <= 8192, height <= 8192,
+              !content.isNull, !content.isInfinite, content.width > 0, content.height > 0,
+              content.intersects(CGRect(x: 0, y: 0, width: width, height: height)) else { throw Failure.invalidBounds }
+        // The deadline also applies to Debug builds; bulk pixel work stays in optimized system routines.
+        let mask = UnsafeMutablePointer<UInt8>.allocate(capacity: width * height)
+        let firstRow = UnsafeMutablePointer<Float>.allocate(capacity: width * 4)
+        let secondRow = UnsafeMutablePointer<Float>.allocate(capacity: width * 4)
+        defer { mask.deallocate(); firstRow.deallocate(); secondRow.deallocate() }
+        let pixels = vDSP_Length(width), channels = vDSP_Length(width * 4)
+        var threshold: Float = 6, zero: Float = 0, one: Float = 1
         for y in 0..<height {
             if y.isMultiple(of: 64) { try check(deadline) }
-            for x in 0..<width {
-                let a = y * foreground.bytesPerRow + x * 4
-                let b = y * background.bytesPerRow + x * 4
-                let difference = max(max(abs(Int(first[a]) - Int(second[b])), abs(Int(first[a + 1]) - Int(second[b + 1]))),
-                    max(abs(Int(first[a + 2]) - Int(second[b + 2])), abs(Int(first[a + 3]) - Int(second[b + 3]))))
-                if difference >= 6 {
-                    mask[y * width + x] = 1
-                }
-            }
+            vDSP_vfltu8(first.advanced(by: y * foreground.bytesPerRow), 1, firstRow, 1, channels)
+            vDSP_vfltu8(second.advanced(by: y * background.bytesPerRow), 1, secondRow, 1, channels)
+            vDSP_vsub(firstRow, 1, secondRow, 1, firstRow, 1, channels)
+            vDSP_vabs(firstRow, 1, firstRow, 1, channels)
+            vDSP_vmax(firstRow, 4, firstRow.advanced(by: 1), 4, secondRow, 1, pixels)
+            vDSP_vmax(firstRow.advanced(by: 2), 4, firstRow.advanced(by: 3), 4,
+                secondRow.advanced(by: width), 1, pixels)
+            vDSP_vmax(secondRow, 1, secondRow.advanced(by: width), 1, firstRow, 1, pixels)
+            vDSP_vthrsc(firstRow, 1, &threshold, &one, secondRow, 1, pixels)
+            vDSP_vclip(secondRow, 1, &zero, &one, firstRow, 1, pixels)
+            vDSP_vfixu8(firstRow, 1, mask.advanced(by: y * width), 1, pixels)
         }
+
+        var buffer = vImage_Buffer(data: mask, height: vImagePixelCount(height),
+            width: vImagePixelCount(width), rowBytes: width)
+        var unvisitedOnly = [UInt8](repeating: 0, count: 256)
+        unvisitedOnly[1] = 1
+        let contentMinX = Int(ceil(max(0, min(CGFloat(width), content.minX))))
+        let contentMaxX = Int(ceil(max(0, min(CGFloat(width), content.maxX))))
+        let contentMinY = Int(ceil(max(0, min(CGFloat(height), content.minY))))
+        let contentMaxY = Int(ceil(max(0, min(CGFloat(height), content.maxY))))
         var result = CGRect.null
-        var queue: [Int] = []
-        for index in mask.indices where mask[index] == 1 {
-            queue.removeAll(keepingCapacity: true)
-            queue.append(index)
-            mask[index] = 0
-            var next = 0
-            var minX = width, minY = height, maxX = -1, maxY = -1
-            var touchesContent = false
-            while next < queue.count {
-                if next.isMultiple(of: 4096) { try check(deadline) }
-                let pixel = queue[next]
-                next += 1
-                let x = pixel % width, y = pixel / width
-                minX = min(minX, x); maxX = max(maxX, x)
-                minY = min(minY, y); maxY = max(maxY, y)
-                if content.contains(CGPoint(x: x, y: y)) { touchesContent = true }
-                if x > 0, mask[pixel - 1] == 1 { mask[pixel - 1] = 0; queue.append(pixel - 1) }
-                if x + 1 < width, mask[pixel + 1] == 1 { mask[pixel + 1] = 0; queue.append(pixel + 1) }
-                if y > 0, mask[pixel - width] == 1 { mask[pixel - width] = 0; queue.append(pixel - width) }
-                if y + 1 < height, mask[pixel + width] == 1 { mask[pixel + width] = 0; queue.append(pixel + width) }
-                if x > 0, y > 0, mask[pixel - width - 1] == 1 {
-                    mask[pixel - width - 1] = 0; queue.append(pixel - width - 1)
+        for seedY in 0..<height {
+            if seedY.isMultiple(of: 64) { try check(deadline) }
+            while true {
+                try check(deadline)
+                vDSP_vfltu8(mask.advanced(by: seedY * width), 1, firstRow, 1, pixels)
+                var maximum: Float = 0
+                var seedX: vDSP_Length = 0
+                vDSP_maxvi(firstRow, 1, &maximum, &seedX, pixels)
+                if maximum < 1 { break }
+                guard vImageFloodFill_Planar8(&buffer, nil, seedX, vImagePixelCount(seedY), 2, 8,
+                    vImage_Flags(kvImageNoFlags)) == kvImageNoError else { throw Failure.unavailable }
+                var minX = width, maxX = -1, maxY = seedY
+                var touchesContent = false
+                // An 8-connected component cannot skip a whole row. Value 2 marks only this component.
+                for y in seedY..<height {
+                    if y.isMultiple(of: 64) { try check(deadline) }
+                    let row = mask.advanced(by: y * width)
+                    vDSP_vfltu8(row, 1, firstRow, 1, pixels)
+                    var left: vDSP_Length = 0
+                    vDSP_maxvi(firstRow, 1, &maximum, &left, pixels)
+                    if maximum < 2 { break }
+                    minX = min(minX, Int(left)); maxY = y
+                    if !touchesContent, y >= contentMinY, y < contentMaxY, contentMaxX > contentMinX {
+                        var contentMaximum: Float = 0
+                        vDSP_maxv(firstRow.advanced(by: contentMinX), 1, &contentMaximum,
+                            vDSP_Length(contentMaxX - contentMinX))
+                        touchesContent = contentMaximum == 2
+                    }
+                    vDSP_vrvrs(firstRow, 1, pixels)
+                    var right: vDSP_Length = 0
+                    vDSP_maxvi(firstRow, 1, &maximum, &right, pixels)
+                    maxX = max(maxX, width - 1 - Int(right))
+                    var rowBuffer = vImage_Buffer(data: row, height: 1, width: vImagePixelCount(width), rowBytes: width)
+                    var destinationRow = rowBuffer
+                    let status = unvisitedOnly.withUnsafeBufferPointer {
+                        vImageTableLookUp_Planar8(&rowBuffer, &destinationRow, $0.baseAddress!, vImage_Flags(kvImageNoFlags))
+                    }
+                    guard status == kvImageNoError else { throw Failure.unavailable }
                 }
-                if x + 1 < width, y > 0, mask[pixel - width + 1] == 1 {
-                    mask[pixel - width + 1] = 0; queue.append(pixel - width + 1)
-                }
-                if x > 0, y + 1 < height, mask[pixel + width - 1] == 1 {
-                    mask[pixel + width - 1] = 0; queue.append(pixel + width - 1)
-                }
-                if x + 1 < width, y + 1 < height, mask[pixel + width + 1] == 1 {
-                    mask[pixel + width + 1] = 0; queue.append(pixel + width + 1)
-                }
+                let component = CGRect(x: minX, y: seedY, width: maxX - minX + 1, height: maxY - seedY + 1)
+                // Native card fills, borders and shadows belong to the measured content; unrelated scrollers do not.
+                if touchesContent || component.contains(content) { result = result.union(component) }
             }
-            let component = CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
-            // Native card fills, borders and shadows belong to the measured content; unrelated scrollers do not.
-            if touchesContent || component.contains(content) { result = result.union(component) }
         }
         guard !result.isNull, !result.isEmpty else { throw Failure.invalidBounds }
         return result

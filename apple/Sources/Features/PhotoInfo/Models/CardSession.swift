@@ -338,11 +338,14 @@ import os
         else {
             capture = departureCaptures.replacementCandidates.first { $0.eligible() }
         }
+        if current != nil, capture == nil { PhotoDepartureDiagnostics.emit("source.not-registered") }
         if let current, let capture, capture.eligible() {
             let viewportFrame = capture.frame()
             let viewport = capture.capture?()
             let cached = departureSnapshot?.id == current.id ? departureSnapshot?.image : nil
             let candidate = viewport ?? cached ?? current.initialSDRPreview ?? Self.departureThumbnail(current.sourceURL)
+            if viewportFrame.isEmpty { PhotoDepartureDiagnostics.emit("source.empty-frame") }
+            if candidate == nil { PhotoDepartureDiagnostics.emit("source.no-image") }
             if let candidate, !viewportFrame.isEmpty, !viewportFrame.isNull, !viewportFrame.isInfinite,
                let snapshot = PhotoDepartureSourceImage.freeze(candidate) {
                 let scale = min(viewportFrame.width / CGFloat(snapshot.width), viewportFrame.height / CGFloat(snapshot.height))
@@ -356,6 +359,7 @@ import os
                 departure = PhotoDeparture(ticket: ticket, documentID: current.id,
                     image: snapshot, sourceFrame: frame,
                     targetDeadline: reassembles ? now.advanced(by: .milliseconds(PhotoMotionTokens.reassemblyTargetWaitMillis)) : nil)
+                PhotoDepartureDiagnostics.emit("departure.published")
                 departureCleanup?.cancel()
                 departureCleanup = Task { [weak self] in
                     do { try await ContinuousClock().sleep(until: ticket.expiresAt) } catch { return }

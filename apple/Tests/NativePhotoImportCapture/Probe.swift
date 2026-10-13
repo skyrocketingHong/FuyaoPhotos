@@ -206,6 +206,13 @@ private struct ProbeEnvironment {
             print("FAIL localizations: \(error)"); exit(2)
         }
         var failures = 0, checks = 0
+        checks += 1
+        do {
+            let count = try PhotoImportDifferenceChecks.run()
+            print("PASS native difference bounds: \(count) reference-equivalence fixtures")
+        } catch {
+            failures += 1; print("FAIL native difference bounds: \(error)")
+        }
         var paritySnapshot: PhotoImportNativeSnapshotter.Snapshot?
         for workspace in WorkspaceCase.allCases {
             for environment in environments {

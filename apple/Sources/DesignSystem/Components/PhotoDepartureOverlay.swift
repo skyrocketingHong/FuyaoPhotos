@@ -95,6 +95,9 @@ struct PhotoDepartureOverlay: ViewModifier {
                     if departing.targetDeadline == nil || (departing.target != nil &&
                         (abs(canvasFrame.width - frame.width) > 0.5 ||
                          abs(canvasFrame.minX - frame.minX) > 0.5 || abs(canvasFrame.minY - frame.minY) > 0.5)) {
+                        PhotoDepartureDiagnostics.emit("canvas.reflow", values: [Double(frame.width - canvasFrame.width),
+                            Double(frame.height - canvasFrame.height), Double(frame.minX - canvasFrame.minX),
+                            Double(frame.minY - canvasFrame.minY)])
                         finish(departing.ticket.id)
                     }
                 }
@@ -113,8 +116,14 @@ struct PhotoDepartureOverlay: ViewModifier {
                                     targetImage: target.image,
                                     targetFrame: target.frame.offsetBy(dx: -origin.x, dy: -origin.y),
                                     canvasSize: geometry.size,
-                                    onFinished: { finish(departing.ticket.id) },
-                                    onUnavailable: { finish(departing.ticket.id) })
+                                    onFinished: {
+                                        PhotoDepartureDiagnostics.emit("renderer.finished")
+                                        finish(departing.ticket.id)
+                                    },
+                                    onUnavailable: {
+                                        PhotoDepartureDiagnostics.emit("renderer.unavailable")
+                                        finish(departing.ticket.id)
+                                    })
                                     .id(departing.ticket.id)
                             } else {
                                 Image(decorative: departing.image, scale: 1)
@@ -161,6 +170,9 @@ struct PhotoDepartureOverlay: ViewModifier {
                    abs(frame.minY - target.contentFrame.minY) > 0.5 ||
                    abs(frame.width - target.contentFrame.width) > 0.5 ||
                    abs(frame.height - target.contentFrame.height) > 0.5 {
+                    PhotoDepartureDiagnostics.emit("target.reflow", values: [Double(frame.width - target.contentFrame.width),
+                        Double(frame.height - target.contentFrame.height), Double(frame.minX - target.contentFrame.minX),
+                        Double(frame.minY - target.contentFrame.minY)])
                     finish(copy.ticket.id)
                 }
             }
@@ -171,10 +183,14 @@ struct PhotoDepartureOverlay: ViewModifier {
                     if let deadline = copy.targetDeadline {
                         try await ContinuousClock().sleep(until: deadline)
                         guard departing?.ticket.id == ticket.id else { return }
-                        if departing?.target == nil { finish(ticket.id); return }
+                        if departing?.target == nil {
+                            PhotoDepartureDiagnostics.emit("target.deadline")
+                            finish(ticket.id); return
+                        }
                     }
                     try await ContinuousClock().sleep(until: ticket.expiresAt)
                 } catch { return }
+                PhotoDepartureDiagnostics.emit("departure.expired")
                 finish(ticket.id)
             }
             .onChange(of: eligible) { _, _ in updateEligibility() }
@@ -191,6 +207,7 @@ struct PhotoDepartureOverlay: ViewModifier {
     }
 
     private func receive(_ value: PhotoDeparture?) {
+        PhotoDepartureDiagnostics.emit(value == nil ? "departure.cleared" : "departure.received")
         guard let value else {
             if session.departure == nil {
                 if let ticket = departing?.ticket { finish(ticket.id) }
@@ -201,10 +218,15 @@ struct PhotoDepartureOverlay: ViewModifier {
         guard session.departure?.id == value.id else { return }
         if let previous = departing?.ticket, previous.id != value.id { finish(previous.id) }
         guard eligible, !value.sourceFrame.isEmpty else {
+            PhotoDepartureDiagnostics.emit("departure.ineligible")
             session.finishDeparture(id: value.id, owner: captureOwner)
             return
         }
-        guard let event = session.claimDeparture(id: value.id, owner: captureOwner) else { return }
+        guard let event = session.claimDeparture(id: value.id, owner: captureOwner) else {
+            PhotoDepartureDiagnostics.emit("departure.claim-rejected")
+            return
+        }
+        PhotoDepartureDiagnostics.emit("departure.claimed")
         withoutAnimation {
             revealedID = nil
             departing = VisualCopy(ticket: event.ticket, session: session, image: event.image,
@@ -218,6 +240,7 @@ struct PhotoDepartureOverlay: ViewModifier {
               target.requestID == copy.ticket.id, copy.target == nil,
               eligible, copy.session === session,
               copy.session.isDepartureCurrent(id: copy.ticket.id, owner: captureOwner) else { return }
+        PhotoDepartureDiagnostics.emit("renderer.requested")
         withoutAnimation {
             departing?.target = target
             departing?.playbackOrigin = canvasFrame.origin
@@ -225,6 +248,7 @@ struct PhotoDepartureOverlay: ViewModifier {
     }
 
     private func finish(_ id: UUID) {
+        PhotoDepartureDiagnostics.emit("departure.finished")
         withoutAnimation {
             let ownerSession = departing?.ticket.id == id ? departing?.session : session
             if departing?.ticket.id == id { departing = nil }
@@ -255,12 +279,14 @@ struct PhotoDepartureOverlay: ViewModifier {
             self.registeredSession = nil
         }
         if eligible {
+            PhotoDepartureDiagnostics.emit("source.registered")
             session.registerDepartureCapture(captureViewport, frame: { viewport }, owner: captureOwner, eligible: { eligible })
             registeredSession = session
         } else { deactivate() }
     }
 
     private func deactivate() {
+        PhotoDepartureDiagnostics.emit("source.deactivated")
         registeredSession?.removeDepartureCapture(owner: captureOwner)
         registeredSession = nil
         if let ticket = departing?.ticket { finish(ticket.id) }
