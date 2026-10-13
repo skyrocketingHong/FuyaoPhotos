@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import ing.fuyaoskyrocket.photoinfo.R
 import ing.fuyaoskyrocket.photoinfo.domain.model.*
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoSpacing
-import ing.fuyaoskyrocket.photoinfo.ui.designsystem.SectionHeading
+import ing.fuyaoskyrocket.photoinfo.ui.designsystem.FuyaoFormSection
 import ing.fuyaoskyrocket.photoinfo.ui.designsystem.SettingsChoiceRow
 import ing.fuyaoskyrocket.photoinfo.ui.theme.photoColorScheme
 import ing.fuyaoskyrocket.photoinfo.ui.components.LocalThemeRevealKeyboardCancel
@@ -91,13 +91,7 @@ internal fun ThemeSettingsContent(
 
 @Composable
 private fun ThemeSettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        Modifier.fillMaxWidth().padding(horizontal = FuyaoSpacing.cardInset),
-        verticalArrangement = Arrangement.spacedBy(FuyaoSpacing.compact),
-    ) {
-        SectionHeading(title)
-        content()
-    }
+    FuyaoFormSection(title = title, content = content)
 }
 
 @OptIn(ExperimentalLayoutApi::class)
