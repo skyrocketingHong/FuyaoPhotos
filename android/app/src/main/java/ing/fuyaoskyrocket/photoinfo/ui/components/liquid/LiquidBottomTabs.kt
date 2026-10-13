@@ -180,6 +180,7 @@ fun LiquidBottomTabs(
         )
 
         CompositionLocalProvider(
+            LocalLiquidBottomTabVisualCopy provides true,
             LocalLiquidBottomTabScale provides {
                 lerp(1f, 1.2f, dampedDragAnimation.pressProgress)
             }
